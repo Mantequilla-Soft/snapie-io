@@ -87,3 +87,40 @@ body {
   box-shadow: none !important;
   border: none !important;
 }
+
+/* 3Speak Video Player Orientation Styles */
+.vertical-video {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.horizontal-video {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Responsive video containers */
+.vertical-video iframe,
+.horizontal-video iframe {
+  display: block;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile adjustments for vertical videos */
+@media (max-width: 768px) {
+  .vertical-video iframe {
+    max-width: 100% !important;
+    height: 600px !important;
+  }
+  
+  .horizontal-video iframe {
+    max-width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 9;
+  }
+}
