@@ -22,6 +22,33 @@ function fix3SpeakUrl(url: string): string {
 }
 
 /**
+ * Extract YouTube video ID from various YouTube URL formats
+ */
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Check if YouTube URL is a Short (vertical video)
+ */
+function isYouTubeShort(url: string): boolean {
+  return url.includes('/shorts/');
+}
+
+/**
  * Separate content into media and text parts
  * This is the foundation of SkateHive's media/text separation pattern
  */
@@ -32,16 +59,16 @@ export const separateContent = (body: string) => {
   const lines = body.split("\n");
   
   lines.forEach((line: string) => {
-    // Check if line contains markdown image, iframe, or 3Speak embed URL
+    // Check if line contains markdown image, iframe, 3Speak embed URL, or YouTube URL
     if (line.match(/!\[.*?\]\(.*\)/) || 
         line.match(/<iframe.*<\/iframe>/) ||
-        line.match(/https?:\/\/play\.3speak\.tv\/embed\?v=/)) {
+        line.match(/https?:\/\/play\.3speak\.tv\/embed\?v=/) ||
+        line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/)) {
       mediaParts.push(line);
     } else {
       textParts.push(line);
     }
   });
-  
   return { text: textParts.join("\n"), media: mediaParts.join("\n") };
 };
 
@@ -191,6 +218,20 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
   mediaContent.split("\n").forEach((item: string) => {
     const trimmedItem = item.trim();
     if (!trimmedItem) return;
+
+    // Handle plain YouTube URLs
+    const youtubeId = extractYouTubeId(trimmedItem);
+    if (youtubeId && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const isShort = isYouTubeShort(trimmedItem);
+      const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+      const aspectRatio = isShort ? '9/16' : '16/9';
+      mediaItems.push({
+        type: "iframe",
+        content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: ${aspectRatio};" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`,
+        src: embedUrl,
+      });
+      return;
+    }
 
     // Handle plain 3Speak URLs (not in markdown or iframe)
     if (trimmedItem.includes('play.3speak.tv/embed?v=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {

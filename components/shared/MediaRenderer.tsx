@@ -69,7 +69,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
           const sanitizedIframe = DOMPurify.sanitize(lazyIframeContent, {
             ALLOWED_TAGS: ['iframe'],
             ALLOWED_ATTR: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'loading', 'allow', 'title'],
-            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?):\/\/(?:www\.)?(?:youtube\.com|youtu\.be|odysee\.com|rumble\.com|vimeo\.com|dailymotion\.com|ipfs\.skatehive\.app|ipfs\.io|play\.3speak\.tv|embed\.3speak\.tv))/i,
+            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?):\/\/(?:www\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com|odysee\.com|rumble\.com|vimeo\.com|dailymotion\.com|ipfs\.skatehive\.app|ipfs\.io|play\.3speak\.tv|embed\.3speak\.tv))/i,
             ADD_ATTR: ['loading'],
           });
           
