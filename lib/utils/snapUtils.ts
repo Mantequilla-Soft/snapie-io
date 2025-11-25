@@ -49,6 +49,44 @@ function isYouTubeShort(url: string): boolean {
 }
 
 /**
+ * Extract Instagram post ID from various Instagram URL formats
+ */
+function extractInstagramId(url: string): string | null {
+  const patterns = [
+    /instagram\.com\/p\/([A-Za-z0-9_-]+)/,
+    /instagram\.com\/reel\/([A-Za-z0-9_-]+)/,
+    /instagram\.com\/tv\/([A-Za-z0-9_-]+)/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract Twitter/X tweet ID from various URL formats
+ */
+function extractTwitterId(url: string): string | null {
+  const patterns = [
+    /(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+/**
  * Separate content into media and text parts
  * This is the foundation of SkateHive's media/text separation pattern
  */
@@ -59,11 +97,13 @@ export const separateContent = (body: string) => {
   const lines = body.split("\n");
   
   lines.forEach((line: string) => {
-    // Check if line contains markdown image, iframe, 3Speak embed URL, or YouTube URL
+    // Check if line contains markdown image, iframe, 3Speak embed URL, YouTube URL, Instagram URL, or Twitter/X URL
     if (line.match(/!\[.*?\]\(.*\)/) || 
         line.match(/<iframe.*<\/iframe>/) ||
         line.match(/https?:\/\/play\.3speak\.tv\/embed\?v=/) ||
-        line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/)) {
+        line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
+        line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
+        line.match(/https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/)) {
       mediaParts.push(line);
     } else {
       textParts.push(line);
@@ -228,6 +268,30 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       mediaItems.push({
         type: "iframe",
         content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: ${aspectRatio};" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`,
+        src: embedUrl,
+      });
+      return;
+    }
+
+    // Handle plain Instagram URLs
+    const instagramId = extractInstagramId(trimmedItem);
+    if (instagramId && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const embedUrl = `https://www.instagram.com/p/${instagramId}/embed/`;
+      mediaItems.push({
+        type: "iframe",
+        content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: 4/5; max-width: 540px; margin: 0 auto; border: none; overflow: hidden;" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`,
+        src: embedUrl,
+      });
+      return;
+    }
+
+    // Handle plain Twitter/X URLs
+    const twitterId = extractTwitterId(trimmedItem);
+    if (twitterId && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const embedUrl = `https://platform.twitter.com/embed/Tweet.html?id=${twitterId}`;
+      mediaItems.push({
+        type: "iframe",
+        content: `<iframe src="${embedUrl}" width="100%" style="max-width: 550px; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid #e1e8ed; border-radius: 12px; overflow: hidden;" frameborder="0" scrolling="no"></iframe>`,
         src: embedUrl,
       });
       return;

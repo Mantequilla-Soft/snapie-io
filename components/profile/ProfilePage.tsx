@@ -29,25 +29,27 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   const isFetching = useRef(false);
 
   const tag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
-  const params = useRef([
-      username,
-      '',
-      new Date().toISOString().split('.')[0],
-      12
-  ]);
+  const params = useRef({
+      author: username,
+      start_permlink: '',
+      before_date: new Date().toISOString().split('.')[0],
+      limit: 12
+  });
 
   async function fetchPosts() {
     if (isFetching.current) return; // Prevent multiple fetches
     isFetching.current = true;
     try {
       const newPosts = await findPosts('author_before_date', params.current);
-      setPosts((prevPosts) => [...prevPosts, ...newPosts]);
-      params.current = [
-        username,
-        newPosts[newPosts.length - 1].permlink,
-        newPosts[newPosts.length - 1].created,
-        12
-      ]
+      if (newPosts.length > 0) {
+        setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+        params.current = {
+          author: username,
+          start_permlink: newPosts[newPosts.length - 1].permlink,
+          before_date: newPosts[newPosts.length - 1].created,
+          limit: 12
+        };
+      }
       isFetching.current = false;
     } catch (err) {
       console.error('Failed to fetch posts', err);

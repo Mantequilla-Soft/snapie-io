@@ -68,9 +68,9 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
           // Sanitize iframe content to prevent XSS attacks
           const sanitizedIframe = DOMPurify.sanitize(lazyIframeContent, {
             ALLOWED_TAGS: ['iframe'],
-            ALLOWED_ATTR: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'loading', 'allow', 'title'],
-            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?):\/\/(?:www\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com|odysee\.com|rumble\.com|vimeo\.com|dailymotion\.com|ipfs\.skatehive\.app|ipfs\.io|play\.3speak\.tv|embed\.3speak\.tv))/i,
-            ADD_ATTR: ['loading'],
+            ALLOWED_ATTR: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'loading', 'allow', 'title', 'scrolling', 'allowtransparency', 'style'],
+            ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?):\/\/(?:www\.)?(?:youtube\.com|youtu\.be|youtube-nocookie\.com|odysee\.com|rumble\.com|vimeo\.com|dailymotion\.com|ipfs\.skatehive\.app|ipfs\.io|play\.3speak\.tv|embed\.3speak\.tv|instagram\.com|platform\.twitter\.com|twitter\.com|x\.com))/i,
+            ADD_ATTR: ['loading', 'scrolling', 'allowtransparency'],
           });
           
           return (
@@ -84,6 +84,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
                   aspectRatio: "16/9",
                   borderRadius: "md",
                   border: "none",
+                  overflow: "hidden",
                 },
               }}
             />
