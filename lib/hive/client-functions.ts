@@ -263,6 +263,66 @@ export async function witnessVoteWithKeychain(username: string, witness: string)
   }
 }
 
+/**
+ * Upload audio to 3Speak Audio API
+ * @param audioBlob - Audio blob from recording
+ * @param duration - Duration in seconds
+ * @param username - Hive username
+ * @returns Promise with upload result
+ */
+export async function uploadAudioTo3Speak(
+  audioBlob: Blob,
+  duration: number,
+  username: string
+): Promise<{ success: boolean; permlink?: string; cid?: string; playUrl?: string; apiUrl?: string; error?: string }> {
+  try {
+    const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('3Speak API key not configured');
+    }
+
+    // Convert webm to mp3 format name (API expects format parameter)
+    const format = audioBlob.type.includes('webm') ? 'webm' : 'mp3';
+
+    const formData = new FormData();
+    formData.append('audio', audioBlob, `recording.${format}`);
+    formData.append('duration', duration.toString());
+    formData.append('format', format);
+    formData.append('title', `Audio Snap by ${username}`);
+
+    const response = await fetch('https://audio.3speak.tv/api/audio/upload', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': apiKey,
+        'X-User': username,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    return {
+      success: true,
+      permlink: data.permlink,
+      cid: data.cid,
+      playUrl: data.playUrl,
+      apiUrl: data.apiUrl,
+    };
+  } catch (error) {
+    console.error('Error uploading audio to 3Speak:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 export function getFileSignature (file: File): Promise<string> {
   return new Promise<string>(async (resolve, reject) => {
       const reader = new FileReader();

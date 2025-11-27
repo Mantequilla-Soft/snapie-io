@@ -97,10 +97,11 @@ export const separateContent = (body: string) => {
   const lines = body.split("\n");
   
   lines.forEach((line: string) => {
-    // Check if line contains markdown image, iframe, 3Speak embed URL, YouTube URL, Instagram URL, or Twitter/X URL
+    // Check if line contains markdown image, iframe, 3Speak embed URL, YouTube URL, Instagram URL, Twitter/X URL, or 3Speak Audio URL
     if (line.match(/!\[.*?\]\(.*\)/) || 
         line.match(/<iframe.*<\/iframe>/) ||
         line.match(/https?:\/\/play\.3speak\.tv\/embed\?v=/) ||
+        line.match(/https?:\/\/audio\.3speak\.tv\/play\?a=/) ||
         line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
         line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
         line.match(/https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/)) {
@@ -311,6 +312,27 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
         mediaItems.push({
           type: "iframe",
           content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
+          src: embedUrl,
+        });
+        return;
+      }
+    }
+
+    // Handle 3Speak Audio URLs
+    if (trimmedItem.includes('audio.3speak.tv/play?a=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const urlMatch = trimmedItem.match(/(https?:\/\/audio\.3speak\.tv\/play\?a=[^\s<>"']+)/);
+      if (urlMatch && urlMatch[1]) {
+        let embedUrl = urlMatch[1];
+        // Add mode=compact&iframe=1 for clean embedding without scrollbars
+        if (!embedUrl.includes('mode=')) {
+          embedUrl += '&mode=compact';
+        }
+        if (!embedUrl.includes('iframe=')) {
+          embedUrl += '&iframe=1';
+        }
+        mediaItems.push({
+          type: "iframe",
+          content: `<div style="width: 100%; max-width: 550px; height: 65px; margin: 0 auto; overflow: hidden;"><iframe src="${embedUrl}" width="100%" height="65" frameborder="0" scrolling="no" allow="autoplay" style="display: block;"></iframe></div>`,
           src: embedUrl,
         });
         return;

@@ -5,9 +5,10 @@ import { KeyTypes } from '@aioha/aioha';
 import GiphySelector from './GiphySelector';
 import ImageUploader from './ImageUploader';
 import VideoUploader from './VideoUploader';
+import AudioRecorder from './AudioRecorder';
 import { IGif } from '@giphy/js-types';
 import { CloseIcon } from '@chakra-ui/icons';
-import { FaImage, FaVideo } from 'react-icons/fa';
+import { FaImage, FaVideo, FaMicrophone } from 'react-icons/fa';
 import { MdGif } from 'react-icons/md';
 import { Comment } from '@hiveio/dhive';
 import { getFileSignature, getLastSnapsContainer, uploadImage } from '@/lib/hive/client-functions';
@@ -31,6 +32,8 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
     const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
     const [thumbnailProcessing, setThumbnailProcessing] = useState<boolean>(false);
+    const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
+    const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<number[]>([]);
@@ -38,6 +41,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const buttonText = post ? "Reply" : "Post";
     const hasMedia = images.length > 0 || selectedGif !== null;
     const hasVideo = selectedVideo !== null;
+    const hasAudio = audioEmbedUrl !== null;
     const isDisabled = !user || isLoading;
 
     // Function to extract hashtags from text
@@ -312,8 +316,8 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         
         let commentBody = postBodyRef.current?.value || '';
 
-        if (!commentBody.trim() && images.length === 0 && !selectedGif && !selectedVideo) {
-            alert('Please enter some text, upload an image, select a gif, or upload a video before posting.');
+        if (!commentBody.trim() && images.length === 0 && !selectedGif && !selectedVideo && !audioEmbedUrl) {
+            alert('Please enter some text, upload an image, select a gif, upload a video, or record audio before posting.');
             return; // Do not proceed
         }
 
@@ -329,6 +333,11 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         if (videoEmbedUrl) {
             // Just add the URL, parser will handle iframe formatting and mode parameter
             commentBody += `\n\n${videoEmbedUrl}`;
+        }
+
+        // Add audio embed URL if available
+        if (audioEmbedUrl) {
+            commentBody += `\n\n${audioEmbedUrl}`;
         }
 
         let validUrls: string[] = [];    
@@ -468,16 +477,19 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             />
             <HStack justify="space-between" mb={3}>
                 <HStack>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasVideo}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasVideo || hasAudio}>
                         <FaImage size={22} />
                         <ImageUploader images={images} onUpload={setImages} onRemove={(index) => setImages(prevImages => prevImages.filter((_, i) => i !== index))} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={isDisabled || hasVideo}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={isDisabled || hasVideo || hasAudio}>
                         <MdGif size={48} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasMedia || videoUploadProgress > 0}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasMedia || videoUploadProgress > 0 || hasAudio}>
                         <FaVideo size={22} />
                         <VideoUploader onUpload={handleVideoSelection} />
+                    </Button>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={isDisabled || hasMedia || hasVideo || hasAudio}>
+                        <FaMicrophone size={22} />
                     </Button>
                 </HStack>
                 <Button variant="solid" colorScheme="primary" onClick={handleComment} isDisabled={isDisabled || Boolean(selectedVideo && !videoEmbedUrl)}>
@@ -548,6 +560,23 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                         </VStack>
                     </Box>
                 )}
+                {audioEmbedUrl && (
+                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="gray.600" minW="250px">
+                        <VStack align="start" spacing={2}>
+                            <HStack justify="space-between" w="100%">
+                                <Text fontSize="sm" fontWeight="bold" color="text">🎤 Audio Snap</Text>
+                                <IconButton
+                                    aria-label="Remove audio"
+                                    icon={<CloseIcon />}
+                                    size="xs"
+                                    onClick={() => setAudioEmbedUrl(null)}
+                                    isDisabled={isLoading}
+                                />
+                            </HStack>
+                            <Text fontSize="xs" color="green.400">✓ Ready to post</Text>
+                        </VStack>
+                    </Box>
+                )}
             </Wrap>
             {isGiphyModalOpen && (
                 <GiphySelector
@@ -557,6 +586,14 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                         setSelectedGif(gif);
                         setGiphyModalOpen(false);
                     }}
+                />
+            )}
+            {user && (
+                <AudioRecorder
+                    isOpen={isAudioRecorderOpen}
+                    onClose={() => setAudioRecorderOpen(false)}
+                    onAudioRecorded={(playUrl) => setAudioEmbedUrl(playUrl)}
+                    username={user}
                 />
             )}
         </Box>
