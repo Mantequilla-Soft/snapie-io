@@ -1,7 +1,7 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
-import { FaRegComment, FaRegHeart, FaShare, FaHeart } from "react-icons/fa";
+import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit } from "react-icons/fa";
 import { useAioha } from '@aioha/react-ui';
 import { useState, useMemo, memo } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -25,7 +25,19 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user))
     const [sliderValue, setSliderValue] = useState(5);
     const [showSlider, setShowSlider] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editedBody, setEditedBody] = useState(comment.body);
+    const [isEditing, setIsEditing] = useState(false);
     const payoutDisplay = useCurrencyDisplay(comment);
+    const toast = useToast();
+    
+    // Check if user can edit (is author and post is less than 7 days old)
+    const canEdit = useMemo(() => {
+        if (!user || user !== comment.author) return false;
+        const postAge = Date.now() - new Date(comment.created).getTime();
+        const sevenDays = 7 * 24 * 60 * 60 * 1000;
+        return postAge < sevenDays;
+    }, [user, comment.author, comment.created]);
 
     // Extract Hive post URLs for preview cards
     const hivePostUrls = useMemo(
@@ -73,6 +85,50 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         const vote = await aioha.vote(comment.author, comment.permlink, sliderValue * 100);
         setVoted(vote.success);
         handleHeartClick();
+    }
+
+    async function handleEditPost() {
+        if (!user || !editedBody.trim()) return;
+        
+        setIsEditing(true);
+        try {
+            // Parse existing metadata
+            const metadata = comment.json_metadata ? JSON.parse(comment.json_metadata) : {};
+            
+            // Edit is same as comment but with same permlink
+            const response = await aioha.comment(
+                comment.parent_author,
+                comment.parent_permlink,
+                comment.permlink,
+                comment.title || '',
+                editedBody,
+                metadata
+            );
+            
+            if (response.success) {
+                toast({
+                    title: 'Post Updated',
+                    description: 'Your post has been updated successfully!',
+                    status: 'success',
+                    duration: 3000,
+                });
+                setIsEditModalOpen(false);
+                // Update comment body locally
+                comment.body = editedBody;
+            } else {
+                throw new Error('Edit failed');
+            }
+        } catch (error) {
+            console.error('Error editing post:', error);
+            toast({
+                title: 'Edit Failed',
+                description: 'Failed to update post. Please try again.',
+                status: 'error',
+                duration: 3000,
+            });
+        } finally {
+            setIsEditing(false);
+        }
     }
     return (
         <Box pl={level > 0 ? 1 : 0} ml={level > 0 ? 2 : 0}>
@@ -160,12 +216,20 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     <Button leftIcon={voted ? (<FaHeart />) : (<FaRegHeart />)} variant="ghost" onClick={handleHeartClick}>
                         {comment.active_votes?.length}
                     </Button>
-                    <HStack>
-                        <FaRegComment onClick={handleReplyModal} cursor="pointer" />
-                        {setConversation && (
-                            <Text onClick={handleConversation} cursor="pointer" fontWeight="bold">
-                                {comment.children}
-                            </Text>
+                    <HStack spacing={4}>
+                        <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
+                            <FaRegComment />
+                            {setConversation && (
+                                <Text fontWeight="bold">
+                                    {comment.children}
+                                </Text>
+                            )}
+                        </HStack>
+                        {canEdit && (
+                            <HStack spacing={1} cursor="pointer" onClick={() => setIsEditModalOpen(true)}>
+                                <FaEdit />
+                                <Text fontSize="sm">Edit</Text>
+                            </HStack>
                         )}
                     </HStack>
                     <Text fontWeight="bold" fontSize="sm">
@@ -174,6 +238,38 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 </HStack>
             )}
             </Box>
+            
+            {/* Edit Modal */}
+            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>Edit Post</ModalHeader>
+                    <ModalBody>
+                        <Textarea
+                            value={editedBody}
+                            onChange={(e) => setEditedBody(e.target.value)}
+                            placeholder="Edit your post..."
+                            rows={10}
+                            bg="background"
+                            border="tb1"
+                        />
+                    </ModalBody>
+                    <ModalFooter>
+                        <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)} isDisabled={isEditing}>
+                            Cancel
+                        </Button>
+                        <Button
+                            colorScheme="blue"
+                            onClick={handleEditPost}
+                            isLoading={isEditing}
+                            loadingText="Updating..."
+                        >
+                            Update
+                        </Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
+            
             {/* Render replies recursively */}
             {replies && replies.length > 0 && (
                 <VStack spacing={2} align="stretch" mt={2}>

@@ -97,10 +97,10 @@ export const separateContent = (body: string) => {
   const lines = body.split("\n");
   
   lines.forEach((line: string) => {
-    // Check if line contains markdown image, iframe, 3Speak embed URL, YouTube URL, Instagram URL, Twitter/X URL, or 3Speak Audio URL
+    // Check if line contains markdown image, iframe, 3Speak URLs (watch or embed), YouTube URL, Instagram URL, Twitter/X URL, or 3Speak Audio URL
     if (line.match(/!\[.*?\]\(.*\)/) || 
         line.match(/<iframe.*<\/iframe>/) ||
-        line.match(/https?:\/\/play\.3speak\.tv\/embed\?v=/) ||
+        line.match(/https?:\/\/play\.3speak\.tv\/(watch|embed)\?v=/) ||
         line.match(/https?:\/\/audio\.3speak\.tv\/play\?a=/) ||
         line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
         line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
@@ -298,7 +298,25 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       return;
     }
 
-    // Handle plain 3Speak URLs (not in markdown or iframe)
+    // Handle 3Speak watch URLs - these are from 3speak.tv frontend
+    if (trimmedItem.includes('play.3speak.tv/watch?v=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const urlMatch = trimmedItem.match(/(https?:\/\/play\.3speak\.tv\/watch\?v=[^\s<>"']+)/);
+      if (urlMatch && urlMatch[1]) {
+        let watchUrl = urlMatch[1];
+        // Keep as watch URL, just add iframe mode
+        if (!watchUrl.includes('mode=iframe')) {
+          watchUrl += '&mode=iframe';
+        }
+        mediaItems.push({
+          type: "iframe",
+          content: `<iframe src="${watchUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
+          src: watchUrl,
+        });
+        return;
+      }
+    }
+
+    // Handle plain 3Speak embed URLs (not in markdown or iframe)
     if (trimmedItem.includes('play.3speak.tv/embed?v=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
       const urlMatch = trimmedItem.match(/(https?:\/\/play\.3speak\.tv\/embed\?v=[^\s<>"']+)/);
       if (urlMatch && urlMatch[1]) {
