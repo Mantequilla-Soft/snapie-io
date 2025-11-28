@@ -108,6 +108,7 @@ export default function RightSideBar() {
       position={"sticky"}
       top={0}
       ref={sidebarRef}
+      id="scrollableDiv"
       sx={
         {
           '&::-webkit-scrollbar': {
