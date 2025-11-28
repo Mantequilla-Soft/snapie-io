@@ -28,26 +28,41 @@ export default function RightSideBar() {
     if (isFetching.current) return; // Prevent multiple fetches
     isFetching.current = true;
     setIsLoading(true); // Set loading state
+    
     try {
-      const posts = await findPosts(query, params.current);
+      const MIN_POSTS_TO_SHOW = 8;
+      let allFetchedPosts: Discussion[] = [];
+      let attempts = 0;
+      const MAX_ATTEMPTS = 5; // Prevent infinite loops
       
-      // Filter out comments and muted accounts
-      const topLevelPosts = posts.filter((post: Discussion) => {
-        const isTopLevel = post.parent_author === '';
-        const isMuted = mutedAccountsRef.current.includes(post.author);
-        return isTopLevel && !isMuted;
-      });
+      // Keep fetching until we have enough valid posts or hit max attempts
+      while (allFetchedPosts.length < MIN_POSTS_TO_SHOW && attempts < MAX_ATTEMPTS) {
+        const posts = await findPosts(query, params.current);
+        
+        if (posts.length === 0) break; // No more posts available
+        
+        // Filter out comments and muted accounts
+        const topLevelPosts = posts.filter((post: Discussion) => {
+          const isTopLevel = post.parent_author === '';
+          const isMuted = mutedAccountsRef.current.includes(post.author);
+          return isTopLevel && !isMuted;
+        });
+        
+        allFetchedPosts = [...allFetchedPosts, ...topLevelPosts];
+        
+        // Update params to fetch next batch using the last post from API (not filtered)
+        const lastPost = posts[posts.length - 1];
+        params.current = {
+          tag: tag,
+          limit: 8,
+          start_author: lastPost?.author || '',
+          start_permlink: lastPost?.permlink || '',
+        };
+        
+        attempts++;
+      }
       
-      setAllPosts((prevPosts) => [...prevPosts, ...topLevelPosts]);
-      
-      // Use last visible post for pagination (or fall back to last fetched post)
-      const lastVisible = topLevelPosts[topLevelPosts.length - 1] ?? posts[posts.length - 1];
-      params.current = {
-        tag: tag,
-        limit: 8,
-        start_author: lastVisible?.author || '',
-        start_permlink: lastVisible?.permlink || '',
-      };
+      setAllPosts((prevPosts) => [...prevPosts, ...allFetchedPosts]);
     } catch (error) {
       console.log(error);
     } finally {
