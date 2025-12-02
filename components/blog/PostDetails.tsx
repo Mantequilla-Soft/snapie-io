@@ -72,9 +72,17 @@ export default function PostDetails({ post }: PostDetailsProps) {
                         marginRight: 'auto'
                     },
                     '& iframe': {
-                        maxWidth: '100%',
+                        width: '100%',
+                        aspectRatio: '16/9',
+                        borderRadius: 'md',
+                        border: 'none',
+                        overflow: 'hidden',
                         marginTop: '1em',
                         marginBottom: '1em'
+                    },
+                    '& iframe[src*="audio.3speak.tv"]': {
+                        aspectRatio: 'auto',
+                        height: '200px'
                     }
                 }}
             />
