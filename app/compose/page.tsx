@@ -73,6 +73,23 @@ export default function Home() {
       return
     }
 
+    // Additional check for empty username
+    const username = typeof user === 'string' ? user : user?.username || user?.name || '';
+    
+    if (!username || username.trim() === '') {
+      console.error('❌ Username is empty:', { user, username });
+      toast({
+        title: 'Authentication Error',
+        description: 'Username not found. Please log out and log in again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+      return
+    }
+
+    console.log('👤 Publishing as:', username);
+
     setIsSubmitting(true)
 
     try {
@@ -88,7 +105,7 @@ export default function Home() {
         {
           parent_author: '',
           parent_permlink: communityTag,
-          author: user,
+          author: username,
           permlink: permlink,
           title: title,
           body: markdown,
@@ -104,7 +121,7 @@ export default function Home() {
       const optionsOp = [
         'comment_options',
         {
-          author: user,
+          author: username,
           permlink: permlink,
           max_accepted_payout: '1000000.000 HBD',
           percent_hbd: 10000,
