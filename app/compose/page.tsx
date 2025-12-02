@@ -1,9 +1,11 @@
 'use client'
 import { useAioha } from '@aioha/react-ui'
+import { KeyTypes } from '@aioha/aioha'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { generatePermlink, prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
+import type { Beneficiary } from '@/components/compose/BeneficiariesInput'
 
 const Editor = dynamic(() => import('./Editor'), { ssr: false })
 
@@ -12,6 +14,7 @@ export default function Home() {
   const [title, setTitle] = useState("")
   const [hashtagInput, setHashtagInput] = useState("")
   const [hashtags, setHashtags] = useState<string[]>([])
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([{ account: 'snapie', weight: 300 }]) // Default 3% to snapie
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { aioha, user } = useAioha()
@@ -79,19 +82,49 @@ export default function Home() {
       // Prepare image array for metadata (first image becomes thumbnail)
       const imageArray = prepareImageArray(markdown)
       
-      // Submit to Hive blockchain
-      await aioha.comment(
-        null, 
-        communityTag, 
-        permlink, 
-        title, 
-        markdown, 
-        { 
-          tags: hashtags, 
-          app: 'Snapie.io',
-          image: imageArray
+      // Create comment operation
+      const commentOp = [
+        'comment',
+        {
+          parent_author: '',
+          parent_permlink: communityTag,
+          author: user,
+          permlink: permlink,
+          title: title,
+          body: markdown,
+          json_metadata: JSON.stringify({ 
+            tags: hashtags, 
+            app: 'Snapie.io',
+            image: imageArray
+          })
         }
-      )
+      ] as const;
+
+      // Create comment_options operation with beneficiaries
+      const optionsOp = [
+        'comment_options',
+        {
+          author: user,
+          permlink: permlink,
+          max_accepted_payout: '1000000.000 HBD',
+          percent_hbd: 10000,
+          allow_votes: true,
+          allow_curation_rewards: true,
+          extensions: [
+            [
+              0,
+              {
+                beneficiaries: beneficiaries
+                  .sort((a, b) => a.account.localeCompare(b.account)) // Hive requires sorted by account name
+                  .map(b => ({ account: b.account, weight: b.weight }))
+              }
+            ]
+          ]
+        }
+      ] as const;
+
+      // Submit to Hive blockchain with beneficiaries
+      await aioha.signAndBroadcastTx([commentOp, optionsOp], KeyTypes.Posting)
 
       // If we get here, submission was successful
       toast({
@@ -155,6 +188,8 @@ export default function Home() {
           setHashtagInput={setHashtagInput}
           hashtags={hashtags}
           setHashtags={setHashtags}
+          beneficiaries={beneficiaries}
+          setBeneficiaries={setBeneficiaries}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
         />

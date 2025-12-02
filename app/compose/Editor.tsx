@@ -10,6 +10,7 @@ import GiphySelector from '@/components/homepage/GiphySelector';
 import { IGif } from '@giphy/js-types';
 import { useDropzone } from 'react-dropzone';
 import { compressImage } from '@/lib/utils/composeUtils';
+import BeneficiariesInput, { Beneficiary } from '@/components/compose/BeneficiariesInput';
 
 // Preview Content Component with Spoiler Support
 const PreviewContent: FC<{ markdown: string }> = ({ markdown }) => {
@@ -202,11 +203,13 @@ interface EditorProps {
   setHashtagInput: (input: string) => void;
   hashtags: string[];
   setHashtags: (hashtags: string[]) => void;
+  beneficiaries: Beneficiary[];
+  setBeneficiaries: (beneficiaries: Beneficiary[]) => void;
   onSubmit: () => void;
   isSubmitting?: boolean;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, onSubmit, isSubmitting = false }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, onSubmit, isSubmitting = false }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -214,6 +217,22 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [spoilerStates, setSpoilerStates] = useState<{[key: string]: boolean}>({});
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Hashtag handlers
+    const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const { key } = e;
+        if (key === " " && hashtagInput.trim()) {
+            e.preventDefault(); // Prevent space from being added
+            setHashtags([...hashtags, hashtagInput.trim()]);
+            setHashtagInput("");
+        } else if (key === "Backspace" && !hashtagInput && hashtags.length) {
+            setHashtags(hashtags.slice(0, -1));
+        }
+    };
+
+    const removeHashtag = (index: number) => {
+        setHashtags(hashtags.filter((_, i) => i !== index));
+    };
     
     // Handle mobile changes - switch to editor if mobile and currently in split
     useEffect(() => {
@@ -411,21 +430,6 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
             }
         };
         input.click();
-    };
-
-    const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        const { key } = e;
-        if (key === " " && hashtagInput.trim()) { // If space is pressed and input is not empty
-            setHashtags([...hashtags, hashtagInput.trim()]);
-            setHashtagInput(""); // Clear input field
-        } else if (key === "Backspace" && !hashtagInput && hashtags.length) {
-            // Remove the last tag if backspace is hit and input is empty
-            setHashtags(hashtags.slice(0, -1));
-        }
-    };
-
-    const removeHashtag = (index: number) => {
-        setHashtags(hashtags.filter((_, i) => i !== index));
     };
 
     return (
@@ -797,6 +801,12 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 </Wrap>
                             )}
                         </Box>
+                        
+                        {/* Beneficiaries Input */}
+                        <BeneficiariesInput
+                            beneficiaries={beneficiaries}
+                            setBeneficiaries={setBeneficiaries}
+                        />
                         
                         {/* Submit Button */}
                         <Flex justify="flex-end">
