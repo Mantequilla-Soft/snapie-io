@@ -99,13 +99,12 @@ export default function Home() {
       // Prepare image array for metadata (first image becomes thumbnail)
       const imageArray = prepareImageArray(markdown)
       
-      // Create comment operation
+      // Create comment operation (author is auto-filled by Aioha from logged-in user)
       const commentOp = [
         'comment',
         {
           parent_author: '',
           parent_permlink: communityTag,
-          author: username,
           permlink: permlink,
           title: title,
           body: markdown,
@@ -117,11 +116,10 @@ export default function Home() {
         }
       ] as const;
 
-      // Create comment_options operation with beneficiaries
+      // Create comment_options operation with beneficiaries (author auto-filled by Aioha)
       const optionsOp = [
         'comment_options',
         {
-          author: username,
           permlink: permlink,
           max_accepted_payout: '1000000.000 HBD',
           percent_hbd: 10000,
@@ -141,12 +139,11 @@ export default function Home() {
       ] as const;
 
       // Submit to Hive blockchain with beneficiaries
+      // Note: Aioha automatically fills in the 'author' field from the logged-in user
       console.log('📤 Submitting to Hive:', { 
         commentOp, 
         optionsOp,
-        commentAuthor: commentOp[1].author,
-        optionsAuthor: optionsOp[1].author,
-        username
+        loggedInUser: username
       });
       const result = await aioha.signAndBroadcastTx([commentOp, optionsOp], KeyTypes.Posting)
       console.log('✅ Hive response:', result);
