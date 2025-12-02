@@ -21,9 +21,6 @@ export default function Home() {
   const toast = useToast()
   const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || 'blog'
 
-  // Debug: Log user object on component mount/update
-  console.log('🔍 Compose Page - user object:', user, 'type:', typeof user);
-
   const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const { key } = e
     if (key === " " && hashtagInput.trim()) { // If space is pressed and input is not empty
