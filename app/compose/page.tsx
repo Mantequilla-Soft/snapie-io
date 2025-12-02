@@ -144,7 +144,13 @@ export default function Home() {
       ] as const;
 
       // Submit to Hive blockchain with beneficiaries
-      console.log('📤 Submitting to Hive:', { commentOp, optionsOp });
+      console.log('📤 Submitting to Hive:', { 
+        commentOp, 
+        optionsOp,
+        commentAuthor: commentOp[1].author,
+        optionsAuthor: optionsOp[1].author,
+        username
+      });
       const result = await aioha.signAndBroadcastTx([commentOp, optionsOp], KeyTypes.Posting)
       console.log('✅ Hive response:', result);
 
