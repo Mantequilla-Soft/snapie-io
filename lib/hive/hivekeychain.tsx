@@ -8,15 +8,21 @@ export default function HiveKeychain() {
 
 // Broadcast operations using Hive Keychain
 export async function broadcastOperations(username: string, operations: any[]) {
+  console.log('🔑 Keychain broadcast request:', { username, operations })
+  
   const response = await keychain.broadcast({
     username,
     operations,
     method: KeychainKeyTypes.posting
   })
   
-  if (response.success) {
+  console.log('🔑 Keychain response:', response)
+  
+  if (response && response.success) {
     return response
   } else {
-    throw new Error(response.message || response.error || 'Transaction failed')
+    const errorMsg = response?.message || response?.error || 'Transaction failed'
+    console.error('🔑 Keychain error:', errorMsg, response)
+    throw new Error(errorMsg)
   }
 }
