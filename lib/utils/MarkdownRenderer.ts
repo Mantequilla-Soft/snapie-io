@@ -14,7 +14,16 @@ function transformIPFSContent(content: string): string {
 }
 
 function transform3SpeakContent(content: string): string {
-    // Handle 3Speak watch URLs (legacy format) - they're in <a> tags after rendering
+    // Handle LEGACY 3speak.tv URLs (without play. subdomain) - convert to play.3speak.tv/watch
+    content = content.replace(
+        /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
+        (match, fullUrl, videoId) => {
+            const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe`;
+            return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+        }
+    );
+
+    // Handle 3Speak watch URLs (with play. subdomain)
     content = content.replace(
         /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
         (match, fullUrl, videoId) => {
