@@ -48,7 +48,31 @@ export default function PostDetails({ post }: PostDetailsProps) {
                     </Box>
                 </Flex>
             </Flex>
-            <Box mt={4} dangerouslySetInnerHTML={{ __html: markdownRenderer(body) }} />
+            <Box 
+                mt={4} 
+                dangerouslySetInnerHTML={{ __html: markdownRenderer(body) }}
+                sx={{
+                    '& p': {
+                        marginBottom: '1em',
+                        lineHeight: '1.6'
+                    },
+                    '& img': {
+                        marginTop: '1em',
+                        marginBottom: '1em',
+                        maxWidth: '100%',
+                        height: 'auto'
+                    },
+                    '& center': {
+                        marginTop: '1em',
+                        marginBottom: '1em'
+                    },
+                    '& center img': {
+                        display: 'block',
+                        marginLeft: 'auto',
+                        marginRight: 'auto'
+                    }
+                }}
+            />
             {showSlider ? (
                 <Flex mt={4} alignItems="center">
                     <Box width="100%" mr={2}>
