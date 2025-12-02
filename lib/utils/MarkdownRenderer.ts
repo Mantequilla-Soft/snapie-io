@@ -93,7 +93,8 @@ function convertHiveUrlsToInternal(content: string): string {
         '3speak.tv',
         'd.tube',
         'esteem.app',
-        'busy.org'
+        'busy.org',
+        'snapie.io'
     ];
     
     // Create regex pattern for all frontends

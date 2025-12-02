@@ -149,7 +149,8 @@ export const extractHivePostUrls = (content: string): Array<{ url: string; autho
     '3speak.tv',
     'd.tube',
     'esteem.app',
-    'busy.org'
+    'busy.org',
+    'snapie.io'
   ];
   
   const results: Array<{ url: string; author: string; permlink: string }> = [];

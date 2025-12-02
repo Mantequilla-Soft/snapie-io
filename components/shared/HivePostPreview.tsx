@@ -4,6 +4,8 @@ import { Box, HStack, VStack, Text, Image, Skeleton, SkeletonText, Link } from '
 import HiveClient from '@/lib/hive/hiveclient';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
+import ReSnap from './ReSnap';
+import { Comment } from '@hiveio/dhive';
 
 interface HivePostPreviewProps {
   author: string;
@@ -24,6 +26,8 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
   const [postData, setPostData] = useState<PostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [isReSnap, setIsReSnap] = useState(false);
+  const [snapData, setSnapData] = useState<Comment | null>(null);
 
   useEffect(() => {
     const fetchPostData = async () => {
@@ -32,6 +36,15 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
         
         if (!post || !post.author) {
           setError(true);
+          return;
+        }
+
+        // Check if this is a comment (re-snap) or a top-level post
+        if (post.parent_author && post.parent_author !== '') {
+          // This is a comment/reply - render as Re-Snap
+          setIsReSnap(true);
+          setSnapData(post as Comment);
+          setLoading(false);
           return;
         }
 
@@ -130,6 +143,11 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
         </HStack>
       </Box>
     );
+  }
+
+  // If it's a re-snap (comment), render ReSnap component
+  if (isReSnap && snapData) {
+    return <ReSnap comment={snapData} />;
   }
 
   if (!postData) {

@@ -1,7 +1,7 @@
 import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
-import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit } from "react-icons/fa";
+import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
 import { useAioha } from '@aioha/react-ui';
 import { useState, useMemo, memo } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -117,6 +117,18 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 duration: 3000,
             });
         }
+    }
+
+    function handleReSnap() {
+        // Copy snap URL to clipboard for easy sharing
+        const snapUrl = `${window.location.origin}/@${comment.author}/${comment.permlink}`;
+        navigator.clipboard.writeText(snapUrl);
+        toast({
+            title: 'Link Copied!',
+            description: 'Snap link copied to clipboard. Paste it in a new snap to re-snap!',
+            status: 'success',
+            duration: 3000,
+        });
     }
 
     async function handleEditPost() {
@@ -261,6 +273,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 {comment.children}
                             </Text>
                         )}
+                        <HStack spacing={1} cursor="pointer" onClick={handleReSnap}>
+                            <FaRetweet />
+                            <Text fontSize="sm">Re-Snap</Text>
+                        </HStack>
                         {canEdit && (
                             <HStack spacing={1} cursor="pointer" onClick={() => setIsEditModalOpen(true)}>
                                 <FaEdit />
