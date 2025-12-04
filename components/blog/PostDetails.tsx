@@ -121,6 +121,12 @@ export default function PostDetails({ post }: PostDetailsProps) {
                         marginTop: '1em',
                         marginBottom: '1em'
                     },
+                    '& .video-container iframe': {
+                        width: '100%',
+                        aspectRatio: '16/9',
+                        borderRadius: 'md',
+                        border: 'none'
+                    },
                     '& iframe': {
                         maxWidth: '100%',
                         borderRadius: 'md',
