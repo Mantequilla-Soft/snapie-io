@@ -1,0 +1,45 @@
+{
+  "name": "@snapie/renderer",
+  "version": "0.1.0",
+  "description": "Hive blockchain markdown renderer with 3Speak, IPFS, and media embed support",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "hive",
+    "blockchain",
+    "markdown",
+    "renderer",
+    "3speak",
+    "ipfs"
+  ],
+  "author": "Mantequilla-Soft",
+  "license": "MIT",
+  "peerDependencies": {
+    "@hiveio/content-renderer": "^2.3.0"
+  },
+  "dependencies": {
+    "isomorphic-dompurify": "^2.31.0"
+  },
+  "devDependencies": {
+    "@hiveio/content-renderer": "^2.3.1",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
