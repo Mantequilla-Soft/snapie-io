@@ -142,7 +142,10 @@ var DOMPURIFY_CONFIG = {
     "align",
     "valign",
     "start",
-    "reversed"
+    "reversed",
+    "data-dnt",
+    "data-theme",
+    "allowtransparency"
   ],
   ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|ipfs):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   ALLOW_DATA_ATTR: false,
@@ -200,6 +203,80 @@ function transform3SpeakContent(content) {
       return `<div class="audio-container"><iframe src="${embedUrl}" loading="lazy"></iframe></div>`;
     }
   );
+  return content;
+}
+function transformTwitterContent(content) {
+  const embeddedTweets = /* @__PURE__ */ new Set();
+  const twitterRegex = /<a[^>]*href="(https?:\/\/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)[^"]*)"[^>]*>.*?<\/a>/gi;
+  content = content.replace(twitterRegex, (match, fullUrl, username, tweetId) => {
+    if (embeddedTweets.has(tweetId)) return match;
+    embeddedTweets.add(tweetId);
+    return `<div class="twitter-embed-container" style="max-width: 550px;">
+            <iframe 
+                src="https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&dnt=true" 
+                width="550" 
+                height="250" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy"
+                style="border: 1px solid #ccc; border-radius: 12px;">
+            </iframe>
+        </div>`;
+  });
+  const plainTwitterRegex = /(?<![">])(https?:\/\/(?:twitter\.com|x\.com)\/([^/\s]+)\/status\/(\d+))(?![^<]*<\/a>)/gi;
+  content = content.replace(plainTwitterRegex, (match, fullUrl, username, tweetId) => {
+    if (embeddedTweets.has(tweetId)) return match;
+    embeddedTweets.add(tweetId);
+    return `<div class="twitter-embed-container" style="max-width: 550px;">
+            <iframe 
+                src="https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&dnt=true" 
+                width="550" 
+                height="250" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy"
+                style="border: 1px solid #ccc; border-radius: 12px;">
+            </iframe>
+        </div>`;
+  });
+  return content;
+}
+function transformInstagramContent(content) {
+  const embeddedPosts = /* @__PURE__ */ new Set();
+  const instagramRegex = /<a[^>]*href="(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)[^"]*)"[^>]*>.*?<\/a>/gi;
+  content = content.replace(instagramRegex, (match, fullUrl, postCode) => {
+    if (embeddedPosts.has(postCode)) return match;
+    embeddedPosts.add(postCode);
+    return `<div class="instagram-embed-container">
+            <iframe 
+                src="https://www.instagram.com/p/${postCode}/embed" 
+                width="400" 
+                height="480" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy">
+            </iframe>
+        </div>`;
+  });
+  const plainInstagramRegex = /(?<![">])(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)[^\s<]*)(?![^<]*<\/a>)/gi;
+  content = content.replace(plainInstagramRegex, (match, fullUrl, postCode) => {
+    if (embeddedPosts.has(postCode)) return match;
+    embeddedPosts.add(postCode);
+    return `<div class="instagram-embed-container">
+            <iframe 
+                src="https://www.instagram.com/p/${postCode}/embed" 
+                width="400" 
+                height="480" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy">
+            </iframe>
+        </div>`;
+  });
   return content;
 }
 function transformIPFSContent(content, ipfsGateway, fallbackGateways) {
@@ -283,6 +360,8 @@ function createHiveRenderer(options = {}) {
     let html = renderer.render(markdown);
     html = transform3SpeakContent(html);
     html = transformIPFSContent(html, ipfsGateway, ipfsFallbackGateways);
+    html = transformTwitterContent(html);
+    html = transformInstagramContent(html);
     html = preventIPFSDownloads(html);
     if (convertHiveUrls) {
       html = convertHiveUrlsToInternal(html, hiveFrontends, internalUrlPrefix);

@@ -105,7 +105,8 @@ const DOMPURIFY_CONFIG = {
         'controls', 'muted', 'preload', 'loading', 'autoplay', 'loop',
         'type', 'allowfullscreen', 'frameborder', 'allow', 'scrolling',
         'colspan', 'rowspan', 'align', 'valign',
-        'start', 'reversed'
+        'start', 'reversed',
+        'data-dnt', 'data-theme', 'allowtransparency'
     ],
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|ipfs):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
     ALLOW_DATA_ATTR: false,
@@ -184,6 +185,111 @@ function transform3SpeakContent(content: string): string {
             return `<div class="audio-container"><iframe src="${embedUrl}" loading="lazy"></iframe></div>`;
         }
     );
+
+    return content;
+}
+
+/**
+ * Transform Twitter/X URLs to embedded tweets
+ * Handles both twitter.com and x.com domains
+ * Uses iframe embed for security (no external scripts)
+ */
+function transformTwitterContent(content: string): string {
+    const embeddedTweets = new Set<string>();
+
+    // Match Twitter/X URLs in anchor tags: twitter.com/user/status/ID or x.com/user/status/ID
+    const twitterRegex = /<a[^>]*href="(https?:\/\/(?:twitter\.com|x\.com)\/([^/]+)\/status\/(\d+)[^"]*)"[^>]*>.*?<\/a>/gi;
+    
+    content = content.replace(twitterRegex, (match, fullUrl, username, tweetId) => {
+        if (embeddedTweets.has(tweetId)) return match;
+        embeddedTweets.add(tweetId);
+        
+        // Use syndication iframe embed (no script required)
+        return `<div class="twitter-embed-container" style="max-width: 550px;">
+            <iframe 
+                src="https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&dnt=true" 
+                width="550" 
+                height="250" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy"
+                style="border: 1px solid #ccc; border-radius: 12px;">
+            </iframe>
+        </div>`;
+    });
+
+    // Also handle plain URLs (not in anchor tags) - commonly pasted directly
+    const plainTwitterRegex = /(?<![">])(https?:\/\/(?:twitter\.com|x\.com)\/([^/\s]+)\/status\/(\d+))(?![^<]*<\/a>)/gi;
+    
+    content = content.replace(plainTwitterRegex, (match, fullUrl, username, tweetId) => {
+        if (embeddedTweets.has(tweetId)) return match;
+        embeddedTweets.add(tweetId);
+        
+        return `<div class="twitter-embed-container" style="max-width: 550px;">
+            <iframe 
+                src="https://platform.twitter.com/embed/Tweet.html?id=${tweetId}&dnt=true" 
+                width="550" 
+                height="250" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy"
+                style="border: 1px solid #ccc; border-radius: 12px;">
+            </iframe>
+        </div>`;
+    });
+
+    return content;
+}
+
+/**
+ * Transform Instagram URLs to embedded posts
+ * Handles posts, reels, and stories
+ */
+function transformInstagramContent(content: string): string {
+    const embeddedPosts = new Set<string>();
+
+    // Match Instagram URLs in anchor tags: instagram.com/p/CODE/ or instagram.com/reel/CODE/
+    const instagramRegex = /<a[^>]*href="(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)[^"]*)"[^>]*>.*?<\/a>/gi;
+    
+    content = content.replace(instagramRegex, (match, fullUrl, postCode) => {
+        if (embeddedPosts.has(postCode)) return match;
+        embeddedPosts.add(postCode);
+        
+        // Use Instagram's embed iframe
+        return `<div class="instagram-embed-container">
+            <iframe 
+                src="https://www.instagram.com/p/${postCode}/embed" 
+                width="400" 
+                height="480" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy">
+            </iframe>
+        </div>`;
+    });
+
+    // Also handle plain URLs (not in anchor tags)
+    const plainInstagramRegex = /(?<![">])(https?:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/([a-zA-Z0-9_-]+)[^\s<]*)(?![^<]*<\/a>)/gi;
+    
+    content = content.replace(plainInstagramRegex, (match, fullUrl, postCode) => {
+        if (embeddedPosts.has(postCode)) return match;
+        embeddedPosts.add(postCode);
+        
+        return `<div class="instagram-embed-container">
+            <iframe 
+                src="https://www.instagram.com/p/${postCode}/embed" 
+                width="400" 
+                height="480" 
+                frameborder="0" 
+                scrolling="no" 
+                allowtransparency="true"
+                loading="lazy">
+            </iframe>
+        </div>`;
+    });
 
     return content;
 }
@@ -325,6 +431,12 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
         
         // Transform IPFS iframes to video tags with fallback sources
         html = transformIPFSContent(html, ipfsGateway, ipfsFallbackGateways);
+        
+        // Transform Twitter/X URLs to embeds
+        html = transformTwitterContent(html);
+        
+        // Transform Instagram URLs to embeds
+        html = transformInstagramContent(html);
         
         // Prevent direct IPFS links from triggering downloads
         html = preventIPFSDownloads(html);

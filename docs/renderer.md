@@ -8,6 +8,8 @@ Render Hive blockchain markdown content to sanitized HTML.
 - ✅ 3Speak video embeds (all URL formats)
 - ✅ IPFS content with multi-gateway fallback
 - ✅ YouTube, Vimeo embeds
+- ✅ Twitter/X embeds (tweets)
+- ✅ Instagram embeds (posts, reels)
 - ✅ Hive user mentions (@username → profile links)
 - ✅ Community and post link conversion
 - ✅ DOMPurify sanitization
@@ -105,6 +107,37 @@ https://3speak.online/watch?v=user/permlink
 https://app.3speak.tv/watch?v=user/permlink
 [](https://3speak.tv/watch?v=user/permlink)
 ```
+
+## Twitter/X Embeds
+
+Tweets are automatically embedded when you include Twitter or X.com URLs:
+
+```markdown
+Check out this tweet:
+https://twitter.com/username/status/1234567890
+
+Also works with X.com:
+https://x.com/username/status/1234567890
+```
+
+Both linked URLs (`<a href="...">`) and plain URLs are converted to embedded iframes.
+
+## Instagram Embeds
+
+Instagram posts, reels, and TV videos are automatically embedded:
+
+```markdown
+Great post:
+https://instagram.com/p/ABC123xyz/
+
+Cool reel:
+https://instagram.com/reel/XYZ789abc/
+```
+
+Supported URL formats:
+- `instagram.com/p/CODE/` - Posts
+- `instagram.com/reel/CODE/` - Reels  
+- `instagram.com/tv/CODE/` - IGTV videos
 
 ## TypeScript
 

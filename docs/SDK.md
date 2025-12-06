@@ -56,6 +56,8 @@ The renderer package converts Hive markdown content into sanitized HTML, handlin
 - 3Speak video embeds (legacy and modern URLs)
 - IPFS content with multi-gateway fallback
 - YouTube, Vimeo, and other video embeds
+- **Twitter/X tweet embeds**
+- **Instagram post/reel embeds**
 - Hive user mentions (@username)
 - Community/post links
 - Image optimization
