@@ -126,6 +126,11 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             return;
         }
         
+        if (!aioha) {
+            alert('Authentication not ready. Please refresh and try again.');
+            return;
+        }
+        
         let bodyText = postBodyRef.current?.value || '';
 
         if (!bodyText.trim() && images.length === 0 && !selectedGif && !selectedVideo && !audioEmbedUrl) {
@@ -140,21 +145,30 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             // Upload images first (using user's signature)
             let imageUrls: string[] = [];
             if (images.length > 0) {
+                console.log('📤 Starting image upload for', images.length, 'images');
                 // Initialize progress tracking
                 setUploadProgress(new Array(images.length).fill(0));
                 
                 const uploadedImages = await Promise.all(images.map(async (image, index) => {
                     try {
-                        return await uploadImageWithUserSignature(image, aioha, user || '', {
+                        console.log(`📷 Uploading image ${index + 1}:`, image.name);
+                        const url = await uploadImageWithUserSignature(image, aioha, user, {
                             index,
                             setUploadProgress
                         });
+                        console.log(`✅ Image ${index + 1} uploaded:`, url);
+                        return url;
                     } catch (error) {
-                        console.error('Error uploading image:', error);
+                        console.error(`❌ Error uploading image ${index + 1}:`, error);
+                        alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
                         return null;
                     }
                 }));
                 imageUrls = uploadedImages.filter((url: string | null): url is string => url !== null);
+                
+                if (imageUrls.length === 0 && images.length > 0) {
+                    throw new Error('All image uploads failed');
+                }
             }
 
             // Resolve parent permlink for snaps

@@ -469,19 +469,28 @@ export async function uploadImageWithUserSignature(
     onProgress?: (progress: number) => void;
   }
 ): Promise<string> {
+  console.log('🔐 uploadImageWithUserSignature called for:', file.name, 'user:', username);
+  
   // Calculate image hash
+  console.log('🔢 Calculating image hash...');
   const hash = await calculateImageHash(file);
+  console.log('🔢 Hash calculated:', hash.substring(0, 16) + '...');
   
   // Sign with user's posting key via Aioha
+  console.log('✍️ Requesting signature from Aioha...');
   const signature = await signImageHashWithAioha(aioha, hash);
+  console.log('✍️ Signature received:', signature.substring(0, 20) + '...');
   
   // Upload to Hive image server
   const formData = new FormData();
   formData.append("file", file, file.name);
+  
+  const uploadUrl = `https://images.hive.blog/${username}/${signature}`;
+  console.log('📤 Uploading to:', uploadUrl);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://images.hive.blog/${username}/${signature}`, true);
+    xhr.open('POST', uploadUrl, true);
 
     // Handle progress updates
     xhr.upload.onprogress = (event) => {
