@@ -53,10 +53,12 @@
   },
   "pnpm": {
     "overrides": {
-      "@aioha/react-provider": "1.4.1"
+      "@aioha/react-provider": "1.4.1",
+      "jsdom": "^24.0.0"
     }
   },
   "resolutions": {
-    "memcpy": "npm:noop2@latest"
+    "memcpy": "npm:noop2@latest",
+    "jsdom": "^24.0.0"
   }
 }
