@@ -1,6 +1,12 @@
 // src/index.ts
 import { DefaultRenderer } from "@hiveio/content-renderer";
 import DOMPurify from "isomorphic-dompurify";
+var DEFAULT_IPFS_GATEWAY = "https://ipfs.3speak.tv";
+var DEFAULT_IPFS_FALLBACKS = [
+  "https://ipfs.skatehive.app",
+  "https://cloudflare-ipfs.com",
+  "https://ipfs.io"
+];
 var DEFAULT_HIVE_FRONTENDS = [
   "peakd.com",
   "ecency.com",
@@ -161,16 +167,21 @@ function transform3SpeakContent(content) {
   );
   return content;
 }
-function transformIPFSContent(content, ipfsGateway) {
-  const regex = new RegExp(
-    `<iframe src="${ipfsGateway.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/ipfs/([a-zA-Z0-9-?=&]+)"(?:(?!<\\/iframe>).)*\\sallowfullscreen><\\/iframe>`,
-    "g"
-  );
-  return content.replace(regex, (match, videoID) => {
-    return `<video controls muted preload="none" loading="lazy"> 
-                    <source src="${ipfsGateway}/ipfs/${videoID}" type="video/mp4">
+function transformIPFSContent(content, ipfsGateway, fallbackGateways) {
+  const ipfsGatewayPatterns = [ipfsGateway, ...fallbackGateways, "https://ipfs.io", "https://gateway.pinata.cloud"];
+  for (const gateway of ipfsGatewayPatterns) {
+    const regex = new RegExp(
+      `<iframe src="${gateway.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/ipfs/([a-zA-Z0-9-?=&]+)"(?:(?!<\\/iframe>).)*\\sallowfullscreen><\\/iframe>`,
+      "g"
+    );
+    content = content.replace(regex, (match, videoID) => {
+      const sources = [ipfsGateway, ...fallbackGateways].map((gw) => `<source src="${gw}/ipfs/${videoID}" type="video/mp4">`).join("\n                    ");
+      return `<video controls muted preload="none" loading="lazy"> 
+                    ${sources}
                 </video>`;
-  });
+    });
+  }
+  return content;
 }
 function preventIPFSDownloads(content) {
   return content.replace(
@@ -192,7 +203,8 @@ function convertHiveUrlsToInternal(content, hiveFrontends, internalPrefix) {
 function createHiveRenderer(options = {}) {
   const {
     baseUrl = "https://hive.blog/",
-    ipfsGateway = "https://ipfs.skatehive.app",
+    ipfsGateway = DEFAULT_IPFS_GATEWAY,
+    ipfsFallbackGateways = DEFAULT_IPFS_FALLBACKS,
     usertagUrlFn = (account) => "/@" + account,
     hashtagUrlFn = (hashtag) => "/trending/" + hashtag,
     additionalHiveFrontends = [],
@@ -235,7 +247,7 @@ function createHiveRenderer(options = {}) {
   return function renderHiveMarkdown2(markdown) {
     let html = renderer.render(markdown);
     html = transform3SpeakContent(html);
-    html = transformIPFSContent(html, ipfsGateway);
+    html = transformIPFSContent(html, ipfsGateway, ipfsFallbackGateways);
     html = preventIPFSDownloads(html);
     if (convertHiveUrls) {
       html = convertHiveUrlsToInternal(html, hiveFrontends, internalUrlPrefix);

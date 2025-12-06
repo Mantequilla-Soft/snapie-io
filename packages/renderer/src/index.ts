@@ -18,8 +18,17 @@ export interface HiveRendererOptions {
     /** Base URL for relative links (default: "https://hive.blog/") */
     baseUrl?: string;
     
-    /** IPFS gateway URL (default: "https://ipfs.skatehive.app") */
+    /** 
+     * Primary IPFS gateway URL (default: "https://ipfs.3speak.tv")
+     * This is used for rendering IPFS content
+     */
     ipfsGateway?: string;
+    
+    /**
+     * Fallback IPFS gateways to try if primary fails
+     * Default: ["https://ipfs.skatehive.app", "https://cloudflare-ipfs.com", "https://ipfs.io"]
+     */
+    ipfsFallbackGateways?: string[];
     
     /** Function to transform user mentions to URLs (default: (account) => "/@" + account) */
     usertagUrlFn?: (account: string) => string;
@@ -43,6 +52,17 @@ export interface HiveRendererOptions {
     /** Custom image proxy function */
     imageProxyFn?: (url: string) => string;
 }
+
+/**
+ * Default IPFS gateways in order of preference
+ * 3Speak is primary since it's optimized for Hive content
+ */
+const DEFAULT_IPFS_GATEWAY = "https://ipfs.3speak.tv";
+const DEFAULT_IPFS_FALLBACKS = [
+    "https://ipfs.skatehive.app",
+    "https://cloudflare-ipfs.com",
+    "https://ipfs.io"
+];
 
 /**
  * Default Hive frontends recognized for URL conversion
@@ -169,19 +189,35 @@ function transform3SpeakContent(content: string): string {
 }
 
 /**
- * Transform IPFS iframes to native video elements for better performance
+ * Transform IPFS iframes to native video elements with fallback sources
  */
-function transformIPFSContent(content: string, ipfsGateway: string): string {
-    const regex = new RegExp(
-        `<iframe src="${ipfsGateway.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/ipfs/([a-zA-Z0-9-?=&]+)"(?:(?!<\\/iframe>).)*\\sallowfullscreen><\\/iframe>`,
-        'g'
-    );
-  
-    return content.replace(regex, (match, videoID) => {
-        return `<video controls muted preload="none" loading="lazy"> 
-                    <source src="${ipfsGateway}/ipfs/${videoID}" type="video/mp4">
+function transformIPFSContent(
+    content: string, 
+    ipfsGateway: string,
+    fallbackGateways: string[]
+): string {
+    // Match IPFS iframes from various gateways
+    const ipfsGatewayPatterns = [ipfsGateway, ...fallbackGateways, 'https://ipfs.io', 'https://gateway.pinata.cloud'];
+    
+    for (const gateway of ipfsGatewayPatterns) {
+        const regex = new RegExp(
+            `<iframe src="${gateway.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/ipfs/([a-zA-Z0-9-?=&]+)"(?:(?!<\\/iframe>).)*\\sallowfullscreen><\\/iframe>`,
+            'g'
+        );
+        
+        content = content.replace(regex, (match, videoID) => {
+            // Create video element with multiple source fallbacks
+            const sources = [ipfsGateway, ...fallbackGateways]
+                .map(gw => `<source src="${gw}/ipfs/${videoID}" type="video/mp4">`)
+                .join('\n                    ');
+            
+            return `<video controls muted preload="none" loading="lazy"> 
+                    ${sources}
                 </video>`;
-    });
+        });
+    }
+    
+    return content;
 }
 
 /**
@@ -226,8 +262,8 @@ function convertHiveUrlsToInternal(
  * import { createHiveRenderer } from '@snapie/renderer';
  * 
  * const render = createHiveRenderer({
- *   ipfsGateway: 'https://ipfs.skatehive.app',
- *   additionalHiveFrontends: ['skatehive.app']
+ *   ipfsGateway: 'https://ipfs.3speak.tv',
+ *   additionalHiveFrontends: ['myapp.io']
  * });
  * 
  * const html = render(markdownContent);
@@ -236,7 +272,8 @@ function convertHiveUrlsToInternal(
 export function createHiveRenderer(options: HiveRendererOptions = {}) {
     const {
         baseUrl = "https://hive.blog/",
-        ipfsGateway = "https://ipfs.skatehive.app",
+        ipfsGateway = DEFAULT_IPFS_GATEWAY,
+        ipfsFallbackGateways = DEFAULT_IPFS_FALLBACKS,
         usertagUrlFn = (account: string) => "/@" + account,
         hashtagUrlFn = (hashtag: string) => "/trending/" + hashtag,
         additionalHiveFrontends = [],
@@ -286,8 +323,8 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
         // Transform 3Speak video/audio URLs to iframes
         html = transform3SpeakContent(html);
         
-        // Transform IPFS iframes to video tags
-        html = transformIPFSContent(html, ipfsGateway);
+        // Transform IPFS iframes to video tags with fallback sources
+        html = transformIPFSContent(html, ipfsGateway, ipfsFallbackGateways);
         
         // Prevent direct IPFS links from triggering downloads
         html = preventIPFSDownloads(html);

@@ -13,8 +13,16 @@
 interface HiveRendererOptions {
     /** Base URL for relative links (default: "https://hive.blog/") */
     baseUrl?: string;
-    /** IPFS gateway URL (default: "https://ipfs.skatehive.app") */
+    /**
+     * Primary IPFS gateway URL (default: "https://ipfs.3speak.tv")
+     * This is used for rendering IPFS content
+     */
     ipfsGateway?: string;
+    /**
+     * Fallback IPFS gateways to try if primary fails
+     * Default: ["https://ipfs.skatehive.app", "https://cloudflare-ipfs.com", "https://ipfs.io"]
+     */
+    ipfsFallbackGateways?: string[];
     /** Function to transform user mentions to URLs (default: (account) => "/@" + account) */
     usertagUrlFn?: (account: string) => string;
     /** Function to transform hashtags to URLs (default: (hashtag) => "/trending/" + hashtag) */
@@ -42,8 +50,8 @@ interface HiveRendererOptions {
  * import { createHiveRenderer } from '@snapie/renderer';
  *
  * const render = createHiveRenderer({
- *   ipfsGateway: 'https://ipfs.skatehive.app',
- *   additionalHiveFrontends: ['skatehive.app']
+ *   ipfsGateway: 'https://ipfs.3speak.tv',
+ *   additionalHiveFrontends: ['myapp.io']
  * });
  *
  * const html = render(markdownContent);

@@ -13,8 +13,9 @@ const snapieRendererOptions: Partial<HiveRendererOptions> = {
     usertagUrlFn: (account: string) => `/@${account}`,
     hashtagUrlFn: (hashtag: string) => `/trending/${hashtag}`,
     
-    // Use skatehive IPFS gateway
-    ipfsGateway: "https://ipfs.skatehive.app",
+    // IPFS gateways - 3Speak is default, with fallbacks
+    // (SDK defaults to 3speak.tv with skatehive + cloudflare + ipfs.io fallbacks)
+    // Only override if you need different gateways
     
     // Add snapie.io as a recognized Hive frontend
     additionalHiveFrontends: ['snapie.io'],
