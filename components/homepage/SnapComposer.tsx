@@ -11,7 +11,7 @@ import { CloseIcon } from '@chakra-ui/icons';
 import { FaImage, FaVideo, FaMicrophone } from 'react-icons/fa';
 import { MdGif } from 'react-icons/md';
 import { Comment } from '@hiveio/dhive';
-import { getFileSignature, getLastSnapsContainer, uploadImage } from '@/lib/hive/client-functions';
+import { getLastSnapsContainer, uploadImageWithUserSignature } from '@/lib/hive/client-functions';
 
 // SDK imports
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
@@ -89,12 +89,11 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 // Try to upload and set thumbnail
                 if (thumbnailBlob.status === 'fulfilled' && thumbnailBlob.value) {
                     try {
-                        // Try Hive first, fallback to IPFS
+                        // Try Hive first (with user's signature), fallback to IPFS
                         let thumbnailUrl: string;
                         try {
                             const thumbnailFile = new File([thumbnailBlob.value], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
-                            const signature = await getFileSignature(thumbnailFile);
-                            thumbnailUrl = await uploadImage(thumbnailFile, signature);
+                            thumbnailUrl = await uploadImageWithUserSignature(thumbnailFile, aioha, user || '');
                         } catch {
                             thumbnailUrl = await uploadToIPFS(thumbnailBlob.value);
                         }
@@ -138,19 +137,24 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         setUploadProgress([]);
 
         try {
-            // Upload images first
+            // Upload images first (using user's signature)
             let imageUrls: string[] = [];
             if (images.length > 0) {
+                // Initialize progress tracking
+                setUploadProgress(new Array(images.length).fill(0));
+                
                 const uploadedImages = await Promise.all(images.map(async (image, index) => {
-                    const signature = await getFileSignature(image);
                     try {
-                        return await uploadImage(image, signature, index, setUploadProgress);
+                        return await uploadImageWithUserSignature(image, aioha, user || '', {
+                            index,
+                            setUploadProgress
+                        });
                     } catch (error) {
                         console.error('Error uploading image:', error);
                         return null;
                     }
                 }));
-                imageUrls = uploadedImages.filter((url): url is string => url !== null);
+                imageUrls = uploadedImages.filter((url: string | null): url is string => url !== null);
             }
 
             // Resolve parent permlink for snaps

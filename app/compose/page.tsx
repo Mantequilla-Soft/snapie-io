@@ -83,11 +83,17 @@ export default function Home() {
       return
     }
 
-    // Extract username from user object (can be string or object)
+    // Log user object for debugging
+    console.log('🔍 User object from Aioha:', { user, typeOfUser: typeof user });
+
+    // The user from useAioha() should be a string (username)
+    // If it's not a string, try to extract username from object
     const username = typeof user === 'string' ? user : (user as any)?.username || (user as any)?.name || '';
     
+    console.log('🔍 Extracted username:', { username, trimmed: username.trim() });
+    
     if (!username || username.trim() === '') {
-      console.error('❌ Username is empty:', { user, username });
+      console.error('❌ Username is empty:', { user, username, typeOfUser: typeof user });
       toast({
         title: 'Authentication Error',
         description: 'Username not found. Please log out and log in again.',
@@ -124,12 +130,13 @@ export default function Home() {
       console.log('📤 Submitting to Hive via Aioha:', { 
         operations: composerResult.operations,
         permlink: composerResult.permlink,
-        username
+        username,
+        operationAuthor: (composerResult.operations[0] as any)?.[1]?.author
       });
       
       const result = await aioha.signAndBroadcastTx(composerResult.operations, KeyTypes.Posting)
       
-      console.log('✅ Post published successfully!', result);
+      console.log('📥 Aioha response:', result);
 
       // Check if submission was successful
       if (result.success) {

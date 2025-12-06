@@ -6,6 +6,8 @@ import { signImageHash } from "./server-functions";
 import { Account, Discussion, Notifications, PublicKey, PrivateKey, KeyRole } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
+import type { Aioha } from "@aioha/aioha";
+import { KeyTypes } from "@aioha/aioha";
 
 interface HiveKeychainResponse {
   success: boolean
@@ -389,6 +391,140 @@ export async function uploadImage(file: File, signature: string, index?: number,
 
     xhr.onerror = () => {
       reject(new Error('Network error'));
+    };
+
+    xhr.send(formData);
+  });
+}
+
+// ============================================================================
+// User-signed Image Upload (using Aioha)
+// ============================================================================
+
+/**
+ * Calculate the SHA256 hash of a file for image signing
+ * @param file The file to hash
+ * @returns Hex-encoded hash string
+ */
+export async function calculateImageHash(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = () => {
+      if (reader.result) {
+        const content = Buffer.from(reader.result as ArrayBuffer);
+        const hash = crypto.createHash('sha256')
+          .update('ImageSigningChallenge')
+          .update(content as any)
+          .digest('hex');
+        resolve(hash);
+      } else {
+        reject(new Error('Failed to read file.'));
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('Error reading file.'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Sign an image hash using Aioha (user's posting key)
+ * This replaces the server-side signing with client-side user signing.
+ * 
+ * @param aioha The Aioha instance from useAioha()
+ * @param hash The SHA256 hash of the image (hex string)
+ * @returns The signature string
+ */
+export async function signImageHashWithAioha(aioha: Aioha, hash: string): Promise<string> {
+  const result = await aioha.signMessage(hash, KeyTypes.Posting);
+  
+  if (!result.success || !result.result) {
+    throw new Error((result as any).error || 'Failed to sign image hash');
+  }
+  
+  return result.result;
+}
+
+/**
+ * Upload an image to Hive image server using the user's own signature.
+ * This is the preferred method as it doesn't require a shared app key.
+ * 
+ * @param file The image file to upload
+ * @param aioha The Aioha instance from useAioha()
+ * @param username The username of the logged-in user
+ * @param options Optional upload options
+ * @returns The URL of the uploaded image
+ */
+export async function uploadImageWithUserSignature(
+  file: File,
+  aioha: Aioha,
+  username: string,
+  options?: {
+    index?: number;
+    setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>;
+    onProgress?: (progress: number) => void;
+  }
+): Promise<string> {
+  // Calculate image hash
+  const hash = await calculateImageHash(file);
+  
+  // Sign with user's posting key via Aioha
+  const signature = await signImageHashWithAioha(aioha, hash);
+  
+  // Upload to Hive image server
+  const formData = new FormData();
+  formData.append("file", file, file.name);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://images.hive.blog/${username}/${signature}`, true);
+
+    // Handle progress updates
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = (event.loaded / event.total) * 100;
+        
+        // Call progress callback if provided
+        options?.onProgress?.(progress);
+        
+        // Update progress array if provided (for batch uploads)
+        if (options?.index !== undefined && options?.setUploadProgress) {
+          options.setUploadProgress((prevProgress: number[]) => {
+            const updatedProgress = [...prevProgress];
+            updatedProgress[options.index!] = progress;
+            return updatedProgress;
+          });
+        }
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response.url);
+        } catch (e) {
+          reject(new Error(`Invalid response format: ${xhr.responseText}`));
+        }
+      } else {
+        // Provide more helpful error messages
+        let errorMsg = `Upload failed: ${xhr.status} - ${xhr.statusText}`;
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          if (errorResponse.error) {
+            errorMsg = errorResponse.error;
+          }
+        } catch {}
+        reject(new Error(errorMsg));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error during image upload'));
     };
 
     xhr.send(formData);
