@@ -2,6 +2,16 @@ import { PrivateKey, cryptoUtils } from "@hiveio/dhive";
 import { KeychainSDK, KeychainKeyTypes } from "keychain-sdk";
 
 /**
+ * Converts base64 to base64url (browser-compatible)
+ */
+function toBase64Url(base64: string): string {
+  return base64
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+/**
  * Builds a Hivesigner-style access token for Ecency chat authentication
  * @param username - Hive username
  * @param hsClientId - App identifier (e.g., 'snapie')
@@ -54,7 +64,10 @@ export async function buildEcencyAccessToken(
     signatures: [signature],
   };
 
-  return Buffer.from(JSON.stringify(signedPayload)).toString("base64url");
+  // Use browser-compatible base64url encoding
+  const jsonString = JSON.stringify(signedPayload);
+  const base64 = btoa(jsonString);
+  return toBase64Url(base64);
 }
 
 /**

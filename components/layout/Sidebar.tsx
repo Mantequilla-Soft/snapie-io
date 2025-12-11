@@ -1,9 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
+import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useKeychain } from '@/contexts/KeychainContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut } from 'react-icons/fi';
+import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare } from 'react-icons/fi';
 import { Notifications } from '@hiveio/dhive';
 import { fetchNewNotifications, getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
@@ -25,7 +25,13 @@ interface CommunityInfo {
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
-export default function Sidebar() {
+interface SidebarProps {
+    isChatOpen: boolean;
+    setIsChatOpen: (isOpen: boolean) => void;
+    chatUnreadCount?: number;
+}
+
+export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
     const { user, login, logout, isLoggedIn } = useKeychain();
     const router = useRouter();
     const pathname = usePathname();
@@ -37,6 +43,10 @@ export default function Sidebar() {
     const [modalDisplayed, setModalDisplayed] = useState(false);
     const [username, setUsername] = useState('');
     const toast = useToast();
+
+    useEffect(() => {
+        console.log('🔵 Sidebar: isChatOpen changed to:', isChatOpen);
+    }, [isChatOpen]);
     
     // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';
@@ -248,6 +258,45 @@ export default function Sidebar() {
                                     >
                                         <Text display={textDisplay}>Wallet</Text>
                                     </Button>
+                                </Box>
+                            </Tooltip>
+                            <Tooltip label="Chat" placement="right" hasArrow isDisabled={!isCompactMode}>
+                                <Box w="full" position="relative">
+                                    <Button
+                                        onClick={() => {
+                                            console.log('🔵 Chat button clicked! Current state:', isChatOpen);
+                                            setIsChatOpen(!isChatOpen);
+                                            console.log('🔵 Setting chat to:', !isChatOpen);
+                                        }}
+                                        variant="ghost"
+                                        w="full"
+                                        justifyContent={iconJustify}
+                                        leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
+                                        px={3}
+                                        borderRadius="md"
+                                        bg={isChatOpen ? 'blue.500' : 'transparent'}
+                                        color={isChatOpen ? 'white' : 'inherit'}
+                                        _hover={{ bg: isChatOpen ? 'blue.600' : 'gray.100' }}
+                                    >
+                                        <Text display={textDisplay}>Chat</Text>
+                                    </Button>
+                                    {chatUnreadCount > 0 && !isChatOpen && (
+                                        <Badge
+                                            position="absolute"
+                                            top="2px"
+                                            right="2px"
+                                            colorScheme="red"
+                                            borderRadius="full"
+                                            minW="18px"
+                                            h="18px"
+                                            display="flex"
+                                            alignItems="center"
+                                            justifyContent="center"
+                                            fontSize="xs"
+                                        >
+                                            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                                        </Badge>
+                                    )}
                                 </Box>
                             </Tooltip>
                         </>

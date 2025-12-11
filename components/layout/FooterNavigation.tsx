@@ -1,10 +1,16 @@
 import { useKeychain } from '@/contexts/KeychainContext';
-import { Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut } from 'react-icons/fi';
+import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare } from 'react-icons/fi';
 import { useState } from 'react';
 
-export default function FooterNavigation() {
+interface FooterNavigationProps {
+    isChatOpen: boolean;
+    setIsChatOpen: (isOpen: boolean) => void;
+    chatUnreadCount?: number;
+}
+
+export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
 
     const { user, login, logout, isLoggedIn } = useKeychain();
     const router = useRouter();
@@ -74,6 +80,36 @@ export default function FooterNavigation() {
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                             />
+                        </Tooltip>
+
+                        <Tooltip label="Chat" aria-label="Chat tooltip">
+                            <Box position="relative">
+                                <Button
+                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    variant="ghost"
+                                    color="white"
+                                    bg={isChatOpen ? 'blue.500' : 'transparent'}
+                                    _hover={{ bg: isChatOpen ? 'blue.600' : 'whiteAlpha.200' }}
+                                    leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
+                                />
+                                {chatUnreadCount > 0 && !isChatOpen && (
+                                    <Badge
+                                        position="absolute"
+                                        top="-2px"
+                                        right="-2px"
+                                        colorScheme="red"
+                                        borderRadius="full"
+                                        minW="18px"
+                                        h="18px"
+                                        display="flex"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                        fontSize="xs"
+                                    >
+                                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                                    </Badge>
+                                )}
+                            </Box>
                         </Tooltip>
 
                         <Tooltip label="Profile" aria-label="Profile tooltip">

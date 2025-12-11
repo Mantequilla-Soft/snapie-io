@@ -14,6 +14,7 @@ import { hiveBRTheme } from '@/themes/hivebr'
 import { cannabisTheme } from '@/themes/cannabis'
 import { mengaoTheme } from '@/themes/mengao'
 import { KeychainProvider } from '@/contexts/KeychainContext'
+import { UserProvider } from '@/contexts/UserContext'
 
 const themeMap = {
   forest: forestTheme,
@@ -144,7 +145,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ChakraProvider theme={selectedTheme}>
       <KeychainProvider>
-        {children}
+        <UserProvider>
+          {children}
+        </UserProvider>
       </KeychainProvider>
     </ChakraProvider>
   )
