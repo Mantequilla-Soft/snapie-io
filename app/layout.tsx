@@ -12,6 +12,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const isComposePage = pathname === '/compose';
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -70,7 +71,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Box>
             </Flex>
             <FooterNavigation isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
-            <ChatPanel isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            <ChatPanel 
+              isOpen={isChatOpen} 
+              onClose={() => setIsChatOpen(false)}
+              isMinimized={isChatMinimized}
+              onMinimize={() => setIsChatMinimized(true)}
+              onRestore={() => setIsChatMinimized(false)}
+              unreadCount={chatUnreadCount}
+            />
           </Box>
         </Providers>
       </body>

@@ -26,10 +26,11 @@ import {
   WrapItem,
   Tooltip,
 } from "@chakra-ui/react";
-import { CloseIcon, ChevronLeftIcon, AddIcon } from "@chakra-ui/icons";
+import { CloseIcon, ChevronLeftIcon, AddIcon, MinusIcon } from "@chakra-ui/icons";
 import { buildEcencyAccessToken, bootstrapEcencyChat, hasEcencyChatSession } from "@/lib/hive/ecency-auth";
 import { useKeychain } from "@/contexts/KeychainContext";
 import { getHiveAvatarUrl } from "@/lib/utils/avatarUtils";
+import { FiMessageSquare } from "react-icons/fi";
 
 // Common emoji reactions
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👀"];
@@ -85,13 +86,23 @@ interface DMChannel extends Channel {
 interface ChatPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  isMinimized?: boolean;
+  onMinimize?: () => void;
+  onRestore?: () => void;
+  unreadCount?: number;
 }
 
-export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
+export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore, unreadCount = 0 }: ChatPanelProps) {
   const { user, isLoggedIn } = useKeychain();
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Draggable bubble state - start above mobile footer (60px footer + some padding)
+  const [bubblePosition, setBubblePosition] = useState({ x: 20, y: typeof window !== 'undefined' ? window.innerHeight - 140 : 500 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const bubbleRef = useRef<HTMLDivElement>(null);
   
   const [channel, setChannel] = useState<Channel | null>(null);
   const [communityChannel, setCommunityChannel] = useState<Channel | null>(null);
@@ -116,6 +127,49 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Drag handlers for the floating bubble
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragOffset.current = {
+      x: clientX - bubblePosition.x,
+      y: clientY - bubblePosition.y,
+    };
+  };
+
+  useEffect(() => {
+    const handleDragMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const newX = Math.max(0, Math.min(window.innerWidth - 60, clientX - dragOffset.current.x));
+      // Keep bubble above mobile footer (60px) + padding, max Y is innerHeight - 60 (bubble) - 70 (footer + padding)
+      const maxY = window.innerWidth < 640 ? window.innerHeight - 130 : window.innerHeight - 60;
+      const newY = Math.max(0, Math.min(maxY, clientY - dragOffset.current.y));
+      setBubblePosition({ x: newX, y: newY });
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDragMove);
+      window.addEventListener('mouseup', handleDragEnd);
+      window.addEventListener('touchmove', handleDragMove, { passive: false });
+      window.addEventListener('touchend', handleDragEnd);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('touchmove', handleDragMove);
+      window.removeEventListener('touchend', handleDragEnd);
+    };
+  }, [isDragging, bubblePosition]);
 
   const handleBootstrap = async () => {
     if (!user) {
@@ -500,6 +554,58 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
     return null;
   }
 
+  // Render floating bubble when minimized
+  if (isMinimized) {
+    return (
+      <Box
+        ref={bubbleRef}
+        position="fixed"
+        left={`${bubblePosition.x}px`}
+        top={`${bubblePosition.y}px`}
+        zIndex={1001}
+        w="56px"
+        h="56px"
+        borderRadius="full"
+        bg="blue.500"
+        boxShadow="lg"
+        cursor={isDragging ? "grabbing" : "grab"}
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        onMouseDown={handleDragStart}
+        onTouchStart={handleDragStart}
+        onClick={(e) => {
+          // Only restore if not dragging (to avoid accidental clicks while dragging)
+          if (!isDragging) {
+            onRestore?.();
+          }
+        }}
+        _hover={{ transform: isDragging ? "none" : "scale(1.05)", bg: "blue.600" }}
+        transition={isDragging ? "none" : "all 0.2s"}
+        userSelect="none"
+      >
+        <FiMessageSquare size={24} color="white" />
+        {unreadCount > 0 && (
+          <Badge
+            position="absolute"
+            top="-4px"
+            right="-4px"
+            colorScheme="red"
+            borderRadius="full"
+            minW="20px"
+            h="20px"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            fontSize="xs"
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </Badge>
+        )}
+      </Box>
+    );
+  }
+
   return (
     <>
         <Box
@@ -542,13 +648,24 @@ export default function ChatPanel({ isOpen, onClose }: ChatPanelProps) {
                 {selectedDM ? `@${selectedDM.otherUser?.replace(/^@/, '')}` : "Snapie Chat"}
               </Text>
             </HStack>
-            <IconButton
-              aria-label="Close chat"
-              icon={<CloseIcon />}
-              size="sm"
-              variant="ghost"
-              onClick={onClose}
-            />
+            <HStack spacing={1}>
+              <Tooltip label="Minimize to bubble">
+                <IconButton
+                  aria-label="Minimize chat"
+                  icon={<MinusIcon />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={onMinimize}
+                />
+              </Tooltip>
+              <IconButton
+                aria-label="Close chat"
+                icon={<CloseIcon />}
+                size="sm"
+                variant="ghost"
+                onClick={onClose}
+              />
+            </HStack>
           </Flex>
 
           {/* Content */}
