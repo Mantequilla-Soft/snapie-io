@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FooterNavigation from '@/components/layout/FooterNavigation';
+import ChatPanel from '@/components/chat/ChatPanel';
 import { Providers } from './providers';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Box>
             </Flex>
             <FooterNavigation />
+            <ChatPanel />
           </Box>
         </Providers>
       </body>
