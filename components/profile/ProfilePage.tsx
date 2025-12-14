@@ -60,7 +60,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
   useEffect(() => {
     fetchPosts();
-  }, [username]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username]); // fetchPosts excluded - callback identity changes each render
 
   useEffect(() => {
     if (hiveAccount?.json_metadata) {

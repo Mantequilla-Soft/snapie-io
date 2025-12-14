@@ -5,6 +5,54 @@ const nextConfig = {
             bodySizeLimit: '10mb', // Increase the body size limit
         },
     },
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'media.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media0.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media1.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media2.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media3.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'media4.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'i.giphy.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'i.imgur.com',
+            },
+            {
+                protocol: 'https',
+                hostname: '**.imgur.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'images.ecency.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'images.hive.blog',
+            },
+        ],
+    },
     webpack: (config, { isServer }) => {
         // Ignore optional native dependencies that don't work in Vercel
         config.resolve.fallback = {

@@ -31,6 +31,7 @@ import { buildEcencyAccessToken, bootstrapEcencyChat, hasEcencyChatSession } fro
 import { useKeychain } from "@/contexts/KeychainContext";
 import { getHiveAvatarUrl } from "@/lib/utils/avatarUtils";
 import { FiMessageSquare } from "react-icons/fi";
+import Image from "next/image";
 
 // Common emoji reactions
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👀"];
@@ -55,6 +56,86 @@ const NAME_TO_EMOJI: { [key: string]: string } = {
   "clap": "👏",
   "rocket": "🚀",
 };
+
+// Regex to detect GIF/image URLs
+const GIF_URL_REGEX = /(https?:\/\/[^\s]+\.(?:gif|gifv|webp|png|jpg|jpeg)(?:\?[^\s]*)?)/gi;
+const GIPHY_MEDIA_REGEX = /(https?:\/\/media[0-9]?\.giphy\.com\/[^\s]+)/gi;
+
+// Helper function to render message content with GIF support
+function renderMessageContent(message: string): React.ReactNode {
+  // Check for GIF/image URLs (including Giphy media URLs)
+  const gifMatches = message.match(GIF_URL_REGEX) || message.match(GIPHY_MEDIA_REGEX);
+  
+  if (gifMatches && gifMatches.length > 0) {
+    // Split message into parts (text and images)
+    const parts: React.ReactNode[] = [];
+    let remainingText = message;
+    let keyIndex = 0;
+    
+    // Find all image URLs and split around them
+    const allUrls = [...(message.match(GIF_URL_REGEX) || []), ...(message.match(GIPHY_MEDIA_REGEX) || [])];
+    const uniqueUrls = [...new Set(allUrls)];
+    
+    for (const url of uniqueUrls) {
+      const index = remainingText.indexOf(url);
+      if (index !== -1) {
+        // Add text before the URL
+        if (index > 0) {
+          const textBefore = remainingText.substring(0, index).trim();
+          if (textBefore) {
+            parts.push(
+              <Text key={`text-${keyIndex++}`} wordBreak="break-word" whiteSpace="pre-wrap">
+                {textBefore}
+              </Text>
+            );
+          }
+        }
+        
+        // Add the image
+        parts.push(
+          <Box key={`img-${keyIndex++}`} mt={1} mb={1} position="relative" maxW="200px" maxH="200px">
+            <Image 
+              src={url} 
+              alt="GIF"
+              width={200}
+              height={200}
+              style={{ 
+                borderRadius: '8px',
+                objectFit: 'contain',
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '200px',
+                maxHeight: '200px'
+              }}
+              unoptimized // GIFs need to be unoptimized to animate
+            />
+          </Box>
+        );
+        
+        // Update remaining text
+        remainingText = remainingText.substring(index + url.length);
+      }
+    }
+    
+    // Add any remaining text
+    if (remainingText.trim()) {
+      parts.push(
+        <Text key={`text-${keyIndex++}`} wordBreak="break-word" whiteSpace="pre-wrap">
+          {remainingText.trim()}
+        </Text>
+      );
+    }
+    
+    return <>{parts}</>;
+  }
+  
+  // No images, just return text with proper wrapping
+  return (
+    <Text wordBreak="break-word" whiteSpace="pre-wrap">
+      {message}
+    </Text>
+  );
+}
 
 interface Reaction {
   emoji_name: string;
@@ -114,6 +195,42 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [selectedDM, setSelectedDM] = useState<DMChannel | null>(null); // Currently viewing DM
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMessageCountRef = useRef<number>(0);
+  const previousUserRef = useRef<string | null>(null);
+
+  // Reset chat state when user changes (login/logout/switch account)
+  useEffect(() => {
+    // Skip on initial mount
+    if (previousUserRef.current === null) {
+      previousUserRef.current = user || '';
+      return;
+    }
+
+    // User changed - reset everything
+    if (previousUserRef.current !== (user || '')) {
+      console.log('👤 [Chat] User changed from', previousUserRef.current, 'to', user, '- resetting chat');
+      
+      // Clear all chat state
+      setIsBootstrapped(false);
+      setChannel(null);
+      setCommunityChannel(null);
+      setDmChannels([]);
+      setMessages([]);
+      setSelectedDM(null);
+      setActiveTab(0);
+      setError(null);
+      lastMessageCountRef.current = 0;
+      
+      // Clear the mm_pat cookie by setting it to expire
+      document.cookie = 'mm_pat=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      
+      previousUserRef.current = user || '';
+      
+      // If new user exists and chat is open, they'll need to re-bootstrap
+      // The UI will show the "Connect to Chat" button
+    }
+  }, [user]);
 
   // Check if already bootstrapped on mount
   useEffect(() => {
@@ -121,12 +238,97 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       setIsBootstrapped(true);
       loadChannel();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally run only on mount
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change (only if new messages arrived)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Only auto-scroll if we have more messages than before (new message arrived)
+    if (messages.length > lastMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    lastMessageCountRef.current = messages.length;
   }, [messages]);
+
+  // Poll for new messages when chat is open and not minimized
+  useEffect(() => {
+    // Clear any existing interval
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+
+    // Only poll if chat is open, not minimized, bootstrapped, and has a channel
+    const shouldPoll = isOpen && !isMinimized && isBootstrapped && channel;
+    
+    if (!shouldPoll) {
+      return;
+    }
+
+    console.log('💬 [Chat] Starting message polling (5s interval)');
+    
+    pollingRef.current = setInterval(async () => {
+      // Check if tab is visible (Page Visibility API)
+      if (document.hidden) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/chat/channels/${channel.id}/posts`, {
+          credentials: "include",
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        
+        // Parse messages (same logic as loadMessages but without setting loading state)
+        let newMessages: Message[] = [];
+        
+        if (Array.isArray(data.posts) && data.posts.length > 0) {
+          newMessages = data.posts.map((post: any) => ({
+            id: post.id,
+            message: post.message,
+            user_id: post.user_id,
+            username: data.users?.[post.user_id]?.username || post.username || "Unknown",
+            create_at: post.create_at,
+            reactions: post.metadata?.reactions || [],
+          })).sort((a: Message, b: Message) => a.create_at - b.create_at);
+        } else if (data.posts && data.order) {
+          newMessages = data.order.map((id: string) => ({
+            id,
+            message: data.posts[id].message,
+            user_id: data.posts[id].user_id,
+            username: data.users?.[data.posts[id].user_id]?.username || "Unknown",
+            create_at: data.posts[id].create_at,
+            reactions: data.posts[id].metadata?.reactions || [],
+          })).reverse();
+        }
+
+        // Only update if we have new messages (compare by length and last message id)
+        if (newMessages.length > 0) {
+          const lastNewId = newMessages[newMessages.length - 1]?.id;
+          const lastCurrentId = messages[messages.length - 1]?.id;
+          
+          if (lastNewId !== lastCurrentId || newMessages.length !== messages.length) {
+            setMessages(newMessages);
+          }
+        }
+      } catch (err) {
+        // Silent fail for polling - don't show errors
+        console.log('💬 [Chat] Polling error (silent):', err);
+      }
+    }, 5000);
+
+    return () => {
+      if (pollingRef.current) {
+        console.log('💬 [Chat] Stopping message polling');
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, isMinimized, isBootstrapped, channel?.id]); // channel object and messages intentionally excluded to avoid infinite loop
 
   // Drag handlers for the floating bubble
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
@@ -617,7 +819,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
           top={{ base: "0", sm: "auto" }}
           zIndex={1000}
           width={{ base: "100%", sm: "400px" }}
-          height={{ base: "calc(100vh - 60px)", sm: "500px" }}
+          // Use dvh for iOS Safari keyboard compatibility, fallback to vh
+          height={{ base: "calc(100dvh - 60px)", sm: "500px" }}
+          maxHeight={{ base: "calc(100dvh - 60px)", sm: "500px" }}
           bg="background"
           borderRadius={{ base: "0", sm: "lg" }}
           boxShadow="2xl"
@@ -625,6 +829,13 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
           flexDirection="column"
           border={{ base: "none", sm: "1px solid" }}
           borderColor="border"
+          // iOS Safari fix: prevent body scroll and ensure proper positioning
+          sx={{
+            '@supports (-webkit-touch-callout: none)': {
+              // iOS Safari specific
+              height: { base: 'calc(100dvh - 60px)', sm: '500px' },
+            },
+          }}
         >
           {/* Header */}
           <Flex
@@ -722,9 +933,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                                   {new Date(msg.create_at).toLocaleTimeString()}
                                 </Text>
                               </HStack>
-                              <Text color="text" fontSize="sm">
-                                {msg.message}
-                              </Text>
+                              <Box color="text" fontSize="sm" maxW="100%" overflow="hidden">
+                                {renderMessageContent(msg.message)}
+                              </Box>
                               {/* Reactions display */}
                               <HStack spacing={1} mt={1} flexWrap="wrap">
                                 {Object.entries(groupedReactions).map(([emoji, data]) => (
@@ -805,6 +1016,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       placeholder="Type a message..."
                       bg="inputBackground"
                       color="text"
+                      fontSize="16px"
+                      autoComplete="off"
+                      autoCorrect="off"
                     />
                     <Button
                       type="submit"
@@ -886,9 +1100,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                                       {new Date(msg.create_at).toLocaleTimeString()}
                                     </Text>
                                   </HStack>
-                                  <Text color="text" fontSize="sm">
-                                    {msg.message}
-                                  </Text>
+                                  <Box color="text" fontSize="sm" maxW="100%" overflow="hidden">
+                                    {renderMessageContent(msg.message)}
+                                  </Box>
                                   {/* Reactions display */}
                                   <HStack spacing={1} mt={1} flexWrap="wrap">
                                     {Object.entries(groupedReactions).map(([emoji, data]) => (
@@ -969,6 +1183,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                           placeholder="Type a message..."
                           bg="inputBackground"
                           color="text"
+                          fontSize="16px"
+                          autoComplete="off"
+                          autoCorrect="off"
                         />
                         <Button
                           type="submit"

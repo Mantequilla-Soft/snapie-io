@@ -300,7 +300,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 setIsUploading(false);
             }
         }
-    }, [markdown, setMarkdown, toast, toolbar, user]);
+    }, [toast, toolbar, user]); // markdown and setMarkdown excluded - using functional update pattern
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
