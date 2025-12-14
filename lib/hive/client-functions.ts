@@ -24,6 +24,7 @@ declare global {
 interface HiveKeychainResponse {
   success: boolean
   publicKey: string
+  error?: string
 }
 
 /**
@@ -78,21 +79,29 @@ export async function vote(props: Vote): Promise<KeychainRequestResponse> {
 }
 
 export async function commentWithKeychain(formParamsAsObject: any): Promise<HiveKeychainResponse | undefined> {
-
-  const keychain = new KeychainSDK(window);
-  const post = await keychain.post(formParamsAsObject.data as Post);
-  if (post) {
-    console.log('post', post);
-    return {
-      success: true,
-      publicKey: String(post.publicKey)
+  try {
+    const keychain = new KeychainSDK(window);
+    const post = await keychain.post(formParamsAsObject.data as Post);
+    if (post) {
+      console.log('post', post);
+      return {
+        success: true,
+        publicKey: String(post.publicKey)
+      }
+    } else {
+      return {
+        success: false,
+        publicKey: '',
+        error: 'No response from Keychain'
+      }
     }
-  } else {
+  } catch (error: any) {
+    console.error('commentWithKeychain error:', error);
     return {
       success: false,
-      publicKey: 'deu merda'
+      publicKey: '',
+      error: error?.message || error?.error || String(error)
     }
-
   }
 }
 

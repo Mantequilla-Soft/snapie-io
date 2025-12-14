@@ -153,8 +153,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
             const response = await commentWithKeychain({
                 data: {
                     username: user,
-                    parent_author: comment.parent_author,
-                    parent_permlink: comment.parent_permlink,
+                    parent_username: comment.parent_author,
+                    parent_perm: comment.parent_permlink,
                     permlink: comment.permlink,
                     title: comment.title || '',
                     body: editedBody,
@@ -174,15 +174,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 // Update comment body locally
                 comment.body = editedBody;
             } else {
-                throw new Error('Edit failed');
+                const errorMsg = (response as any)?.error || 'Edit failed';
+                throw new Error(errorMsg);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error editing post:', error);
+            const errorMessage = error?.message || error?.error || 'Unknown error';
             toast({
                 title: 'Edit Failed',
-                description: 'Failed to update post. Please try again.',
+                description: `Failed to update post: ${errorMessage}`,
                 status: 'error',
-                duration: 3000,
+                duration: 5000,
             });
         } finally {
             setIsEditing(false);
