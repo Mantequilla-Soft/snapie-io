@@ -78,7 +78,8 @@ export default function Blog() {
             start_permlink: '',
         };
         fetchPosts();
-    }, [query, mutedLoaded]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, mutedLoaded, tag]); // fetchPosts excluded - callback identity changes each render
 
     return (
         <Container

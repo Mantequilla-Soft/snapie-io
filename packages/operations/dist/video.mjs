@@ -5,6 +5,8 @@ async function uploadVideoTo3Speak(file, options) {
     let embedUrl = null;
     const upload = new tus.Upload(file, {
       endpoint: "https://embed.3speak.tv/uploads",
+      chunkSize: 10 * 1024 * 1024,
+      // 10MB chunks for reliable large file uploads
       retryDelays: [0, 3e3, 5e3, 1e4, 2e4],
       metadata: {
         filename: file.name,

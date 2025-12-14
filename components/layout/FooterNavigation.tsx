@@ -1,10 +1,16 @@
 import { useKeychain } from '@/contexts/KeychainContext';
-import { Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
+import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut } from 'react-icons/fi';
-import { useState } from 'react';
+import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { useState, useRef, useEffect } from 'react';
 
-export default function FooterNavigation() {
+interface FooterNavigationProps {
+    isChatOpen: boolean;
+    setIsChatOpen: (isOpen: boolean) => void;
+    chatUnreadCount?: number;
+}
+
+export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
 
     const { user, login, logout, isLoggedIn } = useKeychain();
     const router = useRouter();
@@ -12,12 +18,30 @@ export default function FooterNavigation() {
     const [modalDisplayed, setModalDisplayed] = useState(false);
     const [username, setUsername] = useState('');
     const toast = useToast();
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showLeftFade, setShowLeftFade] = useState(false);
+    const [showRightFade, setShowRightFade] = useState(false);
     
     const handleNavigation = (path: string) => {
         if (router) {
             router.push(path);
         }
     };
+
+    // Check scroll position to show/hide fade indicators
+    const checkScroll = () => {
+        if (scrollRef.current) {
+            const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+            setShowLeftFade(scrollLeft > 5);
+            setShowRightFade(scrollLeft < scrollWidth - clientWidth - 5);
+        }
+    };
+
+    useEffect(() => {
+        checkScroll();
+        window.addEventListener('resize', checkScroll);
+        return () => window.removeEventListener('resize', checkScroll);
+    }, []);
 
     return (
         <Box
@@ -27,18 +51,69 @@ export default function FooterNavigation() {
             left="0"
             right="0"
             bg="secondary"
-            p={2}
             borderTop="1px solid"
             borderColor="tb1"
             display={{ base: 'block', sm: 'none' }}
             zIndex="999"
         >
-            <HStack justify="space-around">
+            {/* Left fade indicator */}
+            {showLeftFade && (
+                <Box
+                    position="absolute"
+                    left="0"
+                    top="0"
+                    bottom="0"
+                    width="30px"
+                    bgGradient="linear(to-r, secondary, transparent)"
+                    zIndex="1"
+                    pointerEvents="none"
+                    display="flex"
+                    alignItems="center"
+                    pl={1}
+                >
+                    <Icon as={FiChevronLeft} color="whiteAlpha.600" boxSize={4} />
+                </Box>
+            )}
+            
+            {/* Right fade indicator */}
+            {showRightFade && (
+                <Box
+                    position="absolute"
+                    right="0"
+                    top="0"
+                    bottom="0"
+                    width="30px"
+                    bgGradient="linear(to-l, secondary, transparent)"
+                    zIndex="1"
+                    pointerEvents="none"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="flex-end"
+                    pr={1}
+                >
+                    <Icon as={FiChevronRight} color="whiteAlpha.600" boxSize={4} />
+                </Box>
+            )}
+
+            <Box
+                ref={scrollRef}
+                overflowX="auto"
+                onScroll={checkScroll}
+                p={2}
+                css={{
+                    '&::-webkit-scrollbar': { display: 'none' },
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none',
+                }}
+            >
+            <HStack spacing={1} minW="max-content" justify="center" px={2}>
                 <Tooltip label="Home" aria-label="Home tooltip">
                     <Button
                         onClick={() => handleNavigation("/")}
                         variant="ghost"
                         color="white"
+                        size="sm"
+                        minW="40px"
                         _hover={{ bg: 'whiteAlpha.200' }}
                         leftIcon={<Icon as={FiHome} boxSize={4} />}
                     />
@@ -49,6 +124,8 @@ export default function FooterNavigation() {
                         onClick={() => handleNavigation("/blog")}
                         variant="ghost"
                         color="white"
+                        size="sm"
+                        minW="40px"
                         _hover={{ bg: 'whiteAlpha.200' }}
                         leftIcon={<Icon as={FiBook} boxSize={4} />}
                     />
@@ -61,6 +138,8 @@ export default function FooterNavigation() {
                                 onClick={() => handleNavigation("/@" + user + "/notifications")}
                                 variant="ghost"
                                 color="white"
+                                size="sm"
+                                minW="40px"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiBell} boxSize={4} />}
                             />
@@ -71,9 +150,43 @@ export default function FooterNavigation() {
                                 onClick={() => handleNavigation("/@" + user + '/wallet')}
                                 variant="ghost"
                                 color="white"
+                                size="sm"
+                                minW="40px"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                             />
+                        </Tooltip>
+
+                        <Tooltip label="Chat" aria-label="Chat tooltip">
+                            <Box position="relative">
+                                <Button
+                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    variant="ghost"
+                                    color="white"
+                                    size="sm"
+                                    minW="40px"
+                                    bg={isChatOpen ? 'blue.500' : 'transparent'}
+                                    _hover={{ bg: isChatOpen ? 'blue.600' : 'whiteAlpha.200' }}
+                                    leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
+                                />
+                                {chatUnreadCount > 0 && !isChatOpen && (
+                                    <Badge
+                                        position="absolute"
+                                        top="-2px"
+                                        right="-2px"
+                                        colorScheme="red"
+                                        borderRadius="full"
+                                        minW="18px"
+                                        h="18px"
+                                        display="flex"
+                                        alignItems="center"
+                                        justifyContent="center"
+                                        fontSize="xs"
+                                    >
+                                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                                    </Badge>
+                                )}
+                            </Box>
                         </Tooltip>
 
                         <Tooltip label="Profile" aria-label="Profile tooltip">
@@ -81,6 +194,8 @@ export default function FooterNavigation() {
                                 onClick={() => handleNavigation("/@" + user)}
                                 variant="ghost"
                                 color="white"
+                                size="sm"
+                                minW="40px"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiUser} boxSize={4} />}
                             />
@@ -91,6 +206,8 @@ export default function FooterNavigation() {
                                 onClick={logout}
                                 variant="ghost"
                                 color="white"
+                                size="sm"
+                                minW="40px"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiLogOut} boxSize={4} />}
                             />
@@ -102,12 +219,15 @@ export default function FooterNavigation() {
                             onClick={() => setModalDisplayed(true)}
                             variant="ghost"
                             color="white"
+                            size="sm"
+                            minW="40px"
                             _hover={{ bg: 'whiteAlpha.200' }}
                             leftIcon={<Icon as={FiLogIn} boxSize={4} />}
                         />
                     </Tooltip>
                 )}
             </HStack>
+            </Box>
             
             {/* Login Modal */}
             <Modal isOpen={modalDisplayed} onClose={() => setModalDisplayed(false)}>

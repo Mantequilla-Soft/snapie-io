@@ -40,9 +40,9 @@ const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
 
     useEffect(() => {
         fetchGifs(0);
-        setKey(key + 1); // Increment the key to force re-render of the Grid component
-    }
-    ,[searchTerm]);
+        setKey(k => k + 1); // Increment the key to force re-render of the Grid component
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchTerm]); // fetchGifs excluded - only want to trigger on searchTerm change
 
     return (
         <>
