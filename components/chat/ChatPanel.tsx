@@ -245,7 +245,10 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   useEffect(() => {
     // Only auto-scroll if we have more messages than before (new message arrived)
     if (messages.length > lastMessageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 50);
     }
     lastMessageCountRef.current = messages.length;
   }, [messages]);
@@ -265,7 +268,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       return;
     }
 
-    console.log('💬 [Chat] Starting message polling (5s interval)');
+    console.log('💬 [Chat] Starting message polling (3s interval)');
     
     pollingRef.current = setInterval(async () => {
       // Check if tab is visible (Page Visibility API)
@@ -318,7 +321,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         // Silent fail for polling - don't show errors
         console.log('💬 [Chat] Polling error (silent):', err);
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
       if (pollingRef.current) {
@@ -700,6 +703,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       
       // Reload messages
       await loadMessages(channel.id);
+      
+      // Force scroll to bottom after sending (with small delay for DOM update)
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+      }, 100);
     } catch (err: any) {
       console.error("Send message error:", err);
       setError(err.message);
