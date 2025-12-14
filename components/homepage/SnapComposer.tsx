@@ -22,6 +22,15 @@ import {
     extractVideoIdFromEmbedUrl
 } from '@snapie/operations/video';
 
+// Type for tracking image upload state
+interface UploadingImage {
+    file: File;
+    previewUrl: string;
+    uploadedUrl: string | null;
+    progress: number;
+    error?: string;
+}
+
 interface SnapComposerProps {
     pa: string;
     pp: string;
@@ -34,7 +43,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const { user } = useKeychain();
 
     const postBodyRef = useRef<HTMLTextAreaElement>(null);
-    const [images, setImages] = useState<File[]>([]);
+    const [uploadingImages, setUploadingImages] = useState<UploadingImage[]>([]);
     const [selectedGif, setSelectedGif] = useState<IGif | null>(null);
     const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
     const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
@@ -44,13 +53,15 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState<number[]>([]);
 
     const buttonText = post ? "Reply" : "Post";
-    const hasMedia = images.length > 0 || selectedGif !== null;
+    const hasMedia = uploadingImages.length > 0 || selectedGif !== null;
     const hasVideo = selectedVideo !== null;
     const hasAudio = audioEmbedUrl !== null;
-    const isDisabled = !user || isLoading;
+    
+    // Check if any images are still uploading
+    const imagesStillUploading = uploadingImages.some(img => img.uploadedUrl === null && !img.error);
+    const isDisabled = !user || isLoading || imagesStillUploading;
 
     // Handle video selection and start upload immediately using SDK
     async function handleVideoSelection(file: File) {
@@ -119,6 +130,70 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         }
     }
 
+    // Handle image selection - upload immediately
+    async function handleImageSelection(files: File[]) {
+        if (!user) {
+            alert('You must be logged in to upload images.');
+            return;
+        }
+
+        // Create initial state for each file
+        const newImages: UploadingImage[] = files.map(file => ({
+            file,
+            previewUrl: URL.createObjectURL(file),
+            uploadedUrl: null,
+            progress: 0,
+        }));
+
+        // Add to state immediately (show previews)
+        setUploadingImages(prev => [...prev, ...newImages]);
+
+        // Start uploads for each file
+        const startIndex = uploadingImages.length;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const imageIndex = startIndex + i;
+            
+            try {
+                console.log(`📷 Starting upload for image ${i + 1}:`, file.name);
+                
+                const url = await uploadImageWithKeychain(file, user, {
+                    onProgress: (progress) => {
+                        setUploadingImages(prev => prev.map((img, idx) => 
+                            idx === imageIndex ? { ...img, progress } : img
+                        ));
+                    }
+                });
+                
+                console.log(`✅ Image ${i + 1} uploaded:`, url);
+                
+                // Update with uploaded URL
+                setUploadingImages(prev => prev.map((img, idx) => 
+                    idx === imageIndex ? { ...img, uploadedUrl: url, progress: 100 } : img
+                ));
+            } catch (error) {
+                console.error(`❌ Error uploading image ${i + 1}:`, error);
+                
+                // Mark as failed
+                setUploadingImages(prev => prev.map((img, idx) => 
+                    idx === imageIndex ? { ...img, error: error instanceof Error ? error.message : 'Upload failed', progress: 0 } : img
+                ));
+            }
+        }
+    }
+
+    // Remove an image (cleanup preview URL)
+    function removeImage(index: number) {
+        setUploadingImages(prev => {
+            const img = prev[index];
+            if (img?.previewUrl) {
+                URL.revokeObjectURL(img.previewUrl);
+            }
+            return prev.filter((_, i) => i !== index);
+        });
+    }
+
     async function handleComment() {
         if (!user) {
             alert('You must be logged in to post.');
@@ -127,43 +202,18 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         
         let bodyText = postBodyRef.current?.value || '';
 
-        if (!bodyText.trim() && images.length === 0 && !selectedGif && !selectedVideo && !audioEmbedUrl) {
+        if (!bodyText.trim() && uploadingImages.length === 0 && !selectedGif && !selectedVideo && !audioEmbedUrl) {
             alert('Please enter some text, upload an image, select a gif, upload a video, or record audio before posting.');
             return;
         }
 
         setIsLoading(true);
-        setUploadProgress([]);
 
         try {
-            // Upload images first (using user's signature via Aioha)
-            let imageUrls: string[] = [];
-            if (images.length > 0) {
-                console.log('📤 Starting image upload for', images.length, 'images');
-                // Initialize progress tracking
-                setUploadProgress(new Array(images.length).fill(0));
-                
-                const uploadedImages = await Promise.all(images.map(async (image, index) => {
-                    try {
-                        console.log(`📷 Uploading image ${index + 1}:`, image.name);
-                        const url = await uploadImageWithKeychain(image, user, {
-                            index,
-                            setUploadProgress
-                        });
-                        console.log(`✅ Image ${index + 1} uploaded:`, url);
-                        return url;
-                    } catch (error) {
-                        console.error(`❌ Error uploading image ${index + 1}:`, error);
-                        alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                        return null;
-                    }
-                }));
-                imageUrls = uploadedImages.filter((url: string | null): url is string => url !== null);
-                
-                if (imageUrls.length === 0 && images.length > 0) {
-                    throw new Error('All image uploads failed');
-                }
-            }
+            // Images are already uploaded - just collect the URLs
+            const imageUrls = uploadingImages
+                .filter(img => img.uploadedUrl !== null)
+                .map(img => img.uploadedUrl as string);
 
             // Resolve parent permlink for snaps
             let parentPermlink = pp;
@@ -194,9 +244,14 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             );
             
             if (commentResponse.success) {
+                // Cleanup preview URLs
+                uploadingImages.forEach(img => {
+                    if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+                });
+                
                 // Reset form
                 postBodyRef.current!.value = '';
-                setImages([]);
+                setUploadingImages([]);
                 setSelectedGif(null);
                 setSelectedVideo(null);
                 setVideoEmbedUrl(null);
@@ -219,7 +274,6 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             alert('Error posting: ' + error);
         } finally {
             setIsLoading(false);
-            setUploadProgress([]);
         }
     }
 
@@ -240,34 +294,34 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 mb={3}
                 ref={postBodyRef}
                 _placeholder={{ color: 'text' }}
-                isDisabled={isDisabled}
+                isDisabled={!user || isLoading}
                 onKeyDown={handleKeyDown} // Attach the keydown handler
             />
             <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
                 <HStack flexShrink={1} minW={0}>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaImage size={22} />
-                        <ImageUploader images={images} onUpload={setImages} onRemove={(index) => setImages(prevImages => prevImages.filter((_, i) => i !== index))} />
+                        <ImageUploader onUpload={handleImageSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={isDisabled || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <MdGif size={48} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={isDisabled || hasMedia || videoUploadProgress > 0 || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasMedia || videoUploadProgress > 0 || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaVideo size={22} />
                         <VideoUploader onUpload={handleVideoSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={isDisabled || hasMedia || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasMedia || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaMicrophone size={22} />
                     </Button>
                 </HStack>
                 <Button variant="solid" colorScheme="primary" onClick={handleComment} isDisabled={isDisabled || Boolean(selectedVideo && !videoEmbedUrl)} flexShrink={0} size={{ base: 'sm', md: 'md' }}>
-                    {isLoading ? <Spinner size="sm" /> : (!user ? "Log in to post" : buttonText)}
+                    {isLoading ? <Spinner size="sm" /> : imagesStillUploading ? "Uploading..." : (!user ? "Log in to post" : buttonText)}
                 </Button>
             </HStack>
             <Wrap spacing={4}>
-                {images.map((image, index) => (
-                    <Box key={index} position="relative">
-                        <Image alt="" src={URL.createObjectURL(image)} boxSize="100px" borderRadius="base" />
+                {uploadingImages.map((image, index) => (
+                    <Box key={index} position="relative" minW="100px">
+                        <Image alt="" src={image.previewUrl} boxSize="100px" borderRadius="base" objectFit="cover" />
                         <IconButton
                             aria-label="Remove image"
                             icon={<CloseIcon />}
@@ -275,10 +329,16 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                             position="absolute"
                             top="0"
                             right="0"
-                            onClick={() => setImages(prevImages => prevImages.filter((_, i) => i !== index))}
+                            onClick={() => removeImage(index)}
                             isDisabled={isLoading}
                         />
-                        <Progress value={uploadProgress[index]} size="xs" colorScheme="green" mt={2} />
+                        {image.error ? (
+                            <Text fontSize="xs" color="red.400" mt={1}>❌ {image.error}</Text>
+                        ) : image.uploadedUrl ? (
+                            <Text fontSize="xs" color="green.400" mt={1}>✓ Ready</Text>
+                        ) : (
+                            <Progress value={image.progress} size="xs" colorScheme="blue" mt={2} />
+                        )}
                     </Box>
                 ))}
                 {selectedGif && (

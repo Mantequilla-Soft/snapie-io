@@ -1,30 +1,26 @@
 import React, { useRef } from 'react';
-import { Box, Image, IconButton, Wrap, Input, Button } from '@chakra-ui/react';
-import { CloseIcon } from '@chakra-ui/icons';
+import { Box, Input } from '@chakra-ui/react';
 
 interface ImageUploaderProps {
     onUpload: (files: File[]) => void;
-    onRemove: (index: number) => void;
-    images: File[];
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload, onRemove, images }) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files || []);
-        onUpload(files);
-    };
-
-    const triggerFileInput = () => {
+        if (files.length > 0) {
+            onUpload(files);
+        }
+        // Reset input so same file can be selected again
         if (inputRef.current) {
-            inputRef.current.click();
+            inputRef.current.value = '';
         }
     };
 
     return (
-        <Box onClick={triggerFileInput}>
-
+        <Box>
             <Input
                 ref={inputRef}
                 type="file"
@@ -33,7 +29,6 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload, onRemove, image
                 onChange={handleImageUpload}
                 hidden
             />
-
         </Box>
     );
 };
