@@ -195,7 +195,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [selectedDM, setSelectedDM] = useState<DMChannel | null>(null); // Currently viewing DM
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const websocketRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
   const lastMessageCountRef = useRef<number>(0);
   const previousUserRef = useRef<string | null>(null);
 
@@ -210,6 +212,17 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     // User changed - reset everything
     if (previousUserRef.current !== (user || '')) {
       console.log('👤 [Chat] User changed from', previousUserRef.current, 'to', user, '- resetting chat');
+      
+      // Close existing WebSocket connection
+      if (websocketRef.current) {
+        websocketRef.current.close();
+        websocketRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      reconnectAttemptsRef.current = 0;
       
       // Clear all chat state
       setIsBootstrapped(false);
@@ -253,85 +266,206 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     lastMessageCountRef.current = messages.length;
   }, [messages]);
 
-  // Poll for new messages when chat is open and not minimized
+  // WebSocket connection for real-time messages
   useEffect(() => {
-    // Clear any existing interval
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
+    // Cleanup function to close websocket and clear reconnect timeout
+    const cleanup = () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (websocketRef.current) {
+        console.log('🔌 [Chat] Closing WebSocket connection');
+        websocketRef.current.close();
+        websocketRef.current = null;
+      }
+    };
 
-    // Only poll if chat is open, not minimized, bootstrapped, and has a channel
-    const shouldPoll = isOpen && !isMinimized && isBootstrapped && channel;
+    // Only connect if chat is open, not minimized, bootstrapped, and has a channel
+    const shouldConnect = isOpen && !isMinimized && isBootstrapped && channel;
     
-    if (!shouldPoll) {
+    if (!shouldConnect) {
+      cleanup();
       return;
     }
 
-    console.log('💬 [Chat] Starting message polling (3s interval)');
-    
-    pollingRef.current = setInterval(async () => {
-      // Check if tab is visible (Page Visibility API)
-      if (document.hidden) {
-        return;
-      }
+    // Don't reconnect if already connected
+    if (websocketRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    const connectWebSocket = () => {
+      // Use the Ecency websocket proxy - it handles auth via the mm_pat cookie
+      const wsUrl = 'wss://ecency.com/api/mattermost/websocket';
       
-      try {
-        const response = await fetch(`/api/chat/channels/${channel.id}/posts`, {
-          credentials: "include",
-        });
+      console.log('🔌 [Chat] Connecting to WebSocket:', wsUrl);
+      
+      const socket = new WebSocket(wsUrl);
+      websocketRef.current = socket;
 
-        if (!response.ok) return;
-
-        const data = await response.json();
+      socket.addEventListener('open', () => {
+        console.log('🔌 [Chat] WebSocket connected');
+        reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
         
-        // Parse messages (same logic as loadMessages but without setting loading state)
-        let newMessages: Message[] = [];
-        
-        if (Array.isArray(data.posts) && data.posts.length > 0) {
-          newMessages = data.posts.map((post: any) => ({
-            id: post.id,
-            message: post.message,
-            user_id: post.user_id,
-            username: data.users?.[post.user_id]?.username || post.username || "Unknown",
-            create_at: post.create_at,
-            reactions: post.metadata?.reactions || [],
-          })).sort((a: Message, b: Message) => a.create_at - b.create_at);
-        } else if (data.posts && data.order) {
-          newMessages = data.order.map((id: string) => ({
-            id,
-            message: data.posts[id].message,
-            user_id: data.posts[id].user_id,
-            username: data.users?.[data.posts[id].user_id]?.username || "Unknown",
-            create_at: data.posts[id].create_at,
-            reactions: data.posts[id].metadata?.reactions || [],
-          })).reverse();
-        }
+        // Send ping to confirm connection
+        socket.send(JSON.stringify({ seq: 1, action: 'ping' }));
+      });
 
-        // Only update if we have new messages (compare by length and last message id)
-        if (newMessages.length > 0) {
-          const lastNewId = newMessages[newMessages.length - 1]?.id;
-          const lastCurrentId = messages[messages.length - 1]?.id;
+      socket.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
           
-          if (lastNewId !== lastCurrentId || newMessages.length !== messages.length) {
-            setMessages(newMessages);
+          // Handle different event types
+          switch (data.event) {
+            case 'hello':
+              console.log('🔌 [Chat] WebSocket authenticated successfully');
+              break;
+              
+            case 'posted': {
+              // New message posted
+              const postData = JSON.parse(data.data.post);
+              const channelId = postData.channel_id;
+              
+              // Only process if it's for the current channel
+              if (channel && channelId === channel.id) {
+                const newMessage: Message = {
+                  id: postData.id,
+                  message: postData.message,
+                  user_id: postData.user_id,
+                  username: data.data.sender_name || 'Unknown',
+                  create_at: postData.create_at,
+                  reactions: [],
+                };
+                
+                console.log('💬 [Chat] New message via WebSocket:', newMessage.username, '-', newMessage.message.substring(0, 50));
+                
+                setMessages(prev => {
+                  // Avoid duplicates
+                  if (prev.some(m => m.id === newMessage.id)) {
+                    return prev;
+                  }
+                  return [...prev, newMessage];
+                });
+              }
+              break;
+            }
+              
+            case 'post_edited': {
+              // Message was edited
+              const postData = JSON.parse(data.data.post);
+              const channelId = postData.channel_id;
+              
+              if (channel && channelId === channel.id) {
+                setMessages(prev => prev.map(msg => 
+                  msg.id === postData.id 
+                    ? { ...msg, message: postData.message }
+                    : msg
+                ));
+                console.log('✏️ [Chat] Message edited via WebSocket:', postData.id);
+              }
+              break;
+            }
+              
+            case 'post_deleted': {
+              // Message was deleted
+              const postData = JSON.parse(data.data.post);
+              const channelId = postData.channel_id;
+              
+              if (channel && channelId === channel.id) {
+                setMessages(prev => prev.filter(msg => msg.id !== postData.id));
+                console.log('🗑️ [Chat] Message deleted via WebSocket:', postData.id);
+              }
+              break;
+            }
+              
+            case 'reaction_added': {
+              // Reaction added to a message
+              const { post_id, emoji_name, user_id } = data.data;
+              
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === post_id) {
+                  const existingReactions = msg.reactions || [];
+                  // Check if this reaction already exists from this user
+                  const alreadyExists = existingReactions.some(
+                    r => r.emoji_name === emoji_name && r.user_id === user_id
+                  );
+                  if (!alreadyExists) {
+                    return {
+                      ...msg,
+                      reactions: [...existingReactions, { emoji_name, user_id }]
+                    };
+                  }
+                }
+                return msg;
+              }));
+              console.log('👍 [Chat] Reaction added via WebSocket:', emoji_name);
+              break;
+            }
+              
+            case 'reaction_removed': {
+              // Reaction removed from a message
+              const { post_id, emoji_name, user_id } = data.data;
+              
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === post_id) {
+                  return {
+                    ...msg,
+                    reactions: (msg.reactions || []).filter(
+                      r => !(r.emoji_name === emoji_name && r.user_id === user_id)
+                    )
+                  };
+                }
+                return msg;
+              }));
+              console.log('👎 [Chat] Reaction removed via WebSocket:', emoji_name);
+              break;
+            }
+              
+            case 'typing':
+              // User is typing - could implement typing indicator
+              // console.log('⌨️ [Chat] User typing:', data.data.user_id);
+              break;
+              
+            default:
+              // Log unknown events for debugging (but not too verbosely)
+              if (data.event && data.event !== 'status_change' && data.event !== 'user_updated') {
+                console.log('🔌 [Chat] WebSocket event:', data.event);
+              }
           }
+        } catch (err) {
+          // Not all messages are JSON (e.g., pong responses)
+          // console.log('🔌 [Chat] WebSocket raw message:', event.data);
         }
-      } catch (err) {
-        // Silent fail for polling - don't show errors
-        console.log('💬 [Chat] Polling error (silent):', err);
-      }
-    }, 3000);
+      });
 
-    return () => {
-      if (pollingRef.current) {
-        console.log('💬 [Chat] Stopping message polling');
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
+      socket.addEventListener('close', (event) => {
+        console.log('🔌 [Chat] WebSocket closed:', event.code, event.reason);
+        websocketRef.current = null;
+        
+        // Attempt to reconnect if we should still be connected
+        if (isOpen && !isMinimized && isBootstrapped && channel) {
+          const attempts = reconnectAttemptsRef.current;
+          const delay = Math.min(1000 * Math.pow(2, attempts), 30000); // Exponential backoff, max 30s
+          
+          console.log(`🔌 [Chat] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current++;
+            connectWebSocket();
+          }, delay);
+        }
+      });
+
+      socket.addEventListener('error', (error) => {
+        console.error('🔌 [Chat] WebSocket error:', error);
+      });
     };
+
+    connectWebSocket();
+
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isMinimized, isBootstrapped, channel?.id]); // channel object and messages intentionally excluded to avoid infinite loop
+  }, [isOpen, isMinimized, isBootstrapped, channel?.id]); // channel object intentionally excluded to avoid infinite reconnects
 
   // Drag handlers for the floating bubble
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
