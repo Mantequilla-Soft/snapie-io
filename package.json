@@ -26,7 +26,7 @@
     "isomorphic-dompurify": "^2.31.0",
     "keychain": "^1.5.0",
     "keychain-sdk": "^0.8.5",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "nodemailer": "^6.9.15",
     "react": "^18",
     "react-dom": "^18",
