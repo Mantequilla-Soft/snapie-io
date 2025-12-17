@@ -198,8 +198,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const websocketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef<number>(0);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const [usePollingFallback, setUsePollingFallback] = useState(false);
   const lastMessageCountRef = useRef<number>(0);
   const previousUserRef = useRef<string | null>(null);
 
@@ -224,12 +222,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
       reconnectAttemptsRef.current = 0;
-      setUsePollingFallback(false);
       
       // Clear all chat state
       setIsBootstrapped(false);
@@ -452,14 +445,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         // Attempt to reconnect if we should still be connected
         if (isOpen && !isMinimized && isBootstrapped && channel) {
           const attempts = reconnectAttemptsRef.current;
-          
-          // After 3 failed attempts, fall back to polling
-          if (attempts >= 3) {
-            console.log('🔌 [Chat] WebSocket failed after 3 attempts, falling back to polling');
-            setUsePollingFallback(true);
-            return;
-          }
-          
           const delay = Math.min(1000 * Math.pow(2, attempts), 30000); // Exponential backoff, max 30s
           
           console.log(`🔌 [Chat] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
@@ -481,86 +466,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isMinimized, isBootstrapped, channel?.id]); // channel object intentionally excluded to avoid infinite reconnects
-
-  // Polling fallback when WebSocket is not available (e.g., cross-origin issues on localhost)
-  useEffect(() => {
-    // Clear any existing interval
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-
-    // Only poll if WebSocket failed and we need fallback
-    const shouldPoll = usePollingFallback && isOpen && !isMinimized && isBootstrapped && channel;
-    
-    if (!shouldPoll) {
-      return;
-    }
-
-    console.log('📡 [Chat] Starting polling fallback (5s interval)');
-    
-    pollingRef.current = setInterval(async () => {
-      // Check if tab is visible (Page Visibility API)
-      if (document.hidden) {
-        return;
-      }
-      
-      try {
-        const response = await fetch(`/api/chat/channels/${channel.id}/posts`, {
-          credentials: "include",
-        });
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        
-        // Parse messages
-        let newMessages: Message[] = [];
-        
-        if (Array.isArray(data.posts) && data.posts.length > 0) {
-          newMessages = data.posts.map((post: any) => ({
-            id: post.id,
-            message: post.message,
-            user_id: post.user_id,
-            username: data.users?.[post.user_id]?.username || post.username || "Unknown",
-            create_at: post.create_at,
-            reactions: post.metadata?.reactions || [],
-          })).sort((a: Message, b: Message) => a.create_at - b.create_at);
-        } else if (data.posts && data.order) {
-          newMessages = data.order.map((id: string) => ({
-            id,
-            message: data.posts[id].message,
-            user_id: data.posts[id].user_id,
-            username: data.users?.[data.posts[id].user_id]?.username || "Unknown",
-            create_at: data.posts[id].create_at,
-            reactions: data.posts[id].metadata?.reactions || [],
-          })).reverse();
-        }
-
-        // Only update if we have new messages
-        if (newMessages.length > 0) {
-          const lastNewId = newMessages[newMessages.length - 1]?.id;
-          const lastCurrentId = messages[messages.length - 1]?.id;
-          
-          if (lastNewId !== lastCurrentId || newMessages.length !== messages.length) {
-            setMessages(newMessages);
-          }
-        }
-      } catch (err) {
-        // Silent fail for polling
-        console.log('📡 [Chat] Polling error (silent):', err);
-      }
-    }, 5000); // 5 second interval for fallback polling
-
-    return () => {
-      if (pollingRef.current) {
-        console.log('📡 [Chat] Stopping polling fallback');
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [usePollingFallback, isOpen, isMinimized, isBootstrapped, channel?.id]);
 
   // Drag handlers for the floating bubble
   const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
