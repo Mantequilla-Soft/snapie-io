@@ -1,6 +1,6 @@
 {
   "name": "@snapie/composer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Rich markdown editor utilities and React components for Hive blockchain content creation",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

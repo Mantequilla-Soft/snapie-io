@@ -1,6 +1,6 @@
 {
   "name": "@snapie/renderer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Hive blockchain markdown renderer with 3Speak, IPFS, and media embed support",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
