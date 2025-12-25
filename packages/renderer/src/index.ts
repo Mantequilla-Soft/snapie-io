@@ -51,6 +51,23 @@ export interface HiveRendererOptions {
     
     /** Custom image proxy function */
     imageProxyFn?: (url: string) => string;
+
+    /** Enable rendering :emoji: tokens as Hivemoji images (default: false) */
+    enableHivemoji?: boolean;
+
+    /** Base URL for the Hivemoji API (default: "https://hivemoji.hivelytics.io") */
+    hivemojiBaseUrl?: string;
+
+    /** Fallback owner for :emoji: tokens when no owner is provided */
+    hivemojiDefaultOwner?: string;
+}
+
+/**
+ * Per-render context options
+ */
+export interface HiveRendererContext {
+    /** Default owner to resolve :emoji: tokens (usually the post author) */
+    defaultEmojiOwner?: string;
 }
 
 /**
@@ -63,6 +80,17 @@ const DEFAULT_IPFS_FALLBACKS = [
     "https://cloudflare-ipfs.com",
     "https://ipfs.io"
 ];
+const DEFAULT_HIVEMOJI_BASE_URL = "https://hivemoji.hivelytics.io";
+const HIVEMOJI_REGEX = /:([a-z0-9._-]+\/)?([a-z0-9._-]{1,32}):/gi;
+const HIVEMOJI_SKIP_TAGS = new Set([
+    'script',
+    'style',
+    'textarea',
+    'code',
+    'pre',
+    'kbd',
+    'samp'
+]);
 
 /**
  * Default Hive frontends recognized for URL conversion
@@ -336,6 +364,139 @@ function preventIPFSDownloads(content: string): string {
     );
 }
 
+function normalizeHivemojiOwner(owner?: string | null): string | null {
+    if (!owner) return null;
+    const normalized = String(owner).replace(/^@/, '').trim();
+    return normalized.length > 0 ? normalized : null;
+}
+
+function buildHivemojiUrl(baseUrl: string, owner: string, name: string): string {
+    return `${baseUrl}/@${encodeURIComponent(owner)}/@${encodeURIComponent(name)}`;
+}
+
+function createHivemojiElement(
+    doc: Document,
+    baseUrl: string,
+    owner: string,
+    name: string,
+    altText: string
+): HTMLSpanElement {
+    const span = doc.createElement('span');
+    span.className = 'hivemoji';
+    span.setAttribute('role', 'img');
+    span.setAttribute('aria-label', altText);
+    const text = doc.createElement('span');
+    text.className = 'hivemoji__text';
+    text.textContent = altText;
+    text.style.display = 'none';
+
+    const img = doc.createElement('img');
+    img.className = 'hivemoji__img';
+    img.setAttribute('src', buildHivemojiUrl(baseUrl, owner, name));
+    img.setAttribute('alt', '');
+    img.setAttribute('aria-hidden', 'true');
+    img.setAttribute('loading', 'lazy');
+    img.setAttribute('decoding', 'async');
+    img.style.display = 'inline-block';
+    img.style.width = '1em';
+    img.style.height = '1em';
+    img.style.maxWidth = 'none';
+    img.style.maxHeight = 'none';
+    img.style.margin = '0';
+    img.style.objectFit = 'contain';
+    img.style.verticalAlign = 'middle';
+    img.setAttribute(
+        'onerror',
+        'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}'
+    );
+    span.style.display = 'inline-flex';
+    span.style.alignItems = 'center';
+    span.style.verticalAlign = 'middle';
+    span.style.margin = '0 0.05em';
+    span.append(text, img);
+    return span;
+}
+
+function transformHivemojiContent(
+    content: string,
+    options: { baseUrl: string; defaultOwner?: string | null }
+): string {
+    if (!content || !content.includes(':')) {
+        return DOMPurify.sanitize(content, DOMPURIFY_CONFIG);
+    }
+    HIVEMOJI_REGEX.lastIndex = 0;
+    if (!HIVEMOJI_REGEX.test(content)) {
+        HIVEMOJI_REGEX.lastIndex = 0;
+        return DOMPurify.sanitize(content, DOMPURIFY_CONFIG);
+    }
+    HIVEMOJI_REGEX.lastIndex = 0;
+
+    const fragment = DOMPurify.sanitize(content, {
+        ...DOMPURIFY_CONFIG,
+        RETURN_DOM_FRAGMENT: true
+    }) as DocumentFragment;
+    const doc = fragment.ownerDocument;
+    const root = fragment;
+
+    if (!doc) {
+        return DOMPurify.sanitize(content, DOMPURIFY_CONFIG);
+    }
+
+    const showText = doc.defaultView?.NodeFilter?.SHOW_TEXT ?? 4;
+    const walker = doc.createTreeWalker(root, showText);
+    const nodes: Text[] = [];
+
+    while (walker.nextNode()) {
+        nodes.push(walker.currentNode as Text);
+    }
+
+    const defaultOwner = normalizeHivemojiOwner(options.defaultOwner);
+
+    for (const node of nodes) {
+        const text = node.nodeValue;
+        if (!text || !text.includes(':')) continue;
+
+        const parent = node.parentElement;
+        if (!parent) continue;
+        if (HIVEMOJI_SKIP_TAGS.has(parent.tagName.toLowerCase())) continue;
+
+        let changed = false;
+        let lastIndex = 0;
+        HIVEMOJI_REGEX.lastIndex = 0;
+        const frag = doc.createDocumentFragment();
+
+        for (const match of text.matchAll(HIVEMOJI_REGEX)) {
+            const [full, ownerPart, name] = match;
+            const ownerCandidate = ownerPart ? ownerPart.slice(0, -1) : defaultOwner;
+            const owner = normalizeHivemojiOwner(ownerCandidate);
+            if (!owner) continue;
+
+            const index = match.index ?? 0;
+            const before = text.slice(lastIndex, index);
+            if (before) {
+                frag.append(doc.createTextNode(before));
+            }
+
+            frag.append(createHivemojiElement(doc, options.baseUrl, owner, name, full));
+            lastIndex = index + full.length;
+            changed = true;
+        }
+
+        if (!changed) continue;
+
+        const tail = text.slice(lastIndex);
+        if (tail) {
+            frag.append(doc.createTextNode(tail));
+        }
+
+        node.replaceWith(frag);
+    }
+
+    const container = doc.createElement('div');
+    container.appendChild(fragment);
+    return container.innerHTML;
+}
+
 /**
  * Convert Hive frontend URLs to internal app links
  */
@@ -388,6 +549,9 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
         assetsWidth = 540,
         assetsHeight = 380,
         imageProxyFn,
+        enableHivemoji = false,
+        hivemojiBaseUrl = DEFAULT_HIVEMOJI_BASE_URL,
+        hivemojiDefaultOwner,
     } = options;
 
     const hiveFrontends = [...DEFAULT_HIVE_FRONTENDS, ...additionalHiveFrontends];
@@ -423,7 +587,7 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
         ipfsPrefix: ipfsGateway
     });
 
-    return function renderHiveMarkdown(markdown: string): string {
+    return function renderHiveMarkdown(markdown: string, context: HiveRendererContext = {}): string {
         let html = renderer.render(markdown);
         
         // Transform 3Speak video/audio URLs to iframes
@@ -444,6 +608,14 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
         // Convert Hive frontend URLs to internal links
         if (convertHiveUrls) {
             html = convertHiveUrlsToInternal(html, hiveFrontends, internalUrlPrefix);
+        }
+
+        if (enableHivemoji) {
+            const defaultEmojiOwner = context.defaultEmojiOwner || hivemojiDefaultOwner;
+            return transformHivemojiContent(html, {
+                baseUrl: hivemojiBaseUrl,
+                defaultOwner: defaultEmojiOwner
+            });
         }
 
         // Sanitize with DOMPurify to prevent XSS attacks

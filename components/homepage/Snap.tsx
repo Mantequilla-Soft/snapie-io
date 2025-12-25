@@ -65,8 +65,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
 
     // Render text as HTML using markdown renderer
     const renderedText = useMemo(
-        () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls) : '',
-        [textWithoutHiveUrls]
+        () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }) : '',
+        [textWithoutHiveUrls, comment.author]
     );
 
     const replies = comment.replies;

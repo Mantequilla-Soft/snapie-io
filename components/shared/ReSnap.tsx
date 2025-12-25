@@ -26,8 +26,8 @@ export default function ReSnap({ comment }: ReSnapProps) {
 
     // Render text as HTML using markdown renderer
     const renderedText = useMemo(
-        () => text ? markdownRenderer(text) : '',
-        [text]
+        () => text ? markdownRenderer(text, { defaultEmojiOwner: comment.author }) : '',
+        [text, comment.author]
     );
 
     return (

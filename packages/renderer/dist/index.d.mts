@@ -38,6 +38,19 @@ interface HiveRendererOptions {
     assetsHeight?: number;
     /** Custom image proxy function */
     imageProxyFn?: (url: string) => string;
+    /** Enable rendering :emoji: tokens as Hivemoji images (default: false) */
+    enableHivemoji?: boolean;
+    /** Base URL for the Hivemoji API (default: "https://hivemoji.hivelytics.io") */
+    hivemojiBaseUrl?: string;
+    /** Fallback owner for :emoji: tokens when no owner is provided */
+    hivemojiDefaultOwner?: string;
+}
+/**
+ * Per-render context options
+ */
+interface HiveRendererContext {
+    /** Default owner to resolve :emoji: tokens (usually the post author) */
+    defaultEmojiOwner?: string;
 }
 /**
  * Create a Hive markdown renderer with the given options
@@ -57,7 +70,7 @@ interface HiveRendererOptions {
  * const html = render(markdownContent);
  * ```
  */
-declare function createHiveRenderer(options?: HiveRendererOptions): (markdown: string) => string;
+declare function createHiveRenderer(options?: HiveRendererOptions): (markdown: string, context?: HiveRendererContext) => string;
 /**
  * Default renderer instance with standard configuration
  *
@@ -68,6 +81,6 @@ declare function createHiveRenderer(options?: HiveRendererOptions): (markdown: s
  * const html = renderHiveMarkdown(markdownContent);
  * ```
  */
-declare const renderHiveMarkdown: (markdown: string) => string;
+declare const renderHiveMarkdown: (markdown: string, context?: HiveRendererContext) => string;
 
-export { type HiveRendererOptions, createHiveRenderer, renderHiveMarkdown };
+export { type HiveRendererContext, type HiveRendererOptions, createHiveRenderer, renderHiveMarkdown };

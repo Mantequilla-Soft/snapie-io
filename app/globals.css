@@ -124,3 +124,34 @@ body {
     aspect-ratio: 16 / 9;
   }
 }
+
+.hivemoji {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 0.05em;
+}
+
+.hivemoji::selection {
+  background-color: transparent;
+  color: transparent;
+}
+
+.hivemoji__img {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+}
+
+.hivemoji__text {
+  display: none;
+}
+
+.hivemoji.hivemoji--fallback .hivemoji__img {
+  display: none;
+}
+
+.hivemoji.hivemoji--fallback .hivemoji__text {
+  display: inline;
+}

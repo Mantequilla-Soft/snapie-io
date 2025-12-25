@@ -5,7 +5,7 @@
  * with 3Speak, IPFS, and media embed support
  */
 
-import { createHiveRenderer, HiveRendererOptions } from '@snapie/renderer';
+import { createHiveRenderer, HiveRendererContext, HiveRendererOptions } from '@snapie/renderer';
 
 // Custom configuration for Snapie.io
 const snapieRendererOptions: Partial<HiveRendererOptions> = {
@@ -23,19 +23,33 @@ const snapieRendererOptions: Partial<HiveRendererOptions> = {
     // Standard asset sizes
     assetsWidth: 540,
     assetsHeight: 380,
+
+    enableHivemoji: true,
+    hivemojiBaseUrl: 'https://hivemoji.hivelytics.io',
 };
 
 // Create the configured renderer
 const render = createHiveRenderer(snapieRendererOptions);
 
+export interface MarkdownRenderOptions {
+    defaultEmojiOwner?: string;
+}
+
 /**
  * Renders Hive markdown content to sanitized HTML
  * 
  * @param markdown - Raw markdown content from Hive blockchain
+ * @param options - Render context (e.g., emoji owner)
  * @returns Sanitized HTML string safe for rendering
  */
-export default function markdownRenderer(markdown: string): string {
-    return render(markdown);
+export default function markdownRenderer(
+    markdown: string,
+    options: MarkdownRenderOptions = {}
+): string {
+    const context: HiveRendererContext = {
+        defaultEmojiOwner: options.defaultEmojiOwner
+    };
+    return render(markdown, context);
 }
 
 // Also export the renderer for direct use if needed

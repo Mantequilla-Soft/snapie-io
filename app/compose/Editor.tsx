@@ -17,7 +17,7 @@ import { useKeychain } from '@/contexts/KeychainContext';
 import { useEditorToolbar, ALL_COMMON_EMOJIS } from '@snapie/composer/react';
 
 // Preview Content Component with Spoiler Support
-const PreviewContent: FC<{ markdown: string }> = ({ markdown }) => {
+const PreviewContent: FC<{ markdown: string; emojiOwner?: string }> = ({ markdown, emojiOwner }) => {
     const [spoilerStates, setSpoilerStates] = useState<{[key: string]: boolean}>({});
 
     const toggleSpoiler = (id: string) => {
@@ -42,7 +42,7 @@ const PreviewContent: FC<{ markdown: string }> = ({ markdown }) => {
     };
 
     const processedMarkdown = processMarkdown(markdown);
-    const renderedHtml = markdownRenderer(processedMarkdown);
+    const renderedHtml = markdownRenderer(processedMarkdown, { defaultEmojiOwner: emojiOwner });
 
     // Handle spoiler rendering after component mounts/updates
     useEffect(() => {
@@ -65,13 +65,13 @@ const PreviewContent: FC<{ markdown: string }> = ({ markdown }) => {
                     </button>
                 </div>
                 <div style="display: ${isRevealed ? 'block' : 'none'}; margin-top: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e5e7eb;">
-                    ${markdownRenderer(content)}
+                    ${markdownRenderer(content, { defaultEmojiOwner: emojiOwner })}
                 </div>
             `;
 
             element.innerHTML = spoilerHtml;
         });
-    }, [markdown, spoilerStates]);
+    }, [markdown, spoilerStates, emojiOwner]);
 
     return (
         <Box 
@@ -842,7 +842,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             color="text"
                         >
                             {markdown ? (
-                                <PreviewContent markdown={markdown} />
+                                <PreviewContent markdown={markdown} emojiOwner={user || undefined} />
                             ) : (
                                 <Box color="gray.500" fontStyle="italic">
                                     Your preview will appear here...

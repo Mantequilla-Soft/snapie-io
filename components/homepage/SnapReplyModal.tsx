@@ -50,7 +50,12 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                     </HStack>
                 </ModalHeader>
                 <ModalBody>
-                    <Box dangerouslySetInnerHTML={{ __html: markdownRenderer(comment.body) }} pb={6} />
+                    <Box
+                        dangerouslySetInnerHTML={{
+                            __html: markdownRenderer(comment.body, { defaultEmojiOwner: comment.author })
+                        }}
+                        pb={6}
+                    />
                     <SnapComposer pa={comment.author} pp={comment.permlink} onNewComment={onNewReply} post={true} onClose={onClose} />
                 </ModalBody>
             </ModalContent>

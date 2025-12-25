@@ -110,7 +110,7 @@ export default function PostDetails({ post }: PostDetailsProps) {
             </Flex>
             <Box 
                 mt={4} 
-                dangerouslySetInnerHTML={{ __html: markdownRenderer(body) }}
+                dangerouslySetInnerHTML={{ __html: markdownRenderer(body, { defaultEmojiOwner: author }) }}
                 sx={{
                     textAlign: 'left',  // Base alignment for all content
                     '& p': {

@@ -42,6 +42,17 @@ var DEFAULT_IPFS_FALLBACKS = [
   "https://cloudflare-ipfs.com",
   "https://ipfs.io"
 ];
+var DEFAULT_HIVEMOJI_BASE_URL = "https://hivemoji.hivelytics.io";
+var HIVEMOJI_REGEX = /:([a-z0-9._-]+\/)?([a-z0-9._-]{1,32}):/gi;
+var HIVEMOJI_SKIP_TAGS = /* @__PURE__ */ new Set([
+  "script",
+  "style",
+  "textarea",
+  "code",
+  "pre",
+  "kbd",
+  "samp"
+]);
 var DEFAULT_HIVE_FRONTENDS = [
   "peakd.com",
   "ecency.com",
@@ -301,6 +312,110 @@ function preventIPFSDownloads(content) {
     `<a href="$1" target="_blank" rel="noopener noreferrer"$2 onclick="event.preventDefault(); window.open(this.href, '_blank'); return false;">`
   );
 }
+function normalizeHivemojiOwner(owner) {
+  if (!owner) return null;
+  const normalized = String(owner).replace(/^@/, "").trim();
+  return normalized.length > 0 ? normalized : null;
+}
+function buildHivemojiUrl(baseUrl, owner, name) {
+  return `${baseUrl}/@${encodeURIComponent(owner)}/@${encodeURIComponent(name)}`;
+}
+function createHivemojiElement(doc, baseUrl, owner, name, altText) {
+  const span = doc.createElement("span");
+  span.className = "hivemoji";
+  span.setAttribute("role", "img");
+  span.setAttribute("aria-label", altText);
+  const text = doc.createElement("span");
+  text.className = "hivemoji__text";
+  text.textContent = altText;
+  text.style.display = "none";
+  const img = doc.createElement("img");
+  img.className = "hivemoji__img";
+  img.setAttribute("src", buildHivemojiUrl(baseUrl, owner, name));
+  img.setAttribute("alt", "");
+  img.setAttribute("aria-hidden", "true");
+  img.setAttribute("loading", "lazy");
+  img.setAttribute("decoding", "async");
+  img.style.display = "inline-block";
+  img.style.width = "1em";
+  img.style.height = "1em";
+  img.style.maxWidth = "none";
+  img.style.maxHeight = "none";
+  img.style.margin = "0";
+  img.style.objectFit = "contain";
+  img.style.verticalAlign = "middle";
+  img.setAttribute(
+    "onerror",
+    'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}'
+  );
+  span.style.display = "inline-flex";
+  span.style.alignItems = "center";
+  span.style.verticalAlign = "middle";
+  span.style.margin = "0 0.05em";
+  span.append(text, img);
+  return span;
+}
+function transformHivemojiContent(content, options) {
+  if (!content || !content.includes(":")) {
+    return import_isomorphic_dompurify.default.sanitize(content, DOMPURIFY_CONFIG);
+  }
+  HIVEMOJI_REGEX.lastIndex = 0;
+  if (!HIVEMOJI_REGEX.test(content)) {
+    HIVEMOJI_REGEX.lastIndex = 0;
+    return import_isomorphic_dompurify.default.sanitize(content, DOMPURIFY_CONFIG);
+  }
+  HIVEMOJI_REGEX.lastIndex = 0;
+  const fragment = import_isomorphic_dompurify.default.sanitize(content, {
+    ...DOMPURIFY_CONFIG,
+    RETURN_DOM_FRAGMENT: true
+  });
+  const doc = fragment.ownerDocument;
+  const root = fragment;
+  if (!doc) {
+    return import_isomorphic_dompurify.default.sanitize(content, DOMPURIFY_CONFIG);
+  }
+  const showText = doc.defaultView?.NodeFilter?.SHOW_TEXT ?? 4;
+  const walker = doc.createTreeWalker(root, showText);
+  const nodes = [];
+  while (walker.nextNode()) {
+    nodes.push(walker.currentNode);
+  }
+  const defaultOwner = normalizeHivemojiOwner(options.defaultOwner);
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    if (!text || !text.includes(":")) continue;
+    const parent = node.parentElement;
+    if (!parent) continue;
+    if (HIVEMOJI_SKIP_TAGS.has(parent.tagName.toLowerCase())) continue;
+    let changed = false;
+    let lastIndex = 0;
+    HIVEMOJI_REGEX.lastIndex = 0;
+    const frag = doc.createDocumentFragment();
+    for (const match of text.matchAll(HIVEMOJI_REGEX)) {
+      const [full, ownerPart, name] = match;
+      const ownerCandidate = ownerPart ? ownerPart.slice(0, -1) : defaultOwner;
+      const owner = normalizeHivemojiOwner(ownerCandidate);
+      if (!owner) continue;
+      const index = match.index ?? 0;
+      const before = text.slice(lastIndex, index);
+      if (before) {
+        frag.append(doc.createTextNode(before));
+      }
+      frag.append(createHivemojiElement(doc, options.baseUrl, owner, name, full));
+      lastIndex = index + full.length;
+      changed = true;
+    }
+    if (!changed) continue;
+    const tail = text.slice(lastIndex);
+    if (tail) {
+      frag.append(doc.createTextNode(tail));
+    }
+    node.replaceWith(frag);
+  }
+  const container = doc.createElement("div");
+  container.appendChild(fragment);
+  return container.innerHTML;
+}
 function convertHiveUrlsToInternal(content, hiveFrontends, internalPrefix) {
   const frontendsPattern = hiveFrontends.map((domain) => domain.replace(".", "\\.")).join("|");
   const hiveUrlRegex = new RegExp(
@@ -324,7 +439,10 @@ function createHiveRenderer(options = {}) {
     internalUrlPrefix = "",
     assetsWidth = 540,
     assetsHeight = 380,
-    imageProxyFn
+    imageProxyFn,
+    enableHivemoji = false,
+    hivemojiBaseUrl = DEFAULT_HIVEMOJI_BASE_URL,
+    hivemojiDefaultOwner
   } = options;
   const hiveFrontends = [...DEFAULT_HIVE_FRONTENDS, ...additionalHiveFrontends];
   const defaultImageProxy = (url) => {
@@ -356,7 +474,7 @@ function createHiveRenderer(options = {}) {
     addExternalCssClassToMatchingLinksFn: () => true,
     ipfsPrefix: ipfsGateway
   });
-  return function renderHiveMarkdown2(markdown) {
+  return function renderHiveMarkdown2(markdown, context = {}) {
     let html = renderer.render(markdown);
     html = transform3SpeakContent(html);
     html = transformIPFSContent(html, ipfsGateway, ipfsFallbackGateways);
@@ -365,6 +483,13 @@ function createHiveRenderer(options = {}) {
     html = preventIPFSDownloads(html);
     if (convertHiveUrls) {
       html = convertHiveUrlsToInternal(html, hiveFrontends, internalUrlPrefix);
+    }
+    if (enableHivemoji) {
+      const defaultEmojiOwner = context.defaultEmojiOwner || hivemojiDefaultOwner;
+      return transformHivemojiContent(html, {
+        baseUrl: hivemojiBaseUrl,
+        defaultOwner: defaultEmojiOwner
+      });
     }
     return import_isomorphic_dompurify.default.sanitize(html, DOMPURIFY_CONFIG);
   };
