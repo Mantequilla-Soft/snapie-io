@@ -83,6 +83,12 @@ export function useComments(
     const [error, setError] = useState<string | null>(null)
 
     const fetchAndUpdateComments = useCallback(async () => {
+        // Skip fetching if author or permlink is empty
+        if (!author || !permlink) {
+            setIsLoading(false);
+            return;
+        }
+        
         setIsLoading(true);
         try {
             const fetchedComments = await fetchComments(author, permlink, recursive);

@@ -11,6 +11,7 @@ import SnapReplyModal from '../homepage/SnapReplyModal';
 import { getPost } from '@/lib/hive/client-functions';
 import PostDetails from '@/components/blog/PostDetails';
 import { useComments } from '@/hooks/useComments';
+import { useSearchParams } from 'next/navigation';
 
 interface PostPageProps {
   author: string
@@ -18,6 +19,8 @@ interface PostPageProps {
 }
 
 export default function PostPage({ author, permlink }: PostPageProps) {
+  const searchParams = useSearchParams();
+  const isEmbedMode = searchParams.get('embed') === 'true';
 
   const [isLoading, setIsLoading] = useState(false);
   const [post, setPost] = useState<Discussion | null>(null);
@@ -27,7 +30,8 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [newComment, setNewComment] = useState<Comment | null>(null); // Define the state
 
-  const data = useComments(author, permlink, true);
+  // Only fetch comments if NOT in embed mode
+  const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode);
   const commentsData = {
     ...data, 
     loadNextPage: () => {}, 
@@ -68,10 +72,10 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   return (
     <Box bg="background" color="text" minH="100vh">
       <Flex direction={{ base: 'column', md: 'row' }}>
-        <Box flex="1" p={4}>
-          <Container maxW="container.sm">
-            <PostDetails post={post} />
-            {!conversation ? (
+        <Box flex="1" p={isEmbedMode ? 2 : 4}>
+          <Container maxW={isEmbedMode ? '100%' : 'container.sm'} p={isEmbedMode ? 0 : undefined}>
+            <PostDetails post={post} isEmbedMode={isEmbedMode} />
+            {!isEmbedMode && !conversation ? (
               <>
                 <SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} post={true} onClose={() => {}} />
                 <SnapList
@@ -85,13 +89,13 @@ export default function PostPage({ author, permlink }: PostPageProps) {
                   data={commentsData}
                 />
               </>
-            ) : (
+            ) : !isEmbedMode ? (
               <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
-            )}
+            ) : null}
           </Container>
         </Box>
       </Flex>
-      {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
+      {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
     </Box>
   );
 }
