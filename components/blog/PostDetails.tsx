@@ -11,9 +11,10 @@ import NextLink from 'next/link';
 
 interface PostDetailsProps {
     post: Discussion;
+    isEmbedMode?: boolean;
 }
 
-export default function PostDetails({ post }: PostDetailsProps) {
+export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
     const { user } = useKeychain();
@@ -91,7 +92,7 @@ export default function PostDetails({ post }: PostDetailsProps) {
     }
 
     return (
-        <Box border="tb1" borderRadius="base" overflow="hidden" bg="muted" mb={3} p={4} w="100%">
+        <Box border="tb1" borderRadius={isEmbedMode ? 'none' : 'base'} overflow="hidden" bg={isEmbedMode ? 'transparent' : 'muted'} mb={3} p={isEmbedMode ? 2 : 4} w="100%">
             <Text fontSize="2xl" fontWeight="bold" mb={4} textAlign="center">
                 {title}
             </Text>
@@ -100,7 +101,7 @@ export default function PostDetails({ post }: PostDetailsProps) {
                     <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/sm`} />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
-                            <Link as={NextLink} href={`/@${author}`}>@{author}</Link>
+                            {isEmbedMode ? `@${author}` : <Link as={NextLink} href={`/@${author}`}>@{author}</Link>}
                         </Text>
                         <Text fontSize="sm" color="secondary">
                             {postDate}
@@ -164,8 +165,8 @@ export default function PostDetails({ post }: PostDetailsProps) {
                     }
                 }}
             />
-            {showSlider ? (
-                <Flex mt={4} alignItems="center">
+            {!isEmbedMode && (showSlider ? (
+                <Flex mt={4} alignItems="center" className="vote-slider">
                     <Box width="100%" mr={2}>
                         <Slider
                             aria-label="slider-ex-1"
@@ -185,7 +186,7 @@ export default function PostDetails({ post }: PostDetailsProps) {
 
                 </Flex>
             ) : (
-                <Flex mt={4} justifyContent="space-between" alignItems="center">
+                <Flex mt={4} justifyContent="space-between" alignItems="center" className="post-actions">
                     <Flex alignItems="center">
                         {voted ? (
                             <Icon as={FaHeart} onClick={handleHeartClick} cursor="pointer" />
@@ -202,7 +203,7 @@ export default function PostDetails({ post }: PostDetailsProps) {
                         {payoutDisplay}
                     </Text>
                 </Flex>
-            )}
+            ))}
         </Box>
     );
 }
