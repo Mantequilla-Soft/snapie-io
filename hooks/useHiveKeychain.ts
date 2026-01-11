@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { KeychainSDK, Login, KeychainKeyTypes } from 'keychain-sdk';
+import HiveClient from '@/lib/hive/hiveclient';
+import { HiveAccount } from './useHiveAccount';
 
 // Cookie helper functions
 const setCookie = (name: string, value: string, days: number = 30) => {
@@ -28,6 +30,32 @@ export interface HiveKeychainUser {
   isLoggedIn: boolean;
 }
 
+// Helper function to fetch and save full account data
+const fetchAndSaveAccountData = async (username: string): Promise<void> => {
+  try {
+    const userData = await HiveClient.database.getAccounts([username]);
+    if (userData && userData[0]) {
+      const userAccount: HiveAccount = {
+        ...userData[0],
+      };
+      
+      // Parse metadata
+      if (userAccount.posting_json_metadata) {
+        userAccount.metadata = JSON.parse(userAccount.posting_json_metadata);
+      } else if (userAccount.json_metadata) {
+        userAccount.metadata = JSON.parse(userAccount.json_metadata);
+      } else {
+        userAccount.metadata = {};
+      }
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('hiveuser', JSON.stringify(userAccount));
+    }
+  } catch (error) {
+    console.error('Error fetching account data:', error);
+  }
+};
+
 export function useHiveKeychain() {
   const [user, setUser] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -39,6 +67,11 @@ export function useHiveKeychain() {
     if (savedUsername && isKeychainAvailable()) {
       setUser(savedUsername);
       setIsLoggedIn(true);
+      // Ensure account data is in localStorage
+      const storedUser = localStorage.getItem('hiveuser');
+      if (!storedUser) {
+        fetchAndSaveAccountData(savedUsername);
+      }
     }
     setIsKeychainInstalled(isKeychainAvailable());
   }, []);
@@ -67,6 +100,10 @@ export function useHiveKeychain() {
         setCookie('hive_username', username, 30);
         setUser(username);
         setIsLoggedIn(true);
+        
+        // Fetch and save full account data to localStorage
+        await fetchAndSaveAccountData(username);
+        
         console.log('✅ Logged in as:', username);
         return true;
       } else {
@@ -82,6 +119,7 @@ export function useHiveKeychain() {
   // Logout function
   const logout = useCallback(() => {
     deleteCookie('hive_username');
+    localStorage.removeItem('hiveuser');
     setUser(null);
     setIsLoggedIn(false);
     console.log('👋 Logged out');

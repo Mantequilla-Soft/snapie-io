@@ -28,11 +28,21 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     refreshUser();
   }, []);
 
+  // Wrapped setUser that also saves to localStorage
+  const setHiveUserWithPersistence = (newUser: HiveAccount | null) => {
+    setUser(newUser);
+    if (newUser) {
+      localStorage.setItem("hiveuser", JSON.stringify(newUser));
+    } else {
+      localStorage.removeItem("hiveuser");
+    }
+  };
+
   return (
     <HiveUserContext.Provider
       value={{
         hiveUser: user,
-        setHiveUser: setUser,
+        setHiveUser: setHiveUserWithPersistence,
         isLoading,
         refreshUser
       }}
