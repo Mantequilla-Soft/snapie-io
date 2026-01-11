@@ -113,6 +113,48 @@ export default function PostDetails({ post }: PostDetailsProps) {
                 dangerouslySetInnerHTML={{ __html: markdownRenderer(body, { defaultEmojiOwner: author }) }}
                 sx={{
                     textAlign: 'left',  // Base alignment for all content
+                    '& h1': {
+                        fontSize: '2xl',
+                        fontWeight: 'bold',
+                        marginTop: '1.5em',
+                        marginBottom: '0.75em',
+                        lineHeight: '1.3',
+                    },
+                    '& h2': {
+                        fontSize: 'xl',
+                        fontWeight: 'bold',
+                        marginTop: '1.25em',
+                        marginBottom: '0.5em',
+                        lineHeight: '1.3',
+                    },
+                    '& h3': {
+                        fontSize: 'lg',
+                        fontWeight: 'bold',
+                        marginTop: '1em',
+                        marginBottom: '0.5em',
+                        lineHeight: '1.4',
+                    },
+                    '& h4': {
+                        fontSize: 'md',
+                        fontWeight: 'bold',
+                        marginTop: '1em',
+                        marginBottom: '0.5em',
+                        lineHeight: '1.4',
+                    },
+                    '& h5': {
+                        fontSize: 'sm',
+                        fontWeight: 'bold',
+                        marginTop: '0.75em',
+                        marginBottom: '0.5em',
+                        lineHeight: '1.4',
+                    },
+                    '& h6': {
+                        fontSize: 'xs',
+                        fontWeight: 'bold',
+                        marginTop: '0.75em',
+                        marginBottom: '0.5em',
+                        lineHeight: '1.4',
+                    },
                     '& p': {
                         marginBottom: '1em',
                         lineHeight: '1.6',
