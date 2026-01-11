@@ -29,7 +29,6 @@
     "keychain": "^1.5.0",
     "keychain-sdk": "^0.8.5",
     "next": "14.2.35",
-    "nodemailer": "^6.9.15",
     "react": "^18",
     "react-dom": "^18",
     "react-dropzone": "^14.3.8",
@@ -42,7 +41,6 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/nodemailer": "^6.4.16",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
@@ -54,7 +52,8 @@
   "pnpm": {
     "overrides": {
       "@aioha/react-provider": "1.4.1",
-      "jsdom": "^24.0.0"
+      "jsdom": "^24.0.0",
+      "glob": "10.5.0"
     }
   },
   "resolutions": {
