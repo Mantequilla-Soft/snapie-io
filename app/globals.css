@@ -155,3 +155,68 @@ body {
 .hivemoji.hivemoji--fallback .hivemoji__text {
   display: inline;
 }
+
+/* ===================================
+   EMBED MODE STYLES
+   =================================== */
+
+/* When ?embed=true parameter is detected, hide navigation and UI chrome */
+body.embed-mode header,
+body.embed-mode footer,
+body.embed-mode .navbar,
+body.embed-mode .site-header,
+body.embed-mode .bottom-nav,
+body.embed-mode .site-footer,
+body.embed-mode nav,
+body.embed-mode .floating-action-button,
+body.embed-mode .share-widget,
+body.embed-mode .back-to-top,
+body.embed-mode [data-embed-hide] {
+  display: none !important;
+}
+
+/* Reset body margins and padding in embed mode */
+body.embed-mode {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+}
+
+/* Optimize content containers for mobile WebView */
+body.embed-mode .container,
+body.embed-mode .content,
+body.embed-mode main,
+body.embed-mode article {
+  max-width: 100% !important;
+  padding: 12px !important;
+  margin: 0 !important;
+}
+
+/* Ensure images are responsive in embed mode */
+body.embed-mode img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Hide interactive elements that require authentication */
+body.embed-mode .upvote-button,
+body.embed-mode .comment-form,
+body.embed-mode .reply-button,
+body.embed-mode .share-button,
+body.embed-mode .follow-button,
+body.embed-mode .user-actions,
+body.embed-mode .vote-slider,
+body.embed-mode .post-actions {
+  display: none !important;
+}
+
+/* Remove overflow hidden that might prevent scrolling */
+body.embed-mode * {
+  overflow-x: visible !important;
+}
+
+/* Ensure proper scrolling in WebView */
+body.embed-mode {
+  -webkit-overflow-scrolling: touch !important;
+}
