@@ -1,3 +1,4 @@
+'use client';
 import { HiveAccount } from "@/hooks/useHiveAccount";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -17,11 +18,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>();
 
   const refreshUser = () => {
-    const userData = localStorage.getItem("hiveuser");
-    if (userData) {
-      setUser(JSON.parse(userData));
+    try {
+      const userData = localStorage.getItem("hiveuser");
+      if (userData) {
+        setUser(JSON.parse(userData));
+      }
+    } catch (error) {
+      console.error('Error refreshing user:', error);
+      localStorage.removeItem("hiveuser");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -31,10 +38,14 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   // Wrapped setUser that also saves to localStorage
   const setHiveUserWithPersistence = (newUser: HiveAccount | null) => {
     setUser(newUser);
-    if (newUser) {
-      localStorage.setItem("hiveuser", JSON.stringify(newUser));
-    } else {
-      localStorage.removeItem("hiveuser");
+    try {
+      if (newUser) {
+        localStorage.setItem("hiveuser", JSON.stringify(newUser));
+      } else {
+        localStorage.removeItem("hiveuser");
+      }
+    } catch (error) {
+      console.error('Error saving user to localStorage:', error);
     }
   };
 
