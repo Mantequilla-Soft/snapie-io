@@ -89,7 +89,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
                   data={commentsData}
                 />
               </>
-            ) : !isEmbedMode ? (
+            ) : !isEmbedMode && conversation ? (
               <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
             ) : null}
           </Container>
