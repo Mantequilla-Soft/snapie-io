@@ -25,7 +25,7 @@ interface SnapProps {
 const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { user } = useKeychain();
-    const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user))
+    const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user) ?? false)
     const [voteCount, setVoteCount] = useState(comment.active_votes?.length || 0);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
