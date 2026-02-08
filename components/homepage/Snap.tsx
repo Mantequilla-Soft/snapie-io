@@ -1,9 +1,9 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
 import { useKeychain } from '@/contexts/KeychainContext';
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls } from '@/lib/utils/snapUtils';
 import MediaRenderer from '@/components/shared/MediaRenderer';
@@ -12,6 +12,7 @@ import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
+import VoteControls from './VoteSlider';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -24,10 +25,6 @@ interface SnapProps {
 const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { user } = useKeychain();
-    const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user))
-    const [voteCount, setVoteCount] = useState(comment.active_votes?.length || 0);
-    const [sliderValue, setSliderValue] = useState(5);
-    const [showSlider, setShowSlider] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
@@ -71,10 +68,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
 
     const replies = comment.replies;
 
-    function handleHeartClick() {
-        setShowSlider(!showSlider);
-    }
-
     function handleReplyModal() {
         setReply(comment);
         onOpen();
@@ -84,50 +77,19 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         if (setConversation) setConversation(comment);
     }
 
-    async function handleVote() {
-        // Optimistic update
-        const wasVoted = voted;
-        const previousCount = voteCount;
-        
-        setVoted(true);
-        setVoteCount(prev => prev + 1);
-        handleHeartClick();
-        
-        // Send to blockchain
-        try {
-            if (!user) {
-                throw new Error('Please log in to vote');
-            }
-            
-            const voteResult = await vote({
-                username: user,
-                author: comment.author,
-                permlink: comment.permlink,
-                weight: sliderValue * 100
-            });
-            
-            if (!voteResult.success) {
-                // Rollback on failure
-                setVoted(wasVoted);
-                setVoteCount(previousCount);
-                toast({
-                    title: 'Vote Failed',
-                    description: 'Failed to vote. Please try again.',
-                    status: 'error',
-                    duration: 3000,
-                });
-            }
-        } catch (error) {
-            // Rollback on error
-            setVoted(wasVoted);
-            setVoteCount(previousCount);
-            toast({
-                title: 'Vote Failed',
-                description: 'An error occurred. Please try again.',
-                status: 'error',
-                duration: 3000,
-            });
+    async function handleVote(weight: number) {
+        if (!user) {
+            throw new Error('Please log in to vote');
         }
+        
+        const voteResult = await vote({
+            username: user,
+            author: comment.author,
+            permlink: comment.permlink,
+            weight: weight * 100
+        });
+        
+        return voteResult;
     }
 
     function handleReSnap() {
@@ -219,7 +181,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 </HStack>
                 
                 {/* Render media separately using MediaRenderer */}
-                {media && <MediaRenderer mediaContent={media} />}
+                {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
                 
                 {/* Render text content with proper markdown processing - clickable to open full post */}
                 {renderedText && (
@@ -254,31 +216,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     </VStack>
                 )}
                 
-                {showSlider ? (
-                <Flex mt={4} alignItems="center">
-                    <Box width="100%" mr={2}>
-                        <Slider
-                            aria-label="slider-ex-1"
-                            min={0}
-                            max={100}
-                            value={sliderValue}
-                            onChange={(val) => setSliderValue(val)}
-                        >
-                            <SliderTrack>
-                                <SliderFilledTrack />
-                            </SliderTrack>
-                            <SliderThumb />
-                        </Slider>
-                    </Box>
-                    <Button size="xs" onClick={handleVote}>&nbsp;&nbsp;&nbsp;Vote {sliderValue} %&nbsp;&nbsp;&nbsp;</Button>
-                    <Button size="xs" onClick={handleHeartClick} ml={2}>X</Button>
-
-                </Flex>
-            ) : (
-                <HStack justify="space-between" mt={3}>
-                    <Button leftIcon={voted ? (<FaHeart />) : (<FaRegHeart />)} variant="ghost" onClick={handleHeartClick}>
-                        {voteCount}
-                    </Button>
+                <HStack justify="space-between" mt={3} width="100%">
+                    <VoteControls 
+                        initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
+                        initialVoteCount={comment.active_votes?.length || 0}
+                        onVote={handleVote}
+                    />
                     <HStack spacing={4}>
                         {/* Reply button - opens reply modal */}
                         <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
@@ -305,7 +248,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         {payoutDisplay}
                     </Text>
                 </HStack>
-            )}
             </Box>
             
             {/* Edit Modal */}
