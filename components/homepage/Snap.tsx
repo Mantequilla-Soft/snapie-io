@@ -1,4 +1,4 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
@@ -12,6 +12,7 @@ import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
+import VoteSlider from './VoteSlider';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -26,7 +27,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const { user } = useKeychain();
     const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user))
     const [voteCount, setVoteCount] = useState(comment.active_votes?.length || 0);
-    const [sliderValue, setSliderValue] = useState(5);
     const [showSlider, setShowSlider] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
@@ -71,12 +71,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
 
     const replies = comment.replies;
 
-    // Memoize the MediaRenderer to prevent re-renders when state changes
-    const memoizedMediaRenderer = useMemo(() => {
-        if (!media) return null;
-        return <MediaRenderer mediaContent={media} />;
-    }, [media]);
-
     function handleHeartClick() {
         setShowSlider(!showSlider);
     }
@@ -90,14 +84,13 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         if (setConversation) setConversation(comment);
     }
 
-    async function handleVote() {
+    async function handleVote(weight: number) {
         // Optimistic update
         const wasVoted = voted;
         const previousCount = voteCount;
         
         setVoted(true);
         setVoteCount(prev => prev + 1);
-        handleHeartClick();
         
         // Send to blockchain
         try {
@@ -109,7 +102,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 username: user,
                 author: comment.author,
                 permlink: comment.permlink,
-                weight: sliderValue * 100
+                weight: weight * 100
             });
             
             if (!voteResult.success) {
@@ -225,7 +218,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 </HStack>
                 
                 {/* Render media separately using MediaRenderer */}
-                {memoizedMediaRenderer}
+                {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
                 
                 {/* Render text content with proper markdown processing - clickable to open full post */}
                 {renderedText && (
@@ -261,25 +254,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 )}
                 
                 {showSlider ? (
-                <Flex mt={4} alignItems="center">
-                    <Box width="100%" mr={2}>
-                        <Slider
-                            aria-label="slider-ex-1"
-                            min={0}
-                            max={100}
-                            value={sliderValue}
-                            onChange={(val) => setSliderValue(val)}
-                        >
-                            <SliderTrack>
-                                <SliderFilledTrack />
-                            </SliderTrack>
-                            <SliderThumb />
-                        </Slider>
-                    </Box>
-                    <Button size="xs" onClick={handleVote}>&nbsp;&nbsp;&nbsp;Vote {sliderValue} %&nbsp;&nbsp;&nbsp;</Button>
-                    <Button size="xs" onClick={handleHeartClick} ml={2}>X</Button>
-
-                </Flex>
+                    <VoteSlider 
+                        onVote={handleVote} 
+                        onClose={handleHeartClick} 
+                    />
             ) : (
                 <HStack justify="space-between" mt={3}>
                     <Button leftIcon={voted ? (<FaHeart />) : (<FaRegHeart />)} variant="ghost" onClick={handleHeartClick}>
