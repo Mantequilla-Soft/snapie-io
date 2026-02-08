@@ -3,7 +3,7 @@ import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
 import { useKeychain } from '@/contexts/KeychainContext';
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls } from '@/lib/utils/snapUtils';
 import MediaRenderer from '@/components/shared/MediaRenderer';
@@ -70,6 +70,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     );
 
     const replies = comment.replies;
+
+    // Memoize the MediaRenderer to prevent re-renders when state changes
+    const memoizedMediaRenderer = useMemo(() => {
+        if (!media) return null;
+        return <MediaRenderer mediaContent={media} />;
+    }, [media]);
 
     function handleHeartClick() {
         setShowSlider(!showSlider);
@@ -219,7 +225,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 </HStack>
                 
                 {/* Render media separately using MediaRenderer */}
-                {media && <MediaRenderer mediaContent={media} />}
+                {memoizedMediaRenderer}
                 
                 {/* Render text content with proper markdown processing - clickable to open full post */}
                 {renderedText && (
