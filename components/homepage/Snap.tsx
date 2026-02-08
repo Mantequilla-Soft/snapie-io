@@ -12,7 +12,7 @@ import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
-import VoteSlider from './VoteSlider';
+import VoteControls from './VoteSlider';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -27,7 +27,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const { user } = useKeychain();
     const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user))
     const [voteCount, setVoteCount] = useState(comment.active_votes?.length || 0);
-    const [showSlider, setShowSlider] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
@@ -70,10 +69,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     );
 
     const replies = comment.replies;
-
-    function handleHeartClick() {
-        setShowSlider(!showSlider);
-    }
 
     function handleReplyModal() {
         setReply(comment);
@@ -253,16 +248,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     </VStack>
                 )}
                 
-                {showSlider ? (
-                    <VoteSlider 
-                        onVote={handleVote} 
-                        onClose={handleHeartClick} 
+                <HStack justify="space-between" mt={3} width="100%">
+                    <VoteControls 
+                        voted={voted}
+                        voteCount={voteCount}
+                        onVote={handleVote}
                     />
-            ) : (
-                <HStack justify="space-between" mt={3}>
-                    <Button leftIcon={voted ? (<FaHeart />) : (<FaRegHeart />)} variant="ghost" onClick={handleHeartClick}>
-                        {voteCount}
-                    </Button>
                     <HStack spacing={4}>
                         {/* Reply button - opens reply modal */}
                         <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
@@ -289,7 +280,6 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         {payoutDisplay}
                     </Text>
                 </HStack>
-            )}
             </Box>
             
             {/* Edit Modal */}
