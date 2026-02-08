@@ -25,8 +25,6 @@ interface SnapProps {
 const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { user } = useKeychain();
-    const [voted, setVoted] = useState(comment.active_votes?.some(item => item.voter === user) ?? false)
-    const [voteCount, setVoteCount] = useState(comment.active_votes?.length || 0);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
@@ -80,48 +78,18 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     }
 
     async function handleVote(weight: number) {
-        // Optimistic update
-        const wasVoted = voted;
-        const previousCount = voteCount;
-        
-        setVoted(true);
-        setVoteCount(prev => prev + 1);
-        
-        // Send to blockchain
-        try {
-            if (!user) {
-                throw new Error('Please log in to vote');
-            }
-            
-            const voteResult = await vote({
-                username: user,
-                author: comment.author,
-                permlink: comment.permlink,
-                weight: weight * 100
-            });
-            
-            if (!voteResult.success) {
-                // Rollback on failure
-                setVoted(wasVoted);
-                setVoteCount(previousCount);
-                toast({
-                    title: 'Vote Failed',
-                    description: 'Failed to vote. Please try again.',
-                    status: 'error',
-                    duration: 3000,
-                });
-            }
-        } catch (error) {
-            // Rollback on error
-            setVoted(wasVoted);
-            setVoteCount(previousCount);
-            toast({
-                title: 'Vote Failed',
-                description: 'An error occurred. Please try again.',
-                status: 'error',
-                duration: 3000,
-            });
+        if (!user) {
+            throw new Error('Please log in to vote');
         }
+        
+        const voteResult = await vote({
+            username: user,
+            author: comment.author,
+            permlink: comment.permlink,
+            weight: weight * 100
+        });
+        
+        return voteResult;
     }
 
     function handleReSnap() {
@@ -250,8 +218,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 
                 <HStack justify="space-between" mt={3} width="100%">
                     <VoteControls 
-                        voted={voted}
-                        voteCount={voteCount}
+                        initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
+                        initialVoteCount={comment.active_votes?.length || 0}
                         onVote={handleVote}
                     />
                     <HStack spacing={4}>
