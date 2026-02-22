@@ -1,4 +1,4 @@
-import { Box, Image, Text, Avatar, Flex, Icon, Slider, SliderTrack, SliderFilledTrack, SliderThumb, Button, Link } from '@chakra-ui/react';
+import { Box, Image, Text, Avatar, Flex, Link } from '@chakra-ui/react';
 import React, { useState, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -6,13 +6,10 @@ import { Navigation, Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import { FaHeart, FaComment, FaRegHeart } from 'react-icons/fa';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { useKeychain } from '@/contexts/KeychainContext';
-import { vote } from '@/lib/hive/client-functions';
 import { useRouter } from 'next/navigation';
-import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import NextLink from 'next/link';
+import InteractionBar from '@/components/shared/InteractionBar';
 
 interface PostCardProps {
     post: Discussion;
@@ -23,12 +20,7 @@ export default function PostCard({ post }: PostCardProps) {
     const postDate = getPostDate(created);
     const metadata = JSON.parse(json_metadata);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
-    const [sliderValue, setSliderValue] = useState(100);
-    const [showSlider, setShowSlider] = useState(false);
-    const { user } = useKeychain();
-    const [voted, setVoted] = useState(post.active_votes?.some(item => item.voter === user));
     const router = useRouter();
-    const payoutDisplay = useCurrencyDisplay(post);
 
     // **State to control how many images to show initially**
     const [visibleImages, setVisibleImages] = useState<number>(3); // Start with 3 images
@@ -48,22 +40,6 @@ export default function PostCard({ post }: PostCardProps) {
         const markdownImages = markdownMatches.map(match => match[1]);
         const htmlImages = htmlMatches.map(match => match[1]);
         return [...markdownImages, ...htmlImages];
-    }
-
-    function handleHeartClick() {
-        setShowSlider(!showSlider);
-    }
-
-    async function handleVote() {
-        if (!user) return;
-        const voteResult = await vote({
-            username: user,
-            author: post.author,
-            permlink: post.permlink,
-            weight: sliderValue * 100
-        });
-        setVoted(voteResult.success);
-        handleHeartClick();
     }
 
     function viewPost() {
@@ -147,49 +123,9 @@ export default function PostCard({ post }: PostCardProps) {
             )}
         </Box>
 
-            {/* Vote and Stats Section */}
+            {/* Interaction Bar */}
             <Box mt="auto">
-                {showSlider ? (
-                    <Flex mt={4} alignItems="center">
-                        <Box width="100%" mr={4}>
-                            <Slider
-                                aria-label="slider-ex-1"
-                                defaultValue={0}
-                                min={0}
-                                max={100}
-                                value={sliderValue}
-                                onChange={(val) => setSliderValue(val)}
-                            >
-                                <SliderTrack>
-                                    <SliderFilledTrack />
-                                </SliderTrack>
-                                <SliderThumb />
-                            </Slider>
-                        </Box>
-                        <Button size="xs" onClick={handleVote} pl={5} pr={5}>Vote {sliderValue} %</Button>
-                        <Button size="xs" onClick={handleHeartClick} ml={1}>X</Button>
-                    </Flex>
-                ) : (
-                    <Flex mt={4} justifyContent="space-between" alignItems="center">
-                        <Flex alignItems="center">
-                            {voted ? (
-                                <Icon as={FaHeart} onClick={handleHeartClick} cursor="pointer" />
-                            ) : (
-                                <Icon as={FaRegHeart} onClick={handleHeartClick} cursor="pointer" />
-                            )}
-                            <Text ml={2} fontSize="sm">
-                                {post.active_votes.length}
-                            </Text>
-                            <Icon as={FaComment} ml={4} />
-                            <Text ml={2} fontSize="sm">
-                                {post.children}
-                            </Text>
-                        </Flex>
-                        <Text fontWeight="bold" fontSize="sm">
-                            {payoutDisplay}
-                        </Text>
-                    </Flex>
-                )}
+                <InteractionBar post={post} showShare={false} />
             </Box>
         </Box>
     );
