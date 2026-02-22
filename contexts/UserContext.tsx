@@ -33,6 +33,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     refreshUser();
+    // Pick up account data saved asynchronously by fetchAndSaveAccountData
+    // (e.g. when the extension was slow on first render)
+    window.addEventListener('hiveuser-saved', refreshUser);
+    return () => window.removeEventListener('hiveuser-saved', refreshUser);
   }, []);
 
   // Wrapped setUser that also saves to localStorage
