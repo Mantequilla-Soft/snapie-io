@@ -48,8 +48,9 @@ const fetchAndSaveAccountData = async (username: string): Promise<void> => {
         userAccount.metadata = {};
       }
       
-      // Save to localStorage for persistence
+      // Save to localStorage for persistence and notify any listeners
       localStorage.setItem('hiveuser', JSON.stringify(userAccount));
+      window.dispatchEvent(new Event('hiveuser-saved'));
     }
   } catch (error) {
     console.error('Error fetching account data:', error);
@@ -64,7 +65,10 @@ export function useHiveKeychain() {
   // Check for existing session on mount
   useEffect(() => {
     const savedUsername = getCookie('hive_username');
-    if (savedUsername && isKeychainAvailable()) {
+    if (savedUsername) {
+      // Restore session from cookie regardless of whether Keychain extension
+      // is available yet — extensions are injected asynchronously and may not
+      // be ready when this effect fires, which would cause a false logout.
       setUser(savedUsername);
       setIsLoggedIn(true);
       // Ensure account data is in localStorage
