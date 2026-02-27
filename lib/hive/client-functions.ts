@@ -484,47 +484,163 @@ export function getFileSignature (file: File): Promise<string> {
   });
 }
 
+// ============================================================================
+// FALLBACK IMAGE UPLOAD TO 3SPEAK
+// ============================================================================
+// This function uploads images to images.3speak.tv as a fallback when
+// images.hive.blog is down or unavailable.
+//
+// Server: https://images.3speak.tv
+// Response format: { success: true, url: "...", filename: "...", ... }
+// ============================================================================
+
+/**
+ * Upload an image to 3Speak image server as a fallback.
+ * 
+ * @param file The image file to upload
+ * @param options Optional upload options for progress tracking
+ * @returns The URL of the uploaded image
+ */
+async function uploadTo3Speak(
+  file: File,
+  options?: {
+    index?: number;
+    setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>;
+    onProgress?: (progress: number) => void;
+  }
+): Promise<string> {
+  const apiKey = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('IMAGE_SERVER_API_KEY is not configured');
+  }
+
+  console.log('📤 Uploading to 3Speak fallback server:', file.name);
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', 'https://images.3speak.tv/upload', true);
+    xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
+
+    // Handle progress updates
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = (event.loaded / event.total) * 100;
+        
+        // Call progress callback if provided
+        options?.onProgress?.(progress);
+        
+        // Update progress array if provided (for batch uploads)
+        if (options?.index !== undefined && options?.setUploadProgress) {
+          options.setUploadProgress((prevProgress: number[]) => {
+            const updatedProgress = [...prevProgress];
+            updatedProgress[options.index!] = progress;
+            return updatedProgress;
+          });
+        }
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 201 || xhr.status === 200) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (response.success && response.url) {
+            console.log('✅ 3Speak upload successful:', response.url);
+            resolve(response.url);
+          } else {
+            reject(new Error('Invalid response from 3Speak server'));
+          }
+        } catch (e) {
+          reject(new Error(`Invalid response format: ${xhr.responseText}`));
+        }
+      } else {
+        let errorMsg = `3Speak upload failed: ${xhr.status} - ${xhr.statusText}`;
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          if (errorResponse.error) {
+            errorMsg = errorResponse.error;
+          }
+        } catch {}
+        console.error('❌ 3Speak upload failed:', errorMsg);
+        reject(new Error(errorMsg));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error during 3Speak image upload'));
+    };
+
+    xhr.send(formData);
+  });
+}
+
 export async function uploadImage(file: File, signature: string, index?: number, setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>): Promise<string> {
   const signatureUser = process.env.NEXT_PUBLIC_HIVE_USER;
   const formData = new FormData();
   formData.append("file", file, file.name);
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://images.hive.blog/${signatureUser}/${signature}`, true);
+  // Try primary upload to images.hive.blog
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://images.hive.blog/${signatureUser}/${signature}`, true);
 
-    if (index !== undefined && setUploadProgress) {
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const progress = (event.loaded / event.total) * 100;
-          setUploadProgress((prevProgress: number[]) => {
-            const updatedProgress = [...prevProgress];
-            updatedProgress[index] = progress;
-            return updatedProgress;
-          });
+      if (index !== undefined && setUploadProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            setUploadProgress((prevProgress: number[]) => {
+              const updatedProgress = [...prevProgress];
+              updatedProgress[index] = progress;
+              return updatedProgress;
+            });
+          }
         }
       }
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            console.log('✅ Hive.blog upload successful:', response.url);
+            resolve(response.url);
+          } catch (e) {
+            reject(new Error(`Invalid response format: ${xhr.responseText}`));
+          }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status} - ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error('Network error'));
+      };
+
+      xhr.send(formData);
+    });
+    
+    return url;
+  } catch (hiveError) {
+    // Primary upload failed, try fallback to 3Speak
+    console.warn('⚠️ Hive.blog upload failed, attempting 3Speak fallback...', hiveError);
+    
+    try {
+      const fallbackUrl = await uploadTo3Speak(file, {
+        index,
+        setUploadProgress
+      });
+      console.log('✅ Successfully uploaded via 3Speak fallback');
+      return fallbackUrl;
+    } catch (fallbackError) {
+      // Both uploads failed
+      console.error('❌ Both upload methods failed');
+      throw new Error(`Image upload failed. Hive.blog: ${hiveError}. 3Speak: ${fallbackError}`);
     }
-
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response.url);
-        } catch (e) {
-          reject(new Error(`Invalid response format: ${xhr.responseText}`));
-        }
-      } else {
-        reject(new Error(`Upload failed: ${xhr.status} - ${xhr.statusText}`));
-      }
-    };
-
-    xhr.onerror = () => {
-      reject(new Error('Network error'));
-    };
-
-    xhr.send(formData);
-  });
+  }
 }
 
 // ============================================================================
@@ -618,65 +734,83 @@ export async function uploadImageWithKeychain(
   
   console.log('✍️ Signature received:', signature.substring(0, 20) + '...');
   
-  // Upload to Hive image server
+  // Upload to Hive image server with fallback to 3Speak
   const uploadUrl = `https://images.hive.blog/${username}/${signature}`;
   console.log('📤 Uploading to:', uploadUrl);
 
   const formData = new FormData();
   formData.append("file", file, file.name);
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', uploadUrl, true);
+  // Try primary upload to images.hive.blog
+  try {
+    const url = await new Promise<string>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl, true);
 
-    // Handle progress updates
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const progress = (event.loaded / event.total) * 100;
-        
-        // Call progress callback if provided
-        options?.onProgress?.(progress);
-        
-        // Update progress array if provided (for batch uploads)
-        if (options?.index !== undefined && options?.setUploadProgress) {
-          options.setUploadProgress((prevProgress: number[]) => {
-            const updatedProgress = [...prevProgress];
-            updatedProgress[options.index!] = progress;
-            return updatedProgress;
-          });
-        }
-      }
-    };
-
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          console.log('✅ Upload successful:', response.url);
-          resolve(response.url);
-        } catch (e) {
-          reject(new Error(`Invalid response format: ${xhr.responseText}`));
-        }
-      } else {
-        // Provide more helpful error messages
-        let errorMsg = `Upload failed: ${xhr.status} - ${xhr.statusText}`;
-        try {
-          const errorResponse = JSON.parse(xhr.responseText);
-          if (errorResponse.error) {
-            errorMsg = errorResponse.error;
+      // Handle progress updates
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
+          
+          // Call progress callback if provided
+          options?.onProgress?.(progress);
+          
+          // Update progress array if provided (for batch uploads)
+          if (options?.index !== undefined && options?.setUploadProgress) {
+            options.setUploadProgress((prevProgress: number[]) => {
+              const updatedProgress = [...prevProgress];
+              updatedProgress[options.index!] = progress;
+              return updatedProgress;
+            });
           }
-        } catch {}
-        console.error('❌ Upload failed:', errorMsg);
-        reject(new Error(errorMsg));
-      }
-    };
+        }
+      };
 
-    xhr.onerror = () => {
-      reject(new Error('Network error during image upload'));
-    };
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            console.log('✅ Hive.blog upload successful:', response.url);
+            resolve(response.url);
+          } catch (e) {
+            reject(new Error(`Invalid response format: ${xhr.responseText}`));
+          }
+        } else {
+          // Provide more helpful error messages
+          let errorMsg = `Upload failed: ${xhr.status} - ${xhr.statusText}`;
+          try {
+            const errorResponse = JSON.parse(xhr.responseText);
+            if (errorResponse.error) {
+              errorMsg = errorResponse.error;
+            }
+          } catch {}
+          console.error('❌ Hive.blog upload failed:', errorMsg);
+          reject(new Error(errorMsg));
+        }
+      };
 
-    xhr.send(formData);
-  });
+      xhr.onerror = () => {
+        reject(new Error('Network error during image upload'));
+      };
+
+      xhr.send(formData);
+    });
+    
+    return url;
+  } catch (hiveError) {
+    // Primary upload failed, try fallback to 3Speak
+    console.warn('⚠️ Hive.blog upload failed, attempting 3Speak fallback...', hiveError);
+    
+    try {
+      const fallbackUrl = await uploadTo3Speak(file, options);
+      console.log('✅ Successfully uploaded via 3Speak fallback');
+      return fallbackUrl;
+    } catch (fallbackError) {
+      // Both uploads failed
+      console.error('❌ Both upload methods failed');
+      throw new Error(`Image upload failed. Hive.blog: ${hiveError}. 3Speak: ${fallbackError}`);
+    }
+  }
 }
 
 export async function getPost(user: string, postId: string) {
