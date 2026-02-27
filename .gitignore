@@ -40,3 +40,6 @@ next-env.d.ts
 # reference docs (local only)
 SKATEHIVE_COMPOSER_REFERENCE.md
 ECENCY_CHAT_IMPLEMENTATION.md
+
+# internatl Documents
+/internal-docs/

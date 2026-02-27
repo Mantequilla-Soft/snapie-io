@@ -484,14 +484,114 @@ export function getFileSignature (file: File): Promise<string> {
   });
 }
 
-export async function uploadImage(file: File, signature: string, index?: number, setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>): Promise<string> {
-  const signatureUser = process.env.NEXT_PUBLIC_HIVE_USER;
+// ============================================================================
+// FALLBACK IMAGE UPLOAD TO 3SPEAK
+// ============================================================================
+// This function uploads images to images.3speak.tv as a fallback when
+// images.hive.blog is down or unavailable.
+//
+// Server: https://images.3speak.tv
+// Response format: { success: true, url: "...", filename: "...", ... }
+// ============================================================================
+
+/**
+ * Upload an image to 3Speak image server as a fallback.
+ * 
+ * @param file The image file to upload
+ * @param options Optional upload options for progress tracking
+ * @returns The URL of the uploaded image
+ */
+async function uploadTo3Speak(
+  file: File,
+  options?: {
+    index?: number;
+    setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>;
+    onProgress?: (progress: number) => void;
+  }
+): Promise<string> {
+  const apiKey = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY;
+  
+  if (!apiKey) {
+    throw new Error('IMAGE_SERVER_API_KEY is not configured');
+  }
+
+  console.log('📤 Uploading to 3Speak fallback server:', file.name);
+
   const formData = new FormData();
-  formData.append("file", file, file.name);
+  formData.append('image', file);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://images.hive.blog/${signatureUser}/${signature}`, true);
+    xhr.open('POST', 'https://images.3speak.tv/upload', true);
+    xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
+
+    // Handle progress updates
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const progress = (event.loaded / event.total) * 100;
+        
+        // Call progress callback if provided
+        options?.onProgress?.(progress);
+        
+        // Update progress array if provided (for batch uploads)
+        if (options?.index !== undefined && options?.setUploadProgress) {
+          options.setUploadProgress((prevProgress: number[]) => {
+            const updatedProgress = [...prevProgress];
+            updatedProgress[options.index!] = progress;
+            return updatedProgress;
+          });
+        }
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 201 || xhr.status === 200) {
+        try {
+          const response = JSON.parse(xhr.responseText);
+          if (response.success && response.url) {
+            console.log('✅ 3Speak upload successful:', response.url);
+            resolve(response.url);
+          } else {
+            reject(new Error('Invalid response from 3Speak server'));
+          }
+        } catch (e) {
+          reject(new Error(`Invalid response format: ${xhr.responseText}`));
+        }
+      } else {
+        let errorMsg = `3Speak upload failed: ${xhr.status} - ${xhr.statusText}`;
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          if (errorResponse.error) {
+            errorMsg = errorResponse.error;
+          }
+        } catch {}
+        console.error('❌ 3Speak upload failed:', errorMsg);
+        reject(new Error(errorMsg));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new Error('Network error during 3Speak image upload'));
+    };
+
+    xhr.send(formData);
+  });
+}
+
+export async function uploadImage(file: File, signature: string, index?: number, setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>): Promise<string> {
+  const signatureUser = process.env.NEXT_PUBLIC_HIVE_USER;
+  
+  // Upload via our API route (handles fallback server-side, avoids CORS)
+  console.log('📤 Uploading via API route with automatic fallback...');
+  
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("username", signatureUser || '');
+  formData.append("signature", signature);
+
+  return new Promise<string>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload-image', true);
 
     if (index !== undefined && setUploadProgress) {
       xhr.upload.onprogress = (event) => {
@@ -510,17 +610,31 @@ export async function uploadImage(file: File, signature: string, index?: number,
       if (xhr.status === 200) {
         try {
           const response = JSON.parse(xhr.responseText);
-          resolve(response.url);
+          if (response.success && response.url) {
+            const source = response.source || 'hive.blog';
+            console.log(`✅ Upload successful via ${source}:`, response.url);
+            resolve(response.url);
+          } else {
+            reject(new Error('Invalid response from upload API'));
+          }
         } catch (e) {
           reject(new Error(`Invalid response format: ${xhr.responseText}`));
         }
       } else {
-        reject(new Error(`Upload failed: ${xhr.status} - ${xhr.statusText}`));
+        let errorMsg = `Upload failed: ${xhr.status} - ${xhr.statusText}`;
+        try {
+          const errorResponse = JSON.parse(xhr.responseText);
+          if (errorResponse.error) {
+            errorMsg = errorResponse.message || errorResponse.error;
+          }
+        } catch {}
+        console.error('❌ Upload failed:', errorMsg);
+        reject(new Error(errorMsg));
       }
     };
 
     xhr.onerror = () => {
-      reject(new Error('Network error'));
+      reject(new Error('Network error during upload'));
     };
 
     xhr.send(formData);
@@ -618,16 +732,17 @@ export async function uploadImageWithKeychain(
   
   console.log('✍️ Signature received:', signature.substring(0, 20) + '...');
   
-  // Upload to Hive image server
-  const uploadUrl = `https://images.hive.blog/${username}/${signature}`;
-  console.log('📤 Uploading to:', uploadUrl);
+  // Upload via our API route (handles fallback server-side, avoids CORS)
+  console.log('📤 Uploading via API route with automatic fallback...');
 
   const formData = new FormData();
-  formData.append("file", file, file.name);
+  formData.append("file", file);
+  formData.append("username", username);
+  formData.append("signature", signature);
 
-  return new Promise((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', uploadUrl, true);
+    xhr.open('POST', '/api/upload-image', true);
 
     // Handle progress updates
     xhr.upload.onprogress = (event) => {
@@ -652,18 +767,22 @@ export async function uploadImageWithKeychain(
       if (xhr.status === 200) {
         try {
           const response = JSON.parse(xhr.responseText);
-          console.log('✅ Upload successful:', response.url);
-          resolve(response.url);
+          if (response.success && response.url) {
+            const source = response.source || 'hive.blog';
+            console.log(`✅ Upload successful via ${source}:`, response.url);
+            resolve(response.url);
+          } else {
+            reject(new Error('Invalid response from upload API'));
+          }
         } catch (e) {
           reject(new Error(`Invalid response format: ${xhr.responseText}`));
         }
       } else {
-        // Provide more helpful error messages
         let errorMsg = `Upload failed: ${xhr.status} - ${xhr.statusText}`;
         try {
           const errorResponse = JSON.parse(xhr.responseText);
           if (errorResponse.error) {
-            errorMsg = errorResponse.error;
+            errorMsg = errorResponse.message || errorResponse.error;
           }
         } catch {}
         console.error('❌ Upload failed:', errorMsg);
