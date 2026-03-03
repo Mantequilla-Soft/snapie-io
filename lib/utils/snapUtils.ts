@@ -100,7 +100,7 @@ export const separateContent = (body: string) => {
     // Check if line contains markdown image, iframe, 3Speak URLs (watch or embed), YouTube URL, Instagram URL, Twitter/X URL, or 3Speak Audio URL
     if (line.match(/!\[.*?\]\(.*\)/) || 
         line.match(/<iframe.*<\/iframe>/) ||
-        line.match(/https?:\/\/play\.3speak\.tv\/(watch|embed)\?v=/) ||
+        line.match(/https?:\/\/(play\.)?3speak\.tv\/(watch|embed)\?v=/) ||
         line.match(/https?:\/\/audio\.3speak\.tv\/play\?a=/) ||
         line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
         line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
@@ -298,6 +298,24 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
         src: embedUrl,
       });
       return;
+    }
+
+    // Handle legacy 3speak.tv watch URLs (without play. subdomain)
+    if (trimmedItem.includes('3speak.tv/watch?v=') && !trimmedItem.includes('play.3speak.tv') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const urlMatch = trimmedItem.match(/(https?:\/\/3speak\.tv\/watch\?v=[^\s<>"']+)/);
+      if (urlMatch && urlMatch[1]) {
+        // Extract video ID and convert to play.3speak.tv format
+        const videoIdMatch = urlMatch[1].match(/v=([^&\s]+)/);
+        if (videoIdMatch && videoIdMatch[1]) {
+          const watchUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe`;
+          mediaItems.push({
+            type: "iframe",
+            content: `<iframe src="${watchUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
+            src: watchUrl,
+          });
+          return;
+        }
+      }
     }
 
     // Handle 3Speak watch URLs - these are from 3speak.tv frontend
