@@ -2,7 +2,7 @@
 import HiveClient from "@/lib/hive/hiveclient"
 import { useCallback, useEffect, useState } from "react"
 import { Comment } from "@hiveio/dhive"
-import { filterByReputation } from "@/lib/utils/reputation"
+import { mutedAccountsManager } from "@/lib/hive/muted-accounts"
 
 interface ActiveVote {
     percent: number;
@@ -76,7 +76,8 @@ async function fetchComments(
 export function useComments(
     author: string,
     permlink: string,
-    recursive: boolean = false
+    recursive: boolean = false,
+    username?: string
 ) {
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -92,8 +93,19 @@ export function useComments(
         setIsLoading(true);
         try {
             const fetchedComments = await fetchComments(author, permlink, recursive);
-            // Filter out low reputation accounts
-            const filteredComments = await filterByReputation(fetchedComments);
+            // Filter out muted accounts (recursively including nested replies)
+            const mutedList = await mutedAccountsManager.getMutedList(username);
+            const filterMuted = (comments: ExtendedComment[]): ExtendedComment[] => {
+                return comments
+                    .filter((c) => !mutedList.has(c.author.toLowerCase()))
+                    .map((c) => {
+                        if (c.replies && c.replies.length > 0) {
+                            return { ...c, replies: filterMuted(c.replies as ExtendedComment[]) };
+                        }
+                        return c;
+                    });
+            };
+            const filteredComments = filterMuted(fetchedComments as ExtendedComment[]);
             setComments(filteredComments);
             setIsLoading(false);
         } catch (err: any) {
@@ -101,7 +113,7 @@ export function useComments(
             console.error(err);
             setIsLoading(false);
         }
-    }, [author, permlink, recursive]);
+    }, [author, permlink, recursive, username]);
 
     useEffect(() => {
         fetchAndUpdateComments();

@@ -2,7 +2,7 @@ import HiveClient from '@/lib/hive/hiveclient';
 import { useState, useEffect, useRef } from 'react';
 import { ExtendedComment } from './useComments';
 import { getFollowing } from '@/lib/hive/client-functions';
-import { filterByReputation } from '@/lib/utils/reputation';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
 interface lastContainerInfo {
   permlink: string;
@@ -90,6 +90,9 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     let permlink = lastContainerRef.current?.permlink || "";
     let date = lastContainerRef.current?.date || new Date().toISOString();
 
+    // Fetch muted list once before the loop
+    const mutedList = await mutedAccountsManager.getMutedList(username);
+
     while (allFilteredComments.length < pageMinSize && hasMoreData) {
 
       const result = await HiveClient.database.call('get_discussions_by_author_before_date', [
@@ -111,7 +114,7 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
         ])) as ExtendedComment[];
 
         let filteredComments: ExtendedComment[] = [];
-        
+
         // Apply appropriate filter based on filterType
         if (filterType === 'community') {
           filteredComments = filterCommentsByTag(comments, tag);
@@ -121,8 +124,8 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
           filteredComments = filterCommentsByFollowing(comments);
         }
 
-        // Filter out low reputation accounts (spammers/bots)
-        filteredComments = await filterByReputation(filteredComments);
+        // Filter out muted accounts (community + user personal list)
+        filteredComments = filteredComments.filter(c => !mutedList.has(c.author.toLowerCase()));
 
         allFilteredComments.push(...filteredComments);
 
