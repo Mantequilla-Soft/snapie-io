@@ -143,19 +143,22 @@ class MutedAccountsManager {
 
     // Fetch from API
     const promise = (async () => {
-      const fetches: Promise<string[]>[] = [this.fetchCommunityMutedList()];
-      if (username) {
-        fetches.push(this.fetchUserMutedList(username));
+      try {
+        const fetches: Promise<string[]>[] = [this.fetchCommunityMutedList()];
+        if (username) {
+          fetches.push(this.fetchUserMutedList(username));
+        }
+
+        const results = await Promise.all(fetches);
+        const combined = new Set(results.flat().map(a => a.toLowerCase()));
+
+        this.cache.set(cacheKey, { accounts: combined, timestamp: Date.now() });
+        this.saveToStorage(combined, username);
+
+        return combined;
+      } finally {
+        this.loading.delete(cacheKey);
       }
-
-      const results = await Promise.all(fetches);
-      const combined = new Set(results.flat().map(a => a.toLowerCase()));
-
-      this.cache.set(cacheKey, { accounts: combined, timestamp: Date.now() });
-      this.saveToStorage(combined, username);
-      this.loading.delete(cacheKey);
-
-      return combined;
     })();
 
     this.loading.set(cacheKey, promise);
