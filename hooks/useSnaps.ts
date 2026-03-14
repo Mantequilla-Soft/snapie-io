@@ -2,7 +2,7 @@ import HiveClient from '@/lib/hive/hiveclient';
 import { useState, useEffect, useRef } from 'react';
 import { ExtendedComment } from './useComments';
 import { getFollowing } from '@/lib/hive/client-functions';
-import { filterByReputation } from '@/lib/utils/reputation';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
 interface lastContainerInfo {
   permlink: string;
@@ -121,8 +121,9 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
           filteredComments = filterCommentsByFollowing(comments);
         }
 
-        // Filter out low reputation accounts (spammers/bots)
-        filteredComments = await filterByReputation(filteredComments);
+        // Filter out muted accounts (community + user personal list)
+        const mutedList = await mutedAccountsManager.getMutedList(username);
+        filteredComments = filteredComments.filter(c => !mutedList.has(c.author.toLowerCase()));
 
         allFilteredComments.push(...filteredComments);
 

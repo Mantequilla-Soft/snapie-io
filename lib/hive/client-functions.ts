@@ -955,9 +955,9 @@ export async function getRelationshipBetweenAccounts(
 }
 
 /**
- * Get community muted accounts list
- * @param community - The community name (e.g., 'hive-178315')
- * @returns Promise<string[]> - Array of muted account usernames
+ * @deprecated Use `mutedAccountsManager.getMutedList()` from '@/lib/hive/muted-accounts' instead.
+ * This function fetches without caching. The new manager combines community + user muted lists
+ * with 24-hour localStorage caching.
  */
 export async function getCommunityMutedAccounts(community: string): Promise<string[]> {
   try {

@@ -2,20 +2,22 @@
 import { Box, Spinner } from '@chakra-ui/react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { findPosts, getCommunityMutedAccounts } from '@/lib/hive/client-functions';
+import { findPosts } from '@/lib/hive/client-functions';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 
 export default function RightSideBar() {
+  const { hiveUser } = useHiveUser();
   const [query, setQuery] = useState('created');
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mutedLoaded, setMutedLoaded] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isFetching = useRef(false);
-  const mutedAccountsRef = useRef<string[]>([]);
+  const mutedSetRef = useRef<Set<string>>(new Set());
 
   const tag = process.env.NEXT_PUBLIC_HIVE_SEARCH_TAG
-  const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG
 
   const params = useRef({
     tag: tag,
@@ -44,7 +46,7 @@ export default function RightSideBar() {
         // Filter out comments and muted accounts
         const topLevelPosts = posts.filter((post: Discussion) => {
           const isTopLevel = post.parent_author === '';
-          const isMuted = mutedAccountsRef.current.includes(post.author);
+          const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
           return isTopLevel && !isMuted;
         });
         
@@ -71,17 +73,15 @@ export default function RightSideBar() {
     }
   }, [query, tag]);
 
-  // Fetch community muted accounts on mount
+  // Load muted accounts on mount (community + user personal list)
   useEffect(() => {
-    const fetchMutedAccounts = async () => {
-      if (communityTag) {
-        const muted = await getCommunityMutedAccounts(communityTag);
-        mutedAccountsRef.current = muted;
-        setMutedLoaded(true);
-      }
+    const loadMutedAccounts = async () => {
+      const mutedSet = await mutedAccountsManager.getMutedList(hiveUser?.name);
+      mutedSetRef.current = mutedSet;
+      setMutedLoaded(true);
     };
-    fetchMutedAccounts();
-  }, [communityTag]);
+    loadMutedAccounts();
+  }, [hiveUser?.name]);
 
   // Only fetch posts after muted accounts are loaded
   useEffect(() => {

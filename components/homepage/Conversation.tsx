@@ -1,6 +1,7 @@
 import { Box, Text, HStack, Button, Avatar, Divider, VStack, Spinner } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { useComments } from '@/hooks/useComments';
+import { useHiveUser } from '@/contexts/UserContext';
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
 
@@ -12,7 +13,8 @@ interface ConversationProps {
 }
 
 const Conversation = ({ comment, setConversation, onOpen, setReply }: ConversationProps) => {
-    const { comments, isLoading, error } = useComments(comment.author, comment.permlink, true);
+    const { hiveUser } = useHiveUser();
+    const { comments, isLoading, error } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
     const replies = comments
 
     function handleReplyModal() {

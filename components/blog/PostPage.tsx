@@ -11,6 +11,7 @@ import SnapReplyModal from '../homepage/SnapReplyModal';
 import { getPost } from '@/lib/hive/client-functions';
 import PostDetails from '@/components/blog/PostDetails';
 import { useComments } from '@/hooks/useComments';
+import { useHiveUser } from '@/contexts/UserContext';
 import { useSearchParams } from 'next/navigation';
 
 interface PostPageProps {
@@ -21,6 +22,7 @@ interface PostPageProps {
 export default function PostPage({ author, permlink }: PostPageProps) {
   const searchParams = useSearchParams();
   const isEmbedMode = searchParams.get('embed') === 'true';
+  const { hiveUser } = useHiveUser();
 
   const [isLoading, setIsLoading] = useState(false);
   const [post, setPost] = useState<Discussion | null>(null);
@@ -31,7 +33,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const [newComment, setNewComment] = useState<Comment | null>(null); // Define the state
 
   // Only fetch comments if NOT in embed mode
-  const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode);
+  const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode, hiveUser?.name);
   const commentsData = {
     ...data, 
     loadNextPage: () => {}, 

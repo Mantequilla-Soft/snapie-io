@@ -3,9 +3,9 @@
  * Combines reputation checks (negative rep = spammer) with community muted lists
  */
 
-import { communityMutedManager } from '@/lib/hive/community-muted';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
-const REPUTATION_API = 'https://api.syncad.com/reputation-api/accounts';
+const REPUTATION_API = 'https://api.hive.blog/reputation-api/accounts';
 
 // Cache to avoid repeated API calls for the same user
 const repCache = new Map<string, { rep: number; timestamp: number }>();
@@ -113,7 +113,7 @@ export async function filterByReputation<T extends { author: string; replies?: T
   const allAuthors = collectAllAuthors(content);
   const [reputations, mutedList] = await Promise.all([
     batchGetReputations(allAuthors),
-    communityMutedManager.getMutedList()
+    mutedAccountsManager.getMutedList()
   ]);
   
   // Now filter synchronously using pre-fetched data
