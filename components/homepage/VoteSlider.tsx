@@ -62,7 +62,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote }: VoteContr
 
     if (showSlider) {
         return (
-            <Flex mt={4} alignItems="center" width="100%">
+            <Flex alignItems="center" width="100%" flexBasis="100%">
                 <Box width="100%" mr={2}>
                     <Slider
                         aria-label="slider-ex-1"

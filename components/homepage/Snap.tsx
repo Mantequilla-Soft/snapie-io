@@ -216,8 +216,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     </VStack>
                 )}
                 
-                <HStack justify="space-between" mt={3} width="100%">
-                    <VoteControls 
+                <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2}>
+                    <VoteControls
                         initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
                         initialVoteCount={comment.active_votes?.length || 0}
                         onVote={handleVote}
@@ -247,7 +247,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     <Text fontWeight="bold" fontSize="sm">
                         {payoutDisplay}
                     </Text>
-                </HStack>
+                </Flex>
             </Box>
             
             {/* Edit Modal */}

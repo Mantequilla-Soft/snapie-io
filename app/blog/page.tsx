@@ -1,5 +1,5 @@
 'use client';
-import { Container } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityMutedAccounts } from '@/lib/hive/client-functions';
@@ -82,10 +82,10 @@ export default function Blog() {
     }, [query, mutedLoaded, tag]); // fetchPosts excluded - callback identity changes each render
 
     return (
-        <Container
+        <Box
             id="scrollableDiv"
-            maxW="container.lg"
             mt="3"
+            px={4}
             h="100vh"
             overflowY="auto"
             sx={{
@@ -97,6 +97,6 @@ export default function Blog() {
         >
             <TopBar viewMode={viewMode} setViewMode={setViewMode} setQuery={setQuery} />
             <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode={viewMode} />
-        </Container>
+        </Box>
     );
 }
