@@ -35,45 +35,35 @@ class MutedAccountsManager {
     const community = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
     if (!community) return [];
 
-    try {
-      const result = await HiveClient.call('bridge', 'list_community_roles', {
-        community,
-        limit: 1000,
-      });
+    const result = await HiveClient.call('bridge', 'list_community_roles', {
+      community,
+      limit: 1000,
+    });
 
-      if (result && Array.isArray(result)) {
-        return result
-          .filter((r: [string, string, string]) => r[1] === 'muted')
-          .map((r: [string, string, string]) => r[0]);
-      }
-      return [];
-    } catch (error) {
-      console.error('Failed to fetch community muted list:', error);
-      return [];
+    if (result && Array.isArray(result)) {
+      return result
+        .filter((r: [string, string, string]) => r[1] === 'muted')
+        .map((r: [string, string, string]) => r[0]);
     }
+    return [];
   }
 
   /**
    * Fetch a user's personal muted list via bridge.get_follow_list
    */
   private async fetchUserMutedList(username: string): Promise<string[]> {
-    try {
-      const result = await HiveClient.call('bridge', 'get_follow_list', {
-        observer: username,
-        follow_type: 'muted',
-      });
+    const result = await HiveClient.call('bridge', 'get_follow_list', {
+      observer: username,
+      follow_type: 'muted',
+    });
 
-      if (result && Array.isArray(result)) {
-        return result.map((entry: { name: string }) => entry.name);
-      }
-      return [];
-    } catch (error) {
-      console.error('Failed to fetch user muted list:', error);
-      return [];
+    if (result && Array.isArray(result)) {
+      return result.map((entry: { name: string }) => entry.name);
     }
+    return [];
   }
 
-  private loadFromStorage(username?: string): MutedListCache | null {
+  private loadFromStorage(username?: string, ignoreTtl = false): MutedListCache | null {
     try {
       if (typeof window === 'undefined') return null;
 
@@ -86,7 +76,7 @@ class MutedAccountsManager {
         timestamp: data.timestamp,
       };
 
-      if (Date.now() - cache.timestamp < CACHE_DURATION) {
+      if (ignoreTtl || Date.now() - cache.timestamp < CACHE_DURATION) {
         return cache;
       }
 
@@ -156,6 +146,15 @@ class MutedAccountsManager {
         this.saveToStorage(combined, username);
 
         return combined;
+      } catch (error) {
+        console.error('Failed to fetch muted list:', error);
+        // Return expired cache if available rather than empty set
+        const stale = this.loadFromStorage(username, true);
+        if (stale) {
+          this.cache.set(cacheKey, stale);
+          return stale.accounts;
+        }
+        return new Set<string>();
       } finally {
         this.loading.delete(cacheKey);
       }
