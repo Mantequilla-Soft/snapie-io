@@ -90,6 +90,9 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     let permlink = lastContainerRef.current?.permlink || "";
     let date = lastContainerRef.current?.date || new Date().toISOString();
 
+    // Fetch muted list once before the loop
+    const mutedList = await mutedAccountsManager.getMutedList(username);
+
     while (allFilteredComments.length < pageMinSize && hasMoreData) {
 
       const result = await HiveClient.database.call('get_discussions_by_author_before_date', [
@@ -111,7 +114,7 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
         ])) as ExtendedComment[];
 
         let filteredComments: ExtendedComment[] = [];
-        
+
         // Apply appropriate filter based on filterType
         if (filterType === 'community') {
           filteredComments = filterCommentsByTag(comments, tag);
@@ -122,7 +125,6 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
         }
 
         // Filter out muted accounts (community + user personal list)
-        const mutedList = await mutedAccountsManager.getMutedList(username);
         filteredComments = filteredComments.filter(c => !mutedList.has(c.author.toLowerCase()));
 
         allFilteredComments.push(...filteredComments);

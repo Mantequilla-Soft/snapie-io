@@ -57,8 +57,9 @@ export default function Blog() {
         }
     }
 
-    // Load muted accounts on mount (community + user personal list)
+    // Load muted accounts on mount and when user changes (login/logout)
     useEffect(() => {
+        setMutedLoaded(false);
         const loadMutedAccounts = async () => {
             const mutedSet = await mutedAccountsManager.getMutedList(hiveUser?.name);
             mutedSetRef.current = mutedSet;

@@ -82,7 +82,7 @@ class MutedAccountsManager {
 
       const data = JSON.parse(stored);
       const cache: MutedListCache = {
-        accounts: new Set(data.accounts),
+        accounts: new Set(data.accounts.map((a: string) => a.toLowerCase())),
         timestamp: data.timestamp,
       };
 
@@ -119,10 +119,13 @@ class MutedAccountsManager {
   async getMutedList(username?: string): Promise<Set<string>> {
     const cacheKey = this.getCacheKey(username);
 
-    // Return in-memory cache if available
+    // Return in-memory cache if available and not expired
     const cached = this.cache.get(cacheKey);
     if (cached) {
-      return cached.accounts;
+      if (Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.accounts;
+      }
+      this.cache.delete(cacheKey);
     }
 
     // If already loading for this user, wait for that promise

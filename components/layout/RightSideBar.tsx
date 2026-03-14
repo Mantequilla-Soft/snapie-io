@@ -73,15 +73,23 @@ export default function RightSideBar() {
     }
   }, [query, tag]);
 
-  // Load muted accounts on mount (community + user personal list)
+  // Load muted accounts on mount and when user changes (login/logout)
   useEffect(() => {
+    setMutedLoaded(false);
+    setAllPosts([]);
+    params.current = {
+      tag: tag,
+      limit: 8,
+      start_author: '',
+      start_permlink: '',
+    };
     const loadMutedAccounts = async () => {
       const mutedSet = await mutedAccountsManager.getMutedList(hiveUser?.name);
       mutedSetRef.current = mutedSet;
       setMutedLoaded(true);
     };
     loadMutedAccounts();
-  }, [hiveUser?.name]);
+  }, [hiveUser?.name, tag]);
 
   // Only fetch posts after muted accounts are loaded
   useEffect(() => {
