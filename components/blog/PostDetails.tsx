@@ -107,16 +107,21 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                         marginRight: 'auto'
                     },
                     '& .video-container': {
+                        position: 'relative',
                         width: '100%',
+                        maxWidth: '800px',
                         marginTop: '1em',
                         marginBottom: '1em',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        overflow: 'hidden',
                     },
                     '& .video-container iframe': {
                         width: '100%',
                         aspectRatio: '16/9',
+                        maxHeight: '450px',
                         borderRadius: 'md',
-                        border: 'none'
+                        border: 'none',
+                        display: 'block',
                     },
                     '& iframe': {
                         maxWidth: '100%',

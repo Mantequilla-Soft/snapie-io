@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client';
 
-import { Box, Container, Flex, Spinner } from '@chakra-ui/react';
+import { Box, Spinner } from '@chakra-ui/react';
 import SnapList from '../homepage/SnapList';
 import SnapComposer from '../homepage/SnapComposer';
 import { useEffect, useState } from 'react';
@@ -70,31 +70,25 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   }
 
   return (
-    <Box bg="background" color="text" minH="100vh">
-      <Flex direction={{ base: 'column', md: 'row' }}>
-        <Box flex="1" p={isEmbedMode ? 2 : 4}>
-          <Container maxW={isEmbedMode ? '100%' : 'container.sm'} p={isEmbedMode ? 0 : undefined}>
-            <PostDetails post={post} isEmbedMode={isEmbedMode} />
-            {!isEmbedMode && !conversation ? (
-              <>
-                <SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} post={true} onClose={() => {}} />
-                <SnapList
-                  author={author}
-                  permlink={permlink}
-                  setConversation={setConversation}
-                  onOpen={onOpen}
-                  setReply={setReply}
-                  newComment={newComment} // Pass the newComment to SnapList
-                  post={true}
-                  data={commentsData}
-                />
-              </>
-            ) : !isEmbedMode && conversation ? (
-              <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
-            ) : null}
-          </Container>
-        </Box>
-      </Flex>
+    <Box bg="background" color="text" minH="100vh" p={isEmbedMode ? 2 : 4}>
+      <PostDetails post={post} isEmbedMode={isEmbedMode} />
+      {!isEmbedMode && !conversation ? (
+        <>
+          <SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} post={true} onClose={() => {}} />
+          <SnapList
+            author={author}
+            permlink={permlink}
+            setConversation={setConversation}
+            onOpen={onOpen}
+            setReply={setReply}
+            newComment={newComment}
+            post={true}
+            data={commentsData}
+          />
+        </>
+      ) : !isEmbedMode && conversation ? (
+        <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
+      ) : null}
       {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
     </Box>
   );

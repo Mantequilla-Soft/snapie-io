@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, Flex } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
 import RightSidebar from '@/components/layout/RightSideBar';
 import { useState, useEffect } from 'react';
@@ -75,14 +75,10 @@ export default function Home() {
 
   return (
     <Flex direction={{ base: 'column', md: 'row' }}>
-      <Container
-        maxW={{ base: '100%', md: '720px' }}
+      <Box
         h="100vh"
         overflowY="auto"
-        px={0}
-        position={"sticky"}
-        top={0}
-        justifyContent="center"
+        px={2}
         flex="1"
         sx={
           {
@@ -114,7 +110,7 @@ export default function Home() {
         ) : (
           <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
         )}
-      </Container>
+      </Box>
       <RightSidebar />
       {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
     </Flex>
