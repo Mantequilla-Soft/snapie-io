@@ -1,39 +1,42 @@
-// app/page.tsx
-'use client';
+import type { Metadata } from 'next';
+import { getPostForMetadata, getProfileForMetadata } from '@/lib/hive/metadata-functions';
+import { buildPostMetadata, buildProfileMetadata } from '@/lib/utils/buildMetadata';
+import SlugPageClient from './SlugPageClient';
 
-import PostPage from "@/components/blog/PostPage";
-import NotificationsComp from "@/components/notifications/NotificationsComp";
-import ProfilePage from "@/components/profile/ProfilePage";
-import WalletPage from "@/components/wallet/WalletPage";
-
-interface HomePageProps {
-  params: {
-    slug: string[];
-  };
+interface PageProps {
+  params: { slug: string[] };
 }
 
-export default function HomePage({ params }: HomePageProps) {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = params;
 
-    if (params.slug.length === 1 && decodeURIComponent(params.slug[0]).startsWith('@')) {
-      return (
-        <ProfilePage username={decodeURIComponent(params.slug[0]).substring(1)} />
-      )
-    } else if ((params.slug.length === 2 && decodeURIComponent(params.slug[0]).startsWith('@')) && params.slug[1] === 'wallet') {
-      return (
-        <WalletPage username={decodeURIComponent(params.slug[0]).slice(1)} />
-      )
-    } else if ((params.slug.length === 2 && decodeURIComponent(params.slug[0]).startsWith('@')) && params.slug[1] === 'notifications') {
-      return (
-        <NotificationsComp username={decodeURIComponent(params.slug[0]).slice(1)} />
-      )
-    } else if ((params.slug.length === 2 && decodeURIComponent(params.slug[0]).startsWith('@')) || (params.slug.length === 3 && decodeURIComponent(params.slug[1]).startsWith('@'))) {
-      return (
-        <PostPage author={decodeURIComponent(params.slug[0]).substring(1)} permlink={params.slug[1]} />
-      )
+  if (!slug || slug.length === 0) return {};
+
+  const firstSegment = decodeURIComponent(slug[0]);
+
+  if (!firstSegment.startsWith('@')) return {};
+
+  const username = firstSegment.substring(1);
+
+  // Post page: /@author/permlink
+  if (slug.length === 2 && slug[1] !== 'wallet' && slug[1] !== 'notifications') {
+    const post = await getPostForMetadata(username, slug[1]);
+    if (post) {
+      return buildPostMetadata(post);
     }
+  }
 
-  return (
-    <></>
+  // Profile page: /@username
+  if (slug.length === 1) {
+    const profile = await getProfileForMetadata(username);
+    if (profile) {
+      return buildProfileMetadata(profile);
+    }
+  }
 
-  );
+  return {};
+}
+
+export default function SlugPage({ params }: PageProps) {
+  return <SlugPageClient slug={params.slug} />;
 }
