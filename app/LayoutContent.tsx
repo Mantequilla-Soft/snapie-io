@@ -28,9 +28,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     };
   }, [isEmbedMode]);
 
-  // Poll for unread messages
+  // Poll for unread messages (skip when embed mode or chat is open)
   useEffect(() => {
-    if (isEmbedMode) return; // Skip chat polling in embed mode
+    if (isEmbedMode || isChatOpen) return;
 
     const fetchUnread = async () => {
       try {
@@ -47,12 +47,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     // Fetch immediately
     fetchUnread();
 
-    // Poll every 30 seconds when chat is closed
-    const interval = setInterval(() => {
-      if (!isChatOpen) {
-        fetchUnread();
-      }
-    }, 30000);
+    // Poll every 30 seconds while chat stays closed
+    const interval = setInterval(fetchUnread, 30000);
 
     return () => clearInterval(interval);
   }, [isChatOpen, isEmbedMode]);
