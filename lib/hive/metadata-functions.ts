@@ -12,7 +12,9 @@ export async function getPostForMetadata(author: string, permlink: string) {
 
 export async function getProfileForMetadata(username: string) {
   try {
-    return await HiveClient.call('bridge', 'get_profile', { account: username });
+    const profile = await HiveClient.call('bridge', 'get_profile', { account: username });
+    if (!profile || !profile.name) return null;
+    return profile;
   } catch {
     return null;
   }

@@ -17,16 +17,15 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   useEffect(() => {
-    console.log('🟢 Layout: isChatOpen changed to:', isChatOpen);
-  }, [isChatOpen]);
-
-  useEffect(() => {
     // Add embed-mode class to body when embed mode is active
     if (isEmbedMode) {
       document.body.classList.add('embed-mode');
     } else {
       document.body.classList.remove('embed-mode');
     }
+    return () => {
+      document.body.classList.remove('embed-mode');
+    };
   }, [isEmbedMode]);
 
   // Poll for unread messages

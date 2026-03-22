@@ -23,7 +23,7 @@ function extractOgImage(body: string, jsonMetadata?: string): string | undefined
   // 1. Try json_metadata.image first
   try {
     const meta = JSON.parse(jsonMetadata || '{}');
-    if (meta.image && meta.image.length > 0) {
+    if (Array.isArray(meta.image) && meta.image.length > 0) {
       return meta.image[0];
     }
   } catch {}
@@ -50,9 +50,9 @@ export function buildPostMetadata(post: {
 
   let ogImage = extractOgImage(post.body, post.json_metadata);
 
-  // Proxy through Hive images for consistent sizing
+  // Proxy through Hive images for consistent sizing (URL-encode for proxy path)
   if (ogImage) {
-    ogImage = `https://images.hive.blog/1200x630/${ogImage}`;
+    ogImage = `https://images.hive.blog/1200x630/${encodeURIComponent(ogImage)}`;
   } else {
     // Fallback to author avatar
     ogImage = getHiveAvatarUrl(post.author, 'large');
@@ -67,13 +67,13 @@ export function buildPostMetadata(post: {
       type: 'article',
       url: `/@${post.author}/${post.permlink}`,
       siteName: SITE_NAME,
-      images: ogImage ? [{ url: ogImage, width: 1200, height: 630 }] : [],
+      images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: ogImage ? [ogImage] : [],
+      images: [ogImage],
     },
   };
 }

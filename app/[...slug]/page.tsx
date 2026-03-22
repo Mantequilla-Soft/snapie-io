@@ -20,7 +20,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Post page: /@author/permlink
   if (slug.length === 2 && slug[1] !== 'wallet' && slug[1] !== 'notifications') {
-    const post = await getPostForMetadata(username, slug[1]);
+    const permlink = decodeURIComponent(slug[1]);
+    const post = await getPostForMetadata(username, permlink);
+    if (post) {
+      return buildPostMetadata(post);
+    }
+  }
+
+  // 3-segment post page: /@community/@author/permlink
+  if (slug.length === 3 && decodeURIComponent(slug[1]).startsWith('@')) {
+    const author = decodeURIComponent(slug[1]).substring(1);
+    const permlink = decodeURIComponent(slug[2]);
+    const post = await getPostForMetadata(author, permlink);
     if (post) {
       return buildPostMetadata(post);
     }
