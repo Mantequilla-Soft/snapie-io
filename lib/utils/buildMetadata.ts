@@ -52,7 +52,7 @@ export function buildPostMetadata(post: {
 
   // Proxy through Hive images for consistent sizing (URL-encode for proxy path)
   if (ogImage) {
-    ogImage = `https://images.hive.blog/1200x630/${encodeURIComponent(ogImage)}`;
+    ogImage = `https://images.hive.blog/1200x630/${ogImage}`;
   } else {
     // Fallback to author avatar
     ogImage = getHiveAvatarUrl(post.author, 'large');
