@@ -77,13 +77,10 @@ export const snapieVideoComposer = createComposer({
 });
 
 /**
- * Composer with 10% beneficiaries for hangout announcement snaps
+ * Composer with 10% beneficiaries for hangout announcement snaps.
+ * Currently shares config with video composer; split if requirements diverge.
  */
-export const snapieHangoutComposer = createComposer({
-    appName: 'mycommunity',
-    defaultTags: [process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || '', 'snaps'].filter(Boolean),
-    beneficiaries: [{ account: 'snapie', weight: 1000 }], // 10%
-});
+export { snapieVideoComposer as snapieHangoutComposer };
 
 // ============================================================================
 // Re-exports for convenience

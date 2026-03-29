@@ -24,6 +24,7 @@ function LobbyWithAutoAuth() {
     isCreating.current = true;
     if (!user) {
       openRoom(room.name);
+      isCreating.current = false;
       return;
     }
 
