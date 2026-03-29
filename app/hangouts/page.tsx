@@ -31,14 +31,14 @@ function LobbyWithAutoAuth() {
     // Opening the room triggers a Keychain auth popup for hangouts,
     // which would race with the snap broadcast Keychain request.
     try {
-      const { permlink: parentPermlink } = await getLastSnapsContainer();
+      const { author: parentAuthor, permlink: parentPermlink } = await getLastSnapsContainer();
 
       const body = `🎙️ ${room.title}\n\nhttps://hangout.3speak.tv/room/${room.name}`;
 
       const result = snapieHangoutComposer.build({
         author: user,
         body,
-        parentAuthor: '',
+        parentAuthor,
         parentPermlink,
       });
 
