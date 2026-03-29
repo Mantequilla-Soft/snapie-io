@@ -178,6 +178,20 @@ export const extractHivePostUrls = (content: string): Array<{ url: string; autho
 };
 
 /**
+ * Extract hangout room names from snap content.
+ * Matches: https://hangout.3speak.tv/room/<room-name>
+ */
+export function extractHangoutUrls(content: string): string[] {
+  const pattern = /https?:\/\/hangout\.3speak\.tv\/room\/([\w-]+)/g;
+  const results: string[] = [];
+  let match;
+  while ((match = pattern.exec(content)) !== null) {
+    results.push(match[1]);
+  }
+  return results;
+}
+
+/**
  * Extract the last URL from content for OpenGraph preview
  */
 export const extractLastUrl = (content: string): string | null => {

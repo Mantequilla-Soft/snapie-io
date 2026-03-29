@@ -5,9 +5,10 @@ import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "r
 import { useKeychain } from '@/contexts/KeychainContext';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { separateContent, extractHivePostUrls } from '@/lib/utils/snapUtils';
+import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import HivePostPreview from '@/components/shared/HivePostPreview';
+import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
@@ -45,20 +46,32 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         [comment.body]
     );
 
+    // Extract hangout room names for preview cards
+    const hangoutRoomNames = useMemo(
+        () => extractHangoutUrls(comment.body),
+        [comment.body]
+    );
+
     // Separate media from text using SkateHive's pattern
     const { text, media } = useMemo(
         () => separateContent(comment.body),
         [comment.body]
     );
 
-    // Remove Hive post URLs from text since we'll render them as preview cards
+    // Remove Hive post URLs and hangout URLs from text since we'll render them as preview cards
     const textWithoutHiveUrls = useMemo(() => {
         let cleanText = text;
         hivePostUrls.forEach(({ url }) => {
             cleanText = cleanText.replace(url, '');
         });
+        hangoutRoomNames.forEach((roomName) => {
+            cleanText = cleanText.replace(
+                new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, 'g'),
+                ''
+            );
+        });
         return cleanText.trim();
-    }, [text, hivePostUrls]);
+    }, [text, hivePostUrls, hangoutRoomNames]);
 
     // Render text as HTML using markdown renderer
     const renderedText = useMemo(
@@ -212,6 +225,15 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 author={author}
                                 permlink={permlink}
                             />
+                        ))}
+                    </VStack>
+                )}
+
+                {/* Render hangout preview cards */}
+                {hangoutRoomNames.length > 0 && (
+                    <VStack spacing={2} align="stretch" mt={2}>
+                        {hangoutRoomNames.map((roomName) => (
+                            <HangoutPreviewCard key={roomName} roomName={roomName} />
                         ))}
                     </VStack>
                 )}

@@ -1,7 +1,7 @@
 import { useKeychain } from '@/contexts/KeychainContext';
 import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 
 interface FooterNavigationProps {
@@ -128,6 +128,18 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                         minW="40px"
                         _hover={{ bg: 'whiteAlpha.200' }}
                         leftIcon={<Icon as={FiBook} boxSize={4} />}
+                    />
+                </Tooltip>
+
+                <Tooltip label="Hangouts" aria-label="Hangouts tooltip">
+                    <Button
+                        onClick={() => handleNavigation("/hangouts")}
+                        variant="ghost"
+                        color="white"
+                        size="sm"
+                        minW="40px"
+                        _hover={{ bg: 'whiteAlpha.200' }}
+                        leftIcon={<Icon as={FiRadio} boxSize={4} />}
                     />
                 </Tooltip>
 
