@@ -15,6 +15,7 @@ import { cannabisTheme } from '@/themes/cannabis'
 import { mengaoTheme } from '@/themes/mengao'
 import { KeychainProvider } from '@/contexts/KeychainContext'
 import { UserProvider } from '@/contexts/UserContext'
+import { HangoutContextProvider } from '@/contexts/HangoutContext'
 
 const themeMap = {
   forest: forestTheme,
@@ -144,7 +145,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ChakraProvider theme={selectedTheme}>
       <KeychainProvider>
         <UserProvider>
-          {children}
+          <HangoutContextProvider>
+            {children}
+          </HangoutContextProvider>
         </UserProvider>
       </KeychainProvider>
     </ChakraProvider>

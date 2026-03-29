@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useKeychain } from '@/contexts/KeychainContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare } from 'react-icons/fi';
+import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio } from 'react-icons/fi';
 import { Notifications } from '@hiveio/dhive';
 import { fetchNewNotifications, getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
@@ -188,6 +188,21 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 borderRadius="md"
                             >
                                 <Text display={textDisplay}>Blog</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                    <Tooltip label="Hangouts" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                onClick={() => handleNavigation("/hangouts")}
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiRadio} boxSize={4} />}
+                                px={3}
+                                borderRadius="md"
+                            >
+                                <Text display={textDisplay}>Hangouts</Text>
                             </Button>
                         </Box>
                     </Tooltip>

@@ -2,16 +2,21 @@
 import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FooterNavigation from '@/components/layout/FooterNavigation';
 import ChatPanel from '@/components/chat/ChatPanel';
+import { useHangout } from '@/contexts/HangoutContext';
+
+const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isComposePage = pathname === '/compose';
   const isEmbedMode = searchParams.get('embed') === 'true';
+  const { activeRoom, closeRoom } = useHangout();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
@@ -88,6 +93,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             unreadCount={chatUnreadCount}
           />
         </>
+      )}
+      {!isEmbedMode && activeRoom && (
+        <HangoutModal isOpen onClose={closeRoom} roomName={activeRoom} />
       )}
     </Box>
   );

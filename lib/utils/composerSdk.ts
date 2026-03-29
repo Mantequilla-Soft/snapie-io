@@ -76,6 +76,12 @@ export const snapieVideoComposer = createComposer({
     beneficiaries: [{ account: 'snapie', weight: 1000 }], // 10%
 });
 
+/**
+ * Composer with 10% beneficiaries for hangout announcement snaps.
+ * Currently shares config with video composer; split if requirements diverge.
+ */
+export { snapieVideoComposer as snapieHangoutComposer };
+
 // ============================================================================
 // Re-exports for convenience
 // ============================================================================
