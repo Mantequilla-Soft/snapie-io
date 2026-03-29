@@ -1,5 +1,5 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { HangoutsProvider, RoomLobby, useHangoutsAuth, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -17,14 +17,19 @@ function LobbyWithAutoAuth() {
   const auth = useHangoutsAuth();
   const { openRoom } = useHangout();
   const toast = useToast();
+  const isCreating = useRef(false);
   useAutoHangoutLogin(user, auth);
 
   const handleRoomCreated = useCallback(async (room: Room) => {
-    // Open the room immediately — don't block on snap posting
-    openRoom(room.name);
+    isCreating.current = true;
+    if (!user) {
+      openRoom(room.name);
+      return;
+    }
 
-    if (!user) return;
-
+    // Post the announcement snap BEFORE opening the room.
+    // Opening the room triggers a Keychain auth popup for hangouts,
+    // which would race with the snap broadcast Keychain request.
     try {
       const { permlink: parentPermlink } = await getLastSnapsContainer();
 
@@ -63,11 +68,21 @@ function LobbyWithAutoAuth() {
         duration: 5000,
       });
     }
+
+    // Now open the room after snap is posted (or failed)
+    openRoom(room.name);
+    isCreating.current = false;
   }, [user, openRoom, toast]);
+
+  const handleJoinRoom = useCallback((name: string) => {
+    // Skip if we're in the create flow — handleRoomCreated handles opening
+    if (isCreating.current) return;
+    openRoom(name);
+  }, [openRoom]);
 
   return (
     <RoomLobby
-      onJoinRoom={(name) => openRoom(name)}
+      onJoinRoom={handleJoinRoom}
       onRoomCreated={handleRoomCreated}
     />
   );
