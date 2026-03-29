@@ -95,7 +95,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         </>
       )}
       {!isEmbedMode && activeRoom && (
-        <HangoutModal isOpen={!!activeRoom} onClose={closeRoom} roomName={activeRoom} />
+        <HangoutModal isOpen onClose={closeRoom} roomName={activeRoom} />
       )}
     </Box>
   );

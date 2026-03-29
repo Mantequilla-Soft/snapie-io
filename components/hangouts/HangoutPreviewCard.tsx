@@ -12,21 +12,36 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
   const { openRoom } = useHangout();
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setRoom(null);
+    setError(null);
     const client = new HangoutsApiClient({
       baseUrl: process.env.NEXT_PUBLIC_HANGOUTS_API_URL!,
     });
     client.getRoom(roomName).then((found) => {
       setRoom(found);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setError('Failed to load hangout');
+      setLoading(false);
+    });
   }, [roomName]);
 
   if (loading) {
     return (
       <Box p={4} borderWidth="1px" borderColor="border" borderRadius="xl" bg="muted">
         <Text fontSize="sm" color="primary">Loading hangout...</Text>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="xl" bg="muted">
+        <Text fontSize="sm" color="primary">{error}</Text>
       </Box>
     );
   }
@@ -41,14 +56,19 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
 
   return (
     <Box
+      as="button"
+      type="button"
+      width="100%"
+      textAlign="left"
+      aria-label={`Join hangout: ${room.title}`}
       p={4}
       borderWidth="1px"
       borderColor="border"
       borderRadius="xl"
       bg="muted"
-      cursor="pointer"
       onClick={() => openRoom(room.name)}
       _hover={{ borderColor: 'primary' }}
+      _focus={{ outline: '2px solid', outlineColor: 'primary', outlineOffset: '2px' }}
       transition="border-color 0.15s"
     >
       <HStack spacing={3}>

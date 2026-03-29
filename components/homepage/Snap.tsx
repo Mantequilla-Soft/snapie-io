@@ -232,8 +232,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 {/* Render hangout preview cards */}
                 {hangoutRoomNames.length > 0 && (
                     <VStack spacing={2} align="stretch" mt={2}>
-                        {hangoutRoomNames.map((roomName) => (
-                            <HangoutPreviewCard key={roomName} roomName={roomName} />
+                        {hangoutRoomNames.map((roomName, index) => (
+                            <HangoutPreviewCard key={`${roomName}-${index}`} roomName={roomName} />
                         ))}
                     </VStack>
                 )}

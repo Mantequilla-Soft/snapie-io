@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useRef } from 'react';
 import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
 import { useKeychain } from '@/contexts/KeychainContext';
+import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
@@ -17,16 +17,7 @@ interface HangoutModalProps {
 function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose: () => void }) {
   const { user } = useKeychain();
   const auth = useHangoutsAuth();
-  const loginAttempted = useRef(false);
-
-  useEffect(() => {
-    if (user && !auth.isAuthenticated && !auth.isLoading && !loginAttempted.current) {
-      loginAttempted.current = true;
-      auth.login(user).catch(() => {
-        loginAttempted.current = false;
-      });
-    }
-  }, [user, auth.isAuthenticated, auth.isLoading]);
+  const { retryLogin } = useAutoHangoutLogin(user, auth);
 
   if (!user) {
     return (
@@ -44,10 +35,7 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
       <Center p={8}>
         <VStack spacing={3}>
           <Text color="red.400">Failed to authenticate: {auth.error}</Text>
-          <Button variant="ghost" onClick={() => {
-            loginAttempted.current = false;
-            auth.login(user);
-          }}>Retry</Button>
+          <Button variant="ghost" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
         </VStack>
       </Center>
     );
