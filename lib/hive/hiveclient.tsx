@@ -16,7 +16,11 @@ const EXCLUDED_NODES = [
 const BEACON_API = "https://beacon.peakd.com/api/nodes"
 const MIN_SCORE = 80
 
-let HiveClient = new Client(FALLBACK_NODES)
+// Proxy object so reassigning .client propagates to all importers
+// (export default captures a value, not a binding)
+const hive = {
+  client: new Client(FALLBACK_NODES),
+}
 
 async function fetchHealthyNodes(): Promise<string[]> {
   try {
@@ -40,11 +44,24 @@ async function fetchHealthyNodes(): Promise<string[]> {
 // Initialize with healthy nodes on first load (client-side only)
 if (typeof window !== "undefined") {
   fetchHealthyNodes().then(nodes => {
-    HiveClient = new Client(nodes)
+    hive.client = new Client(nodes)
     if (process.env.NODE_ENV === "development") {
       console.log("🔗 HiveClient initialized with beacon nodes:", nodes)
     }
+  }).catch(err => {
+    if (process.env.NODE_ENV === "development") {
+      console.error("Failed to initialize HiveClient with beacon nodes:", err)
+    }
   })
 }
+
+// Proxy that delegates all property access to the current hive.client.
+// This lets consumers keep `import HiveClient from './hiveclient'`
+// and automatically use the updated client after beacon nodes load.
+const HiveClient: Client = new Proxy({} as Client, {
+  get(_target, prop, receiver) {
+    return Reflect.get(hive.client, prop, receiver)
+  },
+})
 
 export default HiveClient
