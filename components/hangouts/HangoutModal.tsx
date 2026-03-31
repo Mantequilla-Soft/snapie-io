@@ -53,8 +53,8 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
   }
 
   return (
-    <div data-hh-theme="dark">
-      <HangoutsRoom roomName={roomName} onLeave={onClose} embedded />
+    <div data-hh-theme="dark" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <HangoutsRoom roomName={roomName} onLeave={onClose} embedded maxHeight="78vh" />
     </div>
   );
 }
@@ -62,9 +62,9 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
   return (
     <HangoutsProvider apiBaseUrl={API_URL} livekitServerUrl={LK_URL}>
-      <Modal isOpen={isOpen} onClose={onClose} size="2xl" scrollBehavior="inside">
+      <Modal isOpen={isOpen} onClose={onClose} size="2xl">
         <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />
-        <ModalContent bg="background" color="text" borderColor="border" borderWidth="2px" maxH="85vh">
+        <ModalContent bg="background" color="text" borderColor="border" borderWidth="2px" maxH="85vh" overflow="hidden">
           <ModalCloseButton zIndex={10} />
           <HangoutRoomWithAuth roomName={roomName} onClose={onClose} />
         </ModalContent>
