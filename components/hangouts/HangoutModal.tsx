@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
-import { HangoutsProvider, HangoutsRoom, useHangoutsAuth, useRecording } from '@snapie/hangouts-react';
+import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
 import { useKeychain } from '@/contexts/KeychainContext';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
@@ -22,24 +22,18 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
   const { user } = useKeychain();
   const auth = useHangoutsAuth();
   const { retryLogin } = useAutoHangoutLogin(user, auth);
-  const recording = useRecording(roomName);
   const router = useRouter();
-  const hasRedirected = useRef(false);
 
-  // When recording upload completes, redirect to compose page with pre-filled data
-  useEffect(() => {
-    if (recording.uploadResult && !hasRedirected.current) {
-      hasRedirected.current = true;
-      const params = new URLSearchParams({
-        hangout: 'true',
-        title: roomName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-        audioUrl: recording.uploadResult.playUrl,
-        thumbnail: HANGOUT_THUMBNAIL,
-      });
-      router.push(`/compose?${params.toString()}`);
-      onClose();
-    }
-  }, [recording.uploadResult]);
+  const handleRecordingUploaded = useCallback((result: { permlink: string; cid: string; playUrl: string }) => {
+    const params = new URLSearchParams({
+      hangout: 'true',
+      title: roomName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      audioUrl: result.playUrl,
+      thumbnail: HANGOUT_THUMBNAIL,
+    });
+    router.push(`/compose?${params.toString()}`);
+    onClose();
+  }, [roomName, router, onClose]);
 
   if (!user) {
     return (
@@ -76,7 +70,13 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
 
   return (
     <div data-hh-theme="dark" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <HangoutsRoom roomName={roomName} onLeave={onClose} embedded maxHeight="78vh" />
+      <HangoutsRoom
+        roomName={roomName}
+        onLeave={onClose}
+        onRecordingUploaded={handleRecordingUploaded}
+        embedded
+        maxHeight="78vh"
+      />
     </div>
   );
 }
