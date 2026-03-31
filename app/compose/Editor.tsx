@@ -204,11 +204,12 @@ interface EditorProps {
   setHashtags: (hashtags: string[]) => void;
   beneficiaries: Beneficiary[];
   setBeneficiaries: (beneficiaries: Beneficiary[]) => void;
+  lockedAccounts?: string[];
   onSubmit: () => void;
   isSubmitting?: boolean;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, onSubmit, isSubmitting = false }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -793,6 +794,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <BeneficiariesInput
                             beneficiaries={beneficiaries}
                             setBeneficiaries={setBeneficiaries}
+                            lockedAccounts={lockedAccounts}
                         />
                         
                         {/* Submit Button */}

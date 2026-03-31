@@ -25,20 +25,23 @@ export interface Beneficiary {
 interface BeneficiariesInputProps {
   beneficiaries: Beneficiary[];
   setBeneficiaries: (beneficiaries: Beneficiary[]) => void;
+  lockedAccounts?: string[];
 }
 
-const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBeneficiaries }) => {
+const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBeneficiaries, lockedAccounts = ['snapie'] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [newAccount, setNewAccount] = useState('');
   const [newPercentage, setNewPercentage] = useState('');
   const toast = useToast();
 
-  // Calculate total percentage (excluding snapie's 3%)
+  // Calculate total percentage (excluding locked accounts)
   const totalPercentage = beneficiaries
-    .filter(b => b.account !== 'snapie')
+    .filter(b => !lockedAccounts.includes(b.account))
     .reduce((sum, b) => sum + (b.weight / 100), 0);
 
-  const snapiePercentage = 3; // Fixed 3% for snapie
+  const lockedPercentage = beneficiaries
+    .filter(b => lockedAccounts.includes(b.account))
+    .reduce((sum, b) => sum + (b.weight / 100), 0);
 
   const handleAddBeneficiary = () => {
     // Validation
@@ -66,10 +69,10 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
     }
 
     // Check if total would exceed 100%
-    if (totalPercentage + percentage + snapiePercentage > 100) {
+    if (totalPercentage + percentage + lockedPercentage > 100) {
       toast({
         title: 'Exceeds 100%',
-        description: `Total beneficiaries would be ${(totalPercentage + percentage + snapiePercentage).toFixed(1)}%. Maximum is 100%.`,
+        description: `Total beneficiaries would be ${(totalPercentage + percentage + lockedPercentage).toFixed(1)}%. Maximum is 100%.`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -107,11 +110,10 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
   };
 
   const handleRemoveBeneficiary = (account: string) => {
-    // Can't remove snapie
-    if (account === 'snapie') {
+    if (lockedAccounts.includes(account)) {
       toast({
         title: 'Cannot Remove',
-        description: 'Snapie is a required beneficiary (3%)',
+        description: `@${account} is a required beneficiary`,
         status: 'warning',
         duration: 2000,
         isClosable: true,
@@ -145,7 +147,7 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
             Reward Beneficiaries
           </Text>
           <Tag size="sm" colorScheme="blue">
-            {(totalPercentage + snapiePercentage).toFixed(1)}% allocated
+            {(totalPercentage + lockedPercentage).toFixed(1)}% allocated
           </Tag>
         </HStack>
         <IconButton
@@ -174,12 +176,12 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
                       size="md"
                       borderRadius="base"
                       variant="solid"
-                      colorScheme={b.account === 'snapie' ? 'green' : 'blue'}
+                      colorScheme={lockedAccounts.includes(b.account) ? 'green' : 'blue'}
                     >
                       <TagLabel>
                         @{b.account} ({(b.weight / 100).toFixed(1)}%)
                       </TagLabel>
-                      {b.account !== 'snapie' && (
+                      {!lockedAccounts.includes(b.account) && (
                         <TagCloseButton onClick={() => handleRemoveBeneficiary(b.account)} />
                       )}
                     </Tag>
@@ -227,11 +229,11 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
                   size="sm"
                   colorScheme="blue"
                   onClick={handleAddBeneficiary}
-                  isDisabled={totalPercentage + snapiePercentage >= 100}
+                  isDisabled={totalPercentage + lockedPercentage >= 100}
                 />
               </HStack>
               <Text fontSize="xs" color="gray.500" mt={1}>
-                Remaining: {(100 - totalPercentage - snapiePercentage).toFixed(1)}% • Note: 3% to @snapie is required
+                Remaining: {(100 - totalPercentage - lockedPercentage).toFixed(1)}% • Required: {lockedAccounts.map(a => `@${a}`).join(', ')}
               </Text>
             </Box>
           </VStack>

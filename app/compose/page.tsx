@@ -237,6 +237,7 @@ export default function Home() {
           setHashtags={setHashtags}
           beneficiaries={beneficiaries}
           setBeneficiaries={setBeneficiaries}
+          lockedAccounts={isHangout ? ['snapie', 'threespeakfund'] : undefined}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
         />
