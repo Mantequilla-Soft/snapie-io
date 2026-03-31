@@ -3,7 +3,7 @@ import { useKeychain } from '@/contexts/KeychainContext'
 import { signAndBroadcastWithKeychain } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
@@ -43,6 +43,22 @@ export default function Home() {
       : [{ account: 'snapie', weight: 300 }]
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Sync state when search params change (e.g., same-route navigation from recording upload)
+  useEffect(() => {
+    if (!isHangout) return
+
+    setTitle(hangoutTitle)
+    setHashtags(['hangout', 'podcast'])
+    setBeneficiaries([
+      { account: 'snapie', weight: 300 },
+      { account: 'threespeakfund', weight: 700 },
+    ])
+
+    if (hangoutAudioUrl) {
+      setMarkdown(buildHangoutBody(hangoutAudioUrl, hangoutThumbnail))
+    }
+  }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutThumbnail])
 
   const { user } = useKeychain()
   const toast = useToast()
