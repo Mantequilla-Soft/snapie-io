@@ -3,8 +3,8 @@ import { useKeychain } from '@/contexts/KeychainContext'
 import { signAndBroadcastWithKeychain } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput'
@@ -18,13 +18,47 @@ const blogComposer = createComposer({
   beneficiaries: [] // Will be set per-post
 })
 
+const HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
+
+function buildHangoutBody(audioUrl: string, thumbnail: string): string {
+  return `![Hangout Recording](${thumbnail})\n\n<center>\n\n### Listen to this hangout\n\n[Play on 3Speak](${audioUrl})\n\n</center>\n\n---\n\n*Write a description of your hangout here...*`;
+}
+
 export default function Home() {
-  const [markdown, setMarkdown] = useState("")
-  const [title, setTitle] = useState("")
+  const searchParams = useSearchParams()
+  const isHangout = searchParams.get('hangout') === 'true'
+  const hangoutTitle = searchParams.get('title') || ''
+  const hangoutAudioUrl = searchParams.get('audioUrl') || ''
+  const hangoutThumbnail = searchParams.get('thumbnail') || HANGOUT_THUMBNAIL
+
+  const [markdown, setMarkdown] = useState(
+    isHangout && hangoutAudioUrl ? buildHangoutBody(hangoutAudioUrl, hangoutThumbnail) : ""
+  )
+  const [title, setTitle] = useState(isHangout ? hangoutTitle : "")
   const [hashtagInput, setHashtagInput] = useState("")
-  const [hashtags, setHashtags] = useState<string[]>([])
-  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryInputType[]>([{ account: 'snapie', weight: 300 }]) // Default 3% to snapie
+  const [hashtags, setHashtags] = useState<string[]>(isHangout ? ['hangout', 'podcast'] : [])
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryInputType[]>(
+    isHangout
+      ? [{ account: 'snapie', weight: 300 }, { account: 'threespeakfund', weight: 700 }]
+      : [{ account: 'snapie', weight: 300 }]
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Sync state when search params change (e.g., same-route navigation from recording upload)
+  useEffect(() => {
+    if (!isHangout) return
+
+    setTitle(hangoutTitle)
+    setHashtags(['hangout', 'podcast'])
+    setBeneficiaries([
+      { account: 'snapie', weight: 300 },
+      { account: 'threespeakfund', weight: 700 },
+    ])
+
+    if (hangoutAudioUrl) {
+      setMarkdown(buildHangoutBody(hangoutAudioUrl, hangoutThumbnail))
+    }
+  }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutThumbnail])
 
   const { user } = useKeychain()
   const toast = useToast()
@@ -219,6 +253,7 @@ export default function Home() {
           setHashtags={setHashtags}
           beneficiaries={beneficiaries}
           setBeneficiaries={setBeneficiaries}
+          lockedAccounts={isHangout ? ['snapie', 'threespeakfund'] : undefined}
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
         />
