@@ -7,7 +7,7 @@ import { useKeychain } from '@/contexts/KeychainContext';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
-import { useToast } from '@chakra-ui/react';
+import { useToast, Center, VStack, Text, Spinner } from '@chakra-ui/react';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
@@ -20,17 +20,34 @@ function LobbyWithAutoAuth() {
   const isCreating = useRef(false);
   useAutoHangoutLogin(user, auth);
 
-  const handleRoomCreated = useCallback(async (room: Room) => {
+  // Not logged into Snapie — prompt to login
+  if (!user) {
+    return (
+      <Center p={12}>
+        <VStack spacing={3}>
+          <Text fontSize="xl" fontWeight="bold" color="text">Hive Hangouts</Text>
+          <Text color="primary">Log in with Hive Keychain to browse and create hangout rooms.</Text>
+        </VStack>
+      </Center>
+    );
+  }
+
+  // Logged into Snapie but still authenticating with Hangouts API
+  if (auth.isLoading || !auth.isAuthenticated) {
+    return (
+      <Center p={12}>
+        <VStack spacing={3}>
+          <Spinner size="lg" color="primary" />
+          <Text fontSize="sm" color="primary">Connecting to Hangouts...</Text>
+        </VStack>
+      </Center>
+    );
+  }
+
+  const handleRoomCreated = async (room: Room) => {
     isCreating.current = true;
-    if (!user) {
-      openRoom(room.name);
-      isCreating.current = false;
-      return;
-    }
 
     // Post the announcement snap BEFORE opening the room.
-    // Opening the room triggers a Keychain auth popup for hangouts,
-    // which would race with the snap broadcast Keychain request.
     try {
       const { author: parentAuthor, permlink: parentPermlink } = await getLastSnapsContainer();
 
@@ -70,16 +87,14 @@ function LobbyWithAutoAuth() {
       });
     }
 
-    // Now open the room after snap is posted (or failed)
     openRoom(room.name);
     isCreating.current = false;
-  }, [user, openRoom, toast]);
+  };
 
-  const handleJoinRoom = useCallback((name: string) => {
-    // Skip if we're in the create flow — handleRoomCreated handles opening
+  const handleJoinRoom = (name: string) => {
     if (isCreating.current) return;
     openRoom(name);
-  }, [openRoom]);
+  };
 
   return (
     <RoomLobby
