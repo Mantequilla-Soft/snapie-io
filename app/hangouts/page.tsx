@@ -7,7 +7,7 @@ import { useKeychain } from '@/contexts/KeychainContext';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
-import { useToast, Center, VStack, Text, Spinner } from '@chakra-ui/react';
+import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/react';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
@@ -18,7 +18,7 @@ function LobbyWithAutoAuth() {
   const { openRoom } = useHangout();
   const toast = useToast();
   const isCreating = useRef(false);
-  useAutoHangoutLogin(user, auth);
+  const { retryLogin } = useAutoHangoutLogin(user, auth);
 
   // Not logged into Snapie — prompt to login
   if (!user) {
@@ -32,13 +32,26 @@ function LobbyWithAutoAuth() {
     );
   }
 
-  // Logged into Snapie but still authenticating with Hangouts API
-  if (auth.isLoading || !auth.isAuthenticated) {
+  // Still authenticating with Hangouts API
+  if (auth.isLoading) {
     return (
       <Center p={12}>
         <VStack spacing={3}>
           <Spinner size="lg" color="primary" />
           <Text fontSize="sm" color="primary">Connecting to Hangouts...</Text>
+        </VStack>
+      </Center>
+    );
+  }
+
+  // Auth failed — show error with retry
+  if (!auth.isAuthenticated) {
+    return (
+      <Center p={12}>
+        <VStack spacing={3}>
+          <Text fontSize="xl" fontWeight="bold" color="text">Connection Failed</Text>
+          <Text color="primary">{auth.error || 'Could not connect to Hangouts'}</Text>
+          <Button colorScheme="blue" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
         </VStack>
       </Center>
     );

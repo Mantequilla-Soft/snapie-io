@@ -39,6 +39,8 @@ export function useAutoHangoutLogin(user: string | null, auth: HangoutsAuth) {
         // Don't reset loginAttempted — no automatic retries.
       });
     }
+  // auth.login and auth.logout are stable refs from HangoutsProvider
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, auth.isAuthenticated, auth.isLoading, auth.username]);
 
   const retryLogin = () => {
