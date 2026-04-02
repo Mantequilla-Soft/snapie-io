@@ -74,6 +74,7 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
         roomName={roomName}
         onLeave={onClose}
         onRecordingUploaded={handleRecordingUploaded}
+        video
         embedded
         maxHeight="78vh"
       />
