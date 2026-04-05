@@ -17,7 +17,7 @@ export function useWakeLock(active: boolean) {
     }
 
     function onVisibilityChange() {
-      if (document.visibilityState === 'visible' && !lockRef.current?.released && !cancelled) {
+      if (document.visibilityState === 'visible' && !cancelled && (!lockRef.current || lockRef.current.released)) {
         acquire();
       }
     }
