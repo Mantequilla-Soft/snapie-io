@@ -10,7 +10,12 @@ export function useWakeLock(active: boolean) {
 
     async function acquire() {
       try {
-        lockRef.current = await navigator.wakeLock.request('screen');
+        const sentinel = await navigator.wakeLock.request('screen');
+        if (cancelled) {
+          sentinel.release().catch(() => {});
+          return;
+        }
+        lockRef.current = sentinel;
       } catch {
         // Permission denied or not supported — fail silently
       }
