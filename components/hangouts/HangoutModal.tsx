@@ -5,6 +5,7 @@ import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, T
 import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
 import { useKeychain } from '@/contexts/KeychainContext';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
@@ -22,6 +23,7 @@ function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose:
   const { user } = useKeychain();
   const auth = useHangoutsAuth();
   const { retryLogin } = useAutoHangoutLogin(user, auth);
+  useWakeLock(auth.isAuthenticated);
   const router = useRouter();
 
   const handleRecordingUploaded = useCallback((result: { permlink: string; cid: string; playUrl: string }) => {
