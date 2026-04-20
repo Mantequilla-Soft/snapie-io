@@ -14,27 +14,16 @@ const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
 interface LobbyProps {
   user: string;
+  sessionToken: string | undefined;
   isLoading: boolean;
   error: string | null;
   retryLogin: () => Promise<void>;
 }
 
-function LobbyWithAutoAuth({ user, isLoading, error, retryLogin }: LobbyProps) {
+function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }: LobbyProps) {
   const { openRoom } = useHangout();
   const toast = useToast();
   const isCreating = useRef(false);
-
-  // Still authenticating with Hangouts API.
-  if (isLoading) {
-    return (
-      <Center p={12}>
-        <VStack spacing={3}>
-          <Spinner size="lg" color="primary" />
-          <Text fontSize="sm" color="primary">Connecting to Hangouts...</Text>
-        </VStack>
-      </Center>
-    );
-  }
 
   // Auth failed — show error with retry.
   if (error) {
@@ -44,6 +33,20 @@ function LobbyWithAutoAuth({ user, isLoading, error, retryLogin }: LobbyProps) {
           <Text fontSize="xl" fontWeight="bold" color="text">Connection Failed</Text>
           <Text color="primary">{error}</Text>
           <Button colorScheme="blue" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
+        </VStack>
+      </Center>
+    );
+  }
+
+  // Gate the SDK's <RoomLobby> until we actually have a session token in hand.
+  // Rendering RoomLobby unauthenticated would show its built-in Keychain-only
+  // sign-in UI, bypassing our aioha flow.
+  if (isLoading || !sessionToken) {
+    return (
+      <Center p={12}>
+        <VStack spacing={3}>
+          <Spinner size="lg" color="primary" />
+          <Text fontSize="sm" color="primary">Connecting to Hangouts...</Text>
         </VStack>
       </Center>
     );
@@ -135,7 +138,13 @@ export default function HangoutsPage() {
         sessionToken={sessionToken}
         username={user}
       >
-        <LobbyWithAutoAuth user={user} isLoading={isLoading} error={error} retryLogin={retryLogin} />
+        <LobbyWithAutoAuth
+          user={user}
+          sessionToken={sessionToken}
+          isLoading={isLoading}
+          error={error}
+          retryLogin={retryLogin}
+        />
       </HangoutsProvider>
     </div>
   );

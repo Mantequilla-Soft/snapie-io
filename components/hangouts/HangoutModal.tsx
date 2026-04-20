@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
-import { HangoutsProvider, HangoutsRoom } from '@snapie/hangouts-react';
+import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
 import { useHangoutsSession } from '@/hooks/useHangoutsSession';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -22,7 +22,6 @@ interface HangoutModalProps {
 interface HangoutRoomProps {
   roomName: string;
   onClose: () => void;
-  isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
   retryLogin: () => Promise<void>;
@@ -31,12 +30,17 @@ interface HangoutRoomProps {
 function HangoutRoomWithAuth({
   roomName,
   onClose,
-  isAuthenticated,
   isLoading,
   error,
   retryLogin,
 }: HangoutRoomProps) {
-  useWakeLock(isAuthenticated);
+  // Read the provider's authoritative auth state — flips to true only after
+  // the HangoutsProvider's useEffect has pushed our session token onto its
+  // internal api-client. Gating on `sessionToken` alone could mount
+  // <HangoutsRoom> on the same render the token prop arrives, firing
+  // `room.join()` before the api-client actually holds the token → 401.
+  const sdkAuth = useHangoutsAuth();
+  useWakeLock(sdkAuth.isAuthenticated);
   const router = useRouter();
 
   const handleRecordingUploaded = useCallback((result: { permlink: string; cid: string; playUrl: string }) => {
@@ -61,7 +65,7 @@ function HangoutRoomWithAuth({
     );
   }
 
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !sdkAuth.isAuthenticated) {
     return (
       <Center p={8}>
         <VStack spacing={3}>
@@ -89,7 +93,6 @@ function HangoutRoomWithAuth({
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
   const { user } = useAioha();
   const { sessionToken, isLoading, error, retryLogin } = useHangoutsSession(user ?? null, API_URL);
-  const isAuthenticated = !!sessionToken && !!user;
 
   return (
     <HangoutsProvider
@@ -113,7 +116,6 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
             <HangoutRoomWithAuth
               roomName={roomName}
               onClose={onClose}
-              isAuthenticated={isAuthenticated}
               isLoading={isLoading}
               error={error}
               retryLogin={retryLogin}
