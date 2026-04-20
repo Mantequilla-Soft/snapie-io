@@ -2,7 +2,7 @@ import { Box, Flex, Icon, Button, Text, Slider, SliderTrack, SliderFilledTrack, 
 import React, { useState, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { FaHeart, FaComment, FaRegHeart, FaShare } from 'react-icons/fa';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 
@@ -19,7 +19,7 @@ export default function InteractionBar({
     onCommentClick,
     isEmbedMode = false 
 }: InteractionBarProps) {
-    const { user } = useKeychain();
+    const { user } = useAioha();
     const [sliderValue, setSliderValue] = useState(100);
     const [showSlider, setShowSlider] = useState(false);
     const [voted, setVoted] = useState(false);

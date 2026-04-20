@@ -1,5 +1,5 @@
 import { PrivateKey, cryptoUtils } from "@hiveio/dhive";
-import { KeychainSDK, KeychainKeyTypes } from "keychain-sdk";
+import { KeyTypes, signMessageWithAioha } from "@/lib/hive/aioha";
 
 /**
  * Converts base64 to base64url (browser-compatible)
@@ -41,21 +41,13 @@ export async function buildEcencyAccessToken(
     // Server-side: sign with provided posting key
     signature = PrivateKey.fromString(postingKey).sign(hash).toString();
   } else {
-    // Client-side: use Keychain to sign
-    const keychain = new KeychainSDK(window);
-    
-    const response = await keychain.signBuffer({
-      username,
-      message: hash.toString("hex"),
-      method: KeychainKeyTypes.posting,
-      title: "Snapie Chat Authentication",
-    });
-
-    if (!response || !response.success) {
-      throw new Error(response?.message || "Failed to sign authentication challenge");
-    }
-
-    signature = response.result as unknown as string;
+    // Client-side: sign via whichever aioha provider the user is logged in with
+    const response = await signMessageWithAioha(
+      hash.toString("hex"),
+      KeyTypes.Posting,
+      'Approve chat login',
+    );
+    signature = response.result;
   }
 
   // Attach signature and encode

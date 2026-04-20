@@ -1,0 +1,110 @@
+/* HiveAuth spinner overlay */
+.hiveauth-waiting-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(4px);
+}
+
+.hiveauth-waiting-modal {
+  background-color: #1a1a1a;
+  color: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.hiveauth-waiting-modal h3 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.hiveauth-waiting-modal p {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+
+.hiveauth-waiting-modal .hiveauth-hint {
+  opacity: 0.65;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.hiveauth-spinner {
+  width: 50px;
+  height: 50px;
+  margin: 0 auto;
+  border: 4px solid rgba(255, 255, 255, 0.15);
+  border-top: 4px solid #4fd1c5;
+  border-radius: 50%;
+  animation: hiveauth-spin 1s linear infinite;
+}
+
+@keyframes hiveauth-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* AiohaModal layout tweaks — grid of providers + hide "Popular" badge */
+#aioha-modal ul li a span.bg-gray-200 {
+  display: none !important;
+}
+
+#aioha-modal ul {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  list-style: none !important;
+}
+
+@media (max-width: 540px) {
+  #aioha-modal ul {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+}
+
+#aioha-modal ul li {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+#aioha-modal ul li > a {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 12px !important;
+  text-align: left !important;
+}
+
+@media (max-width: 540px) {
+  #aioha-modal ul li > a img,
+  #aioha-modal ul li > a svg,
+  #aioha-modal ul li > a span.bg-gray-100 {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    min-height: 28px !important;
+  }
+}
+
+/* Always show the light-mode icon variant, regardless of OS dark-mode setting.
+   AiohaModal renders two <svg>s per provider with iconDark (HiveAuth / Ledger)
+   — one `class="... block dark:hidden"` (for light bg), one `class="... hidden
+   dark:block"` (for dark bg). Our modal always has a light background, so we
+   always want the light-bg icon. Matching by attribute substring hits both
+   with-escape (light-mode CSS) and without-escape (HTML class attribute). */
+#aioha-modal svg[class*="dark:block"] { display: none !important; }
+#aioha-modal svg[class*="dark:hidden"] { display: block !important; }

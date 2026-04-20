@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchNewNotifications, broadcastWithKeychain } from '@/lib/hive/client-functions';
 import { Box, Text, Stack, Spinner, Button, HStack } from '@chakra-ui/react';
-import { useKeychain } from '@/contexts/KeychainContext';
-import { KeychainKeyTypes } from 'keychain-sdk';
+import { useAioha } from '@aioha/react-ui';
 import { Notifications } from '@hiveio/dhive';
 import NotificationItem from './NotificationItem'; 
 
@@ -11,7 +10,7 @@ interface NotificationCompProps {
 }
 
 export default function NotificationsComp({ username } : NotificationCompProps) {
-  const { user } = useKeychain();
+  const { user } = useAioha();
   const [notifications, setNotifications] = useState<Notifications[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true); // Add isLoading state
 
@@ -45,7 +44,7 @@ export default function NotificationsComp({ username } : NotificationCompProps) 
         id: 'notify',
         json: json,
       }]
-    ], KeychainKeyTypes.posting)
+    ], 'posting')
     console.log("Mark as Read clicked", result);
   };
 

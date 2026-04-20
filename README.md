@@ -71,7 +71,7 @@ A customizable Next.js frontend for Hive blockchain communities, featuring snaps
 
 5. **Open your browser**
    
-   Navigate to [http://localhost:3000](http://localhost:3000)
+   Navigate to [http://localhost:3310](http://localhost:3310)
 
 ---
 
@@ -193,7 +193,29 @@ Create a `.env.local` file in the root directory with these variables:
 **What it does**: needed for signing the image files to upload to hive.blog
 **Example**: `HIVE_POSTING_KEY=5JxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxQ`  
 **⚠️ WARNING**: Never share this key! Only use in secure server environments.  
-**Note**: Most users don't need this - Keychain handles authentication
+**Note**: Most users don't need this - Aioha (Keychain / HiveAuth / Ledger / PeakVault) handles authentication
+
+#### `NEXT_PUBLIC_HANGOUTS_API_URL`
+**What it does**: Backend URL for voice/video hangouts
+**Example**: `NEXT_PUBLIC_HANGOUTS_API_URL=https://hangout-api.3speak.tv`
+**Default**: None — hangout previews and rooms fail to load if unset.
+
+#### `NEXT_PUBLIC_LIVEKIT_URL`
+**What it does**: LiveKit WebSocket URL used by the hangouts feature
+**Example**: `NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.3speak.tv`
+**Default**: `wss://livekit.3speak.tv`
+
+#### `NEXT_PUBLIC_HIVESIGNER_ENABLED`
+**What it does**: Shows HiveSigner as a login option when set to `true`.
+**Default**: `false` — hidden until your app id / callback URL are configured.
+
+#### `NEXT_PUBLIC_3SPEAK_API_KEY`
+**What it does**: Enables 3Speak video + audio upload from the composer.
+**How to get**: https://embed.3speak.tv/
+
+#### `NEXT_PUBLIC_IMAGE_SERVER_API_KEY`
+**What it does**: Fallback image host when `images.hive.blog` is unavailable.
+**How to get**: https://images.3speak.tv/
 
 ### Example .env.local File
 

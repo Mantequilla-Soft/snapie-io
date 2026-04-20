@@ -9,7 +9,7 @@ import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 
 interface CommunityInfo {
@@ -30,7 +30,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<SnapFilterType>('community');
   const [communityName, setCommunityName] = useState<string>('Community');
 
-  const { user } = useKeychain();
+  const { user } = useAioha();
 
   useEffect(() => {
     const loadCommunityInfo = async () => {

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { ColorModeScript } from '@chakra-ui/react';
 import { Providers } from './providers';
 import LayoutContent from './LayoutContent';
 import type { Metadata } from 'next';
@@ -26,7 +27,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="stylesheet" href="/aioha-modal.css" />
+      </head>
       <body>
+        {/* Chakra color-mode script: sets the color-mode class on <html>
+            synchronously before hydration so server + client render match. */}
+        <ColorModeScript initialColorMode="dark" />
         <Providers>
           <Suspense fallback={null}>
             <LayoutContent>{children}</LayoutContent>

@@ -1,10 +1,10 @@
 'use client';
-import { useCallback, useRef } from 'react';
-import { HangoutsProvider, RoomLobby, useHangoutsAuth, type Room } from '@snapie/hangouts-react';
+import { useRef } from 'react';
+import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import { useHangout } from '@/contexts/HangoutContext';
-import { useKeychain } from '@/contexts/KeychainContext';
-import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
+import { useAioha } from '@aioha/react-ui';
+import { useHangoutsSession } from '@/hooks/useHangoutsSession';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/react';
@@ -12,46 +12,41 @@ import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/reac
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
-function LobbyWithAutoAuth() {
-  const { user } = useKeychain();
-  const auth = useHangoutsAuth();
+interface LobbyProps {
+  user: string;
+  sessionToken: string | undefined;
+  isLoading: boolean;
+  error: string | null;
+  retryLogin: () => Promise<void>;
+}
+
+function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }: LobbyProps) {
   const { openRoom } = useHangout();
   const toast = useToast();
   const isCreating = useRef(false);
-  const { retryLogin } = useAutoHangoutLogin(user, auth);
 
-  // Not logged into Snapie — prompt to login
-  if (!user) {
+  // Auth failed — show error with retry.
+  if (error) {
     return (
       <Center p={12}>
         <VStack spacing={3}>
-          <Text fontSize="xl" fontWeight="bold" color="text">Hive Hangouts</Text>
-          <Text color="primary">Log in with Hive Keychain to browse and create hangout rooms.</Text>
+          <Text fontSize="xl" fontWeight="bold" color="text">Connection Failed</Text>
+          <Text color="primary">{error}</Text>
+          <Button colorScheme="blue" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
         </VStack>
       </Center>
     );
   }
 
-  // Still authenticating with Hangouts API
-  if (auth.isLoading) {
+  // Gate the SDK's <RoomLobby> until we actually have a session token in hand.
+  // Rendering RoomLobby unauthenticated would show its built-in Keychain-only
+  // sign-in UI, bypassing our aioha flow.
+  if (isLoading || !sessionToken) {
     return (
       <Center p={12}>
         <VStack spacing={3}>
           <Spinner size="lg" color="primary" />
           <Text fontSize="sm" color="primary">Connecting to Hangouts...</Text>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Auth failed — show error with retry
-  if (!auth.isAuthenticated) {
-    return (
-      <Center p={12}>
-        <VStack spacing={3}>
-          <Text fontSize="xl" fontWeight="bold" color="text">Connection Failed</Text>
-          <Text color="primary">{auth.error || 'Could not connect to Hangouts'}</Text>
-          <Button colorScheme="blue" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
         </VStack>
       </Center>
     );
@@ -118,10 +113,38 @@ function LobbyWithAutoAuth() {
 }
 
 export default function HangoutsPage() {
+  const { user } = useAioha();
+  const { sessionToken, isLoading, error, retryLogin } = useHangoutsSession(user ?? null, API_URL);
+
+  // Not logged into Snapie — prompt to login.
+  if (!user) {
+    return (
+      <div data-hh-theme="dark">
+        <Center p={12}>
+          <VStack spacing={3}>
+            <Text fontSize="xl" fontWeight="bold" color="text">Hive Hangouts</Text>
+            <Text color="primary">Log in to browse and create hangout rooms.</Text>
+          </VStack>
+        </Center>
+      </div>
+    );
+  }
+
   return (
     <div data-hh-theme="dark">
-      <HangoutsProvider apiBaseUrl={API_URL} livekitServerUrl={LK_URL}>
-        <LobbyWithAutoAuth />
+      <HangoutsProvider
+        apiBaseUrl={API_URL}
+        livekitServerUrl={LK_URL}
+        sessionToken={sessionToken}
+        username={user}
+      >
+        <LobbyWithAutoAuth
+          user={user}
+          sessionToken={sessionToken}
+          isLoading={isLoading}
+          error={error}
+          retryLogin={retryLogin}
+        />
       </HangoutsProvider>
     </div>
   );

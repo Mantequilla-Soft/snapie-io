@@ -1,17 +1,18 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Box, Flex, Text, Input, Button, Image, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, useToast } from '@chakra-ui/react';
+import { Box, Flex, Text, Button, Image, useColorMode, useToast } from '@chakra-ui/react';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
+import { useLoginModal } from '@/contexts/LoginModalContext';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 export default function Header() {
     const { colorMode } = useColorMode();
-    const [modalDisplayed, setModalDisplayed] = useState(false);
     const [profileInfo, setProfileInfo] = useState<any>();
     const [communityInfo, setCommunityInfo] = useState<any>();
-    const [username, setUsername] = useState('');
-    const { user, login, logout, isLoggedIn } = useKeychain();
+    const { user, aioha } = useAioha();
+    const { openLoginModal } = useLoginModal();
+    const isLoggedIn = !!user;
     const toast = useToast();
 
     const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
@@ -80,58 +81,15 @@ export default function Header() {
                     </Flex>
                 </Flex>
                 {isLoggedIn ? (
-                    <Button onClick={logout}>
+                    <Button onClick={() => aioha.logout()}>
                         Logout ({user})
                     </Button>
                 ) : (
-                    <Button onClick={() => setModalDisplayed(true)}>
+                    <Button onClick={openLoginModal}>
                         Login
                     </Button>
                 )}
             </Flex>
-            <Modal isOpen={modalDisplayed} onClose={() => setModalDisplayed(false)}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Login with Hive Keychain</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody pb={6}>
-                        <Input
-                            placeholder="Enter your Hive username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            mb={4}
-                        />
-                        <Button
-                            colorScheme="blue"
-                            width="full"
-                            onClick={async () => {
-                                try {
-                                    const success = await login(username);
-                                    if (success) {
-                                        setModalDisplayed(false);
-                                        setUsername('');
-                                        toast({
-                                            title: 'Success!',
-                                            description: `Logged in as @${username}`,
-                                            status: 'success',
-                                            duration: 3000,
-                                        });
-                                    }
-                                } catch (error) {
-                                    toast({
-                                        title: 'Login failed',
-                                        description: error instanceof Error ? error.message : 'Please try again',
-                                        status: 'error',
-                                        duration: 5000,
-                                    });
-                                }
-                            }}
-                        >
-                            Login
-                        </Button>
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
         </Box>
     );
 }

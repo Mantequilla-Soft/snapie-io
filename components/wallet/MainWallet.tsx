@@ -6,8 +6,7 @@ import { convertVestToHive, transferWithKeychain, powerUpWithKeychain, powerDown
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal'; 
 import { useRouter } from 'next/navigation';
-import { useKeychain } from '@/contexts/KeychainContext';
-import { KeychainKeyTypes } from 'keychain-sdk';
+import { useAioha } from '@aioha/react-ui';
 
 interface MainWalletProps {
     username: string;
@@ -17,7 +16,7 @@ export default function MainWallet({ username }: MainWalletProps) {
 
     const router = useRouter()
 
-    const { user } = useKeychain()
+    const { user } = useAioha()
 
     const { hiveAccount, isLoading, error } = useHiveAccount(username);
     const { isOpen, onOpen, onClose } = useDisclosure();
@@ -72,7 +71,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                               }
                             }
                           ]
-                      ], KeychainKeyTypes.active);
+                      ], 'active');
                     break;
                 case 'HIVE Savings':
                     await broadcastWithKeychain(user, [
@@ -85,7 +84,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                             "memo": memo || ""
                           }
                         ]
-                      ], KeychainKeyTypes.active);
+                      ], 'active');
                     break;
                 case 'Power Down' :
                     await powerDownWithKeychain(user, amount);
@@ -111,7 +110,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                             "memo": memo || ""
                           }
                         ]
-                      ], KeychainKeyTypes.active);
+                      ], 'active');
                     break;
                 case 'Withdraw HBD Savings':
                     await broadcastWithKeychain(user, [
@@ -125,7 +124,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                             "memo": memo || ""
                           }
                         ]
-                      ], KeychainKeyTypes.active);
+                      ], 'active');
                     break;
                 case 'Withdraw HIVE Savings':
                     await broadcastWithKeychain(user, [
@@ -139,7 +138,7 @@ export default function MainWallet({ username }: MainWalletProps) {
                             "memo": memo || ""
                           }
                         ]
-                    ], KeychainKeyTypes.active);
+                    ], 'active');
                     break;
                 default:
                     console.log('Default action - Amount:', amount, 'Memo:', memo);

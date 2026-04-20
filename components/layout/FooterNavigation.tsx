@@ -1,5 +1,6 @@
-import { useKeychain } from '@/contexts/KeychainContext';
-import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
+import { useAioha } from '@aioha/react-ui';
+import { useLoginModal } from '@/contexts/LoginModalContext';
+import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
@@ -12,12 +13,11 @@ interface FooterNavigationProps {
 
 export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
 
-    const { user, login, logout, isLoggedIn } = useKeychain();
+    const { user, aioha } = useAioha();
+    const { openLoginModal } = useLoginModal();
+    const logout = () => aioha.logout();
     const router = useRouter();
     const { colorMode } = useColorMode();
-    const [modalDisplayed, setModalDisplayed] = useState(false);
-    const [username, setUsername] = useState('');
-    const toast = useToast();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
@@ -228,7 +228,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                 ) : (
                     <Tooltip label="Login" aria-label="Login tooltip">
                         <Button
-                            onClick={() => setModalDisplayed(true)}
+                            onClick={openLoginModal}
                             variant="ghost"
                             color="white"
                             size="sm"
@@ -240,51 +240,6 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                 )}
             </HStack>
             </Box>
-            
-            {/* Login Modal */}
-            <Modal isOpen={modalDisplayed} onClose={() => setModalDisplayed(false)}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Login with Hive Keychain</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody pb={6}>
-                        <Input
-                            placeholder="Enter your Hive username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            mb={4}
-                        />
-                        <Button
-                            colorScheme="blue"
-                            width="full"
-                            onClick={async () => {
-                                try {
-                                    const success = await login(username);
-                                    if (success) {
-                                        setModalDisplayed(false);
-                                        setUsername('');
-                                        toast({
-                                            title: 'Success!',
-                                            description: `Logged in as @${username}`,
-                                            status: 'success',
-                                            duration: 3000,
-                                        });
-                                    }
-                                } catch (error) {
-                                    toast({
-                                        title: 'Login failed',
-                                        description: error instanceof Error ? error.message : 'Please try again',
-                                        status: 'error',
-                                        duration: 5000,
-                                    });
-                                }
-                            }}
-                        >
-                            Login
-                        </Button>
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
         </Box>
     );
 }
