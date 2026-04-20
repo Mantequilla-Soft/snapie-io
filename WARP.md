@@ -12,9 +12,9 @@ MyCommunity is a customizable Next.js 14 frontend for Hive blockchain communitie
 
 ### Development
 ```bash
-pnpm dev           # Start development server on localhost:3000
+pnpm dev           # Start development server on localhost:3310
+pnpm start         # Start production server on localhost:3310 (after pnpm build)
 pnpm build         # Build for production
-pnpm start         # Start production server
 pnpm lint          # Run ESLint
 ```
 
@@ -126,12 +126,24 @@ contexts/
 Required variables in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_THEME=hacker                    # Theme name
-NEXT_PUBLIC_HIVE_COMMUNITY_TAG=hive-123456  # Your community tag
-NEXT_PUBLIC_HIVE_SEARCH_TAG=hive-123456     # Search filter tag
-NEXT_PUBLIC_HIVE_USER=yourusername          # Hive username
-HIVE_POSTING_KEY=5J...                      # Posting key (server-side only)
-NEXT_PUBLIC_DISPLAY_CURRENCY=               # Optional: BRL, EUR, GBP, etc.
+# Core
+NEXT_PUBLIC_THEME=hacker                          # Theme name
+NEXT_PUBLIC_HIVE_COMMUNITY_TAG=hive-123456        # Your community tag
+NEXT_PUBLIC_HIVE_SEARCH_TAG=hive-123456           # Search filter tag
+NEXT_PUBLIC_HIVE_USER=yourusername                # Hive username
+HIVE_POSTING_KEY=5J...                            # Posting key (server-side only, image signing)
+NEXT_PUBLIC_DISPLAY_CURRENCY=                     # Optional: BRL, EUR, GBP, etc.
+
+# Media / uploads
+NEXT_PUBLIC_3SPEAK_API_KEY=...                    # Video + audio upload to 3speak
+NEXT_PUBLIC_IMAGE_SERVER_API_KEY=...              # images.3speak.tv fallback
+
+# Hangouts
+NEXT_PUBLIC_HANGOUTS_API_URL=https://hangout-api.3speak.tv
+NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.3speak.tv
+
+# Auth
+NEXT_PUBLIC_HIVESIGNER_ENABLED=false              # Flip to `true` once app id + callback are set
 ```
 
 **Security:** Never expose `HIVE_POSTING_KEY` to client-side code. It's only used in server functions for image signing.
@@ -152,19 +164,20 @@ import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 
 function MyComponent() {
+  // Aioha exposes the logged-in username directly on `user` (string | undefined).
   const { user } = useAioha();
-  
+
   const handleVote = async (author: string, permlink: string) => {
     try {
-      if (!user?.username) throw new Error('Not logged in');
-      
+      if (!user) throw new Error('Not logged in');
+
       const result = await vote({
-        username: user.username,
+        username: user,
         author,
         permlink,
         weight: 10000 // 100% upvote
       });
-      
+
       if (result.success) {
         // Handle success
       }
@@ -175,6 +188,12 @@ function MyComponent() {
   };
 }
 ```
+
+Every broadcast in `lib/hive/client-functions.ts` runs through a single
+`withTxApproval` wrapper (in `lib/hive/aioha.ts`) that triggers the shared
+`HiveAuthContext` overlay. Users always see "Approve X in &lt;provider name&gt;…"
+whether they're on Keychain, HiveAuth, PeakVault, or Ledger. To open the login
+flow from any component, call `openLoginModal()` from `useLoginModal()`.
 
 ### Creating Posts
 - Use `commentWithKeychain()` for new posts
@@ -226,7 +245,7 @@ To add a new theme:
 2. Verify user is authenticated: `console.log(useAioha().user)`
 3. Check Hive node status (uses default dhive nodes)
 4. Verify environment variables are set correctly
-5. Test with Keychain browser extension installed
+5. Test with at least one aioha provider (Keychain extension, PeakVault, HiveAuth app, or Ledger)
 
 ## Code Style Conventions
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { HStack, Button, useToast, Spinner } from '@chakra-ui/react';
 import { getRelationshipBetweenAccounts, setUserRelationship } from '@/lib/hive/client-functions';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 
 interface UserActionButtonsProps {
   targetUsername: string;
@@ -10,7 +10,7 @@ interface UserActionButtonsProps {
 }
 
 export default function UserActionButtons({ targetUsername, currentUsername }: UserActionButtonsProps) {
-  const { user } = useKeychain();
+  const { user } = useAioha();
   const toast = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

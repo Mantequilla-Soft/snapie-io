@@ -11,7 +11,7 @@ import { IGif } from '@giphy/js-types';
 import { useDropzone } from 'react-dropzone';
 import { compressImage } from '@/lib/utils/composeUtils';
 import BeneficiariesInput, { Beneficiary } from '@/components/compose/BeneficiariesInput';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 
 // SDK import for markdown editing utilities
 import { useEditorToolbar, ALL_COMMON_EMOJIS } from '@snapie/composer/react';
@@ -219,7 +219,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [isUploading, setIsUploading] = useState(false);
 
     // Aioha for image signing
-    const { user } = useKeychain();
+    const { user } = useAioha();
 
     // Use SDK toolbar hook for markdown editing
     const toolbar = useEditorToolbar(textareaRef, markdown, setMarkdown);

@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
@@ -20,9 +20,9 @@ interface HangoutModalProps {
 }
 
 function HangoutRoomWithAuth({ roomName, onClose }: { roomName: string; onClose: () => void }) {
-  const { user } = useKeychain();
+  const { user } = useAioha();
   const auth = useHangoutsAuth();
-  const { retryLogin } = useAutoHangoutLogin(user, auth);
+  const { retryLogin } = useAutoHangoutLogin(user ?? null, auth);
   useWakeLock(auth.isAuthenticated);
   const router = useRouter();
 

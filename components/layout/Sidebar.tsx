@@ -1,8 +1,9 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, useToast } from '@chakra-ui/react';
+import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
+import { useLoginModal } from '@/contexts/LoginModalContext';
 import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio } from 'react-icons/fi';
 import { Notifications } from '@hiveio/dhive';
 import { fetchNewNotifications, getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
@@ -32,7 +33,10 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
-    const { user, login, logout, isLoggedIn } = useKeychain();
+    const { user, aioha } = useAioha();
+    const { openLoginModal } = useLoginModal();
+    const isLoggedIn = !!user;
+    const logout = () => aioha.logout();
     const router = useRouter();
     const pathname = usePathname();
     const [notifications, setNotifications] = useState<Notifications[]>([]);
@@ -40,8 +44,6 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null); // State to hold profile info
     const [loading, setLoading] = useState(true); // Loading state
     const { colorMode } = useColorMode();
-    const [modalDisplayed, setModalDisplayed] = useState(false);
-    const [username, setUsername] = useState('');
     const toast = useToast();
 
     useEffect(() => {
@@ -321,7 +323,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                     <Tooltip label={isLoggedIn ? 'Logout' : 'Login'} placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full" mt="auto">
                             <Button
-                                onClick={() => isLoggedIn ? logout() : setModalDisplayed(true)}
+                                onClick={() => isLoggedIn ? logout() : openLoginModal()}
                                 variant="solid"
                                 colorScheme="teal"
                                 w="full"
@@ -337,50 +339,6 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                 </VStack>
             </Flex>
             
-            {/* Login Modal */}
-            <Modal isOpen={modalDisplayed} onClose={() => setModalDisplayed(false)}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Login with Hive Keychain</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody pb={6}>
-                        <Input
-                            placeholder="Enter your Hive username"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            mb={4}
-                        />
-                        <Button
-                            colorScheme="blue"
-                            width="full"
-                            onClick={async () => {
-                                try {
-                                    const success = await login(username);
-                                    if (success) {
-                                        setModalDisplayed(false);
-                                        setUsername('');
-                                        toast({
-                                            title: 'Success!',
-                                            description: `Logged in as @${username}`,
-                                            status: 'success',
-                                            duration: 3000,
-                                        });
-                                    }
-                                } catch (error) {
-                                    toast({
-                                        title: 'Login failed',
-                                        description: error instanceof Error ? error.message : 'Please try again',
-                                        status: 'error',
-                                        duration: 5000,
-                                    });
-                                }
-                            }}
-                        >
-                            Login
-                        </Button>
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
         </Box>
     );
 

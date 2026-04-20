@@ -1,5 +1,5 @@
 'use client'
-import { useKeychain } from '@/contexts/KeychainContext'
+import { useAioha } from '@aioha/react-ui';
 import { signAndBroadcastWithKeychain } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
@@ -60,7 +60,7 @@ export default function Home() {
     }
   }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutThumbnail])
 
-  const { user } = useKeychain()
+  const { user } = useAioha()
   const toast = useToast()
   const router = useRouter()
   const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || 'blog'

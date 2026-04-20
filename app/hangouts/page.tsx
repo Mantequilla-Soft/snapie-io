@@ -3,7 +3,7 @@ import { useCallback, useRef } from 'react';
 import { HangoutsProvider, RoomLobby, useHangoutsAuth, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import { useHangout } from '@/contexts/HangoutContext';
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 import { useAutoHangoutLogin } from '@/hooks/useAutoHangoutLogin';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
@@ -13,12 +13,12 @@ const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
 function LobbyWithAutoAuth() {
-  const { user } = useKeychain();
+  const { user } = useAioha();
   const auth = useHangoutsAuth();
   const { openRoom } = useHangout();
   const toast = useToast();
   const isCreating = useRef(false);
-  const { retryLogin } = useAutoHangoutLogin(user, auth);
+  const { retryLogin } = useAutoHangoutLogin(user ?? null, auth);
 
   // Not logged into Snapie — prompt to login
   if (!user) {

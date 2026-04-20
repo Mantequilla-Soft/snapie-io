@@ -13,9 +13,12 @@ import { windows95Theme } from '@/themes/windows95'
 import { hiveBRTheme } from '@/themes/hivebr'
 import { cannabisTheme } from '@/themes/cannabis'
 import { mengaoTheme } from '@/themes/mengao'
-import { KeychainProvider } from '@/contexts/KeychainContext'
 import { UserProvider } from '@/contexts/UserContext'
 import { HangoutContextProvider } from '@/contexts/HangoutContext'
+import { AiohaProvider } from '@aioha/react-ui'
+import { HiveAuthProvider } from '@/contexts/HiveAuthContext'
+import { LoginModalProvider } from '@/contexts/LoginModalContext'
+import { getAioha } from '@/lib/hive/aioha'
 
 const themeMap = {
   forest: forestTheme,
@@ -141,15 +144,28 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const aioha = getAioha()
+
+  // Restore the stored aioha session after mount. Doing this synchronously
+  // during module init breaks hydration, because the server renders without
+  // a user but the first client render would already have one.
+  useEffect(() => {
+    aioha.loadAuth()
+  }, [aioha])
+
   return (
-    <ChakraProvider theme={selectedTheme}>
-      <KeychainProvider>
+    <AiohaProvider aioha={aioha}>
+      <ChakraProvider theme={selectedTheme}>
         <UserProvider>
-          <HangoutContextProvider>
-            {children}
-          </HangoutContextProvider>
+          <HiveAuthProvider>
+            <LoginModalProvider>
+              <HangoutContextProvider>
+                {children}
+              </HangoutContextProvider>
+            </LoginModalProvider>
+          </HiveAuthProvider>
         </UserProvider>
-      </KeychainProvider>
-    </ChakraProvider>
+      </ChakraProvider>
+    </AiohaProvider>
   )
 }

@@ -33,8 +33,7 @@ import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter } from 'next/navigation';
-import { useKeychain } from '@/contexts/KeychainContext';
-import { KeychainKeyTypes } from 'keychain-sdk';
+import { useAioha } from '@aioha/react-ui';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface WalletPageProps {
@@ -43,7 +42,7 @@ interface WalletPageProps {
 
 export default function WalletPage({ username }: WalletPageProps) {
   const router = useRouter();
-  const { user } = useKeychain();
+  const { user } = useAioha();
   const { hiveAccount, isLoading, error } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
   
@@ -160,7 +159,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                 }
               }
             ]
-          ], KeychainKeyTypes.active);
+          ], 'active');
           break;
         case 'HIVE Savings':
           await broadcastWithKeychain(user, [
@@ -173,7 +172,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                 "memo": memo || ""
               }
             ]
-          ], KeychainKeyTypes.active);
+          ], 'active');
           break;
         case 'Power Down':
           await powerDownWithKeychain(user, amount);
@@ -199,7 +198,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                 "memo": memo || ""
               }
             ]
-          ], KeychainKeyTypes.active);
+          ], 'active');
           break;
         case 'Withdraw HBD Savings':
           await broadcastWithKeychain(user, [
@@ -213,7 +212,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                 "memo": memo || ""
               }
             ]
-          ], KeychainKeyTypes.active);
+          ], 'active');
           break;
         case 'Withdraw HIVE Savings':
           await broadcastWithKeychain(user, [
@@ -227,7 +226,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                 "memo": memo || ""
               }
             ]
-          ], KeychainKeyTypes.active);
+          ], 'active');
           break;
         default:
           console.log('Default action - Amount:', amount, 'Memo:', memo);

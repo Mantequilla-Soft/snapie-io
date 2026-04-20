@@ -1,35 +1,68 @@
 'use client';
-import { Broadcast, Custom, Delegation, KeychainKeyTypes, KeychainRequestResponse, KeychainSDK, Login, Post, PowerDown, PowerUp, Transfer, Vote, WitnessVote } from "keychain-sdk";
 import HiveClient from "./hiveclient";
 import crypto from 'crypto';
 import { signImageHash } from "./server-functions";
 import { Account, Discussion, Notifications, PublicKey, PrivateKey, KeyRole } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
+import {
+  getAioha,
+  KeyTypes,
+  broadcastOps,
+  voteWithAioha,
+  transferWithAioha,
+  customJsonWithAioha,
+  commentWithAioha,
+  signMessageWithAioha,
+} from "./aioha";
 
-// Keychain extension types
-declare global {
-  interface Window {
-    hive_keychain?: {
-      requestSignBuffer: (
-        username: string,
-        message: string,
-        method: string,
-        callback: (response: { success: boolean; result?: string; message?: string }) => void
-      ) => void;
+interface HiveBroadcastResponse {
+  success: boolean;
+  result?: any;
+  error?: string;
+  publicKey?: string;
+  message?: string;
+}
+
+interface VoteArgs {
+  username: string;
+  author: string;
+  permlink: string;
+  weight: number;
+}
+
+function keyTypeFromString(keyType: 'posting' | 'active'): KeyTypes {
+  return keyType === 'active' ? KeyTypes.Active : KeyTypes.Posting;
+}
+
+async function aiohaBroadcast(
+  operations: any[],
+  keyType: KeyTypes,
+  title?: string,
+): Promise<HiveBroadcastResponse> {
+  try {
+    const out = await broadcastOps(operations, keyType, title);
+    return { success: true, result: out.result };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Broadcast failed',
     };
   }
 }
 
-interface HiveKeychainResponse {
-  success: boolean
-  publicKey: string
-  error?: string
+/**
+ * Convert HIVE to VESTS using current dynamic global properties.
+ */
+async function convertHiveToVests(hive: number): Promise<number> {
+  const globalProps = await HiveClient.call('condenser_api', 'get_dynamic_global_properties', []);
+  const totalVestingFund = extractNumber(globalProps.total_vesting_fund_hive);
+  const totalVestingShares = extractNumber(globalProps.total_vesting_shares);
+  return (hive * totalVestingShares) / totalVestingFund;
 }
 
 /**
- * Sign and broadcast operations using Keychain
- * This is a simplified replacement for aioha.signAndBroadcastTx
+ * Sign and broadcast operations using the currently logged-in aioha provider.
  */
 export async function signAndBroadcastWithKeychain(
   username: string,
@@ -37,25 +70,7 @@ export async function signAndBroadcastWithKeychain(
   keyType: 'posting' | 'active' = 'posting'
 ): Promise<{ success: boolean; result?: any; error?: string }> {
   try {
-    const keychain = new KeychainSDK(window);
-    
-    // Convert keyType to KeychainKeyTypes
-    const method = keyType === 'posting' ? KeychainKeyTypes.posting : KeychainKeyTypes.active;
-    
-    const result = await keychain.broadcast({
-      username,
-      operations,
-      method
-    });
-    
-    if (result && result.success) {
-      return { success: true, result };
-    } else {
-      return { 
-        success: false, 
-        error: (result as any)?.message || 'Broadcast failed' 
-      };
-    }
+    return await aiohaBroadcast(operations, keyTypeFromString(keyType), 'Approve transaction');
   } catch (error) {
     return {
       success: false,
@@ -66,65 +81,40 @@ export async function signAndBroadcastWithKeychain(
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
-export async function vote(props: Vote): Promise<KeychainRequestResponse> {
-  const keychain = new KeychainSDK(window)
-
-  const result = await keychain.vote({
-    username: props.username,
-    permlink: props.permlink,
-    author: props.author,
-    weight: props.weight,
-  } as Vote);
-  return result;
+export async function vote(props: VoteArgs): Promise<HiveBroadcastResponse> {
+  try {
+    const out = await voteWithAioha(props.author, props.permlink, props.weight);
+    return { success: true, result: out.result };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'Vote failed' };
+  }
 }
 
-export async function commentWithKeychain(formParamsAsObject: any): Promise<HiveKeychainResponse | undefined> {
+export async function commentWithKeychain(formParamsAsObject: any): Promise<HiveBroadcastResponse | undefined> {
   try {
-    const keychain = new KeychainSDK(window);
-    const post = await keychain.post(formParamsAsObject.data as Post);
-    if (post) {
-      console.log('post', post);
-      return {
-        success: true,
-        publicKey: String(post.publicKey)
-      }
-    } else {
-      return {
-        success: false,
-        publicKey: '',
-        error: 'No response from Keychain'
-      }
-    }
+    const data = formParamsAsObject.data;
+    const jsonMetadata = typeof data.json_metadata === 'string'
+      ? data.json_metadata
+      : JSON.stringify(data.json_metadata || {});
+    const overlayTitle = data.parent_username ? 'Approve reply' : 'Approve post';
+    const result = await commentWithAioha(
+      data.parent_username || '',
+      data.parent_perm || '',
+      data.permlink,
+      data.title || '',
+      data.body,
+      jsonMetadata,
+      data.comment_options,
+      overlayTitle,
+    );
+    return { success: true, publicKey: String(result.publicKey || ''), result: result.result };
   } catch (error: any) {
     console.error('commentWithKeychain error:', error);
     return {
       success: false,
       publicKey: '',
-      error: error?.message || error?.error || String(error)
-    }
-  }
-}
-
-export async function loginWithKeychain(username: string) {
-  try {
-    const memo = `${username} signed up with skatehive app at ${Date.now()}`
-    const keychain = new KeychainSDK(window);
-    undefined
-    const formParamsAsObject = {
-      "data": {
-        "username": username,
-        "message": memo,
-        "method": KeychainKeyTypes.posting,
-        "title": "Login"
-      }
-    }
-
-    const login = await keychain
-      .login(
-        formParamsAsObject.data as Login);
-    return({ login });
-  } catch (error) {
-    console.log({ error });
+      error: error?.message || error?.error || String(error),
+    };
   }
 }
 
@@ -136,23 +126,10 @@ export function getReputation(rep: number) {
 
 export async function transferWithKeychain(username: string, destination: string, amount: string, memo: string, currency: string) {
   try {
-    const keychain = new KeychainSDK(window);
-
-    const formParamsAsObject = {
-      "data": {
-        "username": username,
-        "to": destination,
-        "amount": amount,
-        "memo": memo,
-        "enforce": false,
-        "currency": currency,
-      }
-    }
-
-    const transfer = await keychain
-      .transfer(
-        formParamsAsObject.data as Transfer);
+    const amt = parseFloat(amount);
+    const transfer = await transferWithAioha(destination, amt, currency, memo);
     console.log({ transfer });
+    return transfer;
   } catch (error) {
     console.log({ error });
   }
@@ -160,16 +137,17 @@ export async function transferWithKeychain(username: string, destination: string
 
 export async function powerUpWithKeychain(username: string, amount: number) {
   try {
-    const keychain = new KeychainSDK(window);
-    
-    const powerUp = await keychain.powerUp({
-      username: username,
-      recipient: username,
-      hive: amount.toFixed(3),
-    } as PowerUp);
-    
-    console.log({ powerUp });
-    return powerUp;
+    const op = [
+      'transfer_to_vesting',
+      {
+        from: username,
+        to: username,
+        amount: `${amount.toFixed(3)} HIVE`,
+      },
+    ];
+    const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve power-up of ${amount.toFixed(3)} HIVE`);
+    console.log({ powerUp: result });
+    return result;
   } catch (error) {
     console.log({ error });
     throw error;
@@ -178,15 +156,17 @@ export async function powerUpWithKeychain(username: string, amount: number) {
 
 export async function powerDownWithKeychain(username: string, hivePower: number) {
   try {
-    const keychain = new KeychainSDK(window);
-    
-    const powerDown = await keychain.powerDown({
-      username: username,
-      hive_power: hivePower.toFixed(3),
-    } as PowerDown);
-    
-    console.log({ powerDown });
-    return powerDown;
+    const vests = await convertHiveToVests(hivePower);
+    const op = [
+      'withdraw_vesting',
+      {
+        account: username,
+        vesting_shares: `${vests.toFixed(6)} VESTS`,
+      },
+    ];
+    const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve power-down of ${hivePower.toFixed(3)} HP`);
+    console.log({ powerDown: result });
+    return result;
   } catch (error) {
     console.log({ error });
     throw error;
@@ -195,118 +175,100 @@ export async function powerDownWithKeychain(username: string, hivePower: number)
 
 export async function delegateWithKeychain(username: string, delegatee: string, amount: number) {
   try {
-    const keychain = new KeychainSDK(window);
-    
-    const delegation = await keychain.delegation({
-      username: username,
-      delegatee: delegatee,
-      amount: amount.toFixed(3),
-      unit: 'HP',
-    } as Delegation);
-    
-    console.log({ delegation });
-    return delegation;
+    const vests = await convertHiveToVests(amount);
+    const op = [
+      'delegate_vesting_shares',
+      {
+        delegator: username,
+        delegatee,
+        vesting_shares: `${vests.toFixed(6)} VESTS`,
+      },
+    ];
+    const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve delegation of ${amount.toFixed(3)} HP to @${delegatee}`);
+    console.log({ delegation: result });
+    return result;
   } catch (error) {
     console.log({ error });
     throw error;
   }
 }
 
-export async function broadcastWithKeychain(username: string, operations: any[], method: KeychainKeyTypes = KeychainKeyTypes.active) {
+export async function broadcastWithKeychain(
+  username: string,
+  operations: any[],
+  method: 'posting' | 'active' = 'active',
+) {
   try {
-    const keychain = new KeychainSDK(window);
-    
-    const broadcast = await keychain.broadcast({
-      username: username,
-      operations: operations,
-      method: method,
-    } as Broadcast);
-    
-    console.log({ broadcast });
-    return broadcast;
+    const keyType = typeof method === 'string' ? keyTypeFromString(method) : method;
+    const result = await aiohaBroadcast(operations, keyType, 'Approve transaction');
+    console.log({ broadcast: result });
+    return result;
   } catch (error) {
     console.log({ error });
     throw error;
   }
 }
 
-export async function updateProfile(username: string, name: string, about: string, location: string, coverImageUrl: string, avatarUrl: string, website: string) {
+export async function updateProfile(
+  username: string,
+  name: string,
+  about: string,
+  location: string,
+  coverImageUrl: string,
+  avatarUrl: string,
+  website: string,
+) {
   try {
-    const keychain = new KeychainSDK(window);
-
     const profileMetadata = {
       profile: {
-        name: name,
-        about: about,
-        location: location,
+        name,
+        about,
+        location,
         cover_image: coverImageUrl,
         profile_image: avatarUrl,
-        website: website,
-        version: 2
-      }
-    };
-
-    const formParamsAsObject = {
-      data: {
-        username: username,
-        operations: [
-          [
-            'account_update2',
-            {
-              account: username,
-              posting_json_metadata: JSON.stringify(profileMetadata),
-              extensions: []
-            }
-          ]
-        ],
-        method: KeychainKeyTypes.active,
+        website,
+        version: 2,
       },
     };
-
-    const broadcast = await keychain.broadcast(formParamsAsObject.data as unknown as Broadcast);
-    console.log('Broadcast success:', broadcast);
+    const op = [
+      'account_update2',
+      {
+        account: username,
+        posting_json_metadata: JSON.stringify(profileMetadata),
+        extensions: [],
+      },
+    ];
+    const result = await aiohaBroadcast([op], KeyTypes.Active, 'Approve profile update');
+    console.log('Broadcast success:', result);
   } catch (error) {
     console.error('Profile update failed:', error);
   }
 }
 
 export async function checkCommunitySubscription(username: string) {
-
-  const parameters = {
-    account: username
-  }
+  const parameters = { account: username };
   try {
     const subscriptions = await HiveClient.call('bridge', 'list_all_subscriptions', parameters);
     return subscriptions.some((subscription: any) => subscription[0] === communityTag);
   } catch (error) {
     console.error('Error fetching subscriptions:', error);
-    return false; // Returning false in case of an error
+    return false;
   }
 }
 
 export async function communitySubscribeKeyChain(username: string) {
-
-  const keychain = new KeychainSDK(window);
-  const json = [
-    'subscribe',
-    {
-      community: communityTag
-    }
-  ]
-  const formParamsAsObject = {
-    data: {
-      username: username,
-      id: "community",
-      method: KeychainKeyTypes.posting,
-      json: JSON.stringify(json)
-    },
-  };
   try {
-    const custom = await keychain.custom(formParamsAsObject.data as unknown as Custom);
-    //const broadcast = await keychain.broadcast(formParamsAsObject.data as unknown as Broadcast);
-    console.log('Broadcast success:', custom);
+    const json = JSON.stringify(['subscribe', { community: communityTag }]);
+    const result = await customJsonWithAioha(
+      KeyTypes.Posting,
+      'community',
+      json,
+      'Subscribe to community',
+      'Approve community subscription',
+    );
+    console.log('Broadcast success:', result);
   } catch (error) {
-    console.error('Profile update failed:', error);
+    console.error('Community subscribe failed:', error);
   }
 }
 
@@ -314,82 +276,59 @@ export async function checkFollow(follower: string, following: string): Promise<
   try {
     const status = await HiveClient.call('bridge', 'get_relationship_between_accounts', [
       follower,
-      following
+      following,
     ]);
-    if (status.follows) {
-      return true
-    } else {
-      return false
-    }
+    return !!status?.follows;
   } catch (error) {
-    console.log(error)
-    return false
+    console.log(error);
+    return false;
   }
 }
 
 export async function checkAccountName(username: string) {
   try {
-    const users = await HiveClient.call('condenser_api', 'lookup_accounts', [
-      username, 1
-    ]);
-    console.log(users[0])
-    return users[0]
+    const users = await HiveClient.call('condenser_api', 'lookup_accounts', [username, 1]);
+    console.log(users[0]);
+    return users[0];
   } catch (error) {
-    console.log(error)
-    //return false
+    console.log(error);
   }
 }
 
 export async function changeFollow(follower: string, following: string) {
-  const keychain = new KeychainSDK(window);
-  const status = await checkFollow(follower, following)
-  let type = ''
-  if (status) {
-    type = ''
-  } else {
-    type = 'blog'
-  }
-  const json = JSON.stringify([
-    'follow',
-    {
-      follower: follower,
-      following: following,
-      what: [type], //null value for unfollow, 'blog' for follow
-    },
-  ]);
-
-  const formParamsAsObject = {
-    data: {
-      username: follower,
-      id: "follow",
-      method: KeychainKeyTypes.posting,
-      json: JSON.stringify(json)
-    },
-  };
   try {
-    const custom = await keychain.custom(formParamsAsObject.data as unknown as Custom);
-    //const broadcast = await keychain.broadcast(formParamsAsObject.data as unknown as Broadcast);
-    console.log('Broadcast success:', custom);
+    const status = await checkFollow(follower, following);
+    const type = status ? '' : 'blog';
+    const json = JSON.stringify([
+      'follow',
+      { follower, following, what: type ? [type] : [] },
+    ]);
+    const overlayTitle = status ? `Approve unfollow @${following}` : `Approve follow @${following}`;
+    const result = await customJsonWithAioha(
+      KeyTypes.Posting,
+      'follow',
+      json,
+      status ? 'Unfollow' : 'Follow',
+      overlayTitle,
+    );
+    console.log('Broadcast success:', result);
   } catch (error) {
-    console.error('Profile update failed:', error);
+    console.error('Follow update failed:', error);
   }
-
 }
 
 export async function witnessVoteWithKeychain(username: string, witness: string) {
-  const keychain = new KeychainSDK(window);
   try {
-    const formParamsAsObject = {
-      "data": {
-        "username": username,
-        "witness": "skatehive",
-        "vote": true
-      }
-    };
-    const witnessvote = await keychain
-      .witnessVote(
-        formParamsAsObject.data as WitnessVote);
-    console.log({ witnessvote });
+    const op = [
+      'account_witness_vote',
+      {
+        account: username,
+        witness: witness || 'skatehive',
+        approve: true,
+      },
+    ];
+    const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve witness vote for @${witness}`);
+    console.log({ witnessvote: result });
   } catch (error) {
     console.log({ error });
   }
@@ -397,10 +336,6 @@ export async function witnessVoteWithKeychain(username: string, witness: string)
 
 /**
  * Upload audio to 3Speak Audio API
- * @param audioBlob - Audio blob from recording
- * @param duration - Duration in seconds
- * @param username - Hive username
- * @returns Promise with upload result
  */
 export async function uploadAudioTo3Speak(
   audioBlob: Blob,
@@ -409,12 +344,11 @@ export async function uploadAudioTo3Speak(
 ): Promise<{ success: boolean; permlink?: string; cid?: string; playUrl?: string; apiUrl?: string; error?: string }> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
-    
+
     if (!apiKey) {
       throw new Error('3Speak API key not configured');
     }
 
-    // Convert webm to mp3 format name (API expects format parameter)
     const format = audioBlob.type.includes('webm') ? 'webm' : 'mp3';
 
     const formData = new FormData();
@@ -438,7 +372,7 @@ export async function uploadAudioTo3Speak(
     }
 
     const data = await response.json();
-    
+
     return {
       success: true,
       permlink: data.permlink,
@@ -455,51 +389,37 @@ export async function uploadAudioTo3Speak(
   }
 }
 
-export function getFileSignature (file: File): Promise<string> {
+export function getFileSignature(file: File): Promise<string> {
   return new Promise<string>(async (resolve, reject) => {
-      const reader = new FileReader();
+    const reader = new FileReader();
 
-      reader.onload = async () => {
-          if (reader.result) {
-              const content = Buffer.from(reader.result as ArrayBuffer);
-              const hash = crypto.createHash('sha256')
-                  .update('ImageSigningChallenge')
-                  .update(content as any)
-                  .digest('hex');
-              try {
-                  const signature = await signImageHash(hash);
-                  resolve(signature);
-              } catch (error) {
-                  console.error('Error signing the hash:', error);
-                  reject(error);
-              }
-          } else {
-              reject(new Error('Failed to read file.'));
-          }
-      };
-      reader.onerror = () => {
-          reject(new Error('Error reading file.'));
-      };
-      reader.readAsArrayBuffer(file);
+    reader.onload = async () => {
+      if (reader.result) {
+        const content = Buffer.from(reader.result as ArrayBuffer);
+        const hash = crypto.createHash('sha256')
+          .update('ImageSigningChallenge')
+          .update(content as any)
+          .digest('hex');
+        try {
+          const signature = await signImageHash(hash);
+          resolve(signature);
+        } catch (error) {
+          console.error('Error signing the hash:', error);
+          reject(error);
+        }
+      } else {
+        reject(new Error('Failed to read file.'));
+      }
+    };
+    reader.onerror = () => {
+      reject(new Error('Error reading file.'));
+    };
+    reader.readAsArrayBuffer(file);
   });
 }
 
-// ============================================================================
-// FALLBACK IMAGE UPLOAD TO 3SPEAK
-// ============================================================================
-// This function uploads images to images.3speak.tv as a fallback when
-// images.hive.blog is down or unavailable.
-//
-// Server: https://images.3speak.tv
-// Response format: { success: true, url: "...", filename: "...", ... }
-// ============================================================================
-
 /**
  * Upload an image to 3Speak image server as a fallback.
- * 
- * @param file The image file to upload
- * @param options Optional upload options for progress tracking
- * @returns The URL of the uploaded image
  */
 async function uploadTo3Speak(
   file: File,
@@ -510,7 +430,7 @@ async function uploadTo3Speak(
   }
 ): Promise<string> {
   const apiKey = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY;
-  
+
   if (!apiKey) {
     throw new Error('IMAGE_SERVER_API_KEY is not configured');
   }
@@ -525,15 +445,10 @@ async function uploadTo3Speak(
     xhr.open('POST', 'https://images.3speak.tv/upload', true);
     xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
 
-    // Handle progress updates
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const progress = (event.loaded / event.total) * 100;
-        
-        // Call progress callback if provided
         options?.onProgress?.(progress);
-        
-        // Update progress array if provided (for batch uploads)
         if (options?.index !== undefined && options?.setUploadProgress) {
           options.setUploadProgress((prevProgress: number[]) => {
             const updatedProgress = [...prevProgress];
@@ -580,10 +495,9 @@ async function uploadTo3Speak(
 
 export async function uploadImage(file: File, signature: string, index?: number, setUploadProgress?: React.Dispatch<React.SetStateAction<number[]>>): Promise<string> {
   const signatureUser = process.env.NEXT_PUBLIC_HIVE_USER;
-  
-  // Upload via our API route (handles fallback server-side, avoids CORS)
+
   console.log('📤 Uploading via API route with automatic fallback...');
-  
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("username", signatureUser || '');
@@ -603,7 +517,7 @@ export async function uploadImage(file: File, signature: string, index?: number,
             return updatedProgress;
           });
         }
-      }
+      };
     }
 
     xhr.onload = () => {
@@ -642,22 +556,11 @@ export async function uploadImage(file: File, signature: string, index?: number,
 }
 
 // ============================================================================
-// IMAGE UPLOAD WITH USER SIGNATURE (via Keychain)
+// IMAGE UPLOAD WITH USER SIGNATURE (via aioha)
 // ============================================================================
-// This section handles image uploads to images.hive.blog using the user's
-// own posting key for signing via Hive Keychain.
-//
-// How it works (based on condenser/hive.blog implementation):
-// 1. Read the file content into a buffer
-// 2. Prepend "ImageSigningChallenge" to create the challenge buffer
-// 3. Convert to JSON string: JSON.stringify(challengeBuffer)
-// 4. Sign with Keychain's requestSignBuffer (Keychain hashes internally)
-// 5. Upload to: https://images.hive.blog/{username}/{signature}
-// ============================================================================
+// Signs the images.hive.blog challenge buffer using whichever provider the
+// user is logged in with (Keychain, HiveAuth, PeakVault, Ledger, HiveSigner).
 
-/**
- * Read a file into a Buffer
- */
 async function readFileAsBuffer(file: File): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -673,19 +576,6 @@ async function readFileAsBuffer(file: File): Promise<Buffer> {
   });
 }
 
-/**
- * Upload an image to Hive image server using the user's Keychain signature.
- * 
- * This follows the exact same approach as condenser (hive.blog):
- * - Create challenge buffer: ImageSigningChallenge + file content
- * - Sign JSON.stringify(buffer) with Keychain
- * - Upload to images.hive.blog/{username}/{signature}
- * 
- * @param file The image file to upload
- * @param username The username of the logged-in user
- * @param options Optional upload options for progress tracking
- * @returns The URL of the uploaded image
- */
 export async function uploadImageWithKeychain(
   file: File,
   username: string,
@@ -696,43 +586,29 @@ export async function uploadImageWithKeychain(
   }
 ): Promise<string> {
   console.log('🔐 uploadImageWithKeychain called for:', file.name, 'user:', username);
-  
-  if (!window.hive_keychain) {
-    throw new Error('Hive Keychain is not installed. Please install it from https://hive-keychain.com/');
+
+  const aioha = getAioha();
+  if (!aioha.isLoggedIn()) {
+    throw new Error('Not logged in');
   }
-  
-  // Read file into buffer
+
   console.log('📖 Reading file...');
   const fileContent = await readFileAsBuffer(file);
   console.log('📖 File read, size:', fileContent.length, 'bytes');
-  
-  // Create the challenge buffer (ImageSigningChallenge + file content)
+
   const prefix = Buffer.from('ImageSigningChallenge');
   const challengeBuffer = Buffer.concat([prefix, fileContent]);
-  
-  // Convert to JSON string - this is what Keychain expects
   const challengeString = JSON.stringify(challengeBuffer);
-  console.log('✍️ Requesting signature from Keychain...');
-  
-  // Sign with Keychain - it will hash internally and sign
-  const signature = await new Promise<string>((resolve, reject) => {
-    window.hive_keychain!.requestSignBuffer(
-      username,
-      challengeString,
-      'Posting',
-      (response) => {
-        if (response.success && response.result) {
-          resolve(response.result);
-        } else {
-          reject(new Error(response.message || 'Failed to sign image'));
-        }
-      }
-    );
-  });
-  
+
+  console.log('✍️ Requesting signature via aioha...');
+  const signResult = await signMessageWithAioha(
+    challengeString,
+    KeyTypes.Posting,
+    'Approve image upload signature',
+  );
+  const signature = signResult.result;
   console.log('✍️ Signature received:', signature.substring(0, 20) + '...');
-  
-  // Upload via our API route (handles fallback server-side, avoids CORS)
+
   console.log('📤 Uploading via API route with automatic fallback...');
 
   const formData = new FormData();
@@ -744,15 +620,10 @@ export async function uploadImageWithKeychain(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', '/api/upload-image', true);
 
-    // Handle progress updates
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const progress = (event.loaded / event.total) * 100;
-        
-        // Call progress callback if provided
         options?.onProgress?.(progress);
-        
-        // Update progress array if provided (for batch uploads)
         if (options?.index !== undefined && options?.setUploadProgress) {
           options.setUploadProgress((prevProgress: number[]) => {
             const updatedProgress = [...prevProgress];
@@ -799,32 +670,29 @@ export async function uploadImageWithKeychain(
 }
 
 export async function getPost(user: string, postId: string) {
-    const postContent = await HiveClient.database.call('get_content', [
-      user,
-      postId,
-    ]);
-    if (!postContent) throw new Error('Failed to fetch post content');
+  const postContent = await HiveClient.database.call('get_content', [
+    user,
+    postId,
+  ]);
+  if (!postContent) throw new Error('Failed to fetch post content');
 
-    return postContent as Discussion;
+  return postContent as Discussion;
 }
 
 export function getPayoutValue(post: any): string {
-    const createdDate = new Date(post.created);
-    const now = new Date();
-    
-    // Calculate the time difference in days
-    const timeDifferenceInMs = now.getTime() - createdDate.getTime();
-    const timeDifferenceInDays = timeDifferenceInMs / (1000 * 60 * 60 * 24);
-    
-    if (timeDifferenceInDays >= 7) {
-      // Post is older than 7 days, return the total payout value
-      return post.total_payout_value.replace(" HBD", "");
-    } else if (timeDifferenceInDays < 7) {
-      // Post is less than 7 days old, return the pending payout value
-      return post.pending_payout_value.replace(" HBD", "");
-    } else {
-      return "0.000"
-    }
+  const createdDate = new Date(post.created);
+  const now = new Date();
+
+  const timeDifferenceInMs = now.getTime() - createdDate.getTime();
+  const timeDifferenceInDays = timeDifferenceInMs / (1000 * 60 * 60 * 24);
+
+  if (timeDifferenceInDays >= 7) {
+    return post.total_payout_value.replace(" HBD", "");
+  } else if (timeDifferenceInDays < 7) {
+    return post.pending_payout_value.replace(" HBD", "");
+  } else {
+    return "0.000";
+  }
 }
 
 export async function findLastNotificationsReset(username: string, start = -1, loopCount = 0): Promise<string> {
@@ -843,11 +711,11 @@ export async function findLastNotificationsReset(username: string, start = -1, l
 
     const transactions = await HiveClient.call('account_history_api', 'get_account_history', params);
     const history = transactions.history.reverse();
-      
+
     if (history.length === 0) {
       return '1970-01-01T00:00:00Z';
     }
-    
+
     for (const item of history) {
       if (item[1].op.value.id === 'notify') {
         const json = JSON.parse(item[1].op.value.json);
@@ -867,7 +735,7 @@ export async function fetchNewNotifications(username: string) {
   try {
     const notifications: Notifications[] = await HiveClient.call('bridge', 'account_notifications', { account: username, limit: 100 });
     const lastDate = await findLastNotificationsReset(username);
-    
+
     if (lastDate) {
       const filteredNotifications = notifications.filter(notification => notification.date > lastDate);
       return filteredNotifications;
@@ -880,50 +748,47 @@ export async function fetchNewNotifications(username: string) {
   }
 }
 
-export async function convertVestToHive (amount: number) {
+export async function convertVestToHive(amount: number) {
   const globalProperties = await HiveClient.call('condenser_api', 'get_dynamic_global_properties', []);
-  const totalVestingFund = extractNumber(globalProperties.total_vesting_fund_hive)
-  const totalVestingShares = extractNumber(globalProperties.total_vesting_shares)
-  const vestHive = ( totalVestingFund * amount ) / totalVestingShares
-  return vestHive
+  const totalVestingFund = extractNumber(globalProperties.total_vesting_fund_hive);
+  const totalVestingShares = extractNumber(globalProperties.total_vesting_shares);
+  const vestHive = (totalVestingFund * amount) / totalVestingShares;
+  return vestHive;
 }
 
-export async function getProfile (username: string) {
-  const profile = await HiveClient.call('bridge', 'get_profile', {account: username});
-  return profile
+export async function getProfile(username: string) {
+  const profile = await HiveClient.call('bridge', 'get_profile', { account: username });
+  return profile;
 }
 
-export async function getCommunityInfo (username: string) {
-  const profile = await HiveClient.call('bridge', 'get_community', {name: username});
-  return profile
+export async function getCommunityInfo(username: string) {
+  const profile = await HiveClient.call('bridge', 'get_community', { name: username });
+  return profile;
 }
 
 export async function findPosts(query: string, params: any) {
-      const by = 'get_discussions_by_' + query;
-      const posts = await HiveClient.database.call(by, [params]);
-  return posts
+  const by = 'get_discussions_by_' + query;
+  const posts = await HiveClient.database.call(by, [params]);
+  return posts;
 }
 
 export async function getLastSnapsContainer() {
-  const author = "peak.snaps";   
+  const author = "peak.snaps";
   const beforeDate = new Date().toISOString().split('.')[0];
   const permlink = '';
   const limit = 1;
 
   const result = await HiveClient.database.call('get_discussions_by_author_before_date',
-      [author, permlink, beforeDate, limit]);
+    [author, permlink, beforeDate, limit]);
 
   return {
-      author,
-      permlink: result[0].permlink
-  }
+    author,
+    permlink: result[0].permlink
+  };
 }
 
 /**
  * Get the relationship between two accounts using Bridge API
- * @param follower - The account that might be following
- * @param following - The account that might be followed
- * @returns Object with relationship information (follows, ignores, blacklists)
  */
 export async function getRelationshipBetweenAccounts(
   follower: string,
@@ -956,8 +821,6 @@ export async function getRelationshipBetweenAccounts(
 
 /**
  * @deprecated Use `mutedAccountsManager.getMutedList()` from '@/lib/hive/muted-accounts' instead.
- * This function fetches without caching. The new manager combines community + user muted lists
- * with 24-hour localStorage caching.
  */
 export async function getCommunityMutedAccounts(community: string): Promise<string[]> {
   try {
@@ -965,14 +828,12 @@ export async function getCommunityMutedAccounts(community: string): Promise<stri
       community,
       limit: 1000
     });
-    
+
     if (result && Array.isArray(result)) {
-      // Each item is [account, role, title] tuple
-      // Filter for muted role and extract account names
       const mutedAccounts = result
         .filter((r: any) => r[1] === 'muted')
         .map((r: any) => r[0]);
-      
+
       return mutedAccounts;
     }
     return [];
@@ -983,11 +844,7 @@ export async function getCommunityMutedAccounts(community: string): Promise<stri
 }
 
 /**
- * Set user relationship (follow, mute, blacklist, or unfollow) using Keychain
- * @param follower - The username performing the action
- * @param following - The username to follow/mute/blacklist
- * @param type - Type of action: 'blog' (follow), 'ignore' (mute), 'blacklist', or '' (unfollow)
- * @returns Promise<boolean> - True if successful
+ * Set user relationship (follow, mute, blacklist, or unfollow) using aioha.
  */
 export async function setUserRelationship(
   follower: string,
@@ -995,46 +852,36 @@ export async function setUserRelationship(
   type: 'blog' | 'ignore' | 'blacklist' | ''
 ): Promise<boolean> {
   try {
-    const keychain = new KeychainSDK(window);
-    
     const json = JSON.stringify([
       'follow',
       {
         follower,
         following,
-        what: type ? [type] : [], // Empty array for unfollow
+        what: type ? [type] : [],
       },
     ]);
-
-    const formParamsAsObject = {
-      data: {
-        username: follower,
-        id: 'follow',
-        method: KeychainKeyTypes.posting,
-        json: json,
-      },
-    };
-
-    const result = await keychain.custom(formParamsAsObject.data as unknown as Custom);
-    
-    if (result.success) {
-      console.log('Relationship update success:', result);
-      return true;
-    }
-    return false;
+    const overlayTitle = type === 'blog'
+      ? `Approve follow @${following}`
+      : type === 'ignore'
+        ? `Approve mute @${following}`
+        : type === 'blacklist'
+          ? `Approve blacklist @${following}`
+          : `Approve unfollow @${following}`;
+    const result = await customJsonWithAioha(
+      KeyTypes.Posting,
+      'follow',
+      json,
+      'Update relationship',
+      overlayTitle,
+    );
+    console.log('Relationship update success:', result);
+    return true;
   } catch (error) {
     console.error('Error setting user relationship:', error);
     return false;
   }
 }
 
-/**
- * Get the following list for a user
- * @param username - The username to get following list for
- * @param startFollowing - Optional: username to start from for pagination
- * @param limit - Optional: number of results to return (default: 100)
- * @returns Array of usernames that the user is following
- */
 export async function getFollowing(
   username: string,
   startFollowing: string = '',
@@ -1047,8 +894,7 @@ export async function getFollowing(
       'blog',
       limit
     ]);
-    
-    // The result is an array of objects with 'following' property
+
     return result.map((item: any) => item.following).filter(Boolean);
   } catch (error) {
     console.error('Error fetching following list:', error);
@@ -1056,13 +902,6 @@ export async function getFollowing(
   }
 }
 
-/**
- * Get the followers list for a user
- * @param username - The username to get followers list for
- * @param startFollower - Optional: username to start from for pagination
- * @param limit - Optional: number of results to return (default: 100)
- * @returns Array of usernames that follow the user
- */
 export async function getFollowers(
   username: string,
   startFollower: string = '',
@@ -1075,8 +914,7 @@ export async function getFollowers(
       'blog',
       limit
     ]);
-    
-    // The result is an array of objects with 'follower' property
+
     return result.map((item: any) => item.follower).filter(Boolean);
   } catch (error) {
     console.error('Error fetching followers list:', error);
@@ -1084,17 +922,13 @@ export async function getFollowers(
   }
 }
 
-/**
- * Get current HIVE and HBD prices from CoinGecko
- * @returns Object with HIVE and HBD prices in USD
- */
 export async function getCryptoPrices(): Promise<{ hive: number; hbd: number }> {
   try {
     const response = await fetch(
       'https://api.coingecko.com/api/v3/simple/price?ids=hive,hive_dollar&vs_currencies=usd'
     );
     const data = await response.json();
-    
+
     return {
       hive: data.hive?.usd || 0,
       hbd: data.hive_dollar?.usd || 0,
@@ -1105,9 +939,6 @@ export async function getCryptoPrices(): Promise<{ hive: number; hbd: number }> 
   }
 }
 
-/**
- * Transaction interface for wallet history
- */
 export interface Transaction {
   type: string;
   from: string;
@@ -1118,20 +949,12 @@ export interface Transaction {
   trx_id?: string;
 }
 
-/**
- * Get transaction history for a user
- * @param username - Hive username
- * @param start - Starting index (use -1 for most recent, or specific index for pagination)
- * @param limit - Number of transactions to fetch
- * @returns Array of transactions
- */
 export async function getTransactionHistory(
   username: string,
   start: number = -1,
   limit: number = 1000
 ): Promise<{ transactions: Transaction[], oldestIndex: number }> {
   try {
-    // Get account history - using larger limit since we filter client-side
     const history = await HiveClient.database.getAccountHistory(
       username,
       start,
@@ -1142,16 +965,14 @@ export async function getTransactionHistory(
     let oldestIndex = -1;
 
     for (const [index, transaction] of history) {
-      // Track the minimum index we've seen
       if (oldestIndex === -1 || index < oldestIndex) {
         oldestIndex = index;
       }
-      
+
       const op = transaction.op;
       const opType = op[0];
       const opData = op[1];
 
-      // Filter for transfer operations
       if (opType === 'transfer') {
         transactions.push({
           type: 'transfer',
@@ -1173,10 +994,9 @@ export async function getTransactionHistory(
           trx_id: transaction.trx_id,
         });
       } else if (opType === 'withdraw_vesting') {
-        // Convert VESTS to HIVE
         const vestsAmount = parseFloat(opData.vesting_shares.split(' ')[0]);
         const hiveAmount = await convertVestToHive(vestsAmount);
-        
+
         transactions.push({
           type: 'power_down',
           from: opData.account,
@@ -1208,7 +1028,7 @@ export async function getTransactionHistory(
         });
       } else if (opType === 'claim_reward_balance') {
         const rewards = [];
-        
+
         if (opData.reward_hive && opData.reward_hive !== '0.000 HIVE') {
           rewards.push(opData.reward_hive);
         }
@@ -1216,12 +1036,11 @@ export async function getTransactionHistory(
           rewards.push(opData.reward_hbd);
         }
         if (opData.reward_vests && opData.reward_vests !== '0.000000 VESTS') {
-          // Convert VESTS to HIVE for display
           const vestsAmount = parseFloat(opData.reward_vests.split(' ')[0]);
           const hiveAmount = await convertVestToHive(vestsAmount);
           rewards.push(`${hiveAmount.toFixed(3)} HP`);
         }
-        
+
         if (rewards.length > 0) {
           transactions.push({
             type: 'claim_rewards',
@@ -1236,7 +1055,6 @@ export async function getTransactionHistory(
       }
     }
 
-    // Return in chronological order (newest first)
     return {
       transactions: transactions.reverse(),
       oldestIndex: oldestIndex

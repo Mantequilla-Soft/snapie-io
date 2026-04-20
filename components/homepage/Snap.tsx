@@ -2,7 +2,7 @@ import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOver
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
-import { useKeychain } from '@/contexts/KeychainContext';
+import { useAioha } from '@aioha/react-ui';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
@@ -25,7 +25,7 @@ interface SnapProps {
 
 const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
-    const { user } = useKeychain();
+    const { user } = useAioha();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);

@@ -60,13 +60,23 @@ const nextConfig = {
             fs: false,
             memcpy: false,
         };
-        
+
         // Ignore memcpy module completely
         config.externals = config.externals || [];
         config.externals.push({
             'memcpy': 'commonjs memcpy'
         });
-        
+
+        // Resolve .svg imports as plain URL strings. @aioha/react-ui ships
+        // `import KeychainIcon from '../icons/keychain.svg'` and renders them
+        // via <image href={icon}> — which requires a URL, not Next.js's
+        // default StaticImageData object. No other file in the project imports
+        // svg directly, so a global rule is safe.
+        config.module.rules.push({
+            test: /\.svg$/,
+            type: 'asset/resource',
+        });
+
         return config;
     }
 }

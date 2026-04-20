@@ -28,7 +28,7 @@ import {
 } from "@chakra-ui/react";
 import { CloseIcon, ChevronLeftIcon, AddIcon, MinusIcon } from "@chakra-ui/icons";
 import { buildEcencyAccessToken, bootstrapEcencyChat, hasEcencyChatSession } from "@/lib/hive/ecency-auth";
-import { useKeychain } from "@/contexts/KeychainContext";
+import { useAioha } from "@aioha/react-ui";
 import { getHiveAvatarUrl } from "@/lib/utils/avatarUtils";
 import { FiMessageSquare } from "react-icons/fi";
 import Image from "next/image";
@@ -174,13 +174,19 @@ interface ChatPanelProps {
 }
 
 export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore, unreadCount = 0 }: ChatPanelProps) {
-  const { user, isLoggedIn } = useKeychain();
+  const { user } = useAioha();
+  const isLoggedIn = !!user;
   const [isBootstrapped, setIsBootstrapped] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Draggable bubble state - start above mobile footer (60px footer + some padding)
-  const [bubblePosition, setBubblePosition] = useState({ x: 20, y: typeof window !== 'undefined' ? window.innerHeight - 140 : 500 });
+  // Draggable bubble state - start above mobile footer (60px footer + some padding).
+  // Always start at the SSR-safe default so server + first client render match;
+  // the real viewport-based position is set after mount (see useEffect below).
+  const [bubblePosition, setBubblePosition] = useState({ x: 20, y: 500 });
+  useEffect(() => {
+    setBubblePosition({ x: 20, y: window.innerHeight - 140 });
+  }, []);
   const [isDragging, setIsDragging] = useState(false);
   const dragOffset = useRef({ x: 0, y: 0 });
   const bubbleRef = useRef<HTMLDivElement>(null);
