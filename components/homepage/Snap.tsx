@@ -11,6 +11,7 @@ import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
+import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
@@ -29,7 +30,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
-    const payoutDisplay = useCurrencyDisplay(comment);
+    const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
+    const { calculateDelta } = useVoteCalculator(user);
+    const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
     const toast = useToast();
     
     // Check if user can edit (is author and post is less than 7 days old)
@@ -243,6 +246,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
                         initialVoteCount={comment.active_votes?.length || 0}
                         onVote={handleVote}
+                        onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
+                        onVoteRollback={() => setOptimisticDeltaHBD(0)}
                     />
                     <HStack spacing={4}>
                         {/* Reply button - opens reply modal */}
