@@ -24,9 +24,11 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
         const previousCount = voteCount;
         
         setVoted(true);
-        setVoteCount(prev => prev + 1);
+        if (!wasVoted) {
+            setVoteCount(prev => prev + 1);
+            onVoteOptimistic?.(sliderValue);
+        }
         setIsVoting(true);
-        onVoteOptimistic?.(sliderValue);
 
         try {
             const result = await onVote(sliderValue);

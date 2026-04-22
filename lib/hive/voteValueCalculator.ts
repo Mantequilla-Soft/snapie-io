@@ -19,10 +19,12 @@ export function calculateVoteValue(
     return parseFloat(typeof v === 'string' ? v : String(v));
   };
 
-  const effectiveVests =
+  const effectiveVests = Math.max(
     parseVests(account.vesting_shares) +
     parseVests(account.received_vesting_shares) -
-    parseVests(account.delegated_vesting_shares);
+    parseVests(account.delegated_vesting_shares),
+    0
+  );
 
   const weightFraction = Math.min(Math.max(voteWeight / 100, 0), 1);
   const rshares = (effectiveVests * 1e6 * weightFraction) / 50;

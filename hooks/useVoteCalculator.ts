@@ -7,7 +7,9 @@ interface HiveGlobals {
   medianPrice: number;
 }
 
-// Module-level caches so every component shares one fetch per session
+// Module-level caches so every component shares one fetch per session.
+// accountCache is intentionally not invalidated after votes — the estimate
+// drifts slightly as mana regenerates, which is acceptable for a UI hint.
 let globalsCache: HiveGlobals | null = null;
 let globalsFetchPromise: Promise<HiveGlobals> | null = null;
 const accountCache = new Map<string, any>();
@@ -16,15 +18,19 @@ async function fetchGlobals(): Promise<HiveGlobals> {
   if (globalsCache) return globalsCache;
   if (!globalsFetchPromise) {
     globalsFetchPromise = (async () => {
-      const [rewardFund, priceData] = await Promise.all([
-        HiveClient.database.call('get_reward_fund', ['post']),
-        HiveClient.database.call('get_current_median_history_price', []),
-      ]);
-      const base = parseFloat(priceData.base);
-      const quote = parseFloat(priceData.quote);
-      globalsCache = { rewardFund, medianPrice: base / quote };
-      globalsFetchPromise = null;
-      return globalsCache;
+      try {
+        const [rewardFund, priceData] = await Promise.all([
+          HiveClient.database.call('get_reward_fund', ['post']),
+          HiveClient.database.call('get_current_median_history_price', []),
+        ]);
+        const base = parseFloat(priceData.base);
+        const quote = parseFloat(priceData.quote);
+        globalsCache = { rewardFund, medianPrice: base / quote };
+        return globalsCache;
+      } finally {
+        // Always clear so a failed fetch can be retried on next call
+        globalsFetchPromise = null;
+      }
     })();
   }
   return globalsFetchPromise;
