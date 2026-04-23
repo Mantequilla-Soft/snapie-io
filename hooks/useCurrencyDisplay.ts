@@ -14,35 +14,32 @@ import { convertHBDToDisplayCurrency } from '@/lib/utils/currencyConverter';
  * @param post - The post or comment object with payout information
  * @returns Formatted currency string (e.g., "R$25.50", "$5.123")
  */
-export function useCurrencyDisplay(post: any): string {
+export function useCurrencyDisplay(post: any, optimisticDeltaHBD: number = 0): string {
   const [displayValue, setDisplayValue] = useState<string>('');
   const targetCurrency = process.env.NEXT_PUBLIC_DISPLAY_CURRENCY;
 
   useEffect(() => {
     async function convertValue() {
-      // Get the HBD payout value
       const hbdValue = getPayoutValue(post);
-      const hbdAmount = parseFloat(hbdValue);
+      const baseAmount = parseFloat(hbdValue);
+      const hbdAmount = (isNaN(baseAmount) ? 0 : baseAmount) + optimisticDeltaHBD;
 
-      // If no valid amount, display zero
-      if (isNaN(hbdAmount)) {
+      if (hbdAmount === 0 && isNaN(baseAmount)) {
         setDisplayValue('$0.000');
         return;
       }
 
-      // If no target currency or empty string, return HBD value as-is
       if (!targetCurrency || targetCurrency.trim() === '') {
-        setDisplayValue(`$${hbdValue}`);
+        setDisplayValue(`$${hbdAmount.toFixed(3)}`);
         return;
       }
 
-      // Convert to target currency
       const converted = await convertHBDToDisplayCurrency(hbdAmount, targetCurrency);
       setDisplayValue(converted);
     }
 
     convertValue();
-  }, [post, targetCurrency]);
+  }, [post, targetCurrency, optimisticDeltaHBD]);
 
   return displayValue || '$0.000';
 }

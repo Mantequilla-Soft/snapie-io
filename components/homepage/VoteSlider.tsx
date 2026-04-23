@@ -6,9 +6,11 @@ interface VoteControlsProps {
     initialVoted: boolean;
     initialVoteCount: number;
     onVote: (weight: number) => Promise<any>;
+    onVoteOptimistic?: (weight: number) => void;
+    onVoteRollback?: () => void;
 }
 
-const VoteControls = memo(({ initialVoted, initialVoteCount, onVote }: VoteControlsProps) => {
+const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptimistic, onVoteRollback }: VoteControlsProps) => {
     const [voted, setVoted] = useState(initialVoted);
     const [voteCount, setVoteCount] = useState(initialVoteCount);
     const [showSlider, setShowSlider] = useState(false);
@@ -22,16 +24,19 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote }: VoteContr
         const previousCount = voteCount;
         
         setVoted(true);
-        setVoteCount(prev => prev + 1);
+        if (!wasVoted) {
+            setVoteCount(prev => prev + 1);
+            onVoteOptimistic?.(sliderValue);
+        }
         setIsVoting(true);
-        
+
         try {
             const result = await onVote(sliderValue);
-            
+
             if (!result.success) {
-                // Rollback on failure
                 setVoted(wasVoted);
                 setVoteCount(previousCount);
+                onVoteRollback?.();
                 toast({
                     title: 'Vote Failed',
                     description: 'Failed to vote. Please try again.',
@@ -42,9 +47,9 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote }: VoteContr
                 setShowSlider(false);
             }
         } catch (error) {
-            // Rollback on error
             setVoted(wasVoted);
             setVoteCount(previousCount);
+            onVoteRollback?.();
             toast({
                 title: 'Vote Failed',
                 description: 'An error occurred. Please try again.',

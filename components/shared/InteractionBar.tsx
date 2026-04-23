@@ -5,6 +5,7 @@ import { FaHeart, FaComment, FaRegHeart, FaShare } from 'react-icons/fa';
 import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
+import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 
 interface InteractionBarProps {
     post: Discussion;
@@ -24,7 +25,9 @@ export default function InteractionBar({
     const [showSlider, setShowSlider] = useState(false);
     const [voted, setVoted] = useState(false);
     const [voteCount, setVoteCount] = useState(post.active_votes?.length || 0);
-    const payoutDisplay = useCurrencyDisplay(post);
+    const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
+    const { calculateDelta } = useVoteCalculator(user);
+    const payoutDisplay = useCurrencyDisplay(post, optimisticDeltaHBD);
     const toast = useToast();
 
     // Update voted state when user changes
@@ -64,13 +67,15 @@ export default function InteractionBar({
         // Optimistic update
         const wasVoted = voted;
         const previousCount = voteCount;
-        
+        const previousDelta = optimisticDeltaHBD;
+
         setVoted(true);
         if (!wasVoted) {
             setVoteCount(prev => prev + 1);
+            setOptimisticDeltaHBD(calculateDelta(sliderValue));
         }
         setShowSlider(false);
-        
+
         // Send to blockchain
         try {
             const voteResult = await vote({
@@ -79,11 +84,12 @@ export default function InteractionBar({
                 permlink: post.permlink,
                 weight: sliderValue * 100
             });
-            
+
             if (!voteResult.success) {
                 // Rollback on failure
                 setVoted(wasVoted);
                 setVoteCount(previousCount);
+                setOptimisticDeltaHBD(previousDelta);
                 toast({
                     title: 'Vote Failed',
                     description: 'Failed to vote. Please try again.',
@@ -95,6 +101,7 @@ export default function InteractionBar({
             // Rollback on error
             setVoted(wasVoted);
             setVoteCount(previousCount);
+            setOptimisticDeltaHBD(previousDelta);
             toast({
                 title: 'Vote Failed',
                 description: 'An error occurred. Please try again.',
