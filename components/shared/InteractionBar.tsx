@@ -26,7 +26,7 @@ export default function InteractionBar({
     const [voted, setVoted] = useState(false);
     const [voteCount, setVoteCount] = useState(post.active_votes?.length || 0);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
-    const { calculateDelta } = useVoteCalculator(user);
+    const { calculateDelta } = useVoteCalculator(user ?? null);
     const payoutDisplay = useCurrencyDisplay(post, optimisticDeltaHBD);
     const toast = useToast();
 

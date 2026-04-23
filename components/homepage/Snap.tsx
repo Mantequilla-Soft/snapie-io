@@ -31,7 +31,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
-    const { calculateDelta } = useVoteCalculator(user);
+    const { calculateDelta } = useVoteCalculator(user ?? null);
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
     const toast = useToast();
     
