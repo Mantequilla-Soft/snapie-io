@@ -18,7 +18,6 @@ export default function LoginModal({
   onClose,
   loginTitle = 'Login',
   loginOptions,
-  forceShowProviders,
 }: LoginModalProps) {
   return (
     <AiohaModal
@@ -27,7 +26,6 @@ export default function LoginModal({
       onClose={onClose}
       loginTitle={loginTitle}
       loginOptions={loginOptions}
-      forceShowProviders={forceShowProviders}
     />
   );
 }
