@@ -100,11 +100,43 @@
   }
 }
 
-/* Always show the light-mode icon variant, regardless of OS dark-mode setting.
-   AiohaModal renders two <svg>s per provider with iconDark (HiveAuth / Ledger)
-   — one `class="... block dark:hidden"` (for light bg), one `class="... hidden
-   dark:block"` (for dark bg). Our modal always has a light background, so we
-   always want the light-bg icon. Matching by attribute substring hits both
-   with-escape (light-mode CSS) and without-escape (HTML class attribute). */
-#aioha-modal svg[class*="dark:block"] { display: none !important; }
-#aioha-modal svg[class*="dark:hidden"] { display: block !important; }
+/* Show the correct icon variant based on the app's actual theme.
+   AiohaModal renders two <svg>s per provider: one with `dark:hidden` (light-bg
+   icon) and one with `dark:block` (dark-bg icon). Chakra's dark mode uses
+   data-theme="dark" on <html>, so we scope the icon swap to that attribute. */
+html:not([data-theme="dark"]) #aioha-modal svg[class*="dark:block"] { display: none !important; }
+html:not([data-theme="dark"]) #aioha-modal svg[class*="dark:hidden"] { display: block !important; }
+
+/* Sync aioha modal dark theme with Chakra's [data-theme="dark"] attribute.
+   public/aioha-modal.css uses @media (prefers-color-scheme:dark) which only
+   responds to OS preference, not the app's Chakra-controlled dark mode.
+   These rules ensure the modal matches the app theme regardless of OS setting. */
+[data-theme="dark"] .dark\:block { display: block !important; }
+[data-theme="dark"] .dark\:hidden { display: none !important; }
+[data-theme="dark"] .dark\:bg-gray-600 { background-color: var(--color-gray-600) !important; }
+[data-theme="dark"] .dark\:bg-gray-700 { background-color: var(--color-gray-700) !important; }
+[data-theme="dark"] .dark\:bg-gray-800 { background-color: var(--color-gray-800) !important; }
+[data-theme="dark"] .dark\:bg-green-900 { background-color: var(--color-green-900) !important; }
+[data-theme="dark"] .dark\:fill-gray-100 { fill: var(--color-gray-100) !important; }
+[data-theme="dark"] .dark\:text-gray-100 { color: var(--color-gray-100) !important; }
+[data-theme="dark"] .dark\:text-gray-300 { color: var(--color-gray-300) !important; }
+[data-theme="dark"] .dark\:text-gray-400 { color: var(--color-gray-400) !important; }
+[data-theme="dark"] .dark\:text-gray-500 { color: var(--color-gray-500) !important; }
+[data-theme="dark"] .dark\:text-green-200 { color: var(--color-green-200) !important; }
+[data-theme="dark"] .dark\:text-red-400 { color: var(--color-red-400) !important; }
+[data-theme="dark"] .dark\:text-white { color: var(--color-white) !important; }
+[data-theme="dark"] .dark\:border-gray-600,
+[data-theme="dark"] :where(.dark\:divide-gray-600 > :not(:last-child)) { border-color: var(--color-gray-600) !important; }
+[data-theme="dark"] .dark\:border-gray-700 { border-color: var(--color-gray-700) !important; }
+[data-theme="dark"] .dark\:border-red-800 { border-color: var(--color-red-800) !important; }
+[data-theme="dark"] .dark\:placeholder-gray-400::placeholder { color: var(--color-gray-400) !important; }
+[data-theme="dark"] .dark\:hover\:border-gray-500:hover { border-color: var(--color-gray-500) !important; }
+[data-theme="dark"] .dark\:hover\:border-gray-600:hover { border-color: var(--color-gray-600) !important; }
+[data-theme="dark"] .dark\:hover\:bg-gray-500:hover { background-color: var(--color-gray-500) !important; }
+[data-theme="dark"] .dark\:hover\:bg-gray-600:hover { background-color: var(--color-gray-600) !important; }
+[data-theme="dark"] .dark\:hover\:bg-gray-700:hover { background-color: var(--color-gray-700) !important; }
+[data-theme="dark"] .dark\:hover\:bg-gray-800:hover { background-color: var(--color-gray-800) !important; }
+[data-theme="dark"] .dark\:hover\:text-white:hover { color: var(--color-white) !important; }
+[data-theme="dark"] .dark\:focus\:border-white:focus { border-color: var(--color-white) !important; }
+[data-theme="dark"] .dark\:focus\:ring-gray-600:focus { --tw-ring-color: var(--color-gray-600) !important; }
+[data-theme="dark"] .dark\:focus\:ring-gray-700:focus { --tw-ring-color: var(--color-gray-700) !important; }
