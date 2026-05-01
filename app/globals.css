@@ -4,7 +4,6 @@
 
 :root {
   --foreground-rgb: 0, 0, 0;
-  --hh-room-card-bg-height: 140px;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
 }
@@ -221,3 +220,4 @@ body.embed-mode * {
 body.embed-mode {
   -webkit-overflow-scrolling: touch !important;
 }
+

@@ -2,6 +2,7 @@
 import { useRef } from 'react';
 import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
+import './overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useAioha } from '@aioha/react-ui';
 import { useHangoutsSession } from '@/hooks/useHangoutsSession';
