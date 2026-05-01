@@ -26,7 +26,7 @@
     "@livekit/components-react": "^2.9.20",
     "@snapie/composer": "workspace:*",
     "@snapie/hangouts-core": "0.3.2",
-    "@snapie/hangouts-react": "^0.3.9",
+    "@snapie/hangouts-react": "^0.3.10",
     "@snapie/operations": "workspace:*",
     "@snapie/renderer": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
