@@ -11,6 +11,7 @@ import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/reac
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
+const IMAGE_KEY = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY;
 
 interface LobbyProps {
   user: string;
@@ -137,6 +138,7 @@ export default function HangoutsPage() {
         livekitServerUrl={LK_URL}
         sessionToken={sessionToken}
         username={user}
+        imageServerApiKey={IMAGE_KEY}
       >
         <LobbyWithAutoAuth
           user={user}

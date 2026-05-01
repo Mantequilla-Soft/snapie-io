@@ -10,6 +10,7 @@ import '@snapie/hangouts-react/src/styles/hangouts.css';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
+const IMAGE_KEY = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY;
 
 const HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
 
@@ -100,6 +101,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
       livekitServerUrl={LK_URL}
       sessionToken={sessionToken}
       username={user}
+      imageServerApiKey={IMAGE_KEY}
     >
       <Modal isOpen={isOpen} onClose={onClose} size="2xl">
         <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />
