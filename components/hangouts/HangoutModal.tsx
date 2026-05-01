@@ -8,6 +8,8 @@ import { useHangoutsSession } from '@/hooks/useHangoutsSession';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 
+import { IMAGE_SERVER_API_KEY } from '@/lib/env';
+
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
@@ -100,6 +102,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
       livekitServerUrl={LK_URL}
       sessionToken={sessionToken}
       username={user}
+      imageServerApiKey={IMAGE_SERVER_API_KEY}
     >
       <Modal isOpen={isOpen} onClose={onClose} size="2xl">
         <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />

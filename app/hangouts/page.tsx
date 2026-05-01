@@ -2,12 +2,15 @@
 import { useRef } from 'react';
 import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
+import './overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useAioha } from '@aioha/react-ui';
 import { useHangoutsSession } from '@/hooks/useHangoutsSession';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/react';
+
+import { IMAGE_SERVER_API_KEY } from '@/lib/env';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
@@ -66,6 +69,7 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
         body,
         parentAuthor,
         parentPermlink,
+        images: room.backgroundImage ? [room.backgroundImage] : undefined,
       });
 
       const response = await signAndBroadcastWithKeychain(user, result.operations, 'posting');
@@ -137,6 +141,7 @@ export default function HangoutsPage() {
         livekitServerUrl={LK_URL}
         sessionToken={sessionToken}
         username={user}
+        imageServerApiKey={IMAGE_SERVER_API_KEY}
       >
         <LobbyWithAutoAuth
           user={user}

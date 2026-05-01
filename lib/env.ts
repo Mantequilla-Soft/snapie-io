@@ -1,0 +1,3 @@
+export const IMAGE_SERVER_API_KEY =
+  process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY ||
+  process.env.NEXT_PUBLIC_3SPEAK_API_KEY;

@@ -1,5 +1,5 @@
 'use client';
-import { Box, HStack, VStack, Text, Avatar, Badge } from '@chakra-ui/react';
+import { Box, HStack, VStack, Text, Avatar, Badge, Image } from '@chakra-ui/react';
 import { useState, useEffect } from 'react';
 import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -61,16 +61,29 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       width="100%"
       textAlign="left"
       aria-label={`Join hangout: ${room.title}`}
-      p={4}
       borderWidth="1px"
       borderColor="border"
       borderRadius="xl"
       bg="muted"
+      overflow="hidden"
       onClick={() => openRoom(room.name)}
       _hover={{ borderColor: 'primary' }}
       _focus={{ outline: '2px solid', outlineColor: 'primary', outlineOffset: '2px' }}
       transition="border-color 0.15s"
     >
+      {room.backgroundImage && (
+        <Image
+          src={room.backgroundImage}
+          alt=""
+          width="100%"
+          height="80px"
+          objectFit="cover"
+          display="block"
+          fallbackStrategy="onError"
+          fallback={<></>}
+        />
+      )}
+      <Box p={4}>
       <HStack spacing={3}>
         <Avatar
           size="md"
@@ -92,6 +105,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
           <Text fontSize="xs" color="primary">listening</Text>
         </VStack>
       </HStack>
+      </Box>
     </Box>
   );
 }
