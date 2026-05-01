@@ -79,6 +79,8 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
           height="80px"
           objectFit="cover"
           display="block"
+          fallbackStrategy="onError"
+          fallback={<></>}
         />
       )}
       <Box p={4}>

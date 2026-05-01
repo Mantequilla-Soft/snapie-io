@@ -10,9 +10,10 @@ import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/react';
 
+import { IMAGE_SERVER_API_KEY } from '@/lib/env';
+
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
-const IMAGE_KEY = process.env.NEXT_PUBLIC_IMAGE_SERVER_API_KEY || process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
 
 interface LobbyProps {
   user: string;
@@ -140,7 +141,7 @@ export default function HangoutsPage() {
         livekitServerUrl={LK_URL}
         sessionToken={sessionToken}
         username={user}
-        imageServerApiKey={IMAGE_KEY}
+        imageServerApiKey={IMAGE_SERVER_API_KEY}
       >
         <LobbyWithAutoAuth
           user={user}
