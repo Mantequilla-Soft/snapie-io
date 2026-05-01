@@ -4,15 +4,13 @@ import { useState, useEffect } from 'react';
 import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
 import { useHangout } from '@/contexts/HangoutContext';
 
-type RoomWithBackground = Room & { backgroundImage?: string };
-
 interface HangoutPreviewCardProps {
   roomName: string;
 }
 
 export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps) {
   const { openRoom } = useHangout();
-  const [room, setRoom] = useState<RoomWithBackground | null>(null);
+  const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +22,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       baseUrl: process.env.NEXT_PUBLIC_HANGOUTS_API_URL!,
     });
     client.getRoom(roomName).then((found) => {
-      setRoom(found as RoomWithBackground);
+      setRoom(found);
       setLoading(false);
     }).catch(() => {
       setError('Failed to load hangout');

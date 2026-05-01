@@ -1,8 +1,6 @@
 'use client';
 import { useRef } from 'react';
 import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
-
-type RoomWithBackground = Room & { backgroundImage?: string };
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useAioha } from '@aioha/react-ui';
@@ -55,7 +53,7 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
     );
   }
 
-  const handleRoomCreated = async (room: RoomWithBackground) => {
+  const handleRoomCreated = async (room: Room) => {
     isCreating.current = true;
 
     // Post the announcement snap BEFORE opening the room.
@@ -111,7 +109,7 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
   return (
     <RoomLobby
       onJoinRoom={handleJoinRoom}
-      onRoomCreated={handleRoomCreated as (room: Room) => void}
+      onRoomCreated={handleRoomCreated}
     />
   );
 }
