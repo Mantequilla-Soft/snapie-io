@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
+import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
+import { CountBadge } from '@/components/ui/CountBadge';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
@@ -48,10 +49,6 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
 
-    useEffect(() => {
-        console.log('🔵 Sidebar: isChatOpen changed to:', isChatOpen);
-    }, [isChatOpen]);
-    
     // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';
     // Determine display values based on whether we're forcing compact or using responsive
@@ -208,23 +205,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             >
                                 <Text display={textDisplay}>OpenPods</Text>
                             </Button>
-                            {openPodsCount > 0 && (
-                                <Badge
-                                    position="absolute"
-                                    top="2px"
-                                    right="2px"
-                                    colorScheme="green"
-                                    borderRadius="full"
-                                    minW="18px"
-                                    h="18px"
-                                    display="flex"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                    fontSize="xs"
-                                >
-                                    {openPodsCount > 99 ? '99+' : openPodsCount}
-                                </Badge>
-                            )}
+                            <CountBadge count={openPodsCount} />
                         </Box>
                     </Tooltip>
                     {user && (
@@ -299,11 +280,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             <Tooltip label="Chat" placement="right" hasArrow isDisabled={!isCompactMode}>
                                 <Box w="full" position="relative">
                                     <Button
-                                        onClick={() => {
-                                            console.log('🔵 Chat button clicked! Current state:', isChatOpen);
-                                            setIsChatOpen(!isChatOpen);
-                                            console.log('🔵 Setting chat to:', !isChatOpen);
-                                        }}
+                                        onClick={() => setIsChatOpen(!isChatOpen)}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -316,23 +293,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                     >
                                         <Text display={textDisplay}>Chat</Text>
                                     </Button>
-                                    {chatUnreadCount > 0 && !isChatOpen && (
-                                        <Badge
-                                            position="absolute"
-                                            top="2px"
-                                            right="2px"
-                                            colorScheme="red"
-                                            borderRadius="full"
-                                            minW="18px"
-                                            h="18px"
-                                            display="flex"
-                                            alignItems="center"
-                                            justifyContent="center"
-                                            fontSize="xs"
-                                        >
-                                            {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                                        </Badge>
-                                    )}
+                                    <CountBadge count={!isChatOpen ? chatUnreadCount : 0} colorScheme="red" />
                                 </Box>
                             </Tooltip>
                         </>

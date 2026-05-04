@@ -1,6 +1,7 @@
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
+import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
+import { CountBadge } from '@/components/ui/CountBadge';
 import { useRouter } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
@@ -144,23 +145,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                             _hover={{ bg: 'whiteAlpha.200' }}
                             leftIcon={<Icon as={FiRadio} boxSize={4} />}
                         />
-                        {openPodsCount > 0 && (
-                            <Badge
-                                position="absolute"
-                                top="-2px"
-                                right="-2px"
-                                colorScheme="green"
-                                borderRadius="full"
-                                minW="18px"
-                                h="18px"
-                                display="flex"
-                                alignItems="center"
-                                justifyContent="center"
-                                fontSize="xs"
-                            >
-                                {openPodsCount > 99 ? '99+' : openPodsCount}
-                            </Badge>
-                        )}
+                        <CountBadge count={openPodsCount} top="-2px" right="-2px" />
                     </Box>
                 </Tooltip>
 
@@ -202,23 +187,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                     _hover={{ bg: isChatOpen ? 'blue.600' : 'whiteAlpha.200' }}
                                     leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
                                 />
-                                {chatUnreadCount > 0 && !isChatOpen && (
-                                    <Badge
-                                        position="absolute"
-                                        top="-2px"
-                                        right="-2px"
-                                        colorScheme="red"
-                                        borderRadius="full"
-                                        minW="18px"
-                                        h="18px"
-                                        display="flex"
-                                        alignItems="center"
-                                        justifyContent="center"
-                                        fontSize="xs"
-                                    >
-                                        {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
-                                    </Badge>
-                                )}
+                                <CountBadge count={!isChatOpen ? chatUnreadCount : 0} colorScheme="red" top="-2px" right="-2px" />
                             </Box>
                         </Tooltip>
 
