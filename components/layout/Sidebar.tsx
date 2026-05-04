@@ -4,11 +4,12 @@ import { Badge, Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorM
 import { useRouter, usePathname } from 'next/navigation';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio } from 'react-icons/fi';
+import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo } from 'react-icons/fi';
 import { Notifications } from '@hiveio/dhive';
 import { fetchNewNotifications, getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 
 interface ProfileInfo {
     metadata: {
@@ -45,6 +46,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     const [loading, setLoading] = useState(true); // Loading state
     const { colorMode } = useColorMode();
     const toast = useToast();
+    const openPodsCount = useOpenPodsCount();
 
     useEffect(() => {
         console.log('🔵 Sidebar: isChatOpen changed to:', isChatOpen);
@@ -193,8 +195,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             </Button>
                         </Box>
                     </Tooltip>
-                    <Tooltip label="Hangouts" placement="right" hasArrow isDisabled={!isCompactMode}>
-                        <Box w="full">
+                    <Tooltip label="OpenPods" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full" position="relative">
                             <Button
                                 onClick={() => handleNavigation("/hangouts")}
                                 variant="ghost"
@@ -204,8 +206,25 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 px={3}
                                 borderRadius="md"
                             >
-                                <Text display={textDisplay}>Hangouts</Text>
+                                <Text display={textDisplay}>OpenPods</Text>
                             </Button>
+                            {openPodsCount > 0 && (
+                                <Badge
+                                    position="absolute"
+                                    top="2px"
+                                    right="2px"
+                                    colorScheme="green"
+                                    borderRadius="full"
+                                    minW="18px"
+                                    h="18px"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    fontSize="xs"
+                                >
+                                    {openPodsCount > 99 ? '99+' : openPodsCount}
+                                </Badge>
+                            )}
                         </Box>
                     </Tooltip>
                     {user && (
@@ -333,6 +352,24 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 borderRadius="md"
                             >
                                 <Text display={textDisplay}>{isLoggedIn ? 'Logout' : 'Login'}</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                    <Tooltip label="About Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                as="a"
+                                href="https://about.snapie.io"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiInfo} boxSize={4} />}
+                                px={3}
+                                borderRadius="md"
+                            >
+                                <Text display={textDisplay}>About</Text>
                             </Button>
                         </Box>
                     </Tooltip>

@@ -4,6 +4,7 @@ import { Badge, Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra
 import { useRouter } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
+import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 
 interface FooterNavigationProps {
     isChatOpen: boolean;
@@ -21,6 +22,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
+    const openPodsCount = useOpenPodsCount();
     
     const handleNavigation = (path: string) => {
         if (router) {
@@ -131,16 +133,35 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                     />
                 </Tooltip>
 
-                <Tooltip label="Hangouts" aria-label="Hangouts tooltip">
-                    <Button
-                        onClick={() => handleNavigation("/hangouts")}
-                        variant="ghost"
-                        color="white"
-                        size="sm"
-                        minW="40px"
-                        _hover={{ bg: 'whiteAlpha.200' }}
-                        leftIcon={<Icon as={FiRadio} boxSize={4} />}
-                    />
+                <Tooltip label="OpenPods" aria-label="OpenPods tooltip">
+                    <Box position="relative">
+                        <Button
+                            onClick={() => handleNavigation("/hangouts")}
+                            variant="ghost"
+                            color="white"
+                            size="sm"
+                            minW="40px"
+                            _hover={{ bg: 'whiteAlpha.200' }}
+                            leftIcon={<Icon as={FiRadio} boxSize={4} />}
+                        />
+                        {openPodsCount > 0 && (
+                            <Badge
+                                position="absolute"
+                                top="-2px"
+                                right="-2px"
+                                colorScheme="green"
+                                borderRadius="full"
+                                minW="18px"
+                                h="18px"
+                                display="flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                fontSize="xs"
+                            >
+                                {openPodsCount > 99 ? '99+' : openPodsCount}
+                            </Badge>
+                        )}
+                    </Box>
                 </Tooltip>
 
                 {user ? (
