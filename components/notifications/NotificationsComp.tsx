@@ -1,76 +1,638 @@
-import { useEffect, useState } from 'react';
-import { fetchNewNotifications, broadcastWithKeychain } from '@/lib/hive/client-functions';
-import { Box, Text, Stack, Spinner, Button, HStack } from '@chakra-ui/react';
+'use client';
+
+import { ReactNode, useMemo, useState } from 'react';
+import {
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Icon,
+  IconButton,
+  SimpleGrid,
+  Spinner,
+  Stack,
+  Text,
+  useToast,
+  VStack,
+} from '@chakra-ui/react';
 import { useAioha } from '@aioha/react-ui';
 import { Notifications } from '@hiveio/dhive';
-import NotificationItem from './NotificationItem'; 
+import { useRouter } from 'next/navigation';
+import {
+  FiAtSign,
+  FiBell,
+  FiCheckCircle,
+  FiChevronDown,
+  FiChevronRight,
+  FiMessageCircle,
+  FiRefreshCw,
+  FiRepeat,
+  FiSend,
+  FiThumbsUp,
+  FiUserPlus,
+} from 'react-icons/fi';
+import { IconType } from 'react-icons';
+import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import {
+  formatNotificationTime,
+  getNotificationActor,
+  getNotificationRoute,
+  getNotificationTypeLabel,
+  NOTIFICATION_CATEGORIES,
+  NotificationFilter,
+  parseHiveDate,
+} from '@/lib/utils/notificationHelpers';
+import { groupNotifications, NotificationGroup } from '@/lib/utils/notificationGrouping';
+import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface NotificationCompProps {
   username: string
 }
 
-export default function NotificationsComp({ username } : NotificationCompProps) {
+type BucketKey = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'older';
+
+interface ActivitySummary {
+  total: number;
+  votes: number;
+  uniqueVoters: number;
+  totalEarnings: number;
+  replies: number;
+  mentions: number;
+  follows: number;
+  reblogs: number;
+  transfers: number;
+}
+
+const BUCKET_LABELS: Record<BucketKey, string> = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  this_week: 'This Week',
+  this_month: 'This Month',
+  older: 'Older',
+};
+
+const BUCKET_ORDER: BucketKey[] = ['today', 'yesterday', 'this_week', 'this_month', 'older'];
+const CATEGORY_ENTRIES = Object.entries(NOTIFICATION_CATEGORIES) as Array<[
+  Exclude<NotificationFilter, 'unread'>,
+  { label: string; types: readonly string[] | null },
+]>;
+const MAX_STACKED_AVATARS = 5;
+
+function getTimeBucket(dateString: string): BucketKey {
+  const date = parseHiveDate(dateString);
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 7);
+  const monthStart = new Date(todayStart);
+  monthStart.setMonth(monthStart.getMonth() - 1);
+
+  if (date >= todayStart) return 'today';
+  if (date >= yesterdayStart) return 'yesterday';
+  if (date >= weekStart) return 'this_week';
+  if (date >= monthStart) return 'this_month';
+  return 'older';
+}
+
+function bucketize(groups: NotificationGroup[]) {
+  return groups.reduce<Record<BucketKey, NotificationGroup[]>>((buckets, group) => {
+    buckets[getTimeBucket(group.date)].push(group);
+    return buckets;
+  }, {
+    today: [],
+    yesterday: [],
+    this_week: [],
+    this_month: [],
+    older: [],
+  });
+}
+
+function computeSummary(notifications: Notifications[]): ActivitySummary {
+  const votes = notifications.filter((notification) => notification.type === 'vote');
+  const uniqueVoters = new Set(votes.map(getNotificationActor).filter(Boolean));
+  const totalEarnings = votes.reduce((sum, notification) => {
+    const match = notification.msg?.match(/\(\$([0-9]+(?:\.[0-9]+)?)\)/);
+    return sum + (match ? parseFloat(match[1]) : 0);
+  }, 0);
+
+  return {
+    total: notifications.length,
+    votes: votes.length,
+    uniqueVoters: uniqueVoters.size,
+    totalEarnings: Math.round(totalEarnings * 1000) / 1000,
+    replies: notifications.filter((notification) => ['reply', 'reply_comment'].includes(notification.type)).length,
+    mentions: notifications.filter((notification) => notification.type === 'mention').length,
+    follows: notifications.filter((notification) => notification.type === 'follow').length,
+    reblogs: notifications.filter((notification) => notification.type === 'reblog').length,
+    transfers: notifications.filter((notification) => notification.type === 'transfer').length,
+  };
+}
+
+function getSummaryItems(summary: ActivitySummary) {
+  return [
+    summary.votes > 0 && {
+      key: 'votes',
+      icon: FiThumbsUp,
+      value: summary.votes,
+      label: 'Votes',
+      detail: `${summary.uniqueVoters} voter${summary.uniqueVoters === 1 ? '' : 's'}`,
+      sub: summary.totalEarnings > 0 ? `$${summary.totalEarnings.toFixed(2)}` : null,
+      filter: 'votes' as NotificationFilter,
+      color: 'green',
+    },
+    summary.replies > 0 && {
+      key: 'replies',
+      icon: FiMessageCircle,
+      value: summary.replies,
+      label: 'Replies',
+      filter: 'replies' as NotificationFilter,
+      color: 'blue',
+    },
+    summary.follows > 0 && {
+      key: 'follows',
+      icon: FiUserPlus,
+      value: summary.follows,
+      label: 'New Followers',
+      filter: 'follows' as NotificationFilter,
+      color: 'purple',
+    },
+    summary.mentions > 0 && {
+      key: 'mentions',
+      icon: FiAtSign,
+      value: summary.mentions,
+      label: 'Mentions',
+      filter: 'mentions' as NotificationFilter,
+      color: 'orange',
+    },
+    summary.reblogs > 0 && {
+      key: 'reblogs',
+      icon: FiRepeat,
+      value: summary.reblogs,
+      label: 'Reblogs',
+      filter: 'reblogs' as NotificationFilter,
+      color: 'cyan',
+    },
+    summary.transfers > 0 && {
+      key: 'transfers',
+      icon: FiSend,
+      value: summary.transfers,
+      label: 'Transfers',
+      filter: 'transfers' as NotificationFilter,
+      color: 'pink',
+    },
+  ].filter(Boolean) as Array<{
+    key: string;
+    icon: IconType;
+    value: number;
+    label: string;
+    detail?: string;
+    sub?: string | null;
+    filter: NotificationFilter;
+    color: string;
+  }>;
+}
+
+export default function NotificationsComp({ username }: NotificationCompProps) {
   const { user } = useAioha();
-  const [notifications, setNotifications] = useState<Notifications[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Add isLoading state
+  const router = useRouter();
+  const toast = useToast();
+  const [filter, setFilter] = useState<NotificationFilter>('all');
+  const [summaryRange, setSummaryRange] = useState<'today' | 'week' | 'month'>('week');
+  const canViewNotifications = Boolean(user && user === username);
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      if (user) {
-        try {
-          setIsLoading(true); 
-          const newNotifications = await fetchNewNotifications(username);
-          setNotifications(newNotifications);
-        } catch (error) {
-          console.error("Failed to fetch notifications:", error);
-        } finally {
-          setIsLoading(false); 
-        }
-      }
-    };
+  const {
+    notifications,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    refetch,
+    loadMore,
+    unreadCount,
+    markAllAsRead,
+    markingAsRead,
+    isUnread,
+  } = useHiveNotifications(canViewNotifications ? username : null, { limit: 50 });
 
-    loadNotifications();
-  }, [user, username]);
+  const filtered = useMemo(() => {
+    if (filter === 'unread') {
+      return notifications.filter(isUnread);
+    }
 
-  async function handleMarkAsRead () {
-    if (!user) return;
-    
-    const now = new Date().toISOString(); 
-    const json = JSON.stringify(["setLastRead", { date: now }]);
-    const result = await broadcastWithKeychain(user, [
-      ['custom_json', {
-        required_auths: [],
-        required_posting_auths: [user],
-        id: 'notify',
-        json: json,
-      }]
-    ], 'posting')
-    console.log("Mark as Read clicked", result);
+    const allowedTypes = NOTIFICATION_CATEGORIES[filter].types as readonly string[] | null;
+    return allowedTypes
+      ? notifications.filter((notification) => allowedTypes.includes(notification.type))
+      : notifications;
+  }, [filter, isUnread, notifications]);
+
+  const grouped = useMemo(() => groupNotifications(filtered), [filtered]);
+  const bucketed = useMemo(() => bucketize(grouped), [grouped]);
+
+  const summary = useMemo(() => {
+    const now = new Date();
+    const cutoff = new Date(now);
+
+    if (summaryRange === 'today') {
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (summaryRange === 'week') {
+      cutoff.setDate(cutoff.getDate() - 7);
+    } else {
+      cutoff.setMonth(cutoff.getMonth() - 1);
+    }
+
+    return computeSummary(notifications.filter((notification) => parseHiveDate(notification.date) >= cutoff));
+  }, [notifications, summaryRange]);
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllAsRead();
+      toast({ title: 'Notifications marked as read', status: 'success', duration: 2500 });
+    } catch {
+      toast({ title: 'Could not mark notifications as read', status: 'error', duration: 3500 });
+    }
   };
 
+  const handleNotificationClick = (notification: Notifications) => {
+    const route = getNotificationRoute(notification);
+    if (route) router.push(route);
+  };
+
+  if (!canViewNotifications) {
+    return (
+      <Box p={4} w="full">
+        <EmptyState title="Please log in to view your notifications." />
+      </Box>
+    );
+  }
+
   return (
-    <Box p={4} w="full">
-    <HStack mb={4} spacing={4} align="center" justify="space-between">
-      <Text fontSize="2xl" fontWeight="bold">
-        Notifications
-      </Text>
-      {(user == username) && (
-        <Button onClick={handleMarkAsRead} size="sm">
-          Mark as Read
+    <Box p={{ base: 3, md: 6 }} w="full" maxW="980px" mx="auto">
+      <Flex justify="space-between" align={{ base: 'start', md: 'center' }} gap={3} mb={5} flexWrap="wrap">
+        <Box>
+          <HStack spacing={3}>
+            <Text fontSize={{ base: '2xl', md: '3xl' }} fontWeight="bold">
+              Notifications
+            </Text>
+            {unreadCount > 0 && (
+              <Badge colorScheme="red" borderRadius="full" px={3} py={1}>
+                {unreadCount} new
+              </Badge>
+            )}
+          </HStack>
+          <Text fontSize="sm" color="text" opacity={0.75}>
+            Grouped activity from Hive, routed back into Snapie.
+          </Text>
+        </Box>
+        <HStack>
+          {unreadCount > 0 && (
+            <Button
+              leftIcon={<Icon as={FiCheckCircle} />}
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              isLoading={markingAsRead}
+            >
+              Mark all read
+            </Button>
+          )}
+          <IconButton
+            aria-label="Refresh notifications"
+            icon={<Icon as={FiRefreshCw} />}
+            size="sm"
+            onClick={refetch}
+            isLoading={loading}
+          />
+        </HStack>
+      </Flex>
+
+      <HStack spacing={2} overflowX="auto" pb={2} mb={4}>
+        {CATEGORY_ENTRIES.map(([key, category]) => (
+          <Button
+            key={key}
+            size="sm"
+            variant={filter === key ? 'solid' : 'outline'}
+            onClick={() => setFilter(key)}
+            flexShrink={0}
+          >
+            {category.label}
+          </Button>
+        ))}
+        <Button
+          size="sm"
+          variant={filter === 'unread' ? 'solid' : 'outline'}
+          colorScheme="red"
+          onClick={() => setFilter('unread')}
+          flexShrink={0}
+        >
+          Unread {unreadCount > 0 ? `(${unreadCount})` : ''}
         </Button>
+      </HStack>
+
+      <ActivitySummaryCard
+        summary={summary}
+        range={summaryRange}
+        onRangeChange={setSummaryRange}
+        onFilter={setFilter}
+      />
+
+      {Boolean(error) && (
+        <Box bg="red.500" color="white" borderRadius="base" p={3} mb={4}>
+          Could not load notifications. <Button size="xs" ml={2} onClick={refetch}>Retry</Button>
+        </Box>
       )}
-    </HStack>
-      {isLoading ? (
-        <Spinner size="lg" />
-      ) : notifications.length > 0 ? (
-        <Stack spacing={4} w="full">
-          {notifications.map(notification => (
-            <NotificationItem key={notification.id} notification={notification} />
-          ))}
+
+      {loading && filtered.length === 0 ? (
+        <Flex justify="center" py={12}>
+          <Spinner size="lg" />
+        </Flex>
+      ) : grouped.length > 0 ? (
+        <Stack spacing={6}>
+          {BUCKET_ORDER.map((bucket) => {
+            const items = bucketed[bucket];
+            if (!items.length) return null;
+
+            return (
+              <Box key={bucket}>
+                <Text fontSize="sm" fontWeight="bold" textTransform="uppercase" letterSpacing="wide" opacity={0.7} mb={2}>
+                  {BUCKET_LABELS[bucket]}
+                </Text>
+                <Stack spacing={3}>
+                  {items.map((group) => (
+                    <NotificationRow
+                      key={group.id}
+                      group={group}
+                      isUnread={isUnread}
+                      onClick={handleNotificationClick}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            );
+          })}
+          {hasMore && (
+            <Button onClick={loadMore} isLoading={loadingMore} alignSelf="center" variant="outline">
+              Load more
+            </Button>
+          )}
         </Stack>
       ) : (
-        <Text>No notifications</Text>
+        <EmptyState
+          title={
+            filter === 'all'
+              ? 'You have no notifications yet.'
+              : filter === 'unread'
+                ? 'No unread notifications.'
+                : `No ${NOTIFICATION_CATEGORIES[filter].label.toLowerCase()} yet.`
+          }
+        />
       )}
+    </Box>
+  );
+}
+
+function ActivitySummaryCard({
+  summary,
+  range,
+  onRangeChange,
+  onFilter,
+}: {
+  summary: ActivitySummary;
+  range: 'today' | 'week' | 'month';
+  onRangeChange: (range: 'today' | 'week' | 'month') => void;
+  onFilter: (filter: NotificationFilter) => void;
+}) {
+  const summaryItems = getSummaryItems(summary);
+
+  return (
+    <Box bg="muted" border="tb1" borderRadius="base" p={4} mb={5}>
+      <Flex justify="space-between" align="center" gap={3} mb={4} flexWrap="wrap">
+        <HStack>
+          <Icon as={FiBell} />
+          <Text fontWeight="bold">Activity</Text>
+        </HStack>
+        <HStack spacing={2}>
+          {[
+            ['today', 'Today'],
+            ['week', 'This Week'],
+            ['month', 'This Month'],
+          ].map(([key, label]) => (
+            <Button
+              key={key}
+              size="xs"
+              variant={range === key ? 'solid' : 'ghost'}
+              onClick={() => onRangeChange(key as 'today' | 'week' | 'month')}
+            >
+              {label}
+            </Button>
+          ))}
+        </HStack>
+      </Flex>
+      {summaryItems.length > 0 ? (
+        <SimpleGrid columns={{ base: 2, md: 3, lg: 6 }} spacing={3}>
+          {summaryItems.map((item) => (
+            <Button
+              key={item.key}
+              h="auto"
+              py={3}
+              px={3}
+              variant="outline"
+              borderColor={`${item.color}.300`}
+              onClick={() => onFilter(item.filter)}
+            >
+              <VStack spacing={1}>
+                <Icon as={item.icon} color={`${item.color}.400`} />
+                <Text fontSize="xl" fontWeight="bold">{item.value}</Text>
+                <Text fontSize="xs">{item.label}</Text>
+                {item.sub && <Text fontSize="xs" opacity={0.75}>{item.sub}</Text>}
+                {item.detail && <Text fontSize="xs" opacity={0.65}>{item.detail}</Text>}
+              </VStack>
+            </Button>
+          ))}
+        </SimpleGrid>
+      ) : (
+        <Text fontSize="sm" opacity={0.7}>No activity in this range yet.</Text>
+      )}
+    </Box>
+  );
+}
+
+function NotificationRow({
+  group,
+  isUnread,
+  onClick,
+}: {
+  group: NotificationGroup;
+  isUnread: (notification: Notifications) => boolean;
+  onClick: (notification: Notifications) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  if (group.type === 'single') {
+    return (
+      <SingleNotificationRow
+        notification={group.notification}
+        unread={isUnread(group.notification)}
+        onClick={() => onClick(group.notification)}
+      />
+    );
+  }
+
+  const hasUnread = group.items.some(isUnread);
+  const topActors = group.actors.slice(0, MAX_STACKED_AVATARS);
+  const remainingActors = group.actors.length - MAX_STACKED_AVATARS;
+  const actorLabel = group.actors.length <= 2
+    ? group.actors.map((actor) => `@${actor}`).join(' and ')
+    : `@${group.actors[0]} and ${group.actors.length - 1} others`;
+  const actorPrefix = actorLabel ? `${actorLabel} ` : 'Someone ';
+  const label = group.notifType === 'vote'
+    ? `${actorPrefix}voted on your post${group.totalValue ? ` ($${group.totalValue.toFixed(2)})` : ''}`
+    : group.notifType === 'follow'
+      ? `${actorPrefix}followed you`
+      : `${group.items.length} ${group.notifType} notifications`;
+
+  return (
+    <Box>
+      <NotificationShell
+        unread={hasUnread}
+        onClick={() => setExpanded((value) => !value)}
+      >
+        <AvatarStack actors={topActors} remaining={remainingActors} />
+        <Box flex="1" minW={0}>
+          <Text fontWeight="semibold">{label}</Text>
+          <HStack fontSize="sm" opacity={0.72} spacing={2}>
+            <Text>{group.items.length} {group.notifType}{group.items.length === 1 ? '' : 's'}</Text>
+            <Text>·</Text>
+            <Text>{formatNotificationTime(group.date)}</Text>
+            <HStack spacing={1}>
+              <Icon as={expanded ? FiChevronDown : FiChevronRight} />
+              <Text>{expanded ? 'collapse' : 'expand'}</Text>
+            </HStack>
+          </HStack>
+        </Box>
+      </NotificationShell>
+      {expanded && (
+        <Stack spacing={2} mt={2} pl={{ base: 3, md: 10 }}>
+          {group.items.map((notification) => (
+            <SingleNotificationRow
+              key={notification.id}
+              notification={notification}
+              unread={isUnread(notification)}
+              onClick={() => onClick(notification)}
+              nested
+            />
+          ))}
+        </Stack>
+      )}
+    </Box>
+  );
+}
+
+function SingleNotificationRow({
+  notification,
+  unread,
+  onClick,
+  nested = false,
+}: {
+  notification: Notifications;
+  unread: boolean;
+  onClick: () => void;
+  nested?: boolean;
+}) {
+  const actor = getNotificationActor(notification);
+
+  return (
+    <NotificationShell unread={unread} onClick={onClick} nested={nested}>
+      <Avatar size="sm" src={actor ? getHiveAvatarUrl(actor, 'small') : undefined} name={actor || undefined} />
+      <Box flex="1" minW={0}>
+        <Text fontWeight="semibold">{notification.msg || getNotificationTypeLabel(notification.type)}</Text>
+        <HStack fontSize="sm" opacity={0.72} spacing={2}>
+          <Text>{getNotificationTypeLabel(notification.type)}</Text>
+          <Text>·</Text>
+          <Text>{formatNotificationTime(notification.date)}</Text>
+        </HStack>
+      </Box>
+    </NotificationShell>
+  );
+}
+
+function NotificationShell({
+  children,
+  unread,
+  onClick,
+  nested = false,
+}: {
+  children: ReactNode;
+  unread: boolean;
+  onClick: () => void;
+  nested?: boolean;
+}) {
+  return (
+    <HStack
+      as="button"
+      type="button"
+      textAlign="left"
+      w="full"
+      spacing={3}
+      p={nested ? 3 : 4}
+      bg={unread ? 'secondary' : 'muted'}
+      border="tb1"
+      borderRadius="base"
+      align="center"
+      position="relative"
+      _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
+      transition="all 0.15s ease"
+      onClick={onClick}
+    >
+      {children}
+      {unread && (
+        <Box w="9px" h="9px" bg="red.400" borderRadius="full" flexShrink={0} aria-hidden="true" />
+      )}
+    </HStack>
+  );
+}
+
+function AvatarStack({ actors, remaining }: { actors: string[]; remaining: number }) {
+  return (
+    <HStack spacing={0} minW={`${Math.min(actors.length, MAX_STACKED_AVATARS) * 22 + (remaining > 0 ? 28 : 0)}px`}>
+      {actors.map((actor, index) => (
+        <Avatar
+          key={actor}
+          size="sm"
+          src={getHiveAvatarUrl(actor, 'small')}
+          name={actor}
+          ml={index === 0 ? 0 : '-10px'}
+          border="2px solid"
+          borderColor="muted"
+        />
+      ))}
+      {remaining > 0 && (
+        <Flex
+          ml="-10px"
+          boxSize="32px"
+          borderRadius="full"
+          align="center"
+          justify="center"
+          bg="background"
+          border="2px solid"
+          borderColor="muted"
+          fontSize="xs"
+          fontWeight="bold"
+        >
+          +{remaining}
+        </Flex>
+      )}
+    </HStack>
+  );
+}
+
+function EmptyState({ title }: { title: string }) {
+  return (
+    <Box bg="muted" border="tb1" borderRadius="base" p={8} textAlign="center">
+      <Icon as={FiBell} boxSize={8} opacity={0.45} mb={3} />
+      <Text>{title}</Text>
     </Box>
   );
 }
