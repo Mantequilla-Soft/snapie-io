@@ -1,4 +1,5 @@
 import { Notifications } from '@hiveio/dhive';
+import { extractNotificationActor } from './notificationHelpers';
 
 const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
@@ -29,14 +30,8 @@ function extractVoteValue(message?: string): number {
   return match ? parseFloat(match[1]) : 0;
 }
 
-function extractActor(message?: string): string | null {
-  if (!message) return null;
-  const match = message.match(/@([a-z0-9._-]+)/i);
-  return match ? match[1] : null;
-}
-
 function makeSingle(notification: Notifications): NotificationGroup {
-  const actor = extractActor(notification.msg);
+  const actor = extractNotificationActor(notification.msg);
   const group: NotificationGroup = {
     id: notification.id,
     type: 'single',
@@ -62,7 +57,7 @@ function makeGroup(items: Notifications[], notifType: string): NotificationGroup
   const actors: string[] = [];
 
   for (const notification of sorted) {
-    const actor = extractActor(notification.msg);
+    const actor = extractNotificationActor(notification.msg);
     if (actor && !seen.has(actor)) {
       seen.add(actor);
       actors.push(actor);
@@ -97,7 +92,12 @@ export function groupNotifications(notifications: Notifications[]): Notification
 
   for (const notification of notifications) {
     if (notification.type === 'vote') {
-      const key = notification.url || '__no_url__';
+      if (!notification.url) {
+        result.push(makeSingle(notification));
+        continue;
+      }
+
+      const key = notification.url;
       votesByUrl.set(key, [...(votesByUrl.get(key) || []), notification]);
     } else if (notification.type === 'follow') {
       followBucket.push(notification);

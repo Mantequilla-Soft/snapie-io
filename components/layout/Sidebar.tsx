@@ -47,7 +47,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     const { colorMode } = useColorMode();
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
-    const { unreadCount } = useHiveNotifications(user, { limit: 1 });
+    const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
 
     // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';

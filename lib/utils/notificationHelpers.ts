@@ -86,10 +86,14 @@ export function getNotificationRoute(notification: Notifications): string | null
   return null;
 }
 
-export function getNotificationActor(notification: Notifications): string | null {
-  if (!notification?.msg) return null;
-  const match = notification.msg.match(/^@([a-z0-9.-]+)/i);
+export function extractNotificationActor(message?: string): string | null {
+  if (!message) return null;
+  const match = message.match(/^@([a-z0-9.-]+)/i);
   return match ? match[1] : null;
+}
+
+export function getNotificationActor(notification: Notifications): string | null {
+  return extractNotificationActor(notification?.msg);
 }
 
 export function getNotificationTypeLabel(type: string): string {

@@ -486,10 +486,11 @@ function NotificationRow({
   const actorLabel = group.actors.length <= 2
     ? group.actors.map((actor) => `@${actor}`).join(' and ')
     : `@${group.actors[0]} and ${group.actors.length - 1} others`;
+  const actorPrefix = actorLabel ? `${actorLabel} ` : 'Someone ';
   const label = group.notifType === 'vote'
-    ? `${actorLabel} voted on your post${group.totalValue ? ` ($${group.totalValue.toFixed(2)})` : ''}`
+    ? `${actorPrefix}voted on your post${group.totalValue ? ` ($${group.totalValue.toFixed(2)})` : ''}`
     : group.notifType === 'follow'
-      ? `${actorLabel} followed you`
+      ? `${actorPrefix}followed you`
       : `${group.items.length} ${group.notifType} notifications`;
 
   return (

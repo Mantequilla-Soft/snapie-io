@@ -25,7 +25,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
     const openPodsCount = useOpenPodsCount();
-    const { unreadCount } = useHiveNotifications(user, { limit: 1 });
+    const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
     
     const handleNavigation = (path: string) => {
         if (router) {
