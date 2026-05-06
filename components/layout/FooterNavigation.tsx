@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
+import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 
 interface FooterNavigationProps {
     isChatOpen: boolean;
@@ -24,6 +25,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
     const openPodsCount = useOpenPodsCount();
+    const { unreadCount } = useHiveNotifications(user, { limit: 1 });
     
     const handleNavigation = (path: string) => {
         if (router) {
@@ -152,15 +154,18 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                 {user ? (
                     <>
                         <Tooltip label="Notifications" aria-label="Notifications tooltip">
-                            <Button
-                                onClick={() => handleNavigation("/@" + user + "/notifications")}
-                                variant="ghost"
-                                color="white"
-                                size="sm"
-                                minW="40px"
-                                _hover={{ bg: 'whiteAlpha.200' }}
-                                leftIcon={<Icon as={FiBell} boxSize={4} />}
-                            />
+                            <Box position="relative">
+                                <Button
+                                    onClick={() => handleNavigation("/@" + user + "/notifications")}
+                                    variant="ghost"
+                                    color="white"
+                                    size="sm"
+                                    minW="40px"
+                                    _hover={{ bg: 'whiteAlpha.200' }}
+                                    leftIcon={<Icon as={FiBell} boxSize={4} color={unreadCount > 0 ? 'red.300' : 'white'} />}
+                                />
+                                <CountBadge count={unreadCount} colorScheme="red" top="-2px" right="-2px" />
+                            </Box>
                         </Tooltip>
 
                         <Tooltip label="Wallet" aria-label="Wallet tooltip">

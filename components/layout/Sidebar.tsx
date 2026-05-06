@@ -6,11 +6,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo } from 'react-icons/fi';
-import { Notifications } from '@hiveio/dhive';
-import { fetchNewNotifications, getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
+import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
+import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 
 interface ProfileInfo {
     metadata: {
@@ -41,13 +41,13 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     const logout = () => aioha.logout();
     const router = useRouter();
     const pathname = usePathname();
-    const [notifications, setNotifications] = useState<Notifications[]>([]);
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null); // State to hold community info
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null); // State to hold profile info
     const [loading, setLoading] = useState(true); // Loading state
     const { colorMode } = useColorMode();
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
+    const { unreadCount } = useHiveNotifications(user, { limit: 1 });
 
     // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';
@@ -59,21 +59,6 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     
     // Detect if we're in compact mode for tooltip logic
     const isCompactMode = useBreakpointValue({ base: false, sm: true, md: false }) || forceCompact;
-
-    useEffect(() => {
-        const loadNotifications = async () => {
-            if (user) {
-                try {
-                    const newNotifications = await fetchNewNotifications(user);
-                    setNotifications(newNotifications);
-                } catch (error) {
-                    console.error("Failed to fetch notifications:", error);
-                }
-            }
-        };
-
-        loadNotifications();
-    }, [user]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -211,14 +196,14 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                     {user && (
                         <>
                             <Tooltip label="Notifications" placement="right" hasArrow isDisabled={!isCompactMode}>
-                                <Box w="full">
+                                <Box w="full" position="relative">
                                     <Button
                                         onClick={() => handleNavigation("/@" + user + "/notifications")}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
                                         leftIcon={
-                                            notifications.length > 0 ? (
+                                            unreadCount > 0 ? (
                                                 <motion.div
                                                     animate={{ rotate: [0, 45, 0, -45, 0] }}
                                                     transition={{ duration: 0.6, repeat: Infinity }}
@@ -234,6 +219,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                     >
                                         <Text display={textDisplay}>Notifications</Text>
                                     </Button>
+                                    <CountBadge count={unreadCount} colorScheme="red" />
                                 </Box>
                             </Tooltip>
                             <Tooltip label="Profile" placement="right" hasArrow isDisabled={!isCompactMode}>
