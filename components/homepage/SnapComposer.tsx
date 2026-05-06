@@ -55,9 +55,9 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const [isLoading, setIsLoading] = useState(false);
 
     const buttonText = post ? "Reply" : "Post";
-    const hasMedia = uploadingImages.length > 0 || selectedGif !== null;
     const hasVideo = selectedVideo !== null;
     const hasAudio = audioEmbedUrl !== null;
+    const hasVideoInProgress = hasVideo || videoUploadProgress > 0;
     
     // Check if any images are still uploading
     const imagesStillUploading = uploadingImages.some(img => img.uploadedUrl === null && !img.error);
@@ -299,18 +299,18 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             />
             <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
                 <HStack flexShrink={1} minW={0}>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
                         <FaImage size={22} />
                         <ImageUploader onUpload={handleImageSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
                         <MdGif size={48} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasMedia || videoUploadProgress > 0 || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaVideo size={22} />
                         <VideoUploader onUpload={handleVideoSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasMedia || hasVideo || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaMicrophone size={22} />
                     </Button>
                 </HStack>
