@@ -10,6 +10,7 @@ import {
   finalizeAudio3SpeakEmbedUrl,
 } from "@/lib/utils/snapUtils";
 import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
+import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import DOMPurify from "isomorphic-dompurify";
 
 interface MediaRendererProps {
@@ -185,6 +186,13 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
                 playUrl={finalizeAudio3SpeakEmbedUrl(item.src)}
               />
             );
+          }
+
+          if (item.src.includes("platform.twitter.com")) {
+            const idMatch = item.src.match(/[?&]id=(\d+)/i);
+            if (idMatch) {
+              return <TwitterEmbed key={`twitter-${idMatch[1]}`} tweetId={idMatch[1]} />;
+            }
           }
 
           const speakKey = speakVideoKeyFromUrl(item.src);
