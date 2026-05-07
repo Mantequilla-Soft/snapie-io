@@ -66,14 +66,19 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   }, [isChatOpen]);
 
   return (
-    <Box bg="background" color="text" minH="100vh">
+    <Box
+      bg="background"
+      color="text"
+      minH="100vh"
+      bgGradient="radial(circle at 18% 8%, rgba(24, 168, 255, 0.16), transparent 34%), radial(circle at 78% 0%, rgba(102, 228, 255, 0.10), transparent 30%), linear(to-br, #06111f, #071827 48%, #04101d)"
+    >
       <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">
         {!isEmbedMode && (
           <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
         )}
         <Box
           flex="1"
-          ml={isEmbedMode ? '0' : (isComposePage ? { base: '0', sm: '60px' } : { base: '0', sm: '60px', md: '20%' })}
+          ml={isEmbedMode ? '0' : (isComposePage ? { base: '0', sm: '96px' } : { base: '0', sm: '96px', md: '296px' })}
           h="100vh"
           overflowY="auto"
           transition="margin-left 0.3s ease"

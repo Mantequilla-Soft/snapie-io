@@ -55,11 +55,13 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
             bottom="0"
             left="0"
             right="0"
-            bg="secondary"
+            bg="rgba(8, 24, 40, 0.88)"
             borderTop="1px solid"
-            borderColor="tb1"
+            borderColor="rgba(102, 228, 255, 0.20)"
             display={{ base: 'block', sm: 'none' }}
             zIndex="999"
+            backdropFilter="blur(18px)"
+            boxShadow="0 -18px 48px rgba(0, 0, 0, 0.38)"
         >
             {/* Left fade indicator */}
             {showLeftFade && (
@@ -119,7 +121,8 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                         color="white"
                         size="sm"
                         minW="40px"
-                        _hover={{ bg: 'whiteAlpha.200' }}
+                        borderRadius="full"
+                        _hover={{ bg: 'whiteAlpha.200', color: 'accent' }}
                         leftIcon={<Icon as={FiHome} boxSize={4} />}
                     />
                 </Tooltip>
@@ -131,7 +134,8 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                         color="white"
                         size="sm"
                         minW="40px"
-                        _hover={{ bg: 'whiteAlpha.200' }}
+                        borderRadius="full"
+                        _hover={{ bg: 'whiteAlpha.200', color: 'accent' }}
                         leftIcon={<Icon as={FiBook} boxSize={4} />}
                     />
                 </Tooltip>
@@ -144,7 +148,8 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                             color="white"
                             size="sm"
                             minW="40px"
-                            _hover={{ bg: 'whiteAlpha.200' }}
+                            borderRadius="full"
+                            _hover={{ bg: 'whiteAlpha.200', color: 'accent' }}
                             leftIcon={<Icon as={FiRadio} boxSize={4} />}
                         />
                         <CountBadge count={openPodsCount} top="-2px" right="-2px" />
@@ -161,6 +166,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                     color="white"
                                     size="sm"
                                     minW="40px"
+                                    borderRadius="full"
                                     _hover={{ bg: 'whiteAlpha.200' }}
                                     leftIcon={<Icon as={FiBell} boxSize={4} color={unreadCount > 0 ? 'red.300' : 'white'} />}
                                 />
@@ -175,6 +181,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                 color="white"
                                 size="sm"
                                 minW="40px"
+                                borderRadius="full"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                             />
@@ -189,6 +196,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                     size="sm"
                                     minW="40px"
                                     bg={isChatOpen ? 'blue.500' : 'transparent'}
+                                    borderRadius="full"
                                     _hover={{ bg: isChatOpen ? 'blue.600' : 'whiteAlpha.200' }}
                                     leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
                                 />
@@ -203,6 +211,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                 color="white"
                                 size="sm"
                                 minW="40px"
+                                borderRadius="full"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiUser} boxSize={4} />}
                             />
@@ -215,6 +224,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                                 color="white"
                                 size="sm"
                                 minW="40px"
+                                borderRadius="full"
                                 _hover={{ bg: 'whiteAlpha.200' }}
                                 leftIcon={<Icon as={FiLogOut} boxSize={4} />}
                             />
@@ -228,6 +238,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                             color="white"
                             size="sm"
                             minW="40px"
+                            borderRadius="full"
                             _hover={{ bg: 'whiteAlpha.200' }}
                             leftIcon={<Icon as={FiLogIn} boxSize={4} />}
                         />

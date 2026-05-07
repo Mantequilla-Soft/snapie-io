@@ -208,6 +208,8 @@ const BASE_SLIDER_STYLE = {
 
 const VideoRenderer = ({ src, ...props }: RendererProps) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  /** Avoid calling load() on every inView=true tick while readyState is still 0 (causes perpetual loading). */
+  const loadRequestedRef = React.useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0); // Always start muted for autoplay
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -221,8 +223,11 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
   // Hide progress bar on mobile (show only audio controls)
   const showProgressBar = useBreakpointValue({ base: false, md: true }) ?? true;
 
-  // Use Intersection Observer to detect visibility
-  const { ref: setVideoRef, inView: isInView } = useInView({ threshold: 0.5 });
+  // Visibility: generous root margin + moderate threshold reduces in/out flicker from layout shifts
+  const { ref: setVideoRef, inView: isInView } = useInView({
+    threshold: 0.35,
+    rootMargin: "100px 0px",
+  });
 
   // Combined ref callback to handle both video ref and intersection observer
   const setRefs = useCallback(
@@ -346,53 +351,50 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     setHoverTime(null);
   }, []);
 
-  const handleVideoEnded = useCallback(() => {
-    if (isInView && videoRef.current && !hasError) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(() => {
-        // Silent fail if autoplay is blocked
-      });
-      setIsPlaying(true);
-    }
-  }, [isInView, hasError]);
+  useEffect(() => {
+    setIsVideoLoaded(false);
+    setHasError(false);
+    setProgress(0);
+    loadRequestedRef.current = false;
+  }, [src]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handler = () => {
-      if (video) {
-        const newProgress = (video.currentTime / video.duration) * 100;
-        setProgress(newProgress);
-      }
+      const v = videoRef.current;
+      if (!v || !Number.isFinite(v.duration) || v.duration <= 0) return;
+      setProgress((v.currentTime / v.duration) * 100);
     };
 
     video.addEventListener("timeupdate", handler);
     return () => {
       video.removeEventListener("timeupdate", handler);
     };
-  }, []);
+  }, [src]);
 
   useEffect(() => {
-    if (videoRef.current && !hasError) {
-      if (isInView) {
-        // CRITICAL: With preload="none", we need to explicitly load the video
-        // when it comes into view to trigger the download
-        if (videoRef.current.readyState === 0) {
-          videoRef.current.load();
-        }
-        videoRef.current.play().catch(() => {
-          // Silent fail if autoplay is blocked
-        });
-        setIsPlaying(true);
-        setShouldLoop(true);
-      } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
-        setShouldLoop(false);
+    const video = videoRef.current;
+    if (!video || !src || hasError) return;
+
+    if (isInView) {
+      // With preload="none", trigger at most one explicit load() per src until media is ready
+      if (!loadRequestedRef.current && video.readyState === 0) {
+        loadRequestedRef.current = true;
+        video.load();
       }
+      void video.play().catch(() => {
+        // Silent fail if autoplay is blocked
+      });
+      setIsPlaying(true);
+      setShouldLoop(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+      setShouldLoop(false);
     }
-  }, [isInView, hasError]);
+  }, [isInView, hasError, src]);
 
   // Memoize slider background to prevent re-computation on every render
   const sliderBackground = useMemo(
@@ -431,6 +433,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     >
       <picture style={{ position: "relative", width: "100%", height: "100%" }}>
         <video
+          key={src}
           {...props}
           ref={setRefs}
           src={src}
@@ -441,7 +444,6 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
           loop={shouldLoop}
           preload="none" // CRITICAL: Don't load anything until user interaction or in view
           onLoadedData={handleLoadedData}
-          onEnded={handleVideoEnded}
           onError={handleVideoError}
           onClick={(e) => e.stopPropagation()}
           style={VIDEO_STYLE}

@@ -1,14 +1,115 @@
 import { Discussion } from "@hiveio/dhive";
 
+/** Wrapper aspect for iframe/video embeds (avoids forcing vertical content into 16/9). */
+export type EmbedAspect = "16/9" | "9/16" | "4/5" | "3/4";
+
+/** Stable id for 3Speak embed/watch URLs (`v=owner/permlink`). */
+export function speakVideoKeyFromUrl(url: string): string | null {
+  try {
+    const v = new URL(url).searchParams.get("v");
+    return v ? decodeURIComponent(v) : null;
+  } catch {
+    const m = url.match(/[?&]v=([^&]+)/);
+    return m ? decodeURIComponent(m[1]) : null;
+  }
+}
+
+/**
+ * 3Speak desktop layout targets 16:9; mobile layout matches portrait feeds (~3:4).
+ * Without this, vertical clips sit in a desktop chrome layout → huge black band + misplaced controls.
+ */
+export function speakPlaybackUrl(url: string, portrait: boolean): string {
+  if (!url.includes("play.3speak.tv")) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set("layout", portrait ? "mobile" : "desktop");
+    if (u.pathname.includes("embed")) {
+      u.searchParams.set("noscroll", "1");
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export interface MediaItem {
   type: "image" | "video" | "iframe";
   content: string;
   src?: string;
+  /** When set, MediaRenderer uses this instead of default 16/9 until 3Speak reports vertical. */
+  embedAspect?: EmbedAspect;
 }
 
+/** Pixel height for audio.3speak.tv compact embed (their docs recommend ~120; 65px breaks layout + theming). */
+export const SPEAK_AUDIO_IFRAME_HEIGHT_PX = 116;
+
 /**
- * Add noscroll parameter to 3Speak URLs to prevent scrollbars in iframe
+ * Normalize 3Speak audio play URLs for in-app embeds (compact iframe mode per audio.3speak.tv docs).
  */
+export function finalizeAudio3SpeakEmbedUrl(url: string): string {
+  if (!url.includes("audio.3speak.tv/play")) return url;
+  try {
+    const u = new URL(url.replace(/^http:/i, "https:"));
+    u.searchParams.set("mode", "compact");
+    u.searchParams.set("iframe", "1");
+    return u.toString();
+  } catch {
+    let s = url.replace(/^http:/i, "https:");
+    const join = s.includes("?") ? "&" : "?";
+    if (!/[?&]iframe=/.test(s)) s += `${join}iframe=1`;
+    if (!/[?&]mode=/.test(s)) s += "&mode=compact";
+    return s;
+  }
+}
+
+export interface SnapieAudioApiMeta {
+  permlink: string;
+  title?: string;
+  duration?: number;
+  audioUrl: string;
+  audioUrlFallback?: string;
+}
+
+/** Resolve metadata for a 3Speak play URL (tries `a` as-given, then trailing segment after `/`). */
+export async function fetchSnapieAudioMetadata(
+  playUrl: string
+): Promise<SnapieAudioApiMeta | null> {
+  let u: URL;
+  try {
+    u = new URL(playUrl.replace(/^http:/i, "https:"));
+  } catch {
+    return null;
+  }
+  const base = "https://audio.3speak.tv/api/audio";
+  const fetchMeta = async (qs: string): Promise<SnapieAudioApiMeta | null> => {
+    const res = await fetch(`${base}?${qs}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as SnapieAudioApiMeta;
+    return data?.audioUrl ? data : null;
+  };
+
+  const cid = u.searchParams.get("cid");
+  if (cid) {
+    const m = await fetchMeta(`cid=${encodeURIComponent(cid)}`);
+    if (m) return m;
+  }
+
+  const a = u.searchParams.get("a");
+  if (!a) return null;
+
+  const attempts: string[] = [a];
+  if (a.includes("/")) {
+    const tail = a.split("/").pop();
+    if (tail && tail !== a) attempts.push(tail);
+  }
+
+  for (const id of [...new Set(attempts)]) {
+    const m = await fetchMeta(`a=${encodeURIComponent(id)}`);
+    if (m) return m;
+  }
+  return null;
+}
+
 function fix3SpeakUrl(url: string): string {
   if (!url.includes('play.3speak.tv/embed')) return url;
   
@@ -265,6 +366,13 @@ const convertToSkatehiveGateway = (url: string): string => {
   return hash ? `https://ipfs.skatehive.app/ipfs/${hash}` : url;
 };
 
+/** Best-effort aspect for raw iframe src (user markdown); 3Speak vertical still comes from postMessage. */
+export function inferEmbedAspectFromIframeSrc(src: string): EmbedAspect | undefined {
+  if (src.includes("instagram.com")) return "4/5";
+  if (src.includes("audio.3speak.tv")) return undefined;
+  return undefined;
+}
+
 /**
  * Parse media content and return array of MediaItem objects
  * This handles markdown images, iframes, IPFS URLs
@@ -281,11 +389,11 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     if (youtubeId && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
       const isShort = isYouTubeShort(trimmedItem);
       const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
-      const aspectRatio = isShort ? '9/16' : '16/9';
       mediaItems.push({
         type: "iframe",
-        content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: ${aspectRatio};" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`,
+        content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`,
         src: embedUrl,
+        embedAspect: isShort ? "9/16" : "16/9",
       });
       return;
     }
@@ -296,8 +404,9 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       const embedUrl = `https://www.instagram.com/p/${instagramId}/embed/`;
       mediaItems.push({
         type: "iframe",
-        content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: 4/5; max-width: 540px; margin: 0 auto; border: none; overflow: hidden;" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`,
+        content: `<iframe src="${embedUrl}" width="100%" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`,
         src: embedUrl,
+        embedAspect: "4/5",
       });
       return;
     }
@@ -318,14 +427,14 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     if (trimmedItem.includes('3speak.tv/watch?v=') && !trimmedItem.includes('play.3speak.tv') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
       const urlMatch = trimmedItem.match(/(https?:\/\/3speak\.tv\/watch\?v=[^\s<>"']+)/);
       if (urlMatch && urlMatch[1]) {
-        // Extract video ID and convert to play.3speak.tv format
         const videoIdMatch = urlMatch[1].match(/v=([^&\s]+)/);
         if (videoIdMatch && videoIdMatch[1]) {
-          const watchUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe`;
+          const embedUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe&captions=0&layout=desktop`;
           mediaItems.push({
             type: "iframe",
-            content: `<iframe src="${watchUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
-            src: watchUrl,
+            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
+            src: embedUrl,
+            embedAspect: "16/9",
           });
           return;
         }
@@ -336,17 +445,17 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     if (trimmedItem.includes('play.3speak.tv/watch?v=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
       const urlMatch = trimmedItem.match(/(https?:\/\/play\.3speak\.tv\/watch\?v=[^\s<>"']+)/);
       if (urlMatch && urlMatch[1]) {
-        let watchUrl = urlMatch[1];
-        // Keep as watch URL, just add iframe mode
-        if (!watchUrl.includes('mode=iframe')) {
-          watchUrl += '&mode=iframe';
+        const videoIdMatch = urlMatch[1].match(/v=([^&\s]+)/);
+        if (videoIdMatch && videoIdMatch[1]) {
+          const embedUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe&captions=0&layout=desktop`;
+          mediaItems.push({
+            type: "iframe",
+            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
+            src: embedUrl,
+            embedAspect: "16/9",
+          });
+          return;
         }
-        mediaItems.push({
-          type: "iframe",
-          content: `<iframe src="${watchUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
-          src: watchUrl,
-        });
-        return;
       }
     }
 
@@ -355,16 +464,17 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       const urlMatch = trimmedItem.match(/(https?:\/\/play\.3speak\.tv\/embed\?v=[^\s<>"']+)/);
       if (urlMatch && urlMatch[1]) {
         let embedUrl = urlMatch[1];
-        // Add mode=iframe for clean player display
-        if (!embedUrl.includes('mode=iframe')) {
-          embedUrl += '&mode=iframe';
-        }
+        // Ensure mode=iframe, captions=0, and layout=desktop are set
+        if (!embedUrl.includes('mode=iframe')) embedUrl += '&mode=iframe';
+        if (!embedUrl.includes('captions=')) embedUrl += '&captions=0';
+        if (!embedUrl.includes('layout=')) embedUrl += '&layout=desktop';
         // Add noscroll parameter to prevent scrollbars
         embedUrl = fix3SpeakUrl(embedUrl);
         mediaItems.push({
           type: "iframe",
-          content: `<iframe src="${embedUrl}" width="100%" style="aspect-ratio: 16/9;" frameborder="0" allowfullscreen></iframe>`,
+          content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
           src: embedUrl,
+          embedAspect: "16/9",
         });
         return;
       }
@@ -374,19 +484,11 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     if (trimmedItem.includes('audio.3speak.tv/play?a=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
       const urlMatch = trimmedItem.match(/(https?:\/\/audio\.3speak\.tv\/play\?a=[^\s<>"']+)/);
       if (urlMatch && urlMatch[1]) {
-        let embedUrl = urlMatch[1];
-        // Force HTTPS for production (mixed content security)
-        embedUrl = embedUrl.replace(/^http:/, 'https:');
-        // Add mode=compact&iframe=1 for clean embedding without scrollbars
-        if (!embedUrl.includes('mode=')) {
-          embedUrl += '&mode=compact';
-        }
-        if (!embedUrl.includes('iframe=')) {
-          embedUrl += '&iframe=1';
-        }
+        const embedUrl = finalizeAudio3SpeakEmbedUrl(urlMatch[1]);
+        const h = SPEAK_AUDIO_IFRAME_HEIGHT_PX;
         mediaItems.push({
           type: "iframe",
-          content: `<div style="width: 100%; max-width: 550px; height: 65px; margin: 0 auto; overflow: hidden;"><iframe src="${embedUrl}" width="100%" height="65" frameborder="0" scrolling="no" allow="autoplay" style="display: block;"></iframe></div>`,
+          content: `<div class="audio-container" style="width: 100%; max-width: 550px; height: ${h}px; margin: 0 auto; overflow: hidden;"><iframe src="${embedUrl}" width="100%" height="${h}" frameborder="0" scrolling="no" allow="autoplay; encrypted-media" allowtransparency="true" style="display: block; background: transparent;"></iframe></div>`,
           src: embedUrl,
         });
         return;
@@ -501,10 +603,19 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
         }
 
         // Other iframe embeds (non-IPFS)
+        let embedUrl = url;
+        if (url.includes("audio.3speak.tv")) {
+          embedUrl = finalizeAudio3SpeakEmbedUrl(url);
+        }
+        const content =
+          embedUrl === url
+            ? trimmedItem
+            : trimmedItem.replace(/src=["'][^"']+["']/i, `src="${embedUrl}"`);
         mediaItems.push({
           type: "iframe",
-          content: trimmedItem,
-          src: url,
+          content,
+          src: embedUrl,
+          embedAspect: inferEmbedAspectFromIframeSrc(embedUrl),
         });
       }
     }
