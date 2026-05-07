@@ -416,7 +416,7 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     // Handle plain Twitter/X URLs
     const twitterId = extractTwitterId(trimmedItem);
     if (twitterId && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
-      const embedUrl = `https://platform.twitter.com/embed/Tweet.html?id=${twitterId}`;
+      const embedUrl = `https://platform.twitter.com/embed/Tweet.html?id=${twitterId}&dnt=true`;
       mediaItems.push({
         type: "iframe",
         content: `<iframe src="${embedUrl}" width="100%" style="max-width: 550px; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid #e1e8ed; border-radius: 12px; overflow: hidden;" frameborder="0" scrolling="no"></iframe>`,

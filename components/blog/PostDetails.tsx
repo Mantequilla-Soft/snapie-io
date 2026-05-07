@@ -9,11 +9,13 @@ import NextLink from 'next/link';
 import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
+import TwitterEmbed from '@/components/shared/TwitterEmbed';
 
 type BodySegment =
     | { type: 'html'; html: string }
     | { type: 'audio'; url: string }
-    | { type: 'speak-video'; author: string; permlink: string };
+    | { type: 'speak-video'; author: string; permlink: string }
+    | { type: 'twitter'; tweetId: string };
 
 interface PostDetailsProps {
     post: Discussion;
@@ -77,6 +79,21 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
             }
         );
 
+        // Extract Twitter embed containers and replace with placeholders so they
+        // render as stable <TwitterEmbed> components instead of dangerouslySetInnerHTML.
+        const twitterMap = new Map<string, string>();
+        let twitterIdx = 0;
+        html = html.replace(
+            /<div\s+class="twitter-embed-container"[^>]*>[\s\S]*?<\/div>/gi,
+            (match) => {
+                const idMatch = match.match(/platform\.twitter\.com\/embed\/Tweet\.html\?id=(\d+)/i);
+                if (!idMatch) return match;
+                const key = `__TWITTER_${twitterIdx++}__`;
+                twitterMap.set(key, idMatch[1]);
+                return key;
+            }
+        );
+
         // Split at audio-container boundaries so each audio becomes a SnapieSpeakAudio component
         const rawSegments: BodySegment[] = [];
         const audioRegex = /<div class="audio-container">[\s\S]*?<\/div>/gi;
@@ -100,11 +117,11 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
 
         const base = rawSegments.length > 0 ? rawSegments : [{ type: 'html' as const, html }];
 
-        // Fast path: no 3Speak videos in this post
-        if (speakVideoMap.size === 0) return base;
+        // Fast path: no extracted embeds
+        if (speakVideoMap.size === 0 && twitterMap.size === 0) return base;
 
-        // Expand speak-video placeholders within html segments
-        const placeholderRe = /(__SPEAKVIDEO_\d+__)/g;
+        // Expand speak-video and twitter placeholders within html segments
+        const placeholderRe = /(__SPEAKVIDEO_\d+__|__TWITTER_\d+__)/g;
         const expanded: BodySegment[] = [];
         for (const seg of base) {
             if (seg.type !== 'html') { expanded.push(seg); continue; }
@@ -113,7 +130,14 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 const video = speakVideoMap.get(part);
                 if (video) {
                     expanded.push({ type: 'speak-video', author: video.author, permlink: video.permlink });
-                } else if (part) {
+                    continue;
+                }
+                const tweetId = twitterMap.get(part);
+                if (tweetId) {
+                    expanded.push({ type: 'twitter', tweetId });
+                    continue;
+                }
+                if (part) {
                     expanded.push({ type: 'html', html: part });
                 }
             }
@@ -163,6 +187,9 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     }
                     if (seg.type === 'speak-video') {
                         return <ThreeSpeakVideoPlayer key={`${seg.author}/${seg.permlink}-${i}`} author={seg.author} permlink={seg.permlink} />;
+                    }
+                    if (seg.type === 'twitter') {
+                        return <TwitterEmbed key={`twitter-${seg.tweetId}-${i}`} tweetId={seg.tweetId} />;
                     }
                     return <Box key={`html-${i}`} dangerouslySetInnerHTML={{ __html: seg.html }} />;
                 })}
