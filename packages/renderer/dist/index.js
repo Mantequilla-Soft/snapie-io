@@ -183,7 +183,7 @@ function transform3SpeakContent(content) {
     (match, fullUrl, videoId) => {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
-      const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe`;
+      const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
       return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
     }
   );
@@ -192,7 +192,7 @@ function transform3SpeakContent(content) {
     (match, fullUrl, videoId) => {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
-      const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe`;
+      const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
       return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
     }
   );
@@ -201,17 +201,56 @@ function transform3SpeakContent(content) {
     (match, fullUrl, videoId) => {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
-      const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe`;
+      const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
       return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
     }
   );
   content = content.replace(
-    /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?a=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-    (match, fullUrl, audioId) => {
-      if (embeddedAudios.has(audioId)) return match;
-      embeddedAudios.add(audioId);
-      const embedUrl = `https://audio.3speak.tv/play?a=${audioId}`;
-      return `<div class="audio-container"><iframe src="${embedUrl}" loading="lazy"></iframe></div>`;
+    /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?[^"]+)"[^>]*>.*?<\/a>/g,
+    (match, fullUrl) => {
+      let dedupeKey;
+      try {
+        const u = new URL(fullUrl.replace(/&amp;/gi, "&").replace(/^http:/i, "https:"));
+        dedupeKey = u.searchParams.get("a") || u.searchParams.get("cid") || u.toString();
+      } catch {
+        dedupeKey = fullUrl;
+      }
+      if (embeddedAudios.has(dedupeKey)) return match;
+      embeddedAudios.add(dedupeKey);
+      let embedUrl;
+      try {
+        const u = new URL(fullUrl.replace(/&amp;/gi, "&").replace(/^http:/i, "https:"));
+        u.searchParams.set("mode", "compact");
+        u.searchParams.set("iframe", "1");
+        embedUrl = u.toString();
+      } catch {
+        embedUrl = fullUrl;
+      }
+      return `<div class="audio-container"><iframe src="${embedUrl}" loading="lazy" allow="autoplay; encrypted-media" allowtransparency="true"></iframe></div>`;
+    }
+  );
+  content = content.replace(
+    /<p>\s*(https?:\/\/audio\.3speak\.tv\/play\?[^<\s]+)\s*<\/p>/gi,
+    (match, url) => {
+      let dedupeKey;
+      try {
+        const u = new URL(url.replace(/^http:/i, "https:"));
+        dedupeKey = u.searchParams.get("a") || u.searchParams.get("cid") || u.toString();
+      } catch {
+        return match;
+      }
+      if (!dedupeKey || embeddedAudios.has(dedupeKey)) return match;
+      embeddedAudios.add(dedupeKey);
+      let embedUrl;
+      try {
+        const u = new URL(url.replace(/^http:/i, "https:"));
+        u.searchParams.set("mode", "compact");
+        u.searchParams.set("iframe", "1");
+        embedUrl = u.toString();
+      } catch {
+        embedUrl = url;
+      }
+      return `<div class="audio-container"><iframe src="${embedUrl}" loading="lazy" allow="autoplay; encrypted-media" allowtransparency="true"></iframe></div>`;
     }
   );
   return content;

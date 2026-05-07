@@ -94,16 +94,20 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
     return (
         <Box
             as="nav"
-            bg="muted"
-            p={1}
-            w={forceCompact ? '60px' : { base: 'full', sm: '60px', md: '20%' }}
-            h={"100vh"}
+            bg="rgba(8, 24, 40, 0.78)"
+            p={3}
+            w={forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' }}
+            h={{ base: "100vh", sm: "calc(100vh - 24px)" }}
             position={{ base: 'relative', sm: 'fixed' }}
-            left={{ base: 'auto', sm: '0' }}
-            top={{ base: 'auto', sm: '0' }}
+            left={{ base: 'auto', sm: '12px' }}
+            top={{ base: 'auto', sm: '12px' }}
             zIndex={{ base: 'auto', sm: '10' }}
             display={{ base: 'none', sm: 'block' }}
             transition="width 0.3s ease"
+            border="tb1"
+            borderRadius="30px"
+            boxShadow="xl"
+            backdropFilter="blur(18px)"
             sx={{
                 '&::-webkit-scrollbar': {
                     display: 'none',
@@ -111,7 +115,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                 scrollbarWidth: 'none',
             }}
         >
-            <Flex direction="column" justify="space-between" height="100%" px={forceCompact ? 1 : { sm: 1, md: 3 }}>
+            <Flex direction="column" justify="space-between" height="100%" px={forceCompact ? 1 : { sm: 1, md: 2 }}>
                 <VStack spacing={4} align={forceCompact ? 'center' : { sm: 'center', md: 'start' }} w="full">
                     {loading ? (
                         <Spinner size="sm" />
@@ -127,7 +131,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                         mr={2}
                                     />
                                 )}
-                                <Text fontSize="lg" fontWeight="bold">{communityInfo?.title}</Text>
+                                <Text fontSize="lg" fontWeight="bold" letterSpacing="-0.03em">{communityInfo?.title}</Text>
                             </Flex>
                             {/* Icon only for compact view */}
                             <Box display={compactBreakpoint} mb={4} w="40px" h="40px">
@@ -156,7 +160,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 leftIcon={<Icon as={FiHome} boxSize={4} />}
                                 px={3}
                                 mt={4}
-                                borderRadius="md"
+                                borderRadius="18px"
+                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Home</Text>
                             </Button>
@@ -171,7 +176,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiBook} boxSize={4} />}
                                 px={3}
-                                borderRadius="md"
+                                borderRadius="18px"
+                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Blog</Text>
                             </Button>
@@ -186,7 +192,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiRadio} boxSize={4} />}
                                 px={3}
-                                borderRadius="md"
+                                borderRadius="18px"
+                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>OpenPods</Text>
                             </Button>
@@ -215,7 +222,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                             )
                                         }
                                         px={3}
-                                        borderRadius="md"
+                                        borderRadius="18px"
+                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Notifications</Text>
                                     </Button>
@@ -242,7 +250,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                             )
                                         }
                                         px={3}
-                                        borderRadius="md"
+                                        borderRadius="18px"
+                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Profile</Text>
                                     </Button>
@@ -257,7 +266,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                         justifyContent={iconJustify}
                                         leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                                         px={3}
-                                        borderRadius="md"
+                                        borderRadius="18px"
+                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Wallet</Text>
                                     </Button>
@@ -272,10 +282,10 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                         justifyContent={iconJustify}
                                         leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
                                         px={3}
-                                        borderRadius="md"
+                                        borderRadius="18px"
                                         bg={isChatOpen ? 'blue.500' : 'transparent'}
                                         color={isChatOpen ? 'white' : 'inherit'}
-                                        _hover={{ bg: isChatOpen ? 'blue.600' : 'gray.100' }}
+                                        _hover={{ bg: isChatOpen ? 'blue.600' : 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Chat</Text>
                                     </Button>
@@ -296,7 +306,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={isLoggedIn ? FiLogOut : FiLogIn} boxSize={4} />}
                                 px={3}
-                                borderRadius="md"
+                                borderRadius="18px"
                             >
                                 <Text display={textDisplay}>{isLoggedIn ? 'Logout' : 'Login'}</Text>
                             </Button>
@@ -314,7 +324,8 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiInfo} boxSize={4} />}
                                 px={3}
-                                borderRadius="md"
+                                borderRadius="18px"
+                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>About</Text>
                             </Button>

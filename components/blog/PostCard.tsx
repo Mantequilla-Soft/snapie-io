@@ -56,16 +56,19 @@ export default function PostCard({ post }: PostCardProps) {
 
     return (
         <Box
-            boxShadow={'lg'}
+            boxShadow="md"
             border="tb1"
-            borderRadius="base"
+            borderRadius="26px"
             overflow="hidden"
-            bg="muted"
+            bg="rgba(8, 24, 40, 0.72)"
             p={4}
             display="flex"
             flexDirection="column"
             justifyContent="space-between"
             height="100%"
+            backdropFilter="blur(16px)"
+            transition="all 0.18s ease"
+            _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg', borderColor: 'rgba(102, 228, 255, 0.34)' }}
         >
             <Flex justifyContent="space-between" alignItems="center">
                 <Flex alignItems="center">
@@ -109,7 +112,7 @@ export default function PostCard({ post }: PostCardProps) {
                                     <Image
                                         src={url}
                                         alt={title}
-                                        borderRadius="base"
+                                        borderRadius="22px"
                                         objectFit="cover"
                                         w="100%"
                                         h="100%"

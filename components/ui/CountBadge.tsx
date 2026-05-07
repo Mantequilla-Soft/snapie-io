@@ -16,12 +16,15 @@ export function CountBadge({ count, colorScheme = 'green', top = '2px', right = 
             right={right}
             colorScheme={colorScheme}
             borderRadius="full"
-            minW="18px"
-            h="18px"
+            minW="20px"
+            h="20px"
             display="flex"
             alignItems="center"
             justifyContent="center"
             fontSize="xs"
+            boxShadow="0 0 18px rgba(24, 168, 255, 0.45)"
+            border="1px solid"
+            borderColor="rgba(255,255,255,0.45)"
         >
             {count > 99 ? '99+' : count}
         </Badge>

@@ -285,36 +285,47 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     }
 
     return (
-        <Box bg="muted" p={4} mb={1} borderRadius="base" border="tb1">
+        <Box
+            bg="rgba(8, 24, 40, 0.76)"
+            p={4}
+            mb={3}
+            borderRadius="30px"
+            border="tb1"
+            boxShadow="lg"
+            backdropFilter="blur(18px)"
+        >
             <Textarea
                 placeholder={!user ? "Please log in to post..." : "What's happening?"}
-                bg="background"
-                border="tb1"
-                borderRadius={'base'}
+                bg="rgba(4, 16, 29, 0.72)"
+                border="1px solid"
+                borderColor="rgba(102, 228, 255, 0.14)"
+                borderRadius="24px"
                 mb={3}
                 ref={postBodyRef}
-                _placeholder={{ color: 'text' }}
+                minH="92px"
+                _placeholder={{ color: 'rgba(232, 244, 255, 0.68)' }}
+                _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(24, 168, 255, 0.42), 0 0 34px rgba(24, 168, 255, 0.16)' }}
                 isDisabled={!user || isLoading}
                 onKeyDown={handleKeyDown} // Attach the keydown handler
             />
             <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
                 <HStack flexShrink={1} minW={0}>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
+                    <Button borderRadius="full" bg="rgba(255,255,255,0.04)" _hover={{ bg: 'rgba(24, 168, 255, 0.12)', color: 'accent' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
                         <FaImage size={22} />
                         <ImageUploader onUpload={handleImageSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
+                    <Button borderRadius="full" bg="rgba(255,255,255,0.04)" _hover={{ bg: 'rgba(24, 168, 255, 0.12)', color: 'accent' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}>
                         <MdGif size={48} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button borderRadius="full" bg="rgba(255,255,255,0.04)" _hover={{ bg: 'rgba(24, 168, 255, 0.12)', color: 'accent' }} _active={{ border: 'tb1' }} as="label" variant="ghost" isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaVideo size={22} />
                         <VideoUploader onUpload={handleVideoSelection} />
                     </Button>
-                    <Button _hover={{ border: 'tb1' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
+                    <Button borderRadius="full" bg="rgba(255,255,255,0.04)" _hover={{ bg: 'rgba(24, 168, 255, 0.12)', color: 'accent' }} _active={{ border: 'tb1' }} variant="ghost" onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}>
                         <FaMicrophone size={22} />
                     </Button>
                 </HStack>
-                <Button variant="solid" colorScheme="primary" onClick={handleComment} isDisabled={isDisabled || Boolean(selectedVideo && !videoEmbedUrl)} flexShrink={0} size={{ base: 'sm', md: 'md' }}>
+                <Button variant="solid" colorScheme="primary" onClick={handleComment} isDisabled={isDisabled || Boolean(selectedVideo && !videoEmbedUrl)} flexShrink={0} size={{ base: 'sm', md: 'md' }} borderRadius="full" px={8}>
                     {isLoading ? <Spinner size="sm" /> : imagesStillUploading ? "Uploading..." : (!user ? "Log in to post" : buttonText)}
                 </Button>
             </HStack>

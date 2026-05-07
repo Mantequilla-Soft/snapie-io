@@ -5,21 +5,21 @@ export const hackerTheme = extendTheme({
     initialColorMode: 'dark', // set 'light' or 'dark' as the default color mode
     useSystemColorMode: false,
     colors: {
-        background: '#0f0f0f', // Black background, typical of hacker aesthetics
-        text: '#00FF00', // Bright green text, reminiscent of terminal output
-        primary: '#00FF00', // Bright green for primary actions
-        secondary: '#333333', // Dark gray for secondary elements
-        accent: '#FFD700', // Gold for accentuating certain elements
-        muted: '#1a1a1a', // Slightly lighter black for muted elements
-        border: '#00FF00', // Green for borders to maintain the hacker vibe
-        error: '#FF4136', // Bright red for errors
-        success: '#2ECC40', // Green for success messages
-        warning: '#FF851B', // Orange for warnings
+        background: '#06111f',
+        text: '#E8F4FF',
+        primary: '#18A8FF',
+        secondary: '#0D2238',
+        accent: '#66E4FF',
+        muted: '#0B1A2C',
+        border: '#173A5C',
+        error: '#FF5C7A',
+        success: '#42E7A2',
+        warning: '#FFC857',
     },
     fonts: {
-        heading: '"Courier New", monospace', // Monospace font for headings
-        body: '"Courier New", monospace', // Monospace font for body text
-        mono: '"Courier New", monospace', // Monospace for code-like elements
+        heading: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        body: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        mono: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
     },
     fontSizes: {
         xs: '12px',
@@ -48,8 +48,15 @@ export const hackerTheme = extendTheme({
         taller: '2',
     },
     borders: {
-        tb1: '1px solid #00FF00', // Bright green border for a hacker aesthetic
-        borderRadius: '4px', // Slightly less rounded corners for a sharper look
+        tb1: '1px solid rgba(102, 228, 255, 0.18)',
+        borderRadius: '22px',
+    },
+    radii: {
+        base: '22px',
+        md: '18px',
+        lg: '24px',
+        xl: '30px',
+        full: '9999px',
     },
     space: {
         px: '1px',
@@ -97,24 +104,24 @@ export const hackerTheme = extendTheme({
         },
     },
     shadows: {
-        xs: '0 0 2px 0 rgba(0, 255, 0, 0.5)',
-        sm: '0 1px 2px 0 rgba(0, 255, 0, 0.5)',
-        base: '0 1px 3px 0 rgba(0, 255, 0, 0.5), 0 1px 2px 0 rgba(0, 255, 0, 0.3)',
-        md: '0 4px 6px -1px rgba(0, 255, 0, 0.5), 0 2px 4px -1px rgba(0, 255, 0, 0.3)',
-        lg: '0 10px 15px -3px rgba(0, 255, 0, 0.5), 0 4px 6px -2px rgba(0, 255, 0, 0.3)',
-        xl: '0 20px 25px -5px rgba(0, 255, 0, 0.5), 0 10px 10px -5px rgba(0, 255, 0, 0.3)',
-        '2xl': '0 25px 50px -12px rgba(0, 255, 0, 0.7)',
-        outline: '0 0 0 3px rgba(0, 255, 0, 0.6)',
-        inner: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.8)',
+        xs: '0 0 0 1px rgba(102, 228, 255, 0.12)',
+        sm: '0 10px 28px rgba(0, 0, 0, 0.22)',
+        base: '0 18px 44px rgba(0, 0, 0, 0.28)',
+        md: '0 18px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(24, 168, 255, 0.08)',
+        lg: '0 24px 60px rgba(0, 0, 0, 0.38), 0 0 34px rgba(24, 168, 255, 0.12)',
+        xl: '0 30px 80px rgba(0, 0, 0, 0.42), 0 0 50px rgba(24, 168, 255, 0.16)',
+        '2xl': '0 36px 100px rgba(0, 0, 0, 0.48), 0 0 70px rgba(24, 168, 255, 0.18)',
+        outline: '0 0 0 3px rgba(24, 168, 255, 0.34)',
+        inner: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         none: 'none',
-        'dark-lg': 'rgba(0, 255, 0, 0.5) 0px 10px 15px -3px, rgba(0, 255, 0, 0.3) 0px 4px 6px -2px',
+        'dark-lg': '0 24px 60px rgba(0, 0, 0, 0.42)',
     },
     components: {
         Button: {
             baseStyle: {
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                borderRadius: 'base',
+                fontWeight: '700',
+                borderRadius: 'full',
+                letterSpacing: '-0.01em',
             },
             sizes: {
                 sm: {
@@ -130,23 +137,25 @@ export const hackerTheme = extendTheme({
             },
             variants: {
                 solid: {
-                    bg: 'primary',
-                    color: 'background',
+                    bg: 'linear-gradient(135deg, #18A8FF 0%, #0D7CFF 100%)',
+                    color: 'white',
+                    boxShadow: '0 12px 28px rgba(24, 168, 255, 0.28)',
                     _hover: {
-                        bg: 'accent',
+                        filter: 'brightness(1.08)',
+                        transform: 'translateY(-1px)',
                     },
                 },
                 outline: {
                     borderColor: 'primary',
                     color: 'primary',
                     _hover: {
-                        bg: 'muted',
+                        bg: 'rgba(24, 168, 255, 0.10)',
                     },
                 },
                 ghost: {
-                    color: 'primary',
+                    color: 'text',
                     _hover: {
-                        bg: 'muted',
+                        bg: 'rgba(24, 168, 255, 0.10)',
                     },
                 },
             },

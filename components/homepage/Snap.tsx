@@ -172,13 +172,21 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     return (
         <Box pl={level > 0 ? 1 : 0} ml={level > 0 ? 2 : 0}>
             <Box
-                bg="muted"
+                bg="rgba(8, 24, 40, 0.72)"
                 p={4}
-                mt={1}
-                mb={1}
+                mt={3}
+                mb={3}
                 border="tb1"
-                borderRadius="base"  // This will apply the borderRadius from your theme
+                borderRadius="30px"
                 width="100%"
+                boxShadow="md"
+                backdropFilter="blur(16px)"
+                transition="all 0.18s ease"
+                _hover={{
+                    borderColor: 'rgba(102, 228, 255, 0.34)',
+                    boxShadow: 'lg',
+                    transform: 'translateY(-1px)',
+                }}
             >
                 <HStack mb={2}>
                     <Avatar 

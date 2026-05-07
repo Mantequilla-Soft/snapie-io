@@ -100,11 +100,18 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const handleVideoOrientation = (event: MessageEvent) => {
       // Check if message is from 3speak player
       if (event.data?.type !== '3speak-player-ready') return;
-      
+
+      const skipIframe = (iframe: HTMLIFrameElement) =>
+        Boolean(
+          iframe.closest('[data-snapie-media-layout]') ||
+            iframe.closest('[data-blog-post-body]')
+        );
+
       // Check if we've already mapped this event source to an iframe
       const linkedIframe = iframeBySource.get(event.source as Window);
-      
+
       if (linkedIframe) {
+        if (skipIframe(linkedIframe)) return;
         // Already matched this window → iframe pair, style once only
         if (!styledIframes.has(linkedIframe)) {
           styleIframe(linkedIframe, event.data);
@@ -112,18 +119,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }
         return; // Done - no need to search through all iframes
       }
-      
+
       // First time seeing this event source - find matching iframe
       const iframes = document.querySelectorAll<HTMLIFrameElement>(
         'iframe[src*="play.3speak.tv"]'
       );
-      
+
       iframes.forEach((iframe) => {
         try {
           if (iframe.contentWindow === event.source) {
+            if (skipIframe(iframe)) return;
             // Cache this window → iframe mapping
             iframeBySource.set(event.source as Window, iframe);
-            
+
             // Style if not already styled
             if (!styledIframes.has(iframe)) {
               styleIframe(iframe, event.data);

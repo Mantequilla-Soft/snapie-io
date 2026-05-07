@@ -74,12 +74,13 @@ export default function Home() {
   });
 
   return (
-    <Flex direction={{ base: 'column', md: 'row' }}>
+    <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 4 }} px={{ base: 0, md: 4 }}>
       <Box
         h="100vh"
         overflowY="auto"
-        px={2}
+        px={{ base: 2, md: 3 }}
         flex="1"
+        minW={0}
         sx={
           {
             '&::-webkit-scrollbar': {
