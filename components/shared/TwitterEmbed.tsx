@@ -4,14 +4,15 @@ import { memo, useRef, useState, useEffect } from 'react';
 
 const TwitterEmbed = memo(function TwitterEmbed({ tweetId }: { tweetId: string }) {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const [height, setHeight] = useState(400);
+    const [height, setHeight] = useState(600);
 
     useEffect(() => {
         const handle = (e: MessageEvent) => {
             if (!e.data || e.source !== iframeRef.current?.contentWindow) return;
             try {
                 const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
-                const h = d?.height ?? d?.data?.params?.height;
+                // Twitter sends { params: { height } } or { data: { params: { height } } }
+                const h = d?.height ?? d?.params?.height ?? d?.data?.params?.height ?? d?.data?.height;
                 if (typeof h === 'number' && h > 50) setHeight(h + 2);
             } catch { /* ignore malformed messages */ }
         };
