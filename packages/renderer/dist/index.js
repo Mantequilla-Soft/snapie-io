@@ -178,13 +178,14 @@ function transform3SpeakContent(content) {
   const embeddedVideos = /* @__PURE__ */ new Set();
   const embeddedAudios = /* @__PURE__ */ new Set();
   content = fixMalformedCenterTags(content);
+  const SPEAK_VIDEO_ALLOW = 'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"';
   content = content.replace(
     /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
     (match, fullUrl, videoId) => {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-      return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+      return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
     }
   );
   content = content.replace(
@@ -193,7 +194,7 @@ function transform3SpeakContent(content) {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-      return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+      return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
     }
   );
   content = content.replace(
@@ -202,7 +203,7 @@ function transform3SpeakContent(content) {
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-      return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+      return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
     }
   );
   content = content.replace(

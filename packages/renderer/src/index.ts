@@ -170,6 +170,9 @@ function transform3SpeakContent(content: string): string {
     // Fix malformed center tags first
     content = fixMalformedCenterTags(content);
 
+    // Permissions required by the 3Speak player; Brave enforces these strictly without explicit allow=.
+    const SPEAK_VIDEO_ALLOW = 'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"';
+
     // Handle LEGACY 3speak.tv URLs (without play. subdomain)
     content = content.replace(
         /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
@@ -177,7 +180,7 @@ function transform3SpeakContent(content: string): string {
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-            return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+            return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
         }
     );
 
@@ -188,7 +191,7 @@ function transform3SpeakContent(content: string): string {
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-            return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+            return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
         }
     );
 
@@ -199,7 +202,7 @@ function transform3SpeakContent(content: string): string {
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
-            return `<div class="video-container"><iframe src="${embedUrl}" allowfullscreen loading="lazy"></iframe></div>`;
+            return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
         }
     );
 
