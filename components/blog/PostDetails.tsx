@@ -64,7 +64,8 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
         html = html.replace(
             /<div class="video-container">\s*<iframe[^>]*src="https?:\/\/play\.3speak\.tv\/[^"]*[?&]v=([^&"]+)[^"]*"[^>]*>\s*<\/iframe>\s*<\/div>/gi,
             (_match, vParam: string) => {
-                const decoded = decodeURIComponent(vParam);
+                let decoded: string;
+                try { decoded = decodeURIComponent(vParam); } catch { decoded = vParam; }
                 const slash = decoded.indexOf('/');
                 if (slash < 1) return _match;
                 const videoAuthor = decoded.slice(0, slash);
@@ -158,10 +159,10 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
             <Box mt={4} data-blog-post-body sx={bodySx}>
                 {bodySegments.map((seg, i) => {
                     if (seg.type === 'audio') {
-                        return <SnapieSpeakAudio key={seg.url} playUrl={seg.url} />;
+                        return <SnapieSpeakAudio key={`${seg.url}-${i}`} playUrl={seg.url} />;
                     }
                     if (seg.type === 'speak-video') {
-                        return <ThreeSpeakVideoPlayer key={`${seg.author}/${seg.permlink}`} author={seg.author} permlink={seg.permlink} />;
+                        return <ThreeSpeakVideoPlayer key={`${seg.author}/${seg.permlink}-${i}`} author={seg.author} permlink={seg.permlink} />;
                     }
                     return <Box key={`html-${i}`} dangerouslySetInnerHTML={{ __html: seg.html }} />;
                 })}
