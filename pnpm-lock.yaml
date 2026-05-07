@@ -53,6 +53,9 @@ importers:
       '@livekit/components-react':
         specifier: ^2.9.20
         version: 2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1)
+      '@mantequilla-soft/3speak-player':
+        specifier: ^0.3.2
+        version: 0.3.2(react@18.3.1)
       '@snapie/composer':
         specifier: workspace:*
         version: link:packages/composer
@@ -758,6 +761,14 @@ packages:
 
   '@livekit/protocol@1.44.0':
     resolution: {integrity: sha512-/vfhDUGcUKO8Q43r6i+5FrDhl5oZjm/X3U4x2Iciqvgn5C8qbj+57YPcWSJ1kyIZm5Cm6AV2nAPjMm3ETD/iyg==}
+
+  '@mantequilla-soft/3speak-player@0.3.2':
+    resolution: {integrity: sha512-pSmjqLlC+6/nIY8mhluVFS3XrNhLSKDJzDGcHg6ixVWDbKHe2rDHPX5chHrZnfqydojsnOUoeLOzCXkRmxBxbw==}
+    peerDependencies:
+      react: '>=17.0.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   '@metamask/json-rpc-engine@10.2.4':
     resolution: {integrity: sha512-voOnrTtkTwF2zcyNx2auFvZY9QTK7dADsE9xaCXO9tGpvfTEI3GIVyUryYay8t/lUiz5nhHGublTkhwntgvRHQ==}
@@ -2148,6 +2159,9 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
+
+  hls.js@1.6.16:
+    resolution: {integrity: sha512-VSIRpLfRwlAAdGL4wiTucx2ScRipo0ed1FBatWkyt832jC4CReKstga6yIhYVwGu9LOBjuX9wzmRMeQdBJtzEA==}
 
   hmac-drbg@1.0.1:
     resolution: {integrity: sha512-Tti3gMqLdZfhOQY1Mzf/AanLiqh1WTiJgEj26ZuYQ9fbkLomzGchCws4FyrSd4VkpBfiNhaE1On+lOz894jvXg==}
@@ -4297,6 +4311,12 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 1.10.1
 
+  '@mantequilla-soft/3speak-player@0.3.2(react@18.3.1)':
+    dependencies:
+      hls.js: 1.6.16
+    optionalDependencies:
+      react: 18.3.1
+
   '@metamask/json-rpc-engine@10.2.4':
     dependencies:
       '@metamask/rpc-errors': 7.0.3
@@ -5846,6 +5866,8 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+
+  hls.js@1.6.16: {}
 
   hmac-drbg@1.0.1:
     dependencies:

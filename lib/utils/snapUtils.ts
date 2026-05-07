@@ -377,6 +377,8 @@ export function inferEmbedAspectFromIframeSrc(src: string): EmbedAspect | undefi
  * Parse media content and return array of MediaItem objects
  * This handles markdown images, iframes, IPFS URLs
  */
+const SPEAK_VIDEO_ALLOW = 'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"';
+
 export const parseMediaContent = (mediaContent: string): MediaItem[] => {
   const mediaItems: MediaItem[] = [];
 
@@ -432,7 +434,7 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
           const embedUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe&captions=0&layout=desktop`;
           mediaItems.push({
             type: "iframe",
-            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
+            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe>`,
             src: embedUrl,
             embedAspect: "16/9",
           });
@@ -450,7 +452,7 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
           const embedUrl = `https://play.3speak.tv/watch?v=${videoIdMatch[1]}&mode=iframe&captions=0&layout=desktop`;
           mediaItems.push({
             type: "iframe",
-            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
+            content: `<iframe src="${embedUrl}" width="100%" frameborder="0" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe>`,
             src: embedUrl,
             embedAspect: "16/9",
           });
@@ -472,7 +474,7 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
         embedUrl = fix3SpeakUrl(embedUrl);
         mediaItems.push({
           type: "iframe",
-          content: `<iframe src="${embedUrl}" width="100%" frameborder="0" allowfullscreen></iframe>`,
+          content: `<iframe src="${embedUrl}" width="100%" frameborder="0" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe>`,
           src: embedUrl,
           embedAspect: "16/9",
         });
