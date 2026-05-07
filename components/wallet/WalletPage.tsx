@@ -124,7 +124,7 @@ export default function WalletPage({ username }: WalletPageProps) {
         case 'Power Up':
           await powerUpWithKeychain(user, amount);
           break;
-        case 'Convert to HBD':
+        case 'Convert HIVE':
           await broadcastWithKeychain(user, [["convert", { "owner": user, "requestid": Math.floor(1000000000 + Math.random() * 9000000000), "amount": { "amount": amount.toFixed(3), "precision": 3, "nai": "@@000000013" } }]], 'active');
           break;
         case 'HIVE Savings':
@@ -408,7 +408,19 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Button size="sm" leftIcon={<FaArrowUp />} onClick={() => handleModalOpen('Power Up', 'Power Up your HIVE to HP')} variant="outline" colorScheme="purple">Power Up</Button>
                 <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen('Convert HIVE', 'Convert HIVE to HBD')} variant="outline" colorScheme="orange">Convert</Button>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen('HIVE Savings', 'Transfer to HIVE savings')} variant="outline" colorScheme="teal">To Savings</Button>
-                <Button size="sm" leftIcon={<FaShoppingCart />} onClick={() => router.push(`https://global.transak.com/?apiKey=771c8ab6-b3ba-4450-b69d-ca35e4b25eb8&redirectURL=${window.location.href}&cryptoCurrencyCode=HIVE&defaultCryptoAmount=200&exchangeScreenTitle=Buy%20HIVE&isFeeCalculationHidden=false&defaultPaymentMethod=credit_debit_card&walletAddress=${user}`)} variant="outline" colorScheme="green">Buy HIVE</Button>
+                <Button size="sm" leftIcon={<FaShoppingCart />} onClick={() => {
+                    const params = new URLSearchParams({
+                      apiKey: '771c8ab6-b3ba-4450-b69d-ca35e4b25eb8',
+                      redirectURL: window.location.href,
+                      cryptoCurrencyCode: 'HIVE',
+                      defaultCryptoAmount: '200',
+                      exchangeScreenTitle: 'Buy HIVE',
+                      isFeeCalculationHidden: 'false',
+                      defaultPaymentMethod: 'credit_debit_card',
+                      walletAddress: user ?? '',
+                    });
+                    router.push(`https://global.transak.com/?${params.toString()}`);
+                  }} variant="outline" colorScheme="green">Buy HIVE</Button>
               </Flex>
             )}
           </Box>

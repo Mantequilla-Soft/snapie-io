@@ -531,7 +531,12 @@ function NotificationRow({
 
   return (
     <Box>
-      <NotificationShell unread={hasUnread} onClick={() => setExpanded((v) => !v)}>
+      <NotificationShell
+        unread={hasUnread}
+        onClick={() => setExpanded((v) => !v)}
+        ariaExpanded={expanded}
+        ariaControls={`notif-group-${group.id}`}
+      >
         <AvatarStack actors={topActors} remaining={remainingActors} />
         <Box flex="1" minW={0}>
           <Text fontWeight="semibold">{label}</Text>
@@ -547,7 +552,7 @@ function NotificationRow({
         </Box>
       </NotificationShell>
       {expanded && (
-        <Stack spacing={2} mt={2} pl={{ base: 3, md: 10 }}>
+        <Stack id={`notif-group-${group.id}`} spacing={2} mt={2} pl={{ base: 3, md: 10 }}>
           {group.items.map((notification) => (
             <SingleNotificationRow
               key={notification.id}
@@ -596,16 +601,22 @@ function NotificationShell({
   unread,
   onClick,
   nested = false,
+  ariaExpanded,
+  ariaControls,
 }: {
   children: ReactNode;
   unread: boolean;
   onClick: () => void;
   nested?: boolean;
+  ariaExpanded?: boolean;
+  ariaControls?: string;
 }) {
   return (
     <HStack
       as="button"
       type="button"
+      aria-expanded={ariaExpanded}
+      aria-controls={ariaControls}
       textAlign="left"
       w="full"
       spacing={3}
