@@ -69,6 +69,12 @@ export default function PostPage({ author, permlink }: PostPageProps) {
       replies: [],
       parent_author: author,
       parent_permlink: permlink,
+      pending_payout_value: '0.000 HBD',
+      total_payout_value: '0.000 HBD',
+      curator_payout_value: '0.000 HBD',
+      net_votes: 0,
+      json_metadata: '{}',
+      title: '',
     } as unknown as Comment;
     data.addComment(optimistic);
     setTimeout(() => data.updateComments(), 3000);
