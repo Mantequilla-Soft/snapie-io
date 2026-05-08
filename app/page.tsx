@@ -26,7 +26,7 @@ export default function Home() {
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
-  const [newComment, setNewComment] = useState<Comment | null>(null); // Define the state
+  const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
   const [activeFilter, setActiveFilter] = useState<SnapFilterType>('community');
   const [communityName, setCommunityName] = useState<string>('Community');
 
@@ -59,8 +59,11 @@ export default function Home() {
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
 
-  const handleNewComment = (newComment: Partial<Comment> | CharacterData) => {
-    setNewComment(newComment as Comment);
+  const handleReply = (_partial: Partial<Comment>) => {
+    setTimeout(() => {
+      snaps.refresh?.();
+      setConversationRefreshTrigger(t => t + 1);
+    }, 3000);
   };
 
   const handleFilterChange = (filter: SnapFilterType) => {
@@ -105,15 +108,14 @@ export default function Home() {
             setConversation={setConversation}
             onOpen={onOpen}
             setReply={setReply}
-            newComment={newComment}
             data={{...snaps, refresh: snaps.refresh}}
           />
         ) : (
-          <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
+          <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
         )}
       </Box>
       <RightSidebar />
-      {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
+      {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
     </Flex>
   );
 }

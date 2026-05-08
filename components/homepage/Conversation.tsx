@@ -4,17 +4,23 @@ import { useComments } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
+import { useEffect } from 'react';
 
 interface ConversationProps {
     comment: Comment;
     setConversation: (conversation: Comment | undefined) => void;
     onOpen: () => void;
     setReply: (reply: Comment) => void;
+    refreshTrigger?: number;
 }
 
-const Conversation = ({ comment, setConversation, onOpen, setReply }: ConversationProps) => {
+const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigger }: ConversationProps) => {
     const { hiveUser } = useHiveUser();
-    const { comments, isLoading, error } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
+    const { comments, isLoading, error, updateComments } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
+
+    useEffect(() => {
+        if (refreshTrigger && refreshTrigger > 0) updateComments();
+    }, [refreshTrigger]);
     const replies = comments
 
     function handleReplyModal() {

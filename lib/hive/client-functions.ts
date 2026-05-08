@@ -680,6 +680,8 @@ export async function getPost(user: string, postId: string) {
 }
 
 export function getPayoutValue(post: any): string {
+  if (!post?.created) return "0.000";
+
   const createdDate = new Date(post.created);
   const now = new Date();
 
@@ -687,11 +689,9 @@ export function getPayoutValue(post: any): string {
   const timeDifferenceInDays = timeDifferenceInMs / (1000 * 60 * 60 * 24);
 
   if (timeDifferenceInDays >= 7) {
-    return post.total_payout_value.replace(" HBD", "");
-  } else if (timeDifferenceInDays < 7) {
-    return post.pending_payout_value.replace(" HBD", "");
+    return (post.total_payout_value ?? "0.000 HBD").replace(" HBD", "");
   } else {
-    return "0.000";
+    return (post.pending_payout_value ?? "0.000 HBD").replace(" HBD", "");
   }
 }
 
