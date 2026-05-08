@@ -48,6 +48,8 @@ export interface VideoUploadOptions {
     appName?: string;
     /** Progress callback */
     onProgress?: VideoProgressCallback;
+    /** Mark upload as a short-form video (default: true). Pass false for long-form blog posts. */
+    isShort?: boolean;
 }
 
 /**
@@ -75,7 +77,7 @@ export async function uploadVideoTo3Speak(
                 filename: file.name,
                 owner: options.owner,
                 frontend_app: options.appName ?? 'snapie',
-                short: 'true'
+                ...(options.isShort !== false && { short: 'true' })
             },
             headers: {
                 'X-API-Key': options.apiKey

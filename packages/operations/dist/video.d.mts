@@ -42,6 +42,8 @@ interface VideoUploadOptions {
     appName?: string;
     /** Progress callback */
     onProgress?: VideoProgressCallback;
+    /** Mark upload as a short-form video (default: true). Pass false for long-form blog posts. */
+    isShort?: boolean;
 }
 /**
  * Upload a video to 3Speak using TUS protocol
