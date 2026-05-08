@@ -26,6 +26,7 @@ export default function Home() {
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
+  const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
   const [activeFilter, setActiveFilter] = useState<SnapFilterType>('community');
   const [communityName, setCommunityName] = useState<string>('Community');
 
@@ -59,7 +60,10 @@ export default function Home() {
   const onClose = () => setIsOpen(false);
 
   const handleReply = (_partial: Partial<Comment>) => {
-    setTimeout(() => snaps.refresh?.(), 3000);
+    setTimeout(() => {
+      snaps.refresh?.();
+      setConversationRefreshTrigger(t => t + 1);
+    }, 3000);
   };
 
   const handleFilterChange = (filter: SnapFilterType) => {
@@ -107,7 +111,7 @@ export default function Home() {
             data={{...snaps, refresh: snaps.refresh}}
           />
         ) : (
-          <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
+          <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
         )}
       </Box>
       <RightSidebar />

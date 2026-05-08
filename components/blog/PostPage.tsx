@@ -30,6 +30,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
+  const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
 
   // Only fetch comments if NOT in embed mode
   const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode, hiveUser?.name);
@@ -81,7 +82,10 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   };
 
   const handleReply = (_partial: Partial<Comment>) => {
-    setTimeout(() => data.updateComments(), 3000);
+    setTimeout(() => {
+      data.updateComments();
+      setConversationRefreshTrigger(t => t + 1);
+    }, 3000);
   };
 
   if (isLoading || (!post || !author || !permlink)) {
@@ -109,7 +113,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
           />
         </>
       ) : !isEmbedMode && conversation ? (
-        <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
+        <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
       ) : null}
       {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
     </Box>
