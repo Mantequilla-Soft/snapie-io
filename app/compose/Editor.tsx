@@ -4,7 +4,7 @@ import { FC, useRef, useState, useCallback, useEffect } from "react";
 import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
-import { uploadVideoTo3Speak, extractVideoThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
+import { uploadVideoWithThumbnail, uploadToIPFS } from '@snapie/operations/video';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { processSpoilers } from '@/lib/utils/SpoilerRenderer';
@@ -226,7 +226,6 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
     const [videoUploadProgress, setVideoUploadProgress] = useState(0);
     const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
-    const [thumbnailProcessing, setThumbnailProcessing] = useState(false);
     const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
@@ -389,59 +388,37 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 toast({ title: 'File Too Large', description: 'Maximum video size is 500 MB.', status: 'error', duration: 3000, isClosable: true });
                 return;
             }
-            setSelectedVideo(file);
-            setVideoUploadProgress(1);
-            setThumbnailProcessing(true);
             const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
             if (!apiKey) {
                 toast({ title: 'Config Error', description: '3Speak API key not configured.', status: 'error', duration: 3000, isClosable: true });
-                setSelectedVideo(null);
-                setVideoUploadProgress(0);
-                setThumbnailProcessing(false);
                 return;
             }
+            setSelectedVideo(file);
+            setVideoUploadProgress(1);
             try {
-                const [videoResult, thumbnailBlob] = await Promise.allSettled([
-                    uploadVideoTo3Speak(file, {
-                        apiKey,
-                        owner: user,
-                        appName: 'snapie',
-                        isShort: false,
-                        onProgress: (progress) => setVideoUploadProgress(progress),
-                    }),
-                    extractVideoThumbnail(file).catch(() => null),
-                ]);
-                if (videoResult.status === 'fulfilled') {
-                    const url = videoResult.value.embedUrl;
-                    setVideoEmbedUrl(url);
-                    onVideoEmbedUrlChange?.(url);
-                    toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
-                    if (thumbnailBlob.status === 'fulfilled' && thumbnailBlob.value && user) {
+                const result = await uploadVideoWithThumbnail(file, {
+                    apiKey,
+                    owner: user,
+                    appName: 'snapie',
+                    isShort: false,
+                    onProgress: (progress) => setVideoUploadProgress(progress),
+                    uploadThumbnail: async (blob) => {
                         try {
-                            let thumbUrl: string;
-                            try {
-                                const thumbFile = new File([thumbnailBlob.value], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
-                                thumbUrl = await uploadImageWithKeychain(thumbFile, user);
-                            } catch {
-                                thumbUrl = await uploadToIPFS(thumbnailBlob.value);
-                            }
-                            if (videoResult.value.videoId) {
-                                await set3SpeakThumbnail(videoResult.value.videoId, thumbUrl, apiKey);
-                            }
-                        } catch (err) {
-                            console.warn('Thumbnail upload failed (video still works):', err);
+                            const thumbFile = new File([blob], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
+                            return await uploadImageWithKeychain(thumbFile, user);
+                        } catch {
+                            return uploadToIPFS(blob);
                         }
-                    }
-                } else {
-                    throw videoResult.reason;
-                }
+                    },
+                });
+                setVideoEmbedUrl(result.embedUrl);
+                onVideoEmbedUrlChange?.(result.embedUrl);
+                toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
             } catch (error) {
                 console.error('Video upload failed:', error);
                 toast({ title: 'Video Upload Failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 4000, isClosable: true });
                 setSelectedVideo(null);
                 setVideoUploadProgress(0);
-            } finally {
-                setThumbnailProcessing(false);
             }
         };
         input.click();
@@ -895,7 +872,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                             <Box>
                                                 <Progress value={videoUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
                                                 <Text fontSize="xs" mt={1} color="gray.500">
-                                                    {thumbnailProcessing ? 'Processing...' : `${videoUploadProgress}% uploaded`}
+                                                    {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
                                                 </Text>
                                             </Box>
                                         )}
