@@ -30,14 +30,13 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
-  const [newComment, setNewComment] = useState<Comment | null>(null); // Define the state
 
   // Only fetch comments if NOT in embed mode
   const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode, hiveUser?.name);
   const commentsData = {
-    ...data, 
-    loadNextPage: () => {}, 
-    hasMore: false,         
+    ...data,
+    loadNextPage: () => {},
+    hasMore: false,
   };
 
   useEffect(() => {
@@ -59,8 +58,24 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
 
-  const handleNewComment = (newComment: Partial<Comment> | CharacterData) => {
-    setNewComment(newComment as Comment); // Type assertion
+  const handleTopLevelComment = (partial: Partial<Comment>) => {
+    const optimistic = {
+      author: partial.author ?? '',
+      permlink: partial.permlink ?? `optimistic-${Date.now()}`,
+      body: partial.body ?? '',
+      created: new Date().toISOString(),
+      active_votes: [],
+      children: 0,
+      replies: [],
+      parent_author: author,
+      parent_permlink: permlink,
+    } as unknown as Comment;
+    data.addComment(optimistic);
+    setTimeout(() => data.updateComments(), 3000);
+  };
+
+  const handleReply = (_partial: Partial<Comment>) => {
+    setTimeout(() => data.updateComments(), 3000);
   };
 
   if (isLoading || (!post || !author || !permlink)) {
@@ -76,14 +91,13 @@ export default function PostPage({ author, permlink }: PostPageProps) {
       <PostDetails post={post} isEmbedMode={isEmbedMode} />
       {!isEmbedMode && !conversation ? (
         <>
-          <SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} post={true} onClose={() => {}} />
+          <SnapComposer pa={author} pp={permlink} onNewComment={handleTopLevelComment} post={true} onClose={() => {}} />
           <SnapList
             author={author}
             permlink={permlink}
             setConversation={setConversation}
             onOpen={onOpen}
             setReply={setReply}
-            newComment={newComment}
             post={true}
             data={commentsData}
           />
@@ -91,7 +105,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
       ) : !isEmbedMode && conversation ? (
         <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} />
       ) : null}
-      {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleNewComment} />}
+      {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
     </Box>
   );
 }

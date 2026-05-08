@@ -12,7 +12,6 @@ interface SnapListProps {
   setConversation: (conversation: ExtendedComment) => void;
   onOpen: () => void;
   setReply: (reply: ExtendedComment) => void;
-  newComment: ExtendedComment | null;
   post?: boolean;
   data: InfiniteScrollData
 }
@@ -32,10 +31,9 @@ export default function SnapList(
     setConversation,
     onOpen,
     setReply,
-    newComment,
     post,
     data
-}: SnapListProps) {  
+}: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, refresh } = data
 
   const handleNewComment = () => {
@@ -50,8 +48,6 @@ export default function SnapList(
   comments.sort((a: ExtendedComment, b: ExtendedComment) => {
     return new Date(b.created).getTime() - new Date(a.created).getTime();
   });
-  // Handle new comment addition
-  //const updatedComments = newComment ? [newComment, ...comments] : comments;
 
   if (isLoading && comments.length === 0) {
     // Initial loading state
