@@ -1,8 +1,10 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text } from '@chakra-ui/react';
-import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt } from 'react-icons/fa';
+import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
+import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
+import AudioRecorder from '@/components/homepage/AudioRecorder';
+import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { processSpoilers } from '@/lib/utils/SpoilerRenderer';
@@ -207,9 +209,11 @@ interface EditorProps {
   lockedAccounts?: string[];
   onSubmit: () => void;
   isSubmitting?: boolean;
+  onVideoEmbedUrlChange?: (url: string | null) => void;
+  onAudioEmbedUrlChange?: (url: string | null) => void;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -217,6 +221,16 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [spoilerStates, setSpoilerStates] = useState<{[key: string]: boolean}>({});
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Video/audio state
+    const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+    const [videoUploadProgress, setVideoUploadProgress] = useState(0);
+    const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
+    const [videoId, setVideoId] = useState<string | null>(null);
+    const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
+    const [isUpdatingThumbnail, setIsUpdatingThumbnail] = useState(false);
+    const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
+    const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
     // Aioha for image signing
     const { user } = useAioha();
@@ -359,6 +373,109 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     // Handle emoji selection using SDK
     const handleEmojiClick = (emoji: string) => {
         toolbar.emoji(emoji);
+    };
+
+    // Handle video selection and upload to 3Speak (not marked as short)
+    const handleVideoClick = () => {
+        if (!user) {
+            toast({ title: 'Not Logged In', description: 'Please log in to upload videos.', status: 'error', duration: 3000, isClosable: true });
+            return;
+        }
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'video/mp4,video/webm,video/quicktime';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            if (file.size > 500 * 1024 * 1024) {
+                toast({ title: 'File Too Large', description: 'Maximum video size is 500 MB.', status: 'error', duration: 3000, isClosable: true });
+                return;
+            }
+            const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
+            if (!apiKey) {
+                toast({ title: 'Config Error', description: '3Speak API key not configured.', status: 'error', duration: 3000, isClosable: true });
+                return;
+            }
+            setSelectedVideo(file);
+            setVideoUploadProgress(1);
+            try {
+                const result = await uploadVideoWithThumbnail(file, {
+                    apiKey,
+                    owner: user,
+                    appName: 'snapie',
+                    isShort: false,
+                    onProgress: (progress) => setVideoUploadProgress(progress),
+                    uploadThumbnail: async (blob) => {
+                        try {
+                            const thumbFile = new File([blob], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
+                            return await uploadImageWithKeychain(thumbFile, user);
+                        } catch {
+                            return uploadToIPFS(blob);
+                        }
+                    },
+                });
+                setVideoEmbedUrl(result.embedUrl);
+                setVideoId(result.videoId);
+                setVideoThumbnailUrl(result.thumbnailUrl ?? null);
+                onVideoEmbedUrlChange?.(result.embedUrl);
+                toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
+            } catch (error) {
+                console.error('Video upload failed:', error);
+                toast({ title: 'Video Upload Failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 4000, isClosable: true });
+                setSelectedVideo(null);
+                setVideoUploadProgress(0);
+            }
+        };
+        input.click();
+    };
+
+    const handleRemoveVideo = () => {
+        setSelectedVideo(null);
+        setVideoEmbedUrl(null);
+        setVideoId(null);
+        setVideoThumbnailUrl(null);
+        setVideoUploadProgress(0);
+        onVideoEmbedUrlChange?.(null);
+    };
+
+    const handleThumbnailChange = () => {
+        if (!videoId || !user) return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
+            setIsUpdatingThumbnail(true);
+            try {
+                const compressed = await compressImage(file);
+                let thumbUrl: string;
+                try {
+                    thumbUrl = await uploadImageWithKeychain(compressed, user);
+                } catch {
+                    thumbUrl = await uploadToIPFS(compressed);
+                }
+                await set3SpeakThumbnail(videoId, thumbUrl, apiKey);
+                setVideoThumbnailUrl(thumbUrl);
+                toast({ title: 'Thumbnail updated', status: 'success', duration: 2000, isClosable: true });
+            } catch (error) {
+                toast({ title: 'Thumbnail update failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 3000, isClosable: true });
+            } finally {
+                setIsUpdatingThumbnail(false);
+            }
+        };
+        input.click();
+    };
+
+    const handleAudioRecorded = (playUrl: string) => {
+        setAudioEmbedUrl(playUrl);
+        onAudioEmbedUrlChange?.(playUrl);
+    };
+
+    const handleRemoveAudio = () => {
+        setAudioEmbedUrl(null);
+        onAudioEmbedUrlChange?.(null);
     };
 
     // Handle image upload
@@ -681,6 +798,26 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 onClick={handleImageClick}
                                 color="white"
                             />
+                            <IconButton
+                                aria-label="Upload Video"
+                                icon={<FaVideo />}
+                                size="xs"
+                                variant="ghost"
+                                onClick={handleVideoClick}
+                                color="white"
+                                isDisabled={!!selectedVideo || !!videoEmbedUrl}
+                                title="Upload video to 3Speak"
+                            />
+                            <IconButton
+                                aria-label="Record Audio"
+                                icon={<FaMicrophone />}
+                                size="xs"
+                                variant="ghost"
+                                onClick={() => setAudioRecorderOpen(true)}
+                                color="white"
+                                isDisabled={!!audioEmbedUrl}
+                                title="Record or upload audio"
+                            />
                         </Box>
                         <Box {...getRootProps()} position="relative" flex="1">
                             <input {...getInputProps()} />
@@ -746,6 +883,83 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         </Box>
                         </Box>
                         
+                        {/* Media Attachments */}
+                        {(selectedVideo || audioEmbedUrl) && (
+                            <VStack spacing={2} align="stretch">
+                                {selectedVideo && (
+                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                        <HStack justify="space-between" mb={2}>
+                                            <HStack spacing={2}>
+                                                <FaVideo />
+                                                <Text fontSize="sm" fontWeight="medium" isTruncated maxW="220px">{selectedVideo.name}</Text>
+                                            </HStack>
+                                            <HStack spacing={2}>
+                                                {videoEmbedUrl && <Text fontSize="xs" color="green.400">✓ Ready</Text>}
+                                                <IconButton
+                                                    aria-label="Remove video"
+                                                    icon={<FaTimes />}
+                                                    size="xs"
+                                                    variant="ghost"
+                                                    onClick={handleRemoveVideo}
+                                                    isDisabled={videoUploadProgress > 0 && !videoEmbedUrl}
+                                                />
+                                            </HStack>
+                                        </HStack>
+                                        {videoUploadProgress > 0 && !videoEmbedUrl && (
+                                            <Box>
+                                                <Progress value={videoUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                                                <Text fontSize="xs" mt={1} color="gray.500">
+                                                    {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
+                                                </Text>
+                                            </Box>
+                                        )}
+                                        {videoEmbedUrl && (
+                                            <HStack spacing={3} mt={1}>
+                                                {videoThumbnailUrl && (
+                                                    <Image
+                                                        src={videoThumbnailUrl}
+                                                        alt="Video thumbnail"
+                                                        boxSize="64px"
+                                                        objectFit="cover"
+                                                        borderRadius="md"
+                                                        flexShrink={0}
+                                                    />
+                                                )}
+                                                <Button
+                                                    size="xs"
+                                                    variant="outline"
+                                                    leftIcon={<FaImage />}
+                                                    onClick={handleThumbnailChange}
+                                                    isLoading={isUpdatingThumbnail}
+                                                    loadingText="Updating..."
+                                                >
+                                                    {videoThumbnailUrl ? 'Change thumbnail' : 'Set thumbnail'}
+                                                </Button>
+                                            </HStack>
+                                        )}
+                                    </Box>
+                                )}
+                                {audioEmbedUrl && (
+                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                        <HStack justify="space-between">
+                                            <HStack spacing={2}>
+                                                <FaMicrophone />
+                                                <Text fontSize="sm" fontWeight="medium">Audio Recording</Text>
+                                                <Text fontSize="xs" color="green.400">✓ Ready</Text>
+                                            </HStack>
+                                            <IconButton
+                                                aria-label="Remove audio"
+                                                icon={<FaTimes />}
+                                                size="xs"
+                                                variant="ghost"
+                                                onClick={handleRemoveAudio}
+                                            />
+                                        </HStack>
+                                    </Box>
+                                )}
+                            </VStack>
+                        )}
+
                         {/* Hashtag Section */}
                         <Box
                             border="1px solid"
@@ -855,6 +1069,16 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 )}
             </Flex>
             
+            {/* Audio Recorder Modal */}
+            {user && (
+                <AudioRecorder
+                    isOpen={isAudioRecorderOpen}
+                    onClose={() => setAudioRecorderOpen(false)}
+                    onAudioRecorded={handleAudioRecorded}
+                    username={user}
+                />
+            )}
+
             {/* Giphy Selector Modal */}
             <Modal isOpen={isGiphyModalOpen} onClose={() => setGiphyModalOpen(false)} size="lg">
                 <ModalOverlay />

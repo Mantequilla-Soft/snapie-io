@@ -44,14 +44,14 @@ async function uploadVideoTo3Speak(file, options) {
     let embedUrl = null;
     const upload = new tus.Upload(file, {
       endpoint: "https://embed.3speak.tv/uploads",
-      chunkSize: 10 * 1024 * 1024,
-      // 10MB chunks for reliable large file uploads
+      chunkSize: 20 * 1024 * 1024,
+      // 20MB chunks — halves round-trips vs 10MB
       retryDelays: [0, 3e3, 5e3, 1e4, 2e4],
       metadata: {
         filename: file.name,
         owner: options.owner,
         frontend_app: options.appName ?? "snapie",
-        short: "true"
+        ...options.isShort !== false && { short: "true" }
       },
       headers: {
         "X-API-Key": options.apiKey

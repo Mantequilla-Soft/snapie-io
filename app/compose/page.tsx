@@ -43,6 +43,8 @@ export default function Home() {
       : [{ account: 'snapie', weight: 300 }]
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null)
+  const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null)
 
   // Sync state when search params change (e.g., same-route navigation from recording upload)
   useEffect(() => {
@@ -78,6 +80,16 @@ export default function Home() {
 
   const removeHashtag = (index: number) => {
     setHashtags(hashtags.filter((_, i) => i !== index))
+  }
+
+  function handleVideoEmbedUrlChange(url: string | null) {
+    setVideoEmbedUrl(url)
+    setBeneficiaries(prev => {
+      const without3speak = prev.filter(b => b.account !== 'threespeakfund')
+      if (!url) return without3speak
+      return [...without3speak, { account: 'threespeakfund', weight: 800 }]
+        .sort((a, b) => a.account.localeCompare(b.account))
+    })
   }
 
   async function handleSubmit() {
@@ -143,13 +155,18 @@ export default function Home() {
     setIsSubmitting(true)
 
     try {
+      // Append video/audio embed URLs to body so they render as embeds in the post
+      let postBody = markdown
+      if (videoEmbedUrl) postBody = `${postBody}\n\n${videoEmbedUrl}`
+      if (audioEmbedUrl) postBody = `${postBody}\n\n${audioEmbedUrl}`
+
       // Prepare image array for metadata (first image becomes thumbnail)
-      const imageArray = prepareImageArray(markdown)
-      
+      const imageArray = prepareImageArray(postBody)
+
       // Use SDK to build operations
       const composerResult = blogComposer.build({
         author: username,
-        body: markdown,
+        body: postBody,
         title: title,
         parentAuthor: '',
         parentPermlink: communityTag,
@@ -188,6 +205,8 @@ export default function Home() {
         setHashtags([])
         setHashtagInput('')
         setBeneficiaries([{ account: 'snapie', weight: 300 }]) // Reset to default
+        setVideoEmbedUrl(null)
+        setAudioEmbedUrl(null)
 
         // Redirect to post after delay (allow Hive node propagation)
         setTimeout(() => {
@@ -242,10 +261,10 @@ export default function Home() {
         p="1"
         overflow="hidden" // Prevent internal scrolling
       >
-        <Editor 
-          markdown={markdown} 
-          setMarkdown={setMarkdown} 
-          title={title} 
+        <Editor
+          markdown={markdown}
+          setMarkdown={setMarkdown}
+          title={title}
           setTitle={setTitle}
           hashtagInput={hashtagInput}
           setHashtagInput={setHashtagInput}
@@ -253,9 +272,17 @@ export default function Home() {
           setHashtags={setHashtags}
           beneficiaries={beneficiaries}
           setBeneficiaries={setBeneficiaries}
-          lockedAccounts={isHangout ? ['snapie', 'threespeakfund'] : undefined}
+          lockedAccounts={
+            isHangout
+              ? ['snapie', 'threespeakfund']
+              : videoEmbedUrl
+                ? ['threespeakfund']
+                : undefined
+          }
           onSubmit={handleSubmit}
           isSubmitting={isSubmitting}
+          onVideoEmbedUrlChange={handleVideoEmbedUrlChange}
+          onAudioEmbedUrlChange={setAudioEmbedUrl}
         />
       </Flex>
     </Flex>
