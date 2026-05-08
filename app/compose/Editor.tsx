@@ -1,10 +1,10 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack } from '@chakra-ui/react';
+import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
-import { uploadVideoWithThumbnail, uploadToIPFS } from '@snapie/operations/video';
+import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { processSpoilers } from '@/lib/utils/SpoilerRenderer';
@@ -226,6 +226,9 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
     const [videoUploadProgress, setVideoUploadProgress] = useState(0);
     const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
+    const [videoId, setVideoId] = useState<string | null>(null);
+    const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
+    const [isUpdatingThumbnail, setIsUpdatingThumbnail] = useState(false);
     const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
@@ -412,6 +415,8 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     },
                 });
                 setVideoEmbedUrl(result.embedUrl);
+                setVideoId(result.videoId);
+                setVideoThumbnailUrl(result.thumbnailUrl ?? null);
                 onVideoEmbedUrlChange?.(result.embedUrl);
                 toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
             } catch (error) {
@@ -427,8 +432,40 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const handleRemoveVideo = () => {
         setSelectedVideo(null);
         setVideoEmbedUrl(null);
+        setVideoId(null);
+        setVideoThumbnailUrl(null);
         setVideoUploadProgress(0);
         onVideoEmbedUrlChange?.(null);
+    };
+
+    const handleThumbnailChange = () => {
+        if (!videoId || !user) return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (!file) return;
+            const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
+            setIsUpdatingThumbnail(true);
+            try {
+                const compressed = await compressImage(file);
+                let thumbUrl: string;
+                try {
+                    thumbUrl = await uploadImageWithKeychain(compressed, user);
+                } catch {
+                    thumbUrl = await uploadToIPFS(compressed);
+                }
+                await set3SpeakThumbnail(videoId, thumbUrl, apiKey);
+                setVideoThumbnailUrl(thumbUrl);
+                toast({ title: 'Thumbnail updated', status: 'success', duration: 2000, isClosable: true });
+            } catch (error) {
+                toast({ title: 'Thumbnail update failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 3000, isClosable: true });
+            } finally {
+                setIsUpdatingThumbnail(false);
+            }
+        };
+        input.click();
     };
 
     const handleAudioRecorded = (playUrl: string) => {
@@ -851,10 +888,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             <VStack spacing={2} align="stretch">
                                 {selectedVideo && (
                                     <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
-                                        <HStack justify="space-between" mb={videoUploadProgress > 0 && videoUploadProgress < 100 ? 2 : 0}>
+                                        <HStack justify="space-between" mb={2}>
                                             <HStack spacing={2}>
                                                 <FaVideo />
-                                                <Text fontSize="sm" fontWeight="medium" isTruncated maxW="250px">{selectedVideo.name}</Text>
+                                                <Text fontSize="sm" fontWeight="medium" isTruncated maxW="220px">{selectedVideo.name}</Text>
                                             </HStack>
                                             <HStack spacing={2}>
                                                 {videoEmbedUrl && <Text fontSize="xs" color="green.400">✓ Ready</Text>}
@@ -875,6 +912,30 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                                     {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
                                                 </Text>
                                             </Box>
+                                        )}
+                                        {videoEmbedUrl && (
+                                            <HStack spacing={3} mt={1}>
+                                                {videoThumbnailUrl && (
+                                                    <Image
+                                                        src={videoThumbnailUrl}
+                                                        alt="Video thumbnail"
+                                                        boxSize="64px"
+                                                        objectFit="cover"
+                                                        borderRadius="md"
+                                                        flexShrink={0}
+                                                    />
+                                                )}
+                                                <Button
+                                                    size="xs"
+                                                    variant="outline"
+                                                    leftIcon={<FaImage />}
+                                                    onClick={handleThumbnailChange}
+                                                    isLoading={isUpdatingThumbnail}
+                                                    loadingText="Updating..."
+                                                >
+                                                    {videoThumbnailUrl ? 'Change thumbnail' : 'Set thumbnail'}
+                                                </Button>
+                                            </HStack>
                                         )}
                                     </Box>
                                 )}
