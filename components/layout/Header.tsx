@@ -1,7 +1,6 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { Box, Flex, Text, Button, Image, Stack, useColorMode, useToast } from '@chakra-ui/react';
-import { useRouter } from 'next/navigation';
+import { Box, Flex, Text, Button, Image, useColorMode, useToast } from '@chakra-ui/react';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
@@ -15,7 +14,6 @@ export default function Header() {
     const { openLoginModal } = useLoginModal();
     const isLoggedIn = !!user;
     const toast = useToast();
-    const router = useRouter();
 
     const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
@@ -87,14 +85,9 @@ export default function Header() {
                         Logout ({user})
                     </Button>
                 ) : (
-                    <Stack spacing={1} align="flex-end">
-                        <Button onClick={openLoginModal}>
-                            Login
-                        </Button>
-                        <Button variant="link" size="xs" onClick={() => router.push('/join')}>
-                            Create account
-                        </Button>
-                    </Stack>
+                    <Button onClick={openLoginModal}>
+                        Login
+                    </Button>
                 )}
             </Flex>
         </Box>

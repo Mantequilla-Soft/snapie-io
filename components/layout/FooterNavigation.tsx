@@ -3,7 +3,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { useRouter } from 'next/navigation';
-import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio } from 'react-icons/fi';
+import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
@@ -231,18 +231,32 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                         </Tooltip>
                     </>
                 ) : (
-                    <Tooltip label="Login" aria-label="Login tooltip">
-                        <Button
-                            onClick={openLoginModal}
-                            variant="ghost"
-                            color="white"
-                            size="sm"
-                            minW="40px"
-                            borderRadius="full"
-                            _hover={{ bg: 'whiteAlpha.200' }}
-                            leftIcon={<Icon as={FiLogIn} boxSize={4} />}
-                        />
-                    </Tooltip>
+                    <>
+                        <Tooltip label="Login" aria-label="Login tooltip">
+                            <Button
+                                onClick={openLoginModal}
+                                variant="ghost"
+                                color="white"
+                                size="sm"
+                                minW="40px"
+                                borderRadius="full"
+                                _hover={{ bg: 'whiteAlpha.200' }}
+                                leftIcon={<Icon as={FiLogIn} boxSize={4} />}
+                            />
+                        </Tooltip>
+                        <Tooltip label="Create account" aria-label="Create account tooltip">
+                            <Button
+                                onClick={() => handleNavigation('/join')}
+                                variant="ghost"
+                                color="white"
+                                size="sm"
+                                minW="40px"
+                                borderRadius="full"
+                                _hover={{ bg: 'whiteAlpha.200' }}
+                                leftIcon={<Icon as={FiUserPlus} boxSize={4} />}
+                            />
+                        </Tooltip>
+                    </>
                 )}
             </HStack>
             </Box>
