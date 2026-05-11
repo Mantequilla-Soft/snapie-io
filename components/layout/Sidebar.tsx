@@ -5,7 +5,7 @@ import { CountBadge } from '@/components/ui/CountBadge';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo } from 'react-icons/fi';
+import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus } from 'react-icons/fi';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
@@ -312,6 +312,24 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             </Button>
                         </Box>
                     </Tooltip>
+                    {!isLoggedIn && (
+                        <Tooltip label="Create account" placement="right" hasArrow isDisabled={!isCompactMode}>
+                            <Box w="full">
+                                <Button
+                                    onClick={() => router.push('/join')}
+                                    variant="ghost"
+                                    w="full"
+                                    justifyContent={iconJustify}
+                                    leftIcon={<Icon as={FiUserPlus} boxSize={4} />}
+                                    px={3}
+                                    borderRadius="18px"
+                                    _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                >
+                                    <Text display={textDisplay}>Create account</Text>
+                                </Button>
+                            </Box>
+                        </Tooltip>
+                    )}
                     <Tooltip label="About Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
