@@ -50,6 +50,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
   const [mode, setMode] = useState<Mode>('loading');
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     const decoded = decodeAccountData(code);
@@ -67,6 +68,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
       setMode('needLogin');
       return;
     }
+    setMode('loading');
     let cancelled = false;
     (async () => {
       try {
@@ -93,7 +95,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
     return () => {
       cancelled = true;
     };
-  }, [data, hiveUser?.name]);
+  }, [data, hiveUser?.name, reloadTick]);
 
   const broadcast = async (variant: Variant) => {
     if (!data || !hiveUser?.name) return;
@@ -290,7 +292,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
             <AlertIcon />
             <Text fontSize="sm">{error || 'Something went wrong.'}</Text>
           </Box>
-          <Button size="sm" onClick={() => setMode('ready')}>
+          <Button size="sm" onClick={() => setReloadTick((n) => n + 1)}>
             Try again
           </Button>
         </Alert>

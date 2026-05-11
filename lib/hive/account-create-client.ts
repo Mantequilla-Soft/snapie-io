@@ -104,6 +104,7 @@ WARNING
 export interface DownloadBackupCallbacks {
   onClipboardFallback?: () => void;
   onDownload?: () => void;
+  onError?: () => void;
 }
 
 export function downloadBackupFile(
@@ -116,19 +117,33 @@ export function downloadBackupFile(
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   const isIOSInApp = /iPhone|iPad|iPod/.test(ua) && !/Safari\//.test(ua);
 
+  const tryDownload = (): boolean => {
+    try {
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hive-${username}-keys.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      callbacks.onDownload?.();
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   if (isIOSInApp && navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(content).then(() => callbacks.onClipboardFallback?.());
+    navigator.clipboard
+      .writeText(content)
+      .then(() => callbacks.onClipboardFallback?.())
+      .catch(() => {
+        if (!tryDownload()) callbacks.onError?.();
+      });
     return;
   }
 
-  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hive-${username}-keys.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  callbacks.onDownload?.();
+  if (!tryDownload()) callbacks.onError?.();
 }

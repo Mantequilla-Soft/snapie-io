@@ -35,11 +35,14 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
   const toast = useToast();
   const [qrExpanded, setQrExpanded] = useState(false);
 
-  const copyLink = () => {
+  const copyLink = async () => {
     if (!link) return;
-    navigator.clipboard.writeText(link).then(() => {
+    try {
+      await navigator.clipboard.writeText(link);
       toast({ title: 'Link copied', status: 'success', duration: 1500, isClosable: true });
-    });
+    } catch {
+      toast({ title: 'Could not copy link', status: 'error', duration: 2500, isClosable: true });
+    }
   };
 
   const nativeShare = async () => {

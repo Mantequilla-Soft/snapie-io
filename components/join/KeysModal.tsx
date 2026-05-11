@@ -38,10 +38,13 @@ const ROLES: Array<{
 export default function KeysModal({ isOpen, onClose, keys }: KeysModalProps) {
   const toast = useToast();
 
-  const copy = (text: string, label: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const copy = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
       toast({ title: `${label} copied`, status: 'success', duration: 1500, isClosable: true });
-    });
+    } catch {
+      toast({ title: `Could not copy ${label.toLowerCase()}`, status: 'error', duration: 2500, isClosable: true });
+    }
   };
 
   return (

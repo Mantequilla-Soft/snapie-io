@@ -56,6 +56,7 @@ export default function CreateAccountForm() {
   const [isAvailable, setIsAvailable] = useState(false);
   const [hasBeenValid, setHasBeenValid] = useState(false);
   const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const checkRequestIdRef = useRef(0);
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -82,9 +83,11 @@ export default function CreateAccountForm() {
 
   const onUsernameChange = useCallback((raw: string) => {
     const cleaned = raw.toLowerCase().trim();
+    const requestId = ++checkRequestIdRef.current;
     setUsername(cleaned);
     setIsAvailable(false);
     setUsernameError(null);
+    setKeys(null);
     setBackupDownloaded(false);
     setAcceptedBackup(false);
 
@@ -102,6 +105,7 @@ export default function CreateAccountForm() {
     checkTimeoutRef.current = setTimeout(async () => {
       try {
         const available = await checkAccountAvailability(cleaned);
+        if (requestId !== checkRequestIdRef.current) return;
         if (!available) {
           setUsernameError('Username already taken');
           setIsAvailable(false);
@@ -110,9 +114,10 @@ export default function CreateAccountForm() {
           setHasBeenValid(true);
         }
       } catch {
+        if (requestId !== checkRequestIdRef.current) return;
         setUsernameError('Could not check availability — try again');
       } finally {
-        setIsChecking(false);
+        if (requestId === checkRequestIdRef.current) setIsChecking(false);
       }
     }, DEBOUNCE_MS);
   }, []);
@@ -129,10 +134,13 @@ export default function CreateAccountForm() {
     setAcceptedBackup(false);
   };
 
-  const copyPassword = () => {
-    navigator.clipboard.writeText(password).then(() => {
+  const copyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(password);
       toast({ title: 'Password copied', status: 'success', duration: 1500, isClosable: true });
-    });
+    } catch {
+      toast({ title: 'Could not copy password', status: 'error', duration: 2500, isClosable: true });
+    }
   };
 
   const onDownloadBackup = () => {
@@ -151,6 +159,15 @@ export default function CreateAccountForm() {
       onDownload: () => {
         setBackupDownloaded(true);
         toast({ title: 'Backup downloaded', status: 'success', duration: 1500, isClosable: true });
+      },
+      onError: () => {
+        toast({
+          title: 'Could not save backup',
+          description: 'Open the keys panel and copy each key manually before continuing.',
+          status: 'error',
+          duration: 6000,
+          isClosable: true,
+        });
       },
     });
   };
@@ -172,8 +189,11 @@ export default function CreateAccountForm() {
   useEffect(() => {
     if (!polling || !username) return;
     let cancelled = false;
+    let inFlight = false;
 
     const check = async () => {
+      if (cancelled || inFlight) return;
+      inFlight = true;
       try {
         const accounts = await HiveClient.database.getAccounts([username]);
         if (cancelled) return;
@@ -190,6 +210,8 @@ export default function CreateAccountForm() {
         }
       } catch {
         // network blip — keep trying
+      } finally {
+        inFlight = false;
       }
     };
 
@@ -290,7 +312,7 @@ export default function CreateAccountForm() {
             leftIcon={<FaDownload />}
             variant="outline"
             onClick={onDownloadBackup}
-            isDisabled={locked}
+            isDisabled={locked || !isAvailable || !keys}
             color={backupDownloaded ? 'green.400' : 'orange.300'}
             borderColor={backupDownloaded ? 'green.400' : 'orange.400'}
           >
