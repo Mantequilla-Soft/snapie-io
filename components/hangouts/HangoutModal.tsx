@@ -112,26 +112,10 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
   }, [router, user, buildComposeUrl, onClose]);
 
   const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
-    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
-    triggerBlobDownload(file.blob, filename);
-
-    if (user) {
-      try {
-        const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
-        const result = await uploadAudioTo3Speak(file.blob, file.duration, user);
-        if (result.success && result.playUrl) {
-          router.push(buildComposeUrl(result.playUrl));
-        } else {
-          router.push(buildComposeUrl());
-        }
-      } catch {
-        router.push(buildComposeUrl());
-      }
-    } else {
-      router.push(buildComposeUrl());
-    }
+    triggerBlobDownload(file.blob, file.filename);
+    router.push(buildComposeUrl());
     onClose();
-  }, [router, user, buildComposeUrl, onClose]);
+  }, [router, buildComposeUrl, onClose]);
 
   return (
     <HangoutsRoom
