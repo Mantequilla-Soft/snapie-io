@@ -195,7 +195,24 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
               </Center>
             </div>
           ) : (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                '& > *': {
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                },
+                '& > * > *': {
+                  flex: 1,
+                  minHeight: 0,
+                },
+              }}
+            >
               <HangoutsProvider
                 apiBaseUrl={API_URL}
                 livekitServerUrl={LK_URL}
@@ -205,7 +222,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
               >
                 <RoomBody roomName={roomName} onClose={onClose} />
               </HangoutsProvider>
-            </div>
+            </Box>
           )}
         </div>
       </div>

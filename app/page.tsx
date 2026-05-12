@@ -9,6 +9,7 @@ import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
+import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
 import { useAioha } from '@aioha/react-ui';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 
@@ -93,7 +94,8 @@ export default function Home() {
           }
         }
         id='scrollableDiv'>
-        <FeedTabFilter 
+        <OpenPodsLiveStrip />
+        <FeedTabFilter
           activeFilter={activeFilter}
           onFilterChange={handleFilterChange}
           communityName={communityName}

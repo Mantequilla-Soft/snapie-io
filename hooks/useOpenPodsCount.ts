@@ -1,33 +1,37 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { HangoutsApiClient } from '@snapie/hangouts-react';
+import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL;
 const POLL_INTERVAL_MS = 30_000;
 
-// Module-level singleton — Sidebar and FooterNavigation share one interval
-// instead of each mounting their own.
-type Subscriber = (count: number) => void;
+// Module-level singleton — sidebar, footer nav, and the homepage strip all
+// subscribe to one shared interval instead of each mounting their own.
+type Subscriber = (rooms: Room[]) => void;
 const subscribers = new Set<Subscriber>();
-let currentCount = 0;
+let currentRooms: Room[] = [];
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
 function startPolling() {
     if (intervalId !== null) return;
-    const client = new HangoutsApiClient({ baseUrl: API_URL! });
+    if (!API_URL) {
+        console.error('[useLiveOpenPods] NEXT_PUBLIC_HANGOUTS_API_URL is not defined');
+        return;
+    }
+    const client = new HangoutsApiClient({ baseUrl: API_URL });
 
-    const fetchCount = () => {
+    const fetchRooms = () => {
         client
             .listRooms()
             .then((rooms) => {
-                currentCount = rooms.length;
-                subscribers.forEach((cb) => cb(currentCount));
+                currentRooms = rooms;
+                subscribers.forEach((cb) => cb(currentRooms));
             })
-            .catch((err) => console.error('[useOpenPodsCount] failed to fetch rooms:', err));
+            .catch((err) => console.error('[useLiveOpenPods] failed to fetch rooms:', err));
     };
 
-    fetchCount();
-    intervalId = setInterval(fetchCount, POLL_INTERVAL_MS);
+    fetchRooms();
+    intervalId = setInterval(fetchRooms, POLL_INTERVAL_MS);
 }
 
 function stopPolling() {
@@ -37,23 +41,24 @@ function stopPolling() {
     }
 }
 
-export function useOpenPodsCount(): number {
-    const [count, setCount] = useState(currentCount);
+export function useLiveOpenPods(): Room[] {
+    const [rooms, setRooms] = useState<Room[]>(currentRooms);
 
     useEffect(() => {
-        if (!API_URL) {
-            console.error('[useOpenPodsCount] NEXT_PUBLIC_HANGOUTS_API_URL is not defined');
-            return;
-        }
+        if (!API_URL) return;
 
-        subscribers.add(setCount);
+        subscribers.add(setRooms);
         if (subscribers.size === 1) startPolling();
 
         return () => {
-            subscribers.delete(setCount);
+            subscribers.delete(setRooms);
             if (subscribers.size === 0) stopPolling();
         };
     }, []);
 
-    return count;
+    return rooms;
+}
+
+export function useOpenPodsCount(): number {
+    return useLiveOpenPods().length;
 }

@@ -1,0 +1,90 @@
+
+> nextjs@0.1.0 dev
+> next dev -p 3310
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3310
+  - Environments: .env.local, .env
+
+ ✓ Starting...
+ ✓ Ready in 1643ms
+ ○ Compiling / ...
+request to https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3GUBHMdazTgWw.woff2 failed, reason: 
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3CUBHMdazTgWw.woff2 failed, reason: 
+
+Retrying 1/3...
+request to https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3KUBHMdazTgWw.woff2 failed, reason: 
+
+Retrying 1/3...
+ ✓ Compiled / in 17.8s (5421 modules)
+ GET / 200 in 18405ms
+ ○ Compiling /api/chat/unread ...
+ ✓ Compiled /api/chat/unread in 3.1s (3419 modules)
+ ✓ Compiled (3444 modules)
+ GET /api/chat/unread 200 in 3667ms
+ GET /favicon.ico 200 in 3864ms
+ GET /api/chat/unread 200 in 6ms
+ ○ Compiling /hangouts ...
+ ✓ Compiled /hangouts in 1082ms (5409 modules)
+ GET /api/chat/unread 200 in 9ms
+ GET /api/chat/unread 200 in 13ms
+ GET / 200 in 602ms
+ GET /api/chat/unread 200 in 16ms
+ GET /api/chat/unread 200 in 14ms
+ GET /api/chat/unread 200 in 10ms
+ ⨯ ./components/hangouts/HangoutModal.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/home/meno/Documents/menosoft/snapieio/snapie-io/components/hangouts/HangoutModal.tsx[0m:114:1]
+ [2m114[0m |   if (!isOpen) return null;
+ [2m115[0m | 
+ [2m116[0m |   return createPortal(
+ [2m117[0m |     <div
+     : [31;1m     ^^^[0m
+ [2m118[0m |       style={{
+ [2m119[0m |         position: 'fixed',
+ [2m120[0m |         inset: 0,
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./components/hangouts/HangoutModal.tsx
+./app/LayoutContent.tsx
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5s (5592 modules)
+ GET /hangouts 500 in 5491ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 573ms (3490 modules)
+ GET /favicon.ico 200 in 653ms
+ ✓ Compiled in 577ms (5621 modules)
+ ○ Compiling /[...slug] ...
+ ✓ Compiled /[...slug] in 3.6s (5833 modules)
+ GET /hangouts 200 in 4018ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /_next/static/webpack/1d57c5bb52b34d80.webpack.hot-update.json 200 in 4123ms
+ GET /favicon.ico 200 in 29ms
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 3ms
+ ✓ Compiled in 708ms (5833 modules)
+ GET /api/chat/unread 200 in 29ms
+ GET /hangouts 200 in 302ms
+ GET /favicon.ico 200 in 17ms
+ GET /api/chat/unread 200 in 7ms
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 9ms
+ GET /api/chat/unread 200 in 9ms
+ GET /api/chat/unread 200 in 12ms
+ GET /api/chat/unread 200 in 8ms
+ GET /api/chat/unread 200 in 11ms
+ GET /api/chat/unread 200 in 7ms
+ ✓ Compiled in 1413ms (5612 modules)
+ GET /api/chat/unread 200 in 42ms
+ GET /api/chat/unread 200 in 4ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 5ms
