@@ -88,3 +88,51 @@ Import trace for requested module:
  GET /api/chat/unread 200 in 4ms
  GET /api/chat/unread 200 in 6ms
  GET /api/chat/unread 200 in 5ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 9ms
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 7ms
+ GET /api/chat/unread 200 in 11ms
+ GET /api/chat/unread 200 in 9ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 8ms
+ ✓ Compiled in 1229ms (5612 modules)
+ GET /api/chat/unread 200 in 32ms
+ GET /api/chat/unread 200 in 8ms
+ GET /api/chat/unread 200 in 9ms
+ ✓ Compiled in 1150ms (5612 modules)
+ GET /api/chat/unread 200 in 12ms
+ GET /hangouts 200 in 409ms
+ ✓ Compiled /favicon.ico in 344ms (3490 modules)
+ GET /api/chat/unread 200 in 595ms
+ GET /favicon.ico 200 in 727ms
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 6ms
+ ○ Compiling /compose ...
+ ✓ Compiled /compose in 3.2s (5673 modules)
+ GET /api/chat/unread 200 in 12ms
+ GET /favicon.ico 200 in 20ms
+ GET /api/chat/unread 200 in 7ms
+ GET /api/chat/unread 200 in 8ms
+ ✓ Compiled in 1169ms (5644 modules)
+ GET /api/chat/unread 200 in 34ms
+ ✓ Compiled in 2.1s (5644 modules)
+ GET /api/chat/unread 200 in 8ms
+ ○ Compiling /[...slug] ...
+ ✓ Compiled /[...slug] in 1077ms (3670 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 200 in 1799ms
+ GET /api/chat/unread 200 in 15ms
+ GET /api/chat/unread 200 in 11ms
+ ✓ Compiled in 1095ms (5836 modules)
+ GET /api/chat/unread 200 in 11ms
+ GET /api/chat/unread 200 in 14ms
+ ✓ Compiled in 1283ms (5644 modules)
+ ✓ Compiled in 635ms (5644 modules)
+ GET /api/chat/unread 200 in 10ms
+ GET /api/chat/unread 200 in 6ms
+ GET /api/chat/unread 200 in 13ms
+ ✓ Compiled in 3.1s (5644 modules)
+ ✓ Compiled in 735ms (5644 modules)
+ ✓ Compiled in 665ms (5644 modules)

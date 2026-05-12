@@ -1,9 +1,9 @@
 'use client';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
-import { HangoutsProvider, HangoutsRoom, useHangoutsRoom } from '@snapie/hangouts-react';
+import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -60,18 +60,34 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
   const router = useRouter();
   const { user } = useAioha();
   const { roomMeta } = useHangoutsRoom();
+  const [roomData, setRoomData] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchRoom = async () => {
+      try {
+        const client = new HangoutsApiClient({ baseUrl: API_URL });
+        const rooms = await client.listRooms();
+        const room = rooms.find((r: any) => r.name === roomName);
+        if (room) {
+          setRoomData(room);
+        }
+      } catch (error) {
+        console.error('Failed to fetch room data:', error);
+      }
+    };
+    fetchRoom();
+  }, [roomName]);
 
   const buildComposeUrl = useCallback((audioUrl?: string) => {
     const params = new URLSearchParams({
       hangout: 'true',
       title: prettifyRoomName(roomName),
     });
-    const thumbnail = roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
-    console.log('🎥 Building compose URL', { roomName, backgroundImage: roomMeta?.backgroundImage, usingFallback: !roomMeta?.backgroundImage });
+    const thumbnail = roomData?.backgroundImage || roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
     params.set('thumbnail', thumbnail);
     if (audioUrl) params.set('audioUrl', audioUrl);
     return `/compose?${params.toString()}`;
-  }, [roomName, roomMeta?.backgroundImage]);
+  }, [roomName, roomData?.backgroundImage, roomMeta?.backgroundImage]);
 
   const handleAudioHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
     const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');

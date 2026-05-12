@@ -44,7 +44,7 @@ export default function Home() {
   )
   const [title, setTitle] = useState(isHangout ? hangoutTitle : "")
   const [hashtagInput, setHashtagInput] = useState("")
-  const [hashtags, setHashtags] = useState<string[]>(isHangout ? ['hangout', 'podcast'] : [])
+  const [hashtags, setHashtags] = useState<string[]>(isHangout ? ['openpod', 'hangout', 'podcast'] : [])
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryInputType[]>(
     isHangout
       ? [{ account: 'snapie', weight: 300 }, { account: 'threespeakfund', weight: 700 }]
@@ -59,7 +59,7 @@ export default function Home() {
     if (!isHangout) return
 
     setTitle(hangoutTitle)
-    setHashtags(['hangout', 'podcast'])
+    setHashtags(['openpod', 'hangout', 'podcast'])
     setBeneficiaries([
       { account: 'snapie', weight: 300 },
       { account: 'threespeakfund', weight: 700 },
