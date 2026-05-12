@@ -21,11 +21,11 @@ const blogComposer = createComposer({
 const HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
 
 function buildHangoutBody(audioUrl: string, thumbnail: string): string {
-  return `![Hangout Recording](${thumbnail})\n\n<center>\n\n### Listen to this hangout\n\n${audioUrl}\n\n[Play on 3Speak](${audioUrl})\n\n</center>\n\n---\n\n*Write a description of your hangout here...*`;
+  return `![OpenPod Recording](${thumbnail})\n\n<center>\n\n### Listen to this OpenPod\n\n${audioUrl}\n\n[Play on 3Speak](${audioUrl})\n\n</center>\n\n---\n\n*Write a description of your OpenPod here...*`;
 }
 
 function buildHangoutBodyAwaitingAudio(thumbnail: string): string {
-  return `![Hangout Recording](${thumbnail})\n\n*Write a description of your hangout here. Use the audio button below to attach your recording before publishing.*`;
+  return `![OpenPod Recording](${thumbnail})\n\n*Write a description of your OpenPod here. Use the audio button below to attach your recording before publishing.*`;
 }
 
 export default function Home() {

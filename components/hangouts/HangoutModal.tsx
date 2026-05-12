@@ -67,6 +67,7 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
       title: prettifyRoomName(roomName),
     });
     const thumbnail = roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
+    console.log('🎥 Building compose URL', { roomName, backgroundImage: roomMeta?.backgroundImage, usingFallback: !roomMeta?.backgroundImage });
     params.set('thumbnail', thumbnail);
     if (audioUrl) params.set('audioUrl', audioUrl);
     return `/compose?${params.toString()}`;
