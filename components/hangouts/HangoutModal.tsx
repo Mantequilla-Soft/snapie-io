@@ -58,29 +58,61 @@ interface RoomBodyProps {
 
 function RoomBody({ roomName, onClose }: RoomBodyProps) {
   const router = useRouter();
+  const { user } = useAioha();
   const { roomMeta } = useHangoutsRoom();
 
-  const buildComposeUrl = useCallback(() => {
+  const buildComposeUrl = useCallback((audioUrl?: string) => {
     const params = new URLSearchParams({
       hangout: 'true',
       title: prettifyRoomName(roomName),
     });
     const thumbnail = roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
     params.set('thumbnail', thumbnail);
+    if (audioUrl) params.set('audioUrl', audioUrl);
     return `/compose?${params.toString()}`;
   }, [roomName, roomMeta?.backgroundImage]);
 
-  const handleAudioHandoff = useCallback((file: { blob: Blob; filename: string; duration: number; size: number }) => {
+  const handleAudioHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
     triggerBlobDownload(file.blob, file.filename);
-    router.push(buildComposeUrl());
-    onClose();
-  }, [router, buildComposeUrl, onClose]);
 
-  const handleVideoHandoff = useCallback((file: { blob: Blob; filename: string; duration: number; size: number }) => {
-    triggerBlobDownload(file.blob, file.filename);
-    router.push(buildComposeUrl());
+    if (user) {
+      try {
+        const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
+        const result = await uploadAudioTo3Speak(file.blob, file.duration, user);
+        if (result.success && result.playUrl) {
+          router.push(buildComposeUrl(result.playUrl));
+        } else {
+          router.push(buildComposeUrl());
+        }
+      } catch {
+        router.push(buildComposeUrl());
+      }
+    } else {
+      router.push(buildComposeUrl());
+    }
     onClose();
-  }, [router, buildComposeUrl, onClose]);
+  }, [router, user, buildComposeUrl, onClose]);
+
+  const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
+    triggerBlobDownload(file.blob, file.filename);
+
+    if (user) {
+      try {
+        const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
+        const result = await uploadAudioTo3Speak(file.blob, file.duration, user);
+        if (result.success && result.playUrl) {
+          router.push(buildComposeUrl(result.playUrl));
+        } else {
+          router.push(buildComposeUrl());
+        }
+      } catch {
+        router.push(buildComposeUrl());
+      }
+    } else {
+      router.push(buildComposeUrl());
+    }
+    onClose();
+  }, [router, user, buildComposeUrl, onClose]);
 
   return (
     <HangoutsRoom
