@@ -148,6 +148,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
         }}
         data-hh-theme="dark"
         onClick={(e) => e.stopPropagation()}
@@ -174,31 +175,39 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
           ✕
         </button>
 
-        {error ? (
-          <Center flex={1} p={8}>
-            <VStack spacing={3}>
-              <Text color="red.400">Failed to authenticate: {error}</Text>
-              <Button variant="ghost" onClick={() => retryLogin(user ?? undefined).catch(() => {})}>Retry</Button>
-            </VStack>
-          </Center>
-        ) : needsTokenWait || sessionLoading ? (
-          <Center flex={1} p={8}>
-            <VStack spacing={3}>
-              <Spinner size="lg" color="primary" />
-              <Text fontSize="sm" color="primary" textAlign="center">{signPrompt}</Text>
-            </VStack>
-          </Center>
-        ) : (
-          <HangoutsProvider
-            apiBaseUrl={API_URL}
-            livekitServerUrl={LK_URL}
-            sessionToken={sessionToken ?? undefined}
-            username={user ?? undefined}
-            imageServerApiKey={IMAGE_SERVER_API_KEY}
-          >
-            <RoomBody roomName={roomName} onClose={onClose} />
-          </HangoutsProvider>
-        )}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          {error ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <Center flex={1} p={8}>
+                <VStack spacing={3}>
+                  <Text color="red.400">Failed to authenticate: {error}</Text>
+                  <Button variant="ghost" onClick={() => retryLogin(user ?? undefined).catch(() => {})}>Retry</Button>
+                </VStack>
+              </Center>
+            </div>
+          ) : needsTokenWait || sessionLoading ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <Center flex={1} p={8}>
+                <VStack spacing={3}>
+                  <Spinner size="lg" color="primary" />
+                  <Text fontSize="sm" color="primary" textAlign="center">{signPrompt}</Text>
+                </VStack>
+              </Center>
+            </div>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <HangoutsProvider
+                apiBaseUrl={API_URL}
+                livekitServerUrl={LK_URL}
+                sessionToken={sessionToken ?? undefined}
+                username={user ?? undefined}
+                imageServerApiKey={IMAGE_SERVER_API_KEY}
+              >
+                <RoomBody roomName={roomName} onClose={onClose} />
+              </HangoutsProvider>
+            </div>
+          )}
+        </div>
       </div>
     </div>,
     document.body
