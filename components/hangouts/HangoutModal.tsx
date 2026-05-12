@@ -1,11 +1,13 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
+import { createPortal } from 'react-dom';
+import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsRoom } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
-import { useHangoutsSession } from '@/hooks/useHangoutsSession';
+import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 
 import { IMAGE_SERVER_API_KEY } from '@/lib/env';
@@ -14,6 +16,18 @@ const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
 const FALLBACK_HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
+
+// Rooms created from these hosts share via Snapie's deep-link route so the
+// recipient lands inside their existing Snapie session. Anything else falls
+// back to the SDK default (standalone hangout.3speak.tv).
+const SNAPIE_HOSTS = new Set(['snapie.io', 'www.snapie.io']);
+
+function buildSnapieShareUrl(roomName: string, origin: string | undefined): string {
+  if (origin && SNAPIE_HOSTS.has(origin)) {
+    return `https://snapie.io/hangouts/${roomName}`;
+  }
+  return `https://hangout.3speak.tv/room/${roomName}`;
+}
 
 interface HangoutModalProps {
   isOpen: boolean;
@@ -69,64 +83,124 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
   }, [router, buildComposeUrl, onClose]);
 
   return (
-    <div data-hh-theme="dark" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <HangoutsRoom
-        roomName={roomName}
-        onLeave={onClose}
-        onAudioHandoff={handleAudioHandoff}
-        onVideoHandoff={handleVideoHandoff}
-        video
-        embedded
-        guestFallback
-        maxHeight="78vh"
-      />
-    </div>
+    <HangoutsRoom
+      roomName={roomName}
+      onLeave={onClose}
+      onAudioHandoff={handleAudioHandoff}
+      onVideoHandoff={handleVideoHandoff}
+      video
+      embedded
+      guestFallback
+      getShareUrl={buildSnapieShareUrl}
+    />
   );
 }
 
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
   useWakeLock(isOpen);
-  const { user } = useAioha();
-  const { sessionToken, isLoading, error, retryLogin } = useHangoutsSession(user ?? null, API_URL);
+  const { user, aioha } = useAioha();
+  const { sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
-  // Authenticated users must hold a session token before HangoutsProvider mounts.
-  // Without it, HangoutsRoom would fire its join() before the api-client receives
-  // the token and the server replies 401. Guests bypass this gate — `guestFallback`
-  // on HangoutsRoom auto-joins them as listen-only via the public `/listen`
-  // endpoint.
+  useEffect(() => {
+    if (isOpen && user && !sessionToken && !sessionLoading) {
+      retryLogin(user).catch(() => {});
+    }
+  }, [isOpen, user, sessionToken, sessionLoading, retryLogin]);
+
   const needsTokenWait = !!user && !sessionToken && !error;
+  const currentProvider = aioha?.getCurrentProvider?.() ?? null;
+  const signPrompt = providerSignPrompt(currentProvider);
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} size="2xl">
-      <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />
-      <ModalContent bg="background" color="text" borderColor="border" borderWidth="2px" maxH="85vh" overflow="hidden">
-        <ModalCloseButton zIndex={10} />
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.72)',
+          backdropFilter: 'blur(6px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1001,
+          width: 'min(96vw, 1280px)',
+          aspectRatio: '16 / 9',
+          maxHeight: '92vh',
+          background: 'var(--chakra-colors-background)',
+          color: 'var(--chakra-colors-text)',
+          borderRadius: '16px',
+          borderWidth: '1px',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+        data-hh-theme="dark"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            zIndex: 10,
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            color: 'var(--chakra-colors-text)',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
         {error ? (
-          <Center p={8}>
+          <Center flex={1} p={8}>
             <VStack spacing={3}>
               <Text color="red.400">Failed to authenticate: {error}</Text>
-              <Button variant="ghost" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
+              <Button variant="ghost" onClick={() => retryLogin(user ?? undefined).catch(() => {})}>Retry</Button>
             </VStack>
           </Center>
-        ) : needsTokenWait || isLoading ? (
-          <Center p={8}>
+        ) : needsTokenWait || sessionLoading ? (
+          <Center flex={1} p={8}>
             <VStack spacing={3}>
               <Spinner size="lg" color="primary" />
-              <Text fontSize="sm" color="primary">Authenticating with Hangouts...</Text>
+              <Text fontSize="sm" color="primary" textAlign="center">{signPrompt}</Text>
             </VStack>
           </Center>
         ) : (
           <HangoutsProvider
             apiBaseUrl={API_URL}
             livekitServerUrl={LK_URL}
-            sessionToken={sessionToken}
+            sessionToken={sessionToken ?? undefined}
             username={user ?? undefined}
             imageServerApiKey={IMAGE_SERVER_API_KEY}
           >
             <RoomBody roomName={roomName} onClose={onClose} />
           </HangoutsProvider>
         )}
-      </ModalContent>
-    </Modal>
+      </div>
+    </div>,
+    document.body
   );
 }
