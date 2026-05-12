@@ -73,7 +73,8 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
   }, [roomName, roomMeta?.backgroundImage]);
 
   const handleAudioHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
-    triggerBlobDownload(file.blob, file.filename);
+    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
+    triggerBlobDownload(file.blob, filename);
 
     if (user) {
       try {
@@ -94,7 +95,8 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
   }, [router, user, buildComposeUrl, onClose]);
 
   const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
-    triggerBlobDownload(file.blob, file.filename);
+    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
+    triggerBlobDownload(file.blob, filename);
 
     if (user) {
       try {
