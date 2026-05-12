@@ -28,7 +28,6 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
   const toast = useToast();
   const isCreating = useRef(false);
 
-  // Auth failed — show error with retry.
   if (error) {
     return (
       <Center p={12}>
@@ -55,10 +54,18 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
     );
   }
 
-  const handleRoomCreated = async (room: Room) => {
+  const handleRoomCreated = async (room: Room, options?: { notifyOnHive: boolean }) => {
     isCreating.current = true;
 
-    // Post the announcement snap BEFORE opening the room.
+    // Open the room immediately — the announcement runs in the background.
+    openRoom(room.name);
+
+    // Honor the host's "Announce on Hive" checkbox from the create dialog.
+    if (options && options.notifyOnHive === false) {
+      isCreating.current = false;
+      return;
+    }
+
     try {
       const { author: parentAuthor, permlink: parentPermlink } = await getLastSnapsContainer();
 
@@ -97,10 +104,9 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
         status: 'warning',
         duration: 5000,
       });
+    } finally {
+      isCreating.current = false;
     }
-
-    openRoom(room.name);
-    isCreating.current = false;
   };
 
   const handleJoinRoom = (name: string) => {
@@ -116,19 +122,36 @@ function LobbyWithAutoAuth({ user, sessionToken, isLoading, error, retryLogin }:
   );
 }
 
+function GuestLobby() {
+  const { openRoom } = useHangout();
+  return (
+    <RoomLobby
+      onJoinRoom={openRoom}
+      allowGuestBrowse
+    />
+  );
+}
+
 export default function HangoutsPage() {
   const { user } = useAioha();
   const { sessionToken, isLoading, error, retryLogin } = useHangoutsSession(user ?? null, API_URL);
 
-  // Not logged into Snapie — prompt to login.
+  // Unauthenticated visitors get a listen-only browse: they can see active
+  // rooms and drop into any room as a guest via the SDK's /listen endpoint.
   if (!user) {
     return (
       <div data-hh-theme="dark">
-        <Center p={12}>
-          <VStack spacing={3}>
-            <Text fontSize="xl" fontWeight="bold" color="text">Hive Hangouts</Text>
-            <Text color="primary">Log in to browse and create hangout rooms.</Text>
-          </VStack>
+        <HangoutsProvider
+          apiBaseUrl={API_URL}
+          livekitServerUrl={LK_URL}
+          imageServerApiKey={IMAGE_SERVER_API_KEY}
+        >
+          <GuestLobby />
+        </HangoutsProvider>
+        <Center p={6}>
+          <Text color="primary" fontSize="sm">
+            Sign in with Hive to host or speak.
+          </Text>
         </Center>
       </div>
     );
