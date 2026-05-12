@@ -14,20 +14,63 @@ import {
   VStack,
   HStack,
   IconButton,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
   useToast,
 } from '@chakra-ui/react';
-import { FaMicrophone, FaStop, FaTrash, FaPlay, FaPause } from 'react-icons/fa';
+import { FaMicrophone, FaStop, FaTrash, FaPlay, FaPause, FaUpload } from 'react-icons/fa';
 
 interface AudioRecorderProps {
   isOpen: boolean;
   onClose: () => void;
   onAudioRecorded: (audioUrl: string) => void;
   username: string;
+  maxDuration?: number;
 }
 
-const MAX_DURATION = 300; // 5 minutes in seconds
+const DEFAULT_MAX_DURATION = 300;
+// Server caps audio uploads at ~150 MB. We reject before posting so the user
+// gets a fast local error instead of a 413 round trip.
+const MAX_UPLOAD_SIZE = 150 * 1024 * 1024;
 
-export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, username }: AudioRecorderProps) {
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '--:--';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function probeAudioDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const audio = document.createElement('audio');
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => {
+      const d = Number.isFinite(audio.duration) ? audio.duration : 0;
+      URL.revokeObjectURL(url);
+      resolve(Math.round(d));
+    };
+    audio.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(0);
+    };
+    audio.src = url;
+  });
+}
+
+export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, username, maxDuration }: AudioRecorderProps) {
+  const MAX_DURATION = maxDuration ?? DEFAULT_MAX_DURATION;
+  const hasFiniteCap = Number.isFinite(MAX_DURATION);
+
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -35,11 +78,16 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadDuration, setUploadDuration] = useState<number>(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -71,8 +119,6 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
         setAudioBlob(blob);
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
-        
-        // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -80,11 +126,10 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
       setIsRecording(true);
       setDuration(0);
 
-      // Start timer
       timerRef.current = setInterval(() => {
         setDuration(prev => {
           const newDuration = prev + 1;
-          if (newDuration >= MAX_DURATION) {
+          if (hasFiniteCap && newDuration >= MAX_DURATION) {
             stopRecording();
           }
           return newDuration;
@@ -94,7 +139,6 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
     } catch (error) {
       console.error('Error accessing microphone:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
       toast({
         title: 'Microphone Access Denied',
         description: `Cannot access microphone: ${errorMessage}. If using Hive Keychain browser, try opening this site in Chrome/Brave instead. This may be a Keychain browser bug.`,
@@ -132,12 +176,10 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
 
   const togglePlayback = () => {
     if (!audioUrl) return;
-
     if (!audioPlayerRef.current) {
       audioPlayerRef.current = new Audio(audioUrl);
       audioPlayerRef.current.onended = () => setIsPlaying(false);
     }
-
     if (isPlaying) {
       audioPlayerRef.current.pause();
       setIsPlaying(false);
@@ -147,14 +189,12 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
     }
   };
 
-  const handleUpload = async () => {
-    if (!audioBlob) return;
-
+  const uploadAudio = async (blob: Blob, durationSec: number) => {
     setIsUploading(true);
     try {
       const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
-      const result = await uploadAudioTo3Speak(audioBlob, duration, username);
-      
+      const result = await uploadAudioTo3Speak(blob, durationSec, username);
+
       if (result.success && result.playUrl) {
         onAudioRecorded(result.playUrl);
         handleClose();
@@ -165,13 +205,13 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
           duration: 3000,
         });
       } else {
-        throw new Error('Upload failed');
+        throw new Error(result.error || 'Upload failed');
       }
     } catch (error) {
       console.error('Error uploading audio:', error);
       toast({
         title: 'Upload Error',
-        description: 'Failed to upload audio. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to upload audio. Please try again.',
         status: 'error',
         duration: 3000,
       });
@@ -180,99 +220,190 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
     }
   };
 
+  const handleRecordedUpload = () => {
+    if (audioBlob) uploadAudio(audioBlob, duration);
+  };
+
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setUploadError(null);
+
+    if (!file.type.startsWith('audio/')) {
+      setUploadError('Please pick an audio file.');
+      setUploadFile(null);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE) {
+      setUploadError(`File is too large (${formatBytes(file.size)}). Max size: ${formatBytes(MAX_UPLOAD_SIZE)}.`);
+      setUploadFile(null);
+      return;
+    }
+    const probed = await probeAudioDuration(file);
+    setUploadFile(file);
+    setUploadDuration(probed);
+  };
+
+  const handleFileUpload = () => {
+    if (uploadFile) uploadAudio(uploadFile, uploadDuration);
+  };
+
+  const clearUploadFile = () => {
+    setUploadFile(null);
+    setUploadDuration(0);
+    setUploadError(null);
+  };
+
   const handleClose = () => {
     if (isRecording) stopRecording();
     deleteRecording();
+    clearUploadFile();
     onClose();
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} isCentered size="md">
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>Record Audio Snap</ModalHeader>
+        <ModalHeader>Add Audio</ModalHeader>
         <ModalBody>
-          <VStack spacing={4} align="stretch">
-            {/* Timer and Progress */}
-            <Box textAlign="center">
-              <Text fontSize="3xl" fontWeight="bold">
-                {formatTime(duration)}
-              </Text>
-              <Text fontSize="sm" color="gray.500">
-                Max: {formatTime(MAX_DURATION)}
-              </Text>
-              <Progress
-                value={(duration / MAX_DURATION) * 100}
-                colorScheme={duration >= MAX_DURATION ? 'red' : 'blue'}
-                mt={2}
-                borderRadius="md"
-              />
-            </Box>
+          <Tabs variant="enclosed" colorScheme="blue">
+            <TabList>
+              <Tab><HStack spacing={2}><FaMicrophone /><Text>Record</Text></HStack></Tab>
+              <Tab><HStack spacing={2}><FaUpload /><Text>Upload file</Text></HStack></Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel px={0}>
+                <VStack spacing={4} align="stretch">
+                  <Box textAlign="center">
+                    <Text fontSize="3xl" fontWeight="bold">{formatTime(duration)}</Text>
+                    {hasFiniteCap ? (
+                      <>
+                        <Text fontSize="sm" color="gray.500">Max: {formatTime(MAX_DURATION)}</Text>
+                        <Progress
+                          value={(duration / MAX_DURATION) * 100}
+                          colorScheme={duration >= MAX_DURATION ? 'red' : 'blue'}
+                          mt={2}
+                          borderRadius="md"
+                        />
+                      </>
+                    ) : (
+                      <Text fontSize="sm" color="gray.500">No time limit</Text>
+                    )}
+                  </Box>
 
-            {/* Recording Controls */}
-            <HStack justify="center" spacing={4}>
-              {!audioBlob && !isRecording && (
-                <IconButton
-                  aria-label="Start recording"
-                  icon={<FaMicrophone />}
-                  colorScheme="red"
-                  size="lg"
-                  isRound
-                  onClick={startRecording}
-                />
-              )}
+                  <HStack justify="center" spacing={4}>
+                    {!audioBlob && !isRecording && (
+                      <IconButton
+                        aria-label="Start recording"
+                        icon={<FaMicrophone />}
+                        colorScheme="red"
+                        size="lg"
+                        isRound
+                        onClick={startRecording}
+                      />
+                    )}
+                    {isRecording && (
+                      <IconButton
+                        aria-label="Stop recording"
+                        icon={<FaStop />}
+                        colorScheme="red"
+                        size="lg"
+                        isRound
+                        onClick={stopRecording}
+                      />
+                    )}
+                    {audioBlob && (
+                      <>
+                        <IconButton
+                          aria-label={isPlaying ? 'Pause' : 'Play'}
+                          icon={isPlaying ? <FaPause /> : <FaPlay />}
+                          colorScheme="blue"
+                          size="lg"
+                          isRound
+                          onClick={togglePlayback}
+                        />
+                        <IconButton
+                          aria-label="Delete recording"
+                          icon={<FaTrash />}
+                          colorScheme="gray"
+                          size="lg"
+                          isRound
+                          onClick={deleteRecording}
+                        />
+                      </>
+                    )}
+                  </HStack>
 
-              {isRecording && (
-                <IconButton
-                  aria-label="Stop recording"
-                  icon={<FaStop />}
-                  colorScheme="red"
-                  size="lg"
-                  isRound
-                  onClick={stopRecording}
-                />
-              )}
+                  {isRecording && (
+                    <Text textAlign="center" color="red.500" fontWeight="bold">
+                      🔴 Recording...
+                    </Text>
+                  )}
+                  {audioBlob && !isRecording && (
+                    <Text textAlign="center" color="green.500" fontWeight="bold">
+                      ✓ Recording Complete
+                    </Text>
+                  )}
+                </VStack>
+              </TabPanel>
 
-              {audioBlob && (
-                <>
-                  <IconButton
-                    aria-label={isPlaying ? "Pause" : "Play"}
-                    icon={isPlaying ? <FaPause /> : <FaPlay />}
-                    colorScheme="blue"
-                    size="lg"
-                    isRound
-                    onClick={togglePlayback}
+              <TabPanel px={0}>
+                <VStack spacing={4} align="stretch">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    style={{ display: 'none' }}
+                    onChange={handleFilePick}
                   />
-                  <IconButton
-                    aria-label="Delete recording"
-                    icon={<FaTrash />}
-                    colorScheme="gray"
-                    size="lg"
-                    isRound
-                    onClick={deleteRecording}
-                  />
-                </>
-              )}
-            </HStack>
-
-            {/* Status Messages */}
-            {isRecording && (
-              <Text textAlign="center" color="red.500" fontWeight="bold">
-                🔴 Recording...
-              </Text>
-            )}
-            {audioBlob && !isRecording && (
-              <Text textAlign="center" color="green.500" fontWeight="bold">
-                ✓ Recording Complete
-              </Text>
-            )}
-          </VStack>
+                  {!uploadFile ? (
+                    <Box
+                      borderWidth="2px"
+                      borderStyle="dashed"
+                      borderColor="gray.500"
+                      borderRadius="md"
+                      p={6}
+                      textAlign="center"
+                    >
+                      <VStack spacing={3}>
+                        <FaUpload size={32} />
+                        <Text fontSize="sm" color="gray.500">
+                          Pick an audio file (MP3, WAV, OGG, WEBM, M4A). Up to {formatBytes(MAX_UPLOAD_SIZE)}.
+                        </Text>
+                        <Button leftIcon={<FaUpload />} onClick={() => fileInputRef.current?.click()}>
+                          Choose file
+                        </Button>
+                        {uploadError && (
+                          <Text fontSize="sm" color="red.400">{uploadError}</Text>
+                        )}
+                      </VStack>
+                    </Box>
+                  ) : (
+                    <Box borderWidth="1px" borderColor="gray.600" borderRadius="md" p={4}>
+                      <VStack spacing={2} align="stretch">
+                        <Text fontWeight="bold" wordBreak="break-all">{uploadFile.name}</Text>
+                        <HStack justify="space-between" fontSize="sm" color="gray.500">
+                          <Text>{formatBytes(uploadFile.size)}</Text>
+                          {uploadDuration > 0 && <Text>{formatTime(uploadDuration)}</Text>}
+                        </HStack>
+                        <HStack>
+                          <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}>
+                            Change file
+                          </Button>
+                          <Button size="sm" variant="ghost" leftIcon={<FaTrash />} onClick={clearUploadFile}>
+                            Remove
+                          </Button>
+                        </HStack>
+                      </VStack>
+                    </Box>
+                  )}
+                </VStack>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
         </ModalBody>
 
         <ModalFooter>
@@ -281,8 +412,8 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
           </Button>
           <Button
             colorScheme="blue"
-            onClick={handleUpload}
-            isDisabled={!audioBlob || isUploading}
+            onClick={uploadFile ? handleFileUpload : handleRecordedUpload}
+            isDisabled={(!audioBlob && !uploadFile) || isUploading || isRecording}
             isLoading={isUploading}
             loadingText="Uploading..."
           >

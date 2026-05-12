@@ -1,11 +1,13 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Modal, ModalOverlay, ModalContent, ModalCloseButton, Center, Spinner, Text, VStack, Button } from '@chakra-ui/react';
-import { HangoutsProvider, HangoutsRoom, useHangoutsAuth } from '@snapie/hangouts-react';
+import { createPortal } from 'react-dom';
+import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
+import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
-import { useHangoutsSession } from '@/hooks/useHangoutsSession';
+import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 
 import { IMAGE_SERVER_API_KEY } from '@/lib/env';
@@ -13,7 +15,19 @@ import { IMAGE_SERVER_API_KEY } from '@/lib/env';
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL!;
 const LK_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || 'wss://livekit.3speak.tv';
 
-const HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
+const FALLBACK_HANGOUT_THUMBNAIL = 'https://files.peakd.com/file/peakd-hive/meno/AKDgvpgFrvsp3fEazRgb971Pm8N7NqV3TUt1dF4TUY9798tUJHfZvwHE2BZB56Y.png';
+
+// Rooms created from these hosts share via Snapie's deep-link route so the
+// recipient lands inside their existing Snapie session. Anything else falls
+// back to the SDK default (standalone hangout.3speak.tv).
+const SNAPIE_HOSTS = new Set(['snapie.io', 'www.snapie.io']);
+
+function buildSnapieShareUrl(roomName: string, origin: string | undefined): string {
+  if (origin && SNAPIE_HOSTS.has(origin)) {
+    return `https://snapie.io/hangouts/${roomName}`;
+  }
+  return `https://hangout.3speak.tv/room/${roomName}`;
+}
 
 interface HangoutModalProps {
   isOpen: boolean;
@@ -21,111 +35,249 @@ interface HangoutModalProps {
   roomName: string;
 }
 
-interface HangoutRoomProps {
-  roomName: string;
-  onClose: () => void;
-  isLoading: boolean;
-  error: string | null;
-  retryLogin: () => Promise<void>;
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Defer revoke so the browser has time to start the download.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function HangoutRoomWithAuth({
-  roomName,
-  onClose,
-  isLoading,
-  error,
-  retryLogin,
-}: HangoutRoomProps) {
-  // Read the provider's authoritative auth state — flips to true only after
-  // the HangoutsProvider's useEffect has pushed our session token onto its
-  // internal api-client. Gating on `sessionToken` alone could mount
-  // <HangoutsRoom> on the same render the token prop arrives, firing
-  // `room.join()` before the api-client actually holds the token → 401.
-  const sdkAuth = useHangoutsAuth();
-  useWakeLock(sdkAuth.isAuthenticated);
-  const router = useRouter();
+function prettifyRoomName(name: string): string {
+  return name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
 
-  const handleRecordingUploaded = useCallback((result: { permlink: string; cid: string; playUrl: string }) => {
+interface RoomBodyProps {
+  roomName: string;
+  onClose: () => void;
+}
+
+function RoomBody({ roomName, onClose }: RoomBodyProps) {
+  const router = useRouter();
+  const { user } = useAioha();
+  const { roomMeta } = useHangoutsRoom();
+  const [roomData, setRoomData] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchRoom = async () => {
+      try {
+        const client = new HangoutsApiClient({ baseUrl: API_URL });
+        const rooms = await client.listRooms();
+        const room = rooms.find((r: any) => r.name === roomName);
+        if (room) {
+          setRoomData(room);
+        }
+      } catch (error) {
+        console.error('Failed to fetch room data:', error);
+      }
+    };
+    fetchRoom();
+  }, [roomName]);
+
+  const buildComposeUrl = useCallback((audioUrl?: string) => {
     const params = new URLSearchParams({
       hangout: 'true',
-      title: roomName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      audioUrl: result.playUrl,
-      thumbnail: HANGOUT_THUMBNAIL,
+      title: prettifyRoomName(roomName),
     });
-    router.push(`/compose?${params.toString()}`);
+    const thumbnail = roomData?.backgroundImage || roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
+    params.set('thumbnail', thumbnail);
+    if (audioUrl) params.set('audioUrl', audioUrl);
+    return `/compose?${params.toString()}`;
+  }, [roomName, roomData?.backgroundImage, roomMeta?.backgroundImage]);
+
+  const handleAudioHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
+    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
+    triggerBlobDownload(file.blob, filename);
+
+    if (user) {
+      try {
+        const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
+        const result = await uploadAudioTo3Speak(file.blob, file.duration, user);
+        if (result.success && result.playUrl) {
+          router.push(buildComposeUrl(result.playUrl));
+        } else {
+          router.push(buildComposeUrl());
+        }
+      } catch {
+        router.push(buildComposeUrl());
+      }
+    } else {
+      router.push(buildComposeUrl());
+    }
     onClose();
-  }, [roomName, router, onClose]);
+  }, [router, user, buildComposeUrl, onClose]);
 
-  if (error) {
-    return (
-      <Center p={8}>
-        <VStack spacing={3}>
-          <Text color="red.400">Failed to authenticate: {error}</Text>
-          <Button variant="ghost" onClick={() => retryLogin().catch(() => {})}>Retry</Button>
-        </VStack>
-      </Center>
-    );
-  }
+  const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
+    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
+    triggerBlobDownload(file.blob, filename);
 
-  if (isLoading || !sdkAuth.isAuthenticated) {
-    return (
-      <Center p={8}>
-        <VStack spacing={3}>
-          <Spinner size="lg" color="primary" />
-          <Text fontSize="sm" color="primary">Authenticating with Hangouts...</Text>
-        </VStack>
-      </Center>
-    );
-  }
+    if (user) {
+      try {
+        const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
+        const result = await uploadAudioTo3Speak(file.blob, file.duration, user);
+        if (result.success && result.playUrl) {
+          router.push(buildComposeUrl(result.playUrl));
+        } else {
+          router.push(buildComposeUrl());
+        }
+      } catch {
+        router.push(buildComposeUrl());
+      }
+    } else {
+      router.push(buildComposeUrl());
+    }
+    onClose();
+  }, [router, user, buildComposeUrl, onClose]);
 
   return (
-    <div data-hh-theme="dark" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <HangoutsRoom
-        roomName={roomName}
-        onLeave={onClose}
-        onRecordingUploaded={handleRecordingUploaded}
-        video
-        embedded
-        maxHeight="78vh"
-      />
-    </div>
+    <HangoutsRoom
+      roomName={roomName}
+      onLeave={onClose}
+      onAudioHandoff={handleAudioHandoff}
+      onVideoHandoff={handleVideoHandoff}
+      video
+      embedded
+      guestFallback
+      getShareUrl={buildSnapieShareUrl}
+    />
   );
 }
 
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
-  const { user } = useAioha();
-  const { sessionToken, isLoading, error, retryLogin } = useHangoutsSession(user ?? null, API_URL);
+  useWakeLock(isOpen);
+  const { user, aioha } = useAioha();
+  const { sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
-  return (
-    <HangoutsProvider
-      apiBaseUrl={API_URL}
-      livekitServerUrl={LK_URL}
-      sessionToken={sessionToken}
-      username={user}
-      imageServerApiKey={IMAGE_SERVER_API_KEY}
+  useEffect(() => {
+    if (isOpen && user && !sessionToken && !sessionLoading) {
+      retryLogin(user).catch(() => {});
+    }
+  }, [isOpen, user, sessionToken, sessionLoading, retryLogin]);
+
+  const needsTokenWait = !!user && !sessionToken && !error;
+  const currentProvider = aioha?.getCurrentProvider?.() ?? null;
+  const signPrompt = providerSignPrompt(currentProvider);
+
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+      }}
+      onClick={onClose}
     >
-      <Modal isOpen={isOpen} onClose={onClose} size="2xl">
-        <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />
-        <ModalContent bg="background" color="text" borderColor="border" borderWidth="2px" maxH="85vh" overflow="hidden">
-          <ModalCloseButton zIndex={10} />
-          {!user ? (
-            <Center p={8}>
-              <VStack spacing={3}>
-                <Text color="primary">Log in to join hangouts</Text>
-                <Button variant="ghost" onClick={onClose}>Close</Button>
-              </VStack>
-            </Center>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.72)',
+          backdropFilter: 'blur(6px)',
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1001,
+          width: 'min(96vw, 1280px)',
+          aspectRatio: '16 / 9',
+          maxHeight: '92vh',
+          background: 'var(--chakra-colors-background)',
+          color: 'var(--chakra-colors-text)',
+          borderRadius: '16px',
+          borderWidth: '1px',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6)',
+        }}
+        data-hh-theme="dark"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            zIndex: 10,
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            color: 'var(--chakra-colors-text)',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          {error ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <Center flex={1} p={8}>
+                <VStack spacing={3}>
+                  <Text color="red.400">Failed to authenticate: {error}</Text>
+                  <Button variant="ghost" onClick={() => retryLogin(user ?? undefined).catch(() => {})}>Retry</Button>
+                </VStack>
+              </Center>
+            </div>
+          ) : needsTokenWait || sessionLoading ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <Center flex={1} p={8}>
+                <VStack spacing={3}>
+                  <Spinner size="lg" color="primary" />
+                  <Text fontSize="sm" color="primary" textAlign="center">{signPrompt}</Text>
+                </VStack>
+              </Center>
+            </div>
           ) : (
-            <HangoutRoomWithAuth
-              roomName={roomName}
-              onClose={onClose}
-              isLoading={isLoading}
-              error={error}
-              retryLogin={retryLogin}
-            />
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                '& > *': {
+                  flex: 1,
+                  minHeight: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                },
+                '& > * > *': {
+                  flex: 1,
+                  minHeight: 0,
+                },
+              }}
+            >
+              <HangoutsProvider
+                apiBaseUrl={API_URL}
+                livekitServerUrl={LK_URL}
+                sessionToken={sessionToken ?? undefined}
+                username={user ?? undefined}
+                imageServerApiKey={IMAGE_SERVER_API_KEY}
+              >
+                <RoomBody roomName={roomName} onClose={onClose} />
+              </HangoutsProvider>
+            </Box>
           )}
-        </ModalContent>
-      </Modal>
-    </HangoutsProvider>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

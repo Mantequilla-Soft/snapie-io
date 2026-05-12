@@ -1076,6 +1076,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     onClose={() => setAudioRecorderOpen(false)}
                     onAudioRecorded={handleAudioRecorded}
                     username={user}
+                    maxDuration={Infinity}
                 />
             )}
 
