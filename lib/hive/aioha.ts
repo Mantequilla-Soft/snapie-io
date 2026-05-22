@@ -1,5 +1,6 @@
 'use client';
 import { Aioha, Asset, KeyTypes, Providers } from '@aioha/aioha';
+import { fetchHealthyNodes } from './hiveclient';
 
 let aiohaInstance: Aioha | null = null;
 
@@ -37,7 +38,9 @@ export function getAioha(): Aioha {
         scope: ['login', 'vote', 'comment', 'follow', 'transfer'],
       });
     }
-    a.setApi('https://api.hive.blog');
+    a.setApi('https://api.openhive.network');
+    // Async: upgrade to the freshest healthy node from the beacon
+    fetchHealthyNodes().then(nodes => { if (nodes.length > 0) a.setApi(nodes[0]) }).catch(() => {});
     // NOTE: loadAuth() is intentionally NOT called here. It reads localStorage
     // synchronously and would populate `user` before hydration, causing a
     // server/client mismatch. The Providers component calls loadAuth() inside

@@ -1,15 +1,14 @@
 import { Client } from "@hiveio/dhive"
 
 const FALLBACK_NODES = [
+  "https://api.openhive.network",
   "https://api.hive.blog",
   "https://techcoderx.com",
   "https://rpc.mahdiyari.info",
   "https://api.c0ff33a.uk",
 ]
 
-// Nodes to exclude (CORS issues with snapie.io)
 const EXCLUDED_NODE_HOSTS = [
-  "api.openhive.network",
   "api.deathwing.me",
 ]
 
@@ -72,19 +71,25 @@ async function fetchHealthyNodes(): Promise<string[]> {
   }
 }
 
-// Initialize with healthy nodes on first load (client-side only)
-if (typeof window !== "undefined") {
-  fetchHealthyNodes().then(nodes => {
-    hive.client = new Client(nodes)
-    if (process.env.NODE_ENV === "development") {
-      console.log("🔗 HiveClient initialized with beacon nodes:", nodes)
-    }
-  }).catch(err => {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Failed to initialize HiveClient with beacon nodes:", err)
-    }
-  })
+// Initialize with healthy nodes on first load (client and server)
+fetchHealthyNodes().then(nodes => {
+  hive.client = new Client(nodes)
+  if (process.env.NODE_ENV === "development") {
+    console.log("🔗 HiveClient initialized with beacon nodes:", nodes)
+  }
+}).catch(err => {
+  if (process.env.NODE_ENV === "development") {
+    console.error("Failed to initialize HiveClient with beacon nodes:", err)
+  }
+})
+
+/** Call before a critical broadcast to guarantee fresh, healthy nodes are in use. */
+export async function refreshHiveNodes(): Promise<void> {
+  const nodes = await fetchHealthyNodes()
+  hive.client = new Client(nodes)
 }
+
+export { fetchHealthyNodes }
 
 // Proxy that delegates all property access to the current hive.client.
 // This lets consumers keep `import HiveClient from './hiveclient'`

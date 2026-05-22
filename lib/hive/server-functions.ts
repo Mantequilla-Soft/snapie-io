@@ -3,7 +3,7 @@
 
 import { PrivateKey, KeyRole, Operation } from '@hiveio/dhive';
 import { Buffer } from 'buffer';
-import HiveClient from "./hiveclient";
+import HiveClient, { refreshHiveNodes } from "./hiveclient";
 
 import { DefaultRenderer } from "@hiveio/content-renderer";
 
@@ -72,8 +72,9 @@ export async function createAccount(username: string, password: string) {
         },
     ];
 
-    // Broadcast the operation using HiveClient
+    // Broadcast using the freshest healthy nodes
     try {
+        await refreshHiveNodes();
         if (process.env.ACCOUNT_KEY) await HiveClient.broadcast.sendOperations([op], PrivateKey.from(process.env.ACCOUNT_KEY));
         console.log('Account created successfully');
     } catch (error) {
