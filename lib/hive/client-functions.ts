@@ -44,6 +44,7 @@ async function aiohaBroadcast(
     const out = await broadcastOps(operations, keyType, title);
     return { success: true, result: out.result };
   } catch (err) {
+    console.error('[aiohaBroadcast] broadcast failed:', err);
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Broadcast failed',
