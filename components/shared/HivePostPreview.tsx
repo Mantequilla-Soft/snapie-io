@@ -185,7 +185,7 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
               height="80px"
               objectFit="cover"
               borderRadius="md"
-              fallbackSrc="https://via.placeholder.com/80"
+              fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23e2e8f0'/%3E%3C/svg%3E"
             />
           )}
           <VStack align="start" flex={1} spacing={1}>
