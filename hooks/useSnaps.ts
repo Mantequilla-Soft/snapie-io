@@ -107,15 +107,18 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
         break;
       }
 
-      for (const resultItem of result) {
-        const comments = (await HiveClient.database.call("get_content_replies", [
-          author,
-          resultItem.permlink,
-        ])) as ExtendedComment[];
+      const allReplies = await Promise.all(
+        result.map((resultItem: any) =>
+          HiveClient.database.call("get_content_replies", [author, resultItem.permlink])
+        )
+      );
+
+      for (let i = 0; i < result.length; i++) {
+        const resultItem = result[i];
+        const comments = allReplies[i] as ExtendedComment[];
 
         let filteredComments: ExtendedComment[] = [];
 
-        // Apply appropriate filter based on filterType
         if (filterType === 'community') {
           filteredComments = filterCommentsByTag(comments, tag);
         } else if (filterType === 'all') {
@@ -124,15 +127,12 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
           filteredComments = filterCommentsByFollowing(comments);
         }
 
-        // Filter out muted accounts (community + user personal list)
         filteredComments = filteredComments.filter(c => !mutedList.has(c.author.toLowerCase()));
 
         allFilteredComments.push(...filteredComments);
 
-        // Add permlink to the fetched set
         fetchedPermlinksRef.current.add(resultItem.permlink);
 
-        // Update the last container info for the next fetch
         permlink = resultItem.permlink;
         date = resultItem.created;
       }
