@@ -69,12 +69,21 @@ export async function uploadVideoTo3Speak(
     return new Promise((resolve, reject) => {
         let embedUrl: string | null = null;
         
+        const MB = 1024 * 1024;
+        const fileSize = file.size;
+        const chunkSize  = fileSize < 50  * MB ? 5  * MB
+                         : fileSize < 500 * MB ? 10 * MB
+                         :                       20 * MB;
+        const parallelUploads = fileSize < 50 * MB ? 2 : 3;
+
         const upload = new tus.Upload(file, {
             endpoint: 'https://embed.3speak.tv/uploads',
-            chunkSize: 20 * 1024 * 1024, // 20MB chunks — halves round-trips vs 10MB
+            chunkSize,
+            parallelUploads,
             retryDelays: [0, 3000, 5000, 10000, 20000],
             metadata: {
                 filename: file.name,
+                filetype: file.type,
                 owner: options.owner,
                 frontend_app: options.appName ?? 'snapie',
                 ...(options.isShort !== false && { short: 'true' })
