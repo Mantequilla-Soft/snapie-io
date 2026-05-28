@@ -211,9 +211,10 @@ interface EditorProps {
   isSubmitting?: boolean;
   onVideoEmbedUrlChange?: (url: string | null) => void;
   onAudioEmbedUrlChange?: (url: string | null) => void;
+  onVideoThumbnailChange?: (url: string | null) => void;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -417,6 +418,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 setVideoEmbedUrl(result.embedUrl);
                 setVideoId(result.videoId);
                 setVideoThumbnailUrl(result.thumbnailUrl ?? null);
+                onVideoThumbnailChange?.(result.thumbnailUrl ?? null);
                 onVideoEmbedUrlChange?.(result.embedUrl);
                 toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
             } catch (error) {
@@ -434,6 +436,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
         setVideoEmbedUrl(null);
         setVideoId(null);
         setVideoThumbnailUrl(null);
+        onVideoThumbnailChange?.(null);
         setVideoUploadProgress(0);
         onVideoEmbedUrlChange?.(null);
     };
@@ -458,6 +461,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 }
                 await set3SpeakThumbnail(videoId, thumbUrl, apiKey);
                 setVideoThumbnailUrl(thumbUrl);
+                onVideoThumbnailChange?.(thumbUrl);
                 toast({ title: 'Thumbnail updated', status: 'success', duration: 2000, isClosable: true });
             } catch (error) {
                 toast({ title: 'Thumbnail update failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 3000, isClosable: true });

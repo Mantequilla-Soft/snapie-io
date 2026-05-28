@@ -29,6 +29,11 @@ export default function PostCard({ post }: PostCardProps) {
         const images = extractImagesFromBody(body);
         if (images && images.length > 0) {
             setImageUrls(images);
+        } else {
+            const metaImages = Array.isArray(metadata?.image)
+                ? metadata.image.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+                : [];
+            if (metaImages.length > 0) setImageUrls(metaImages);
         }
     }, [body]);
 
