@@ -50,11 +50,18 @@ export default function SnapList(
   });
 
   if (isLoading && comments.length === 0) {
-    // Initial loading state
     return (
       <Box textAlign="center" mt={4}>
         <Spinner size="xl" />
         <Text>Loading posts...</Text>
+      </Box>
+    );
+  }
+
+  if (!isLoading && !hasMore && comments.length === 0) {
+    return (
+      <Box textAlign="center" mt={8} color="gray.500">
+        <Text fontSize="lg">No snaps yet.</Text>
       </Box>
     );
   }

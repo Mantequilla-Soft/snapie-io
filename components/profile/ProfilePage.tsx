@@ -37,6 +37,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   // Posts tab state
   const [posts, setPosts] = useState<any[]>([]);
   const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const isFetching = useRef(false);
   const tag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
   const params = useRef({
@@ -60,6 +61,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   async function fetchPosts() {
     if (isFetching.current) return;
     isFetching.current = true;
+    setIsLoadingPosts(true);
     try {
       const newPosts = await findPosts('author_before_date', params.current);
       if (newPosts.length > 0) {
@@ -78,6 +80,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
       console.error('Failed to fetch posts', err);
     } finally {
       isFetching.current = false;
+      setIsLoadingPosts(false);
     }
   }
 
@@ -269,6 +272,11 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
             {/* Posts tab */}
             <TabPanel px={0}>
+              {!isLoadingPosts && posts.length === 0 && !hasMorePosts && (
+                <Box textAlign="center" mt={8} color="gray.500">
+                  <Text fontSize="lg">No posts yet.</Text>
+                </Box>
+              )}
               <InfiniteScroll
                 dataLength={posts.length}
                 next={fetchPosts}
