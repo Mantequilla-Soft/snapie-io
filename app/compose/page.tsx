@@ -220,6 +220,7 @@ export default function Home() {
         setBeneficiaries([{ account: 'snapie', weight: 300 }]) // Reset to default
         setVideoEmbedUrl(null)
         setAudioEmbedUrl(null)
+        setVideoThumbnailUrl(null)
 
         // Redirect to post after delay (allow Hive node propagation)
         setTimeout(() => {
