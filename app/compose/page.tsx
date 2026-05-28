@@ -53,6 +53,7 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null)
   const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null)
+  const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null)
 
   // Sync state when search params change (e.g., same-route navigation from recording upload)
   useEffect(() => {
@@ -170,8 +171,10 @@ export default function Home() {
       if (videoEmbedUrl) postBody = `${postBody}\n\n${videoEmbedUrl}`
       if (audioEmbedUrl) postBody = `${postBody}\n\n${audioEmbedUrl}`
 
-      // Prepare image array for metadata (first image becomes thumbnail)
-      const imageArray = prepareImageArray(postBody)
+      // Prepare image array for metadata (first image becomes thumbnail).
+      // For video posts the body has no image markdown, so pass the video
+      // thumbnail explicitly so it lands in json_metadata.image[0].
+      const imageArray = prepareImageArray(postBody, videoThumbnailUrl)
 
       // Use SDK to build operations
       const composerResult = blogComposer.build({
@@ -293,6 +296,7 @@ export default function Home() {
           isSubmitting={isSubmitting}
           onVideoEmbedUrlChange={handleVideoEmbedUrlChange}
           onAudioEmbedUrlChange={setAudioEmbedUrl}
+          onVideoThumbnailChange={setVideoThumbnailUrl}
         />
       </Flex>
     </Flex>
