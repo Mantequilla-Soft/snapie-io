@@ -36,6 +36,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
   // Posts tab state
   const [posts, setPosts] = useState<any[]>([]);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   const isFetching = useRef(false);
   const tag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
   const params = useRef({
@@ -69,6 +70,9 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           before_date: newPosts[newPosts.length - 1].created,
           limit: 12,
         };
+        if (newPosts.length < params.current.limit) setHasMorePosts(false);
+      } else {
+        setHasMorePosts(false);
       }
     } catch (err) {
       console.error('Failed to fetch posts', err);
@@ -76,6 +80,19 @@ export default function ProfilePage({ username }: ProfilePageProps) {
       isFetching.current = false;
     }
   }
+
+  // Reset posts when username changes
+  useEffect(() => {
+    setPosts([]);
+    setHasMorePosts(true);
+    isFetching.current = false;
+    params.current = {
+      author: username,
+      start_permlink: '',
+      before_date: new Date().toISOString().split('.')[0],
+      limit: 12,
+    };
+  }, [username]);
 
   useEffect(() => {
     fetchPosts();
@@ -173,7 +190,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           <Box>
             <Flex alignItems="center">
               <Heading as="h2" size="lg" color="primary" mr={2}>
-                {profileInfo?.metadata.profile.name || username}
+                {profileInfo?.metadata?.profile?.name || username}
               </Heading>
               <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
@@ -255,7 +272,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               <InfiniteScroll
                 dataLength={posts.length}
                 next={fetchPosts}
-                hasMore={true}
+                hasMore={hasMorePosts}
                 scrollableTarget="scrollableDiv"
                 loader={
                   <Box display="flex" justifyContent="center" alignItems="center" py={8}>

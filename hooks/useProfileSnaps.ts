@@ -15,6 +15,7 @@ export function useProfileSnaps(username: string) {
   const cursorRef = useRef('');
   const exhaustedRef = useRef(false);
   const fetchingRef = useRef(false);
+  const versionRef = useRef(0); // incremented on refresh to invalidate in-flight requests
 
   // Reset everything when the target user changes
   useEffect(() => {
@@ -32,6 +33,7 @@ export function useProfileSnaps(username: string) {
 
     fetchingRef.current = true;
     setIsLoading(true);
+    const requestVersion = versionRef.current;
 
     const run = async () => {
       try {
@@ -59,9 +61,7 @@ export function useProfileSnaps(username: string) {
             break;
           }
 
-          collected.push(
-            ...items.filter((c: any) => c.parent_author === 'peak.snaps') as ExtendedComment[]
-          );
+          collected.push(...items.filter(c => c.parent_author === 'peak.snaps'));
 
           cursor = results[results.length - 1].permlink;
 
@@ -71,6 +71,9 @@ export function useProfileSnaps(username: string) {
             break;
           }
         }
+
+        // Discard results if a refresh was triggered while this fetch was in flight
+        if (versionRef.current !== requestVersion) return;
 
         cursorRef.current = cursor;
 
@@ -83,8 +86,10 @@ export function useProfileSnaps(username: string) {
       } catch (err) {
         console.error('useProfileSnaps fetch error:', err);
       } finally {
-        fetchingRef.current = false;
-        setIsLoading(false);
+        if (versionRef.current === requestVersion) {
+          fetchingRef.current = false;
+          setIsLoading(false);
+        }
       }
     };
 
@@ -98,6 +103,7 @@ export function useProfileSnaps(username: string) {
   };
 
   const refresh = () => {
+    versionRef.current++;
     cursorRef.current = '';
     exhaustedRef.current = false;
     fetchingRef.current = false;
