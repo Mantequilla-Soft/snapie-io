@@ -29,9 +29,11 @@ export default function PostCard({ post }: PostCardProps) {
         const images = extractImagesFromBody(body);
         if (images && images.length > 0) {
             setImageUrls(images);
-        } else if (metadata?.image?.length > 0) {
-            // Video posts have no inline images — fall back to json_metadata.image
-            setImageUrls(metadata.image);
+        } else {
+            const metaImages = Array.isArray(metadata?.image)
+                ? metadata.image.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+                : [];
+            if (metaImages.length > 0) setImageUrls(metaImages);
         }
     }, [body]);
 
