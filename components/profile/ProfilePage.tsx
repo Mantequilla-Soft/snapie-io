@@ -1,6 +1,10 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Heading, Text, Spinner, Alert, AlertIcon, Image, Container, Flex, Icon, Avatar } from '@chakra-ui/react';
+import {
+  Box, Heading, Text, Spinner, Alert, AlertIcon, Image, Container,
+  Flex, Icon, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel,
+} from '@chakra-ui/react';
+import { Comment } from '@hiveio/dhive';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import { FaGlobe } from 'react-icons/fa';
 import { getProfile, findPosts } from '@/lib/hive/client-functions';
@@ -8,8 +12,13 @@ import PostGrid from '../blog/PostGrid';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import UserActionButtons from './UserActionButtons';
 import FollowersModal from './FollowersModal';
+import SnapList from '@/components/homepage/SnapList';
+import Conversation from '@/components/homepage/Conversation';
+import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useAioha } from '@aioha/react-ui';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { useProfileSnaps } from '@/hooks/useProfileSnaps';
+import { ExtendedComment } from '@/hooks/useComments';
 
 interface ProfilePageProps {
   username: string;
@@ -24,36 +33,46 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     website: '',
   });
   const [profileInfo, setProfileInfo] = useState<any>(null);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<'followers' | 'following'>('followers');
-  const isFetching = useRef(false);
 
+  // Posts tab state
+  const [posts, setPosts] = useState<any[]>([]);
+  const isFetching = useRef(false);
   const tag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
   const params = useRef({
-      author: username,
-      start_permlink: '',
-      before_date: new Date().toISOString().split('.')[0],
-      limit: 12
+    author: username,
+    start_permlink: '',
+    before_date: new Date().toISOString().split('.')[0],
+    limit: 12,
   });
 
+  // Followers modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'followers' | 'following'>('followers');
+
+  // Snaps tab state
+  const profileSnaps = useProfileSnaps(username);
+  const [conversation, setConversation] = useState<Comment | undefined>();
+  const [reply, setReply] = useState<ExtendedComment | undefined>();
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
+
   async function fetchPosts() {
-    if (isFetching.current) return; // Prevent multiple fetches
+    if (isFetching.current) return;
     isFetching.current = true;
     try {
       const newPosts = await findPosts('author_before_date', params.current);
       if (newPosts.length > 0) {
-        setPosts((prevPosts) => [...prevPosts, ...newPosts]);
+        setPosts(prev => [...prev, ...newPosts]);
         params.current = {
           author: username,
           start_permlink: newPosts[newPosts.length - 1].permlink,
           before_date: newPosts[newPosts.length - 1].created,
-          limit: 12
+          limit: 12,
         };
       }
-      isFetching.current = false;
     } catch (err) {
       console.error('Failed to fetch posts', err);
+    } finally {
       isFetching.current = false;
     }
   }
@@ -61,7 +80,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   useEffect(() => {
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username]); // fetchPosts excluded - callback identity changes each render
+  }, [username]);
 
   useEffect(() => {
     if (hiveAccount?.json_metadata) {
@@ -88,16 +107,20 @@ export default function ProfilePage({ username }: ProfilePageProps) {
         console.error('Failed to fetch profile info', err);
       }
     };
-
-    if (username) {
-      fetchProfileInfo();
-    }
+    if (username) fetchProfileInfo();
   }, [username]);
 
   const followers = profileInfo?.stats?.followers || 0;
   const following = profileInfo?.stats?.following || 0;
   const location = profileInfo?.metadata?.profile?.location || '';
   const about = profileInfo?.metadata?.profile?.about || '';
+
+  const handleSnapReply = () => {
+    setTimeout(() => {
+      profileSnaps.refresh?.();
+      setConversationRefreshTrigger(t => t + 1);
+    }, 3000);
+  };
 
   if (isLoading || !hiveAccount) {
     return (
@@ -120,8 +143,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
   return (
     <Box color="text" maxW="container.lg" mx="auto">
+      {/* Cover image */}
       <Box position="relative" height="200px">
-        {/* Cover Image */}
         <Container id="cover" maxW="container.lg" p={0} overflow="hidden" position="relative" height="100%">
           <Image
             src={profileMetadata.coverImage}
@@ -130,116 +153,138 @@ export default function ProfilePage({ username }: ProfilePageProps) {
             height="100%"
             objectFit="cover"
             mb={4}
-            fallback={(<div></div>)}
+            fallback={<div></div>}
           />
         </Container>
       </Box>
+
+      {/* Profile header */}
       <Flex position="relative" mt={-16} p={4} alignItems="center" boxShadow="lg" justifyContent="space-between">
-  <Box
-    position="absolute"
-    top={0}
-    left={0}
-    right={0}
-    bottom={0}
-    bg="muted"
-    opacity={0.85}
-    zIndex={1}  // Lower z-index to place the background below content
-  />
+        <Box position="absolute" top={0} left={0} right={0} bottom={0} bg="muted" opacity={0.85} zIndex={1} />
 
-  <Flex alignItems="center" zIndex={2} position="relative">
+        <Flex alignItems="center" zIndex={2} position="relative">
+          <Avatar
+            src={getHiveAvatarUrl(username, 'large')}
+            name={hiveAccount?.name}
+            borderRadius="full"
+            boxSize="100px"
+            mr={4}
+          />
+          <Box>
+            <Flex alignItems="center">
+              <Heading as="h2" size="lg" color="primary" mr={2}>
+                {profileInfo?.metadata.profile.name || username}
+              </Heading>
+              <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
+                {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
+              </Box>
+            </Flex>
 
-    <Avatar
-      src={getHiveAvatarUrl(username, 'large')}
-      name={hiveAccount?.name}
-      borderRadius="full"
-      boxSize="100px"
-      mr={4}
-    />
+            <Text fontSize="xs" color="text">
+              <Text
+                as="span"
+                cursor="pointer"
+                _hover={{ textDecoration: 'underline', color: 'primary' }}
+                onClick={() => { setModalType('following'); setModalOpen(true); }}
+              >
+                Following: {following}
+              </Text>
+              {' | '}
+              <Text
+                as="span"
+                cursor="pointer"
+                _hover={{ textDecoration: 'underline', color: 'primary' }}
+                onClick={() => { setModalType('followers'); setModalOpen(true); }}
+              >
+                Followers: {followers}
+              </Text>
+              {' | '}
+              Location: {location}
+              <br />
+              {about}
+            </Text>
 
-    <Box>
-      <Flex alignItems="center">
-        {/* Username */}
-        <Heading as="h2" size="lg" color="primary" mr={2}>
-          {profileInfo?.metadata.profile.name || username}
-        </Heading>
+            {profileMetadata.website && (
+              <Flex alignItems="center">
+                <Icon as={FaGlobe} w={2} h={2} onClick={() => window.open(profileMetadata.website, '_blank')} style={{ cursor: 'pointer' }} />
+                <Text ml={2} fontSize="xs" color="primary">{profileMetadata.website}</Text>
+              </Flex>
+            )}
+          </Box>
+        </Flex>
 
-        {/* Reputation */}
-        <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
-          {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
+        <Box zIndex={2} position="relative">
+          <UserActionButtons targetUsername={username} currentUsername={user || null} />
         </Box>
       </Flex>
 
-      {/* Description */}
-      <Text fontSize="xs" color="text">
-        <Text
-          as="span"
-          cursor="pointer"
-          _hover={{ textDecoration: 'underline', color: 'primary' }}
-          onClick={() => {
-            setModalType('following');
-            setModalOpen(true);
-          }}
-        >
-          Following: {following}
-        </Text>
-        {' | '}
-        <Text
-          as="span"
-          cursor="pointer"
-          _hover={{ textDecoration: 'underline', color: 'primary' }}
-          onClick={() => {
-            setModalType('followers');
-            setModalOpen(true);
-          }}
-        >
-          Followers: {followers}
-        </Text>
-        {' | '}
-        Location: {location}
-        <br />
-        {about}
-      </Text>
+      {/* Tabs */}
+      <Container maxW="container.lg" mt={4} px={0}>
+        <Tabs defaultIndex={0} colorScheme="blue" isLazy>
+          <TabList px={4}>
+            <Tab>Snaps</Tab>
+            <Tab>Posts</Tab>
+          </TabList>
 
-      {/* Website Link */}
-      {profileMetadata.website && (
-        <Flex alignItems="center">
-          <Icon as={FaGlobe} w={2} h={2} onClick={() => window.open(profileMetadata.website, '_blank')} style={{ cursor: 'pointer' }} />
-          <Text ml={2} fontSize="xs" color="primary">
-            {profileMetadata.website}
-          </Text>
-        </Flex>
-      )}
-    </Box>
-  </Flex>
+          <TabPanels>
+            {/* Snaps tab */}
+            <TabPanel px={0} pt={2}>
+              {conversation ? (
+                <Conversation
+                  comment={conversation}
+                  setConversation={setConversation}
+                  onOpen={() => setIsReplyOpen(true)}
+                  setReply={(c) => setReply(c as ExtendedComment)}
+                  refreshTrigger={conversationRefreshTrigger}
+                />
+              ) : (
+                <SnapList
+                  author="peak.snaps"
+                  permlink="snaps"
+                  setConversation={setConversation}
+                  onOpen={() => setIsReplyOpen(true)}
+                  setReply={(c) => setReply(c as ExtendedComment)}
+                  post={true}
+                  data={profileSnaps}
+                />
+              )}
+            </TabPanel>
 
-  {/* Action buttons - only shown when viewing another user's profile */}
-  <Box zIndex={2} position="relative">
-    <UserActionButtons targetUsername={username} currentUsername={user || null} />
-  </Box>
-</Flex>
-
-      <Container maxW="container.lg" mt={8}>
-        <InfiniteScroll
-          dataLength={posts.length}
-          next={fetchPosts}
-          hasMore={true}
-          loader={
-            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-              <Spinner size="xl" color="primary" />
-            </Box>
-          }
-        >
-          {posts && <PostGrid posts={posts} columns={3} />}
-        </InfiniteScroll>
+            {/* Posts tab */}
+            <TabPanel px={0}>
+              <InfiniteScroll
+                dataLength={posts.length}
+                next={fetchPosts}
+                hasMore={true}
+                scrollableTarget="scrollableDiv"
+                loader={
+                  <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+                    <Spinner size="xl" color="primary" />
+                  </Box>
+                }
+              >
+                {posts && <PostGrid posts={posts} columns={3} />}
+              </InfiniteScroll>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
       </Container>
 
-      {/* Followers/Following Modal */}
       <FollowersModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         username={username}
         type={modalType}
       />
+
+      {isReplyOpen && (
+        <SnapReplyModal
+          isOpen={isReplyOpen}
+          onClose={() => setIsReplyOpen(false)}
+          comment={reply}
+          onNewReply={handleSnapReply}
+        />
+      )}
     </Box>
   );
 }
