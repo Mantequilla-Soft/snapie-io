@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Slider, SliderTrack, SliderFilledTrack, SliderThumb, HStack, Text, useToast } from '@chakra-ui/react';
+import { Box, Button, Flex, Icon, Slider, SliderTrack, SliderFilledTrack, SliderThumb, HStack, Text, useToast } from '@chakra-ui/react';
 import { memo, useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
@@ -91,7 +91,8 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
     }
 
     return (
-        <Button leftIcon={voted ? (<FaHeart />) : (<FaRegHeart />)} variant="ghost" onClick={toggleSlider}>
+        <Button variant="ghost" onClick={toggleSlider}>
+            <Icon as={voted ? FaHeart : FaRegHeart} mr={1} color={voted ? "red.400" : undefined} />
             {voteCount}
         </Button>
     );

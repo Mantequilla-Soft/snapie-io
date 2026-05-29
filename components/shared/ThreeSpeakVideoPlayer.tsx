@@ -28,7 +28,7 @@ export default function ThreeSpeakVideoPlayer({ author, permlink }: ThreeSpeakVi
 
     const isVertical = state.isVertical === true;
     const aspectRatio = isVertical ? '3/4' : '16/9';
-    const maxW = isVertical ? 'min(420px, 100%)' : '800px';
+    const maxW = isVertical ? 'min(420px, 100%)' : { base: '100%', md: '640px', lg: '800px' };
     const showSpinner = !state.ready && !fatalError;
 
     return (
@@ -41,7 +41,7 @@ export default function ThreeSpeakVideoPlayer({ author, permlink }: ThreeSpeakVi
             overflow="hidden"
             bg="black"
             my={4}
-            mx={isVertical ? 'auto' : undefined}
+            mx="auto"
         >
             {showSpinner && (
                 <Center position="absolute" inset="0" zIndex={1} bg="blackAlpha.600">
