@@ -11,6 +11,7 @@ import {
 } from "@/lib/utils/snapUtils";
 import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
+import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
 
 interface MediaRendererProps {
@@ -63,11 +64,7 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
       ? "min(420px, 100%)"
       : boxAspect === "4/5"
         ? "540px"
-        : "100%";
-  const centerEmbed =
-    boxAspect === "9/16" ||
-    boxAspect === "3/4" ||
-    boxAspect === "4/5";
+        : { base: "100%", md: "640px", lg: "800px" };
 
   return (
     <Box
@@ -75,7 +72,7 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
       position="relative"
       aspectRatio={boxAspect}
       maxW={maxW}
-      mx={centerEmbed ? "auto" : undefined}
+      mx="auto"
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       sx={{
         iframe: {
@@ -159,12 +156,11 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
 
           if (imageUrl) {
             return (
-              <Box key={index} mb={2}>
+              <Box key={index} mb={2} maxW="540px" mx="auto">
                 <Image
                   src={imageUrl}
                   alt="Post media"
                   width="100%"
-                  maxWidth="540px"
                   height="auto"
                   objectFit="contain"
                   borderRadius="md"
@@ -192,6 +188,14 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
             const idMatch = item.src.match(/[?&]id=(\d+)/i);
             if (idMatch) {
               return <TwitterEmbed key={`twitter-${idMatch[1]}`} tweetId={idMatch[1]} />;
+            }
+          }
+
+          if (item.src.includes("play.3speak.tv")) {
+            const key = speakVideoKeyFromUrl(item.src);
+            if (key) {
+              const [author, permlink] = key.split("/");
+              return <ThreeSpeakVideoPlayer key={key} author={author} permlink={permlink} />;
             }
           }
 

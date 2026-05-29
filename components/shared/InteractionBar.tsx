@@ -143,11 +143,12 @@ export default function InteractionBar({
             ) : (
                 <Flex justifyContent="space-between" alignItems="center" className="post-actions">
                     <Flex alignItems="center">
-                        {voted ? (
-                            <Icon as={FaHeart} onClick={handleHeartClick} cursor="pointer" />
-                        ) : (
-                            <Icon as={FaRegHeart} onClick={handleHeartClick} cursor="pointer" />
-                        )}
+                        <Icon
+                            as={voted ? FaHeart : FaRegHeart}
+                            onClick={handleHeartClick}
+                            cursor="pointer"
+                            color={voted ? "red.400" : undefined}
+                        />
                         <Text ml={2} fontSize="sm">{voteCount}</Text>
                         
                         <Icon 
