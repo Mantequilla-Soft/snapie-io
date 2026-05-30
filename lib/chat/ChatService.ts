@@ -26,6 +26,13 @@ export interface DmDeliveryInfo {
   cooldownMs: number;
 }
 
+export interface DmStatusInfo {
+  meSeenAt: string;
+  peerSeenAt: string | null;
+  peerLastSeenAt: string | null;
+  peerOnline: boolean;
+}
+
 export interface Conversation {
   _id: string;
   name: string;
@@ -98,16 +105,16 @@ class ChatService {
   async getDmMessages(
     conversationId: string,
     opts: { before?: string; limit?: number } = {}
-  ): Promise<Message[]> {
+  ): Promise<{ messages: Message[]; status?: DmStatusInfo | null }> {
     const params = new URLSearchParams();
     if (opts.before) params.set('before', opts.before);
     if (opts.limit) params.set('limit', String(opts.limit));
     const qs = params.toString();
-    const { messages } = await this.get<{ messages: Message[] }>(
+    const { messages, status } = await this.get<{ messages: Message[]; status?: DmStatusInfo | null }>(
       `${BASE}/dm/${conversationId}/messages${qs ? `?${qs}` : ''}`,
       true
     );
-    return messages;
+    return { messages, status };
   }
 
   async sendDmMessage(conversationId: string, content: string, replyTo?: string): Promise<Message> {

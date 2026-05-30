@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db/mongodb';
+import { ChatUser } from '@/lib/db/models/ChatUser';
 import HiveClient from '@/lib/hive/hiveclient';
 
 const JWT_SECRET = process.env.CHAT_JWT_SECRET!;
@@ -95,6 +96,11 @@ export function withChatAuth(handler: RouteHandler) {
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
     await connectDB();
+    await ChatUser.findOneAndUpdate(
+      { _id: payload.sub },
+      { $set: { lastSeen: new Date() } },
+      { upsert: true, returnDocument: 'after' }
+    );
     return handler(req, { username: payload.sub, params: ctx?.params });
   };
 }

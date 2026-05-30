@@ -27,7 +27,7 @@ import { useState, useEffect, useRef, useCallback, KeyboardEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
 import { FiArrowLeft, FiChevronDown, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
-import { chatService, Channel, Conversation, Message } from '@/lib/chat/ChatService';
+import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { transferEncryptedMemoWithAioha } from '@/lib/hive/aioha';
@@ -47,6 +47,17 @@ const fadeIn = keyframes`from { opacity: 0; transform: translateY(6px); } to { o
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatLastSeen(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
 
 function avatarNameForConversation(conv: Conversation): string {
@@ -205,13 +216,16 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [mutedUsers, setMutedUsers] = useState<string[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [dmStatus, setDmStatus] = useState<DmStatusInfo | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
+  const shouldAutoScrollRef = useRef(true);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
@@ -292,8 +306,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   ): Promise<Message[]> => {
     if (!convId) return [];
     if (convType === 'dm') {
-      return chatService.getDmMessages(convId, opts);
+      const out = await chatService.getDmMessages(convId, opts);
+      setDmStatus(out.status || null);
+      return out.messages;
     }
+    setDmStatus(null);
     return chatService.getMessages(convId, opts);
   }, []);
 
@@ -320,6 +337,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   useEffect(() => {
     if (!isOpen || isMinimized) return;
     oldestIdRef.current = undefined;
+    shouldAutoScrollRef.current = true;
+    setDmStatus(null);
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
 
@@ -492,8 +511,16 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
 
   // ── Auto-scroll to bottom on new messages ─────────────────────────────
   useEffect(() => {
+    if (!shouldAutoScrollRef.current) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  function handleMessagesScroll() {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 80;
+  }
 
   // ── Auth ──────────────────────────────────────────────────────────────
   async function handleConnect() {
@@ -670,6 +697,19 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
             <Text fontSize="sm" fontWeight="700" color="white" letterSpacing="0.02em">
               {showList && !showThread ? 'Conversations' : (activeConversation?.type === 'channel' ? `#${activeConversation?.name}` : activeConversation?.name || 'Chat')}
             </Text>
+            {showThread && activeConversation?.type === 'dm' && (
+              <HStack spacing={1}>
+                <Box
+                  w="7px"
+                  h="7px"
+                  borderRadius="full"
+                  bg={dmStatus?.peerOnline ? 'green.300' : 'whiteAlpha.400'}
+                />
+                <Text fontSize="10px" color={dmStatus?.peerOnline ? 'green.200' : 'whiteAlpha.500'}>
+                  {dmStatus?.peerOnline ? 'Online' : (dmStatus?.peerLastSeenAt ? `Last seen ${formatLastSeen(dmStatus.peerLastSeenAt)}` : 'Offline')}
+                </Text>
+              </HStack>
+            )}
             {showThread && activeConversation?.type === 'group' && (
               <Badge colorScheme="purple" variant="subtle" borderRadius="full" px={2}>
                 {activeConversation.members?.length || 0} members
@@ -677,7 +717,44 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
             )}
           </HStack>
           <HStack spacing={1}>
-            {showList && isAuthed && (
+            {isMobile && isAuthed && (
+              <Menu>
+                <MenuButton
+                  as={IconButton}
+                  aria-label="New conversation"
+                  icon={<FiPlus />}
+                  size="xs"
+                  variant="ghost"
+                  color="whiteAlpha.500"
+                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                />
+                <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    onClick={() => {
+                      setMobileView('list');
+                      setListAction('new-dm');
+                      setPanelError('');
+                    }}
+                  >
+                    Start DM
+                  </MenuItem>
+                  <MenuItem
+                    bg="gray.800"
+                    color="white"
+                    onClick={() => {
+                      setMobileView('list');
+                      setListAction('new-group');
+                      setPanelError('');
+                    }}
+                  >
+                    Create group
+                  </MenuItem>
+                </MenuList>
+              </Menu>
+            )}
+            {!isMobile && showList && isAuthed && (
               <>
                 <IconButton
                   aria-label="Start DM"
@@ -705,7 +782,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 />
               </>
             )}
-            {onMinimize && (
+            {onMinimize && !isMobile && (
               <IconButton
                 aria-label="Minimize"
                 icon={<FiMinus />}
@@ -746,6 +823,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
               borderRight={isDesktopSplit ? '1px solid' : 'none'}
               borderRightColor={isDesktopSplit ? 'whiteAlpha.100' : 'transparent'}
               sx={{
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
                 '&::-webkit-scrollbar': { width: '3px' },
                 '&::-webkit-scrollbar-track': { bg: 'transparent' },
                 '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
@@ -893,6 +972,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 </Box>
               )}
               <Flex
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
                 flex="1"
                 direction="column"
                 overflowY="auto"
@@ -900,6 +981,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 py={3}
                 gap={2}
                 sx={{
+                  overscrollBehavior: 'contain',
+                  WebkitOverflowScrolling: 'touch',
                   '&::-webkit-scrollbar': { width: '3px' },
                   '&::-webkit-scrollbar-track': { bg: 'transparent' },
                   '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
@@ -924,6 +1007,20 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       onOpenDm={openDmByUsername}
                     />
                     ))}
+                    {activeConversation?.type === 'dm' && (() => {
+                      const myLast = [...messages].reverse().find(m => m.sender === user);
+                      if (!myLast) return null;
+                      const peerSeenTs = dmStatus?.peerSeenAt ? new Date(dmStatus.peerSeenAt).getTime() : 0;
+                      const msgTs = new Date(myLast.createdAt).getTime();
+                      if (peerSeenTs && peerSeenTs >= msgTs) {
+                        return (
+                          <Text fontSize="10px" color="whiteAlpha.500" textAlign="right" pr={1}>
+                            Seen
+                          </Text>
+                        );
+                      }
+                      return null;
+                    })()}
                   </VStack>
                 )}
                 <div ref={messagesEndRef} />
