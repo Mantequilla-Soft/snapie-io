@@ -40,7 +40,10 @@ function ensureMessaging(config) {
         });
       });
     }
-  } catch {}
+  } catch (err) {
+    // Keep SW resilient, but surface init errors for diagnostics.
+    console.error('Firebase messaging initialization failed', err);
+  }
 }
 
 // Attempt startup init from querystring for first-load registrations.
