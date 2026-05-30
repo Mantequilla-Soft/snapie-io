@@ -338,7 +338,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (!isOpen || isMinimized) return;
     oldestIdRef.current = undefined;
     shouldAutoScrollRef.current = true;
-    if (activeConversation?.type !== 'dm') setDmStatus(null);
+    setDmStatus(null);
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
 
