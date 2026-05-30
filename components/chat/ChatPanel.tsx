@@ -24,7 +24,7 @@ import {
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
 import { FiArrowLeft, FiChevronDown, FiCornerUpLeft, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
@@ -114,6 +114,13 @@ function MessageBubble({
   replyPreview?: Message | null;
 }) {
   const canOpenDm = !isOwn && !!onOpenDm;
+  const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!onReplySelect) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onReplySelect(msg);
+    }
+  };
   if (isOwn) {
     return (
       <Box
@@ -130,6 +137,9 @@ function MessageBubble({
           borderColor="blue.500"
           onClick={() => onReplySelect?.(msg)}
           cursor={onReplySelect ? 'pointer' : 'default'}
+          role={onReplySelect ? 'button' : undefined}
+          tabIndex={onReplySelect ? 0 : undefined}
+          onKeyDown={handleReplyKeyDown}
         >
           {msg.replyTo && (
             <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -193,6 +203,9 @@ function MessageBubble({
             borderColor="whiteAlpha.100"
             onClick={() => onReplySelect?.(msg)}
             cursor={onReplySelect ? 'pointer' : 'default'}
+            role={onReplySelect ? 'button' : undefined}
+            tabIndex={onReplySelect ? 0 : undefined}
+            onKeyDown={handleReplyKeyDown}
           >
             {msg.replyTo && (
               <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -278,6 +291,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [mutedUsers, setMutedUsers] = useState<string[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [messageCache, setMessageCache] = useState<Record<string, Message>>({});
   const [dmStatus, setDmStatus] = useState<DmStatusInfo | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
@@ -296,7 +310,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
-  const messageById = useMemo(() => new Map(messages.map(m => [m._id, m])), [messages]);
 
   const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
     const byId = new Map(baseConversations.map(c => [c._id, c]));
@@ -439,8 +452,18 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     shouldAutoScrollRef.current = true;
     setDmStatus(null);
     setReplyingTo(null);
+    setMessageCache({});
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
+
+  useEffect(() => {
+    if (!messages.length) return;
+    setMessageCache(prev => {
+      const next = { ...prev };
+      for (const msg of messages) next[msg._id] = msg;
+      return next;
+    });
+  }, [messages]);
 
   async function handleOpenConversation(conv: Conversation) {
     setPanelError('');
@@ -626,8 +649,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (isMobile) return;
     e.preventDefault();
     e.stopPropagation();
-    setShowResizeHint(false);
-    localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
     resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -635,6 +656,10 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       height: panelSize.height,
     };
     setIsResizing(true);
+    setShowResizeHint(false);
+    try {
+      localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
+    } catch {}
   }
 
   useEffect(() => {
@@ -1184,7 +1209,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       isOwn={msg.sender === user}
                       onOpenDm={openDmByUsername}
                       onReplySelect={setReplyingTo}
-                      replyPreview={msg.replyTo ? messageById.get(msg.replyTo) || null : null}
+                      replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
                     />
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
