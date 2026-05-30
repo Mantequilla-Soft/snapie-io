@@ -673,6 +673,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (isMobile) return;
     e.preventDefault();
     e.stopPropagation();
+    setShowResizeHint(false);
     resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -680,7 +681,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       height: panelSize.height,
     };
     setIsResizing(true);
-    setShowResizeHint(false);
     try {
       localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
     } catch {}
