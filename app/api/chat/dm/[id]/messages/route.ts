@@ -131,3 +131,25 @@ export const POST = withChatAuth(async (req, { username, params }) => {
   );
 });
 
+export const PATCH = withChatAuth(async (req, { username, params }) => {
+  const id = params?.id;
+  if (!id) return NextResponse.json({ error: 'DM id missing' }, { status: 400 });
+  if (!isDmParticipant(id, username)) return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+
+  const { messageId, content } = await req.json();
+  if (!messageId || typeof messageId !== 'string') {
+    return NextResponse.json({ error: 'messageId required' }, { status: 400 });
+  }
+  const validated = validateMessageBody(content);
+  if (!validated.ok) return validated.response;
+
+  const message = await Message.findOneAndUpdate(
+    { _id: messageId, type: 'dm', target: id, sender: username },
+    { $set: { content: validated.value, editedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+  if (!message) return NextResponse.json({ error: 'Message not found or not editable' }, { status: 404 });
+
+  return NextResponse.json({ message });
+});
+

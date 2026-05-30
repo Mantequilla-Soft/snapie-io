@@ -26,7 +26,7 @@ import {
 import { keyframes } from '@emotion/react';
 import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiChevronDown, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronDown, FiCornerUpLeft, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -104,12 +104,32 @@ function MessageBubble({
   msg,
   isOwn,
   onOpenDm,
+  onReplySelect,
+  replyPreview,
+  onEditSelect,
 }: {
   msg: Message;
   isOwn: boolean;
   onOpenDm?: (username: string) => void;
+  onReplySelect?: (message: Message) => void;
+  replyPreview?: Message | null;
+  onEditSelect?: (message: Message) => void;
 }) {
   const canOpenDm = !isOwn && !!onOpenDm;
+  const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!onReplySelect) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onReplySelect(msg);
+    }
+  };
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!onEditSelect) return;
+    if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      onEditSelect(msg);
+    }
+  };
   if (isOwn) {
     return (
       <Box
@@ -124,14 +144,45 @@ function MessageBubble({
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
           borderColor="blue.500"
+          onClick={() => onReplySelect?.(msg)}
+          cursor={onReplySelect ? 'pointer' : 'default'}
+          role={onReplySelect ? 'button' : undefined}
+          tabIndex={onReplySelect ? 0 : undefined}
+          onKeyDown={handleReplyKeyDown}
         >
+          {msg.replyTo && (
+            <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
+              <HStack spacing={1} mb="2px">
+                <Icon as={FiCornerUpLeft} boxSize={3} color="whiteAlpha.700" />
+                <Text fontSize="10px" color="whiteAlpha.700" fontWeight="600">
+                  @{replyPreview?.sender || 'message'}
+                </Text>
+              </HStack>
+              <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                {replyPreview?.content || 'Original message unavailable'}
+              </Text>
+            </Box>
+          )}
           <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
             {msg.content}
           </Text>
           <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
-            {formatTime(msg.createdAt)}
+            {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
           </Text>
         </Box>
+        {onEditSelect && (
+          <HStack justify="flex-end" mt={1}>
+            <Button
+              size="2xs"
+              variant="ghost"
+              colorScheme="whiteAlpha"
+              onClick={() => onEditSelect(msg)}
+              onKeyDown={handleEditKeyDown}
+            >
+              Edit
+            </Button>
+          </HStack>
+        )}
       </Box>
     );
   }
@@ -172,12 +223,30 @@ function MessageBubble({
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
             borderColor="whiteAlpha.100"
+            onClick={() => onReplySelect?.(msg)}
+            cursor={onReplySelect ? 'pointer' : 'default'}
+            role={onReplySelect ? 'button' : undefined}
+            tabIndex={onReplySelect ? 0 : undefined}
+            onKeyDown={handleReplyKeyDown}
           >
+            {msg.replyTo && (
+              <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
+                <HStack spacing={1} mb="2px">
+                  <Icon as={FiCornerUpLeft} boxSize={3} color="whiteAlpha.700" />
+                  <Text fontSize="10px" color="whiteAlpha.700" fontWeight="600">
+                    @{replyPreview?.sender || 'message'}
+                  </Text>
+                </HStack>
+                <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                  {replyPreview?.content || 'Original message unavailable'}
+                </Text>
+              </Box>
+            )}
             <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
               {msg.content}
             </Text>
             <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
-              {formatTime(msg.createdAt)}
+              {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
             </Text>
           </Box>
         </Box>
@@ -244,7 +313,10 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [mutedUsers, setMutedUsers] = useState<string[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [messageCache, setMessageCache] = useState<Record<string, Message>>({});
   const [dmStatus, setDmStatus] = useState<DmStatusInfo | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -402,8 +474,20 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     oldestIdRef.current = undefined;
     shouldAutoScrollRef.current = true;
     setDmStatus(null);
+    setReplyingTo(null);
+    setEditingMessage(null);
+    setMessageCache({});
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
+
+  useEffect(() => {
+    if (!messages.length) return;
+    setMessageCache(prev => {
+      const next = { ...prev };
+      for (const msg of messages) next[msg._id] = msg;
+      return next;
+    });
+  }, [messages]);
 
   async function handleOpenConversation(conv: Conversation) {
     setPanelError('');
@@ -590,7 +674,6 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     e.preventDefault();
     e.stopPropagation();
     setShowResizeHint(false);
-    localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
     resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -598,6 +681,9 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       height: panelSize.height,
     };
     setIsResizing(true);
+    try {
+      localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
+    } catch {}
   }
 
   useEffect(() => {
@@ -663,18 +749,35 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (!content || sending || !activeConversation) return;
     setSending(true);
     setDraft('');
+    const replyTo = replyingTo?._id;
     try {
       setPanelError('');
+      if (editingMessage) {
+        let edited: Message;
+        if (activeConversation.type === 'dm') {
+          edited = await chatService.editDmMessage(activeConversation._id, editingMessage._id, content);
+        } else {
+          edited = await chatService.editMessage(activeConversation._id, editingMessage._id, content);
+        }
+        setMessages(prev => prev.map(m => (m._id === edited._id ? edited : m)));
+        setMessageCache(prev => ({ ...prev, [edited._id]: edited }));
+        setEditingMessage(null);
+        setReplyingTo(null);
+        setSending(false);
+        return;
+      }
       let msg: Message;
       let dmDelivery: { hasFcm: boolean; memoSuggested: boolean; cooldownMs: number } | undefined;
       if (activeConversation.type === 'dm') {
-        const out = await chatService.sendDmMessageWithDelivery(activeConversation._id, content);
+        const out = await chatService.sendDmMessageWithDelivery(activeConversation._id, content, replyTo);
         msg = out.message;
         dmDelivery = out.delivery;
       } else {
-        msg = await chatService.sendMessage(activeConversation._id, content);
+        msg = await chatService.sendMessage(activeConversation._id, content, replyTo);
       }
       setMessages(prev => [...prev, msg]);
+      setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
+      setReplyingTo(null);
       if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
       }
@@ -1144,6 +1247,13 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       msg={msg}
                       isOwn={msg.sender === user}
                       onOpenDm={openDmByUsername}
+                      onReplySelect={setReplyingTo}
+                      replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
+                      onEditSelect={msg.sender === user ? (m) => {
+                        setEditingMessage(m);
+                        setReplyingTo(null);
+                        setDraft(m.content);
+                      } : undefined}
                     />
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
@@ -1270,6 +1380,64 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                         Send 0.001 {memoAssetChoice}
                       </Button>
                     </HStack>
+                  </Box>
+                )}
+                {replyingTo && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="blue.300"
+                    bg="blue.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <HStack justify="space-between" mb={1}>
+                      <HStack spacing={1}>
+                        <Icon as={FiCornerUpLeft} boxSize={3} color="blue.200" />
+                        <Text fontSize="11px" color="blue.100" fontWeight="600">
+                          Replying to @{replyingTo.sender}
+                        </Text>
+                      </HStack>
+                      <IconButton
+                        aria-label="Cancel reply"
+                        icon={<FiX />}
+                        size="2xs"
+                        variant="ghost"
+                        onClick={() => setReplyingTo(null)}
+                      />
+                    </HStack>
+                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                      {replyingTo.content}
+                    </Text>
+                  </Box>
+                )}
+                {editingMessage && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="orange.300"
+                    bg="orange.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <HStack justify="space-between" mb={1}>
+                      <Text fontSize="11px" color="orange.100" fontWeight="600">
+                        Editing your message
+                      </Text>
+                      <IconButton
+                        aria-label="Cancel edit"
+                        icon={<FiX />}
+                        size="2xs"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingMessage(null);
+                          setDraft('');
+                        }}
+                      />
+                    </HStack>
+                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                      {editingMessage.content}
+                    </Text>
                   </Box>
                 )}
                 <HStack spacing={1} w="100%" justify="space-between">
