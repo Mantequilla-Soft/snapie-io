@@ -19,6 +19,7 @@ import {
   Switch,
   Spinner,
   Text,
+  Tooltip,
   VStack,
   useBreakpointValue,
 } from '@chakra-ui/react';
@@ -44,6 +45,7 @@ const POLL_INTERVAL = 15000;
 const QUICK_EMOJIS = ['😀', '😂', '❤️', '🔥', '👏', '👍', '🙏', '🎉', '😮', '😢'];
 const fadeIn = keyframes`from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); }`;
 const CHAT_PANEL_SIZE_KEY = 'snapie-chat-panel-size';
+const CHAT_PANEL_RESIZE_HINT_KEY = 'snapie-chat-resize-hint-dismissed';
 const DESKTOP_PANEL_DEFAULT = { width: 460, height: 680 };
 const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
 
@@ -140,43 +142,44 @@ function MessageBubble({
       alignSelf="flex-start"
       maxW="88%"
     >
-      <HStack align="flex-end" spacing={2}>
-        <VStack spacing={1} align="center" minW="52px">
+      <HStack align="flex-start" spacing={2}>
+        <Box
+          onDoubleClick={() => onOpenDm?.(msg.sender)}
+          cursor={canOpenDm ? 'pointer' : 'default'}
+          title={canOpenDm ? 'Double-click to open DM' : undefined}
+          pt="2px"
+        >
+          <Avatar size="2xs" name={msg.sender} src={getHiveAvatarUrl(msg.sender, 'small')} />
+        </Box>
+        <Box minW={0}>
           <Text
             fontSize="10px"
             color="blue.300"
             fontWeight="600"
             letterSpacing="0.03em"
+            mb="2px"
             onDoubleClick={() => onOpenDm?.(msg.sender)}
             cursor={canOpenDm ? 'pointer' : 'default'}
             title={canOpenDm ? 'Double-click to open DM' : undefined}
             noOfLines={1}
-            maxW="52px"
           >
             @{msg.sender}
           </Text>
           <Box
-            onDoubleClick={() => onOpenDm?.(msg.sender)}
-            cursor={canOpenDm ? 'pointer' : 'default'}
-            title={canOpenDm ? 'Double-click to open DM' : undefined}
+            bg="whiteAlpha.100"
+            px={3}
+            py={2}
+            borderRadius="16px 16px 16px 4px"
+            border="1px solid"
+            borderColor="whiteAlpha.100"
           >
-            <Avatar size="2xs" name={msg.sender} src={getHiveAvatarUrl(msg.sender, 'small')} />
+            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+              {msg.content}
+            </Text>
+            <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
+              {formatTime(msg.createdAt)}
+            </Text>
           </Box>
-        </VStack>
-        <Box
-          bg="whiteAlpha.100"
-          px={3}
-          py={2}
-          borderRadius="16px 16px 16px 4px"
-          border="1px solid"
-          borderColor="whiteAlpha.100"
-        >
-          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            {msg.content}
-          </Text>
-          <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
-            {formatTime(msg.createdAt)}
-          </Text>
         </Box>
       </HStack>
     </Box>
@@ -247,6 +250,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [panelSize, setPanelSize] = useState(DESKTOP_PANEL_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
+  const [showResizeHint, setShowResizeHint] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -347,6 +351,16 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (isMobile) return;
     localStorage.setItem(CHAT_PANEL_SIZE_KEY, JSON.stringify(panelSize));
   }, [panelSize, isMobile]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    try {
+      const dismissed = localStorage.getItem(CHAT_PANEL_RESIZE_HINT_KEY) === '1';
+      setShowResizeHint(!dismissed);
+    } catch {
+      setShowResizeHint(true);
+    }
+  }, [isMobile]);
 
   const fetchMessagesForConversation = useCallback(async (
     convId: string,
@@ -575,6 +589,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (isMobile) return;
     e.preventDefault();
     e.stopPropagation();
+    setShowResizeHint(false);
+    localStorage.setItem(CHAT_PANEL_RESIZE_HINT_KEY, '1');
     resizeStartRef.current = {
       x: e.clientX,
       y: e.clientY,
@@ -770,20 +786,30 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         }}
       >
         {!isMobile && (
-          <Box
-            position="absolute"
-            left="0"
-            bottom="0"
-            w="16px"
-            h="16px"
-            cursor="nwse-resize"
-            zIndex={1500}
-            onMouseDown={handleResizeStart}
-            title="Resize chat panel"
-            sx={{
-              background: 'linear-gradient(135deg, transparent 48%, rgba(255,255,255,0.35) 49%, rgba(255,255,255,0.35) 51%, transparent 52%)',
-            }}
-          />
+          <Tooltip label="Drag to resize" hasArrow placement="top" isOpen={showResizeHint ? undefined : false}>
+            <Box
+              position="absolute"
+              left="0"
+              bottom="0"
+              w="22px"
+              h="22px"
+              cursor="nwse-resize"
+              zIndex={1500}
+              onMouseDown={handleResizeStart}
+              title="Drag to resize"
+              bg="whiteAlpha.100"
+              borderTop="1px solid"
+              borderRight="1px solid"
+              borderColor="whiteAlpha.200"
+              borderTopRightRadius="8px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              _hover={{ bg: 'whiteAlpha.200' }}
+            >
+              <Icon as={FiMaximize2} boxSize={3} color="whiteAlpha.700" />
+            </Box>
+          </Tooltip>
         )}
 
         {/* Header */}
