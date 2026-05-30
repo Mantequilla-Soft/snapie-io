@@ -25,13 +25,40 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
   const messages = await Message.find(query).sort({ _id: -1 }).limit(limit);
   const visible = messages.filter(m => !blocked.has(m.sender));
 
+  const now = Date.now();
+  const onlineWindowMs = 2 * 60 * 1000;
+  const peer = getDmPeer(id, username);
+
   await ChatUser.findOneAndUpdate(
     { _id: username },
     { $set: { [`conversationSeen.${id}`]: new Date(), lastSeen: new Date() } },
     { upsert: true, returnDocument: 'after' }
   );
 
-  return NextResponse.json({ messages: visible.reverse() });
+  let status: {
+    meSeenAt: string;
+    peerSeenAt: string | null;
+    peerLastSeenAt: string | null;
+    peerOnline: boolean;
+  } | null = null;
+
+  if (peer) {
+    const peerUser = await ChatUser.findById(peer);
+    const peerSeenAtDate = peerUser?.conversationSeen?.get?.(id) || null;
+    const peerLastSeenDate = peerUser?.lastSeen || null;
+    const peerLastActiveTs = Math.max(
+      peerSeenAtDate ? new Date(peerSeenAtDate).getTime() : 0,
+      peerLastSeenDate ? new Date(peerLastSeenDate).getTime() : 0
+    );
+    status = {
+      meSeenAt: new Date().toISOString(),
+      peerSeenAt: peerSeenAtDate ? new Date(peerSeenAtDate).toISOString() : null,
+      peerLastSeenAt: peerLastSeenDate ? new Date(peerLastSeenDate).toISOString() : null,
+      peerOnline: !!peerLastActiveTs && (now - peerLastActiveTs) < onlineWindowMs,
+    };
+  }
+
+  return NextResponse.json({ messages: visible.reverse(), status });
 });
 
 export const POST = withChatAuth(async (req, { username, params }) => {
