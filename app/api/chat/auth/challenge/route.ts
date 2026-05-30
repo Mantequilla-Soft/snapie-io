@@ -9,10 +9,14 @@ export async function POST(req: NextRequest) {
     if (!username || typeof username !== 'string') {
       return NextResponse.json({ error: 'username required' }, { status: 400 });
     }
+    const normalizedUser = username.trim().toLowerCase();
+    if (!normalizedUser) {
+      return NextResponse.json({ error: 'username required' }, { status: 400 });
+    }
 
     await connectDB();
     const nonce = randomUUID();
-    await Challenge.create({ nonce, username });
+    await Challenge.create({ nonce, username: normalizedUser });
 
     return NextResponse.json({ challenge: nonce });
   } catch (err) {

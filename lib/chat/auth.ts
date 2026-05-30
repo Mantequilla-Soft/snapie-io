@@ -8,13 +8,50 @@ import HiveClient from '@/lib/hive/hiveclient';
 const JWT_SECRET = process.env.CHAT_JWT_SECRET!;
 if (!JWT_SECRET) throw new Error('CHAT_JWT_SECRET is not defined');
 
+function normalizeSignatureInput(raw: string): string {
+  return raw.trim();
+}
+
+function tryParseWrappedSignature(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('{')) return null;
+  try {
+    const parsed = JSON.parse(trimmed) as { signature?: string; result?: string };
+    if (typeof parsed.signature === 'string' && parsed.signature.length > 0) return parsed.signature;
+    if (typeof parsed.result === 'string' && parsed.result.length > 0) return parsed.result;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function parseSignature(rawSignature: string): { sig: Signature; format: string } {
+  const normalized = normalizeSignatureInput(rawSignature);
+  const wrapped = tryParseWrappedSignature(normalized);
+  const candidate = wrapped || normalized;
+
+  if (candidate.startsWith('SIG_K1_') || candidate.startsWith('SIG_R1_')) {
+    return { sig: Signature.fromString(candidate), format: 'legacy-sig-string' };
+  }
+
+  if (/^[0-9a-fA-F]+$/.test(candidate) && candidate.length % 2 === 0) {
+    const buf = Buffer.from(candidate, 'hex');
+    if (buf.length === 65) {
+      return { sig: Signature.fromBuffer(buf), format: 'compact-hex-65b' };
+    }
+  }
+
+  return { sig: Signature.fromString(candidate), format: 'fallback-fromString' };
+}
+
 export async function verifyHiveSignature(
   username: string,
   challenge: string,
   signature: string
 ): Promise<boolean> {
   try {
-    const [account] = await (HiveClient as any).client.database.getAccounts([username]);
+    const normalizedUser = username.trim().toLowerCase();
+    const [account] = await HiveClient.database.getAccounts([normalizedUser]);
     if (!account) return false;
 
     const postingKeys: string[] = account.posting.key_auths.map(([key]: [string, number]) => key);
@@ -22,8 +59,9 @@ export async function verifyHiveSignature(
 
     // Recover public key from signature and compare to on-chain posting key
     const msgHash = createHash('sha256').update(challenge, 'utf8').digest();
-    const sig = Signature.fromString(signature);
+    const { sig, format } = parseSignature(signature);
     const recovered = sig.recover(msgHash);
+    void format;
     return postingKeys.includes(recovered.toString());
   } catch {
     return false;

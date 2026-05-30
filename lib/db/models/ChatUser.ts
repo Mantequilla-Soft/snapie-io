@@ -5,7 +5,10 @@ export interface IChatUser extends Document<string> {
   fcmTokens: string[];
   channels: string[];
   mutedUsers: string[];
+  blockedUsers: string[];
   lastSeen: Date;
+  conversationSeen: Record<string, Date>;
+  memoNotifyAt: Record<string, Date>;
 }
 
 const ChatUserSchema = new Schema<IChatUser>(
@@ -14,7 +17,10 @@ const ChatUserSchema = new Schema<IChatUser>(
     fcmTokens: { type: [String], default: [] },
     channels: { type: [String], default: [] },
     mutedUsers: { type: [String], default: [] },
+    blockedUsers: { type: [String], default: [] },
     lastSeen: { type: Date, default: Date.now },
+    conversationSeen: { type: Map, of: Date, default: {} },
+    memoNotifyAt: { type: Map, of: Date, default: {} },
   },
   { timestamps: false }
 );

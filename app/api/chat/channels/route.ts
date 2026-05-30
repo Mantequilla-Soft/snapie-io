@@ -7,7 +7,7 @@ import { seedDefaultChannels } from '@/lib/chat/seedChannels';
 export async function GET() {
   await connectDB();
   await seedDefaultChannels();
-  const channels = await Channel.find({ isPublic: true }).sort({ name: 1 });
+  const channels = await Channel.find({ isPublic: true, conversationKind: 'channel' }).sort({ name: 1 });
   return NextResponse.json({ channels });
 }
 
@@ -17,8 +17,18 @@ export const POST = withChatAuth(async (req, { username }) => {
 
   const channel = await Channel.findOneAndUpdate(
     { _id: id },
-    { $setOnInsert: { name, description, type: type || 'community', isPublic: true, createdBy: username, memberCount: 0 } },
-    { upsert: true, new: true }
+    {
+      $setOnInsert: {
+        name,
+        description,
+        type: type || 'community',
+        conversationKind: 'channel',
+        isPublic: true,
+        createdBy: username,
+        memberCount: 0,
+      }
+    },
+    { upsert: true, returnDocument: 'after' }
   );
   return NextResponse.json({ channel }, { status: 201 });
 });

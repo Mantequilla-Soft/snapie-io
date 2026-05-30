@@ -3,31 +3,44 @@ import { withChatAuth } from '@/lib/chat/auth';
 import { Message } from '@/lib/db/models/Message';
 import { Channel } from '@/lib/db/models/Channel';
 import { sendChannelMessage } from '@/lib/chat/fcm';
+import { ChatUser } from '@/lib/db/models/ChatUser';
+import { isRateLimited, validateMessageBody } from '@/lib/chat/messages';
 
-// Simple in-memory rate limiter: max 5 messages per 10s per user
-const rateLimitMap = new Map<string, number[]>();
-function isRateLimited(username: string): boolean {
-  const now = Date.now();
-  const window = 10_000;
-  const maxMessages = 5;
-  const timestamps = (rateLimitMap.get(username) || []).filter(t => now - t < window);
-  if (timestamps.length >= maxMessages) return true;
-  timestamps.push(now);
-  rateLimitMap.set(username, timestamps);
-  return false;
-}
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export const GET = withChatAuth(async (req: NextRequest, { username, params }) => {
   const { searchParams } = new URL(req.url);
   const before = searchParams.get('before');
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
+  const channelId = params?.id;
+  if (!channelId) return NextResponse.json({ error: 'Channel id missing' }, { status: 400 });
 
-  const query: Record<string, unknown> = { target: params.id, type: 'channel' };
+  const channel = await Channel.findById(channelId);
+  if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
+  const memberList = Array.isArray(channel.members) ? channel.members : [];
+  const isMember = memberList.includes(username);
+  if (!channel.isPublic && !isMember) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  if (isMember) {
+    await ChatUser.findOneAndUpdate(
+      { _id: username },
+      { $set: { [`conversationSeen.${channelId}`]: new Date(), lastSeen: new Date() } },
+      { upsert: true, returnDocument: 'after' }
+    );
+  }
+
+  const query: Record<string, unknown> = { target: channelId, type: 'channel' };
   if (before) query._id = { $lt: before };
 
+  const me = await ChatUser.findById(username);
+  const blocked = new Set<string>([
+    ...(me?.blockedUsers || []),
+    ...(me?.mutedUsers || []),
+  ]);
   const messages = await Message.find(query).sort({ _id: -1 }).limit(limit);
-  return NextResponse.json({ messages: messages.reverse() });
-}
+  const visible = messages.filter(m => !blocked.has(m.sender));
+  return NextResponse.json({ messages: visible.reverse() });
+});
 
 export const POST = withChatAuth(async (req, { username, params }) => {
   if (isRateLimited(username)) {
@@ -35,24 +48,25 @@ export const POST = withChatAuth(async (req, { username, params }) => {
   }
 
   const { content, replyTo } = await req.json();
-  if (!content || typeof content !== 'string' || content.trim().length === 0) {
-    return NextResponse.json({ error: 'content required' }, { status: 400 });
-  }
-  if (content.length > 2000) {
-    return NextResponse.json({ error: 'Message too long' }, { status: 400 });
-  }
+  const validated = validateMessageBody(content);
+  if (!validated.ok) return validated.response;
 
   const channelId = params?.id;
   if (!channelId) return NextResponse.json({ error: 'Channel id missing' }, { status: 400 });
 
   const channel = await Channel.findById(channelId);
   if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
+  const memberList = Array.isArray(channel.members) ? channel.members : [];
+  const isMember = memberList.includes(username);
+  if (!channel.isPublic && !isMember) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
 
   const message = await Message.create({
     type: 'channel',
     target: channelId,
     sender: username,
-    content: content.trim(),
+    content: validated.value,
     replyTo: replyTo || null,
   });
 
@@ -61,7 +75,7 @@ export const POST = withChatAuth(async (req, { username, params }) => {
     messageId: message._id.toString(),
     channelId,
     sender: username,
-    content: content.trim(),
+    content: validated.value,
   }).catch(() => {});
 
   return NextResponse.json({ message }, { status: 201 });

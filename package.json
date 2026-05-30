@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 3310",
     "lint": "next lint",
+    "chat:backfill": "node scripts/chat-backfill.js",
     "packages:build": "pnpm --filter '@snapie/*' build",
     "packages:publish": "pnpm packages:build && pnpm --filter '@snapie/*' publish --access public"
   },
@@ -31,6 +32,8 @@
     "@snapie/operations": "workspace:*",
     "@snapie/renderer": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
+    "firebase": "^12.14.0",
+    "firebase-admin": "^13.10.0",
     "framer-motion": "^11.3.28",
     "isomorphic-dompurify": "^2.31.0",
     "jsonwebtoken": "^9.0.3",
