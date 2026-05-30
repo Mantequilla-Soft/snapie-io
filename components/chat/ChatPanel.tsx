@@ -23,7 +23,7 @@ import {
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
 import { FiArrowLeft, FiChevronDown, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
@@ -43,6 +43,9 @@ interface ChatPanelProps {
 const POLL_INTERVAL = 15000;
 const QUICK_EMOJIS = ['😀', '😂', '❤️', '🔥', '👏', '👍', '🙏', '🎉', '😮', '😢'];
 const fadeIn = keyframes`from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); }`;
+const CHAT_PANEL_SIZE_KEY = 'snapie-chat-panel-size';
+const DESKTOP_PANEL_DEFAULT = { width: 460, height: 680 };
+const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -220,12 +223,15 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [panelSize, setPanelSize] = useState(DESKTOP_PANEL_DEFAULT);
+  const [isResizing, setIsResizing] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
   const shouldAutoScrollRef = useRef(true);
+  const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
@@ -298,6 +304,27 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     const exists = conversations.some(c => c._id === activeConversationId);
     if (!exists) setActiveConversationId(conversations[0]._id);
   }, [conversations, activeConversationId]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    try {
+      const raw = localStorage.getItem(CHAT_PANEL_SIZE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { width?: number; height?: number };
+      if (typeof parsed.width !== 'number' || typeof parsed.height !== 'number') return;
+      const maxWidth = Math.max(DESKTOP_PANEL_MIN.width, window.innerWidth - 24);
+      const maxHeight = Math.max(DESKTOP_PANEL_MIN.height, window.innerHeight - 24);
+      setPanelSize({
+        width: Math.min(Math.max(parsed.width, DESKTOP_PANEL_MIN.width), maxWidth),
+        height: Math.min(Math.max(parsed.height, DESKTOP_PANEL_MIN.height), maxHeight),
+      });
+    } catch {}
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    localStorage.setItem(CHAT_PANEL_SIZE_KEY, JSON.stringify(panelSize));
+  }, [panelSize, isMobile]);
 
   const fetchMessagesForConversation = useCallback(async (
     convId: string,
@@ -522,6 +549,53 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     shouldAutoScrollRef.current = distanceFromBottom < 80;
   }
 
+  function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
+    if (isMobile) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizeStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      width: panelSize.width,
+      height: panelSize.height,
+    };
+    setIsResizing(true);
+  }
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const start = resizeStartRef.current;
+      if (!start) return;
+      const dx = start.x - e.clientX;
+      const dy = start.y - e.clientY;
+      const maxWidth = Math.max(DESKTOP_PANEL_MIN.width, window.innerWidth - 24);
+      const maxHeight = Math.max(DESKTOP_PANEL_MIN.height, window.innerHeight - 24);
+      setPanelSize({
+        width: Math.min(Math.max(start.width + dx, DESKTOP_PANEL_MIN.width), maxWidth),
+        height: Math.min(Math.max(start.height + dy, DESKTOP_PANEL_MIN.height), maxHeight),
+      });
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'nwse-resize';
+    document.body.style.userSelect = 'none';
+
+    return () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
+
   // ── Auth ──────────────────────────────────────────────────────────────
   async function handleConnect() {
     if (!user) return;
@@ -582,8 +656,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   }
 
   // ── Panel dimensions ───────────────────────────────────────────────────
-  const panelW = isMobile ? '100vw' : '460px';
-  const panelH = isMobile ? '85vh' : '680px';
+  const panelW = isMobile ? '100vw' : `${panelSize.width}px`;
+  const panelH = isMobile ? '85vh' : `${panelSize.height}px`;
   const panelBottom = isMobile ? '0' : '0';
   const panelRight = isMobile ? '0' : '16px';
   const borderRadius = isMobile ? '20px 20px 0 0' : '16px 16px 0 0';
@@ -658,6 +732,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         zIndex={1400}
         display="flex"
         flexDirection="column"
+        cursor={isResizing ? 'nwse-resize' : 'default'}
         bg="rgba(6,17,31,0.95)"
         backdropFilter="blur(16px)"
         borderRadius={borderRadius}
@@ -672,6 +747,22 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
           '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
         }}
       >
+        {!isMobile && (
+          <Box
+            position="absolute"
+            left="0"
+            bottom="0"
+            w="16px"
+            h="16px"
+            cursor="nwse-resize"
+            zIndex={1500}
+            onMouseDown={handleResizeStart}
+            title="Resize chat panel"
+            sx={{
+              background: 'linear-gradient(135deg, transparent 48%, rgba(255,255,255,0.35) 49%, rgba(255,255,255,0.35) 51%, transparent 52%)',
+            }}
+          />
+        )}
 
         {/* Header */}
         <Flex
