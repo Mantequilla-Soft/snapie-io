@@ -17,6 +17,7 @@ export interface Message {
   sender: string;
   content: string;
   replyTo?: string | null;
+  editedAt?: string | null;
   createdAt: string;
 }
 
@@ -138,6 +139,19 @@ class ChatService {
     );
   }
 
+  async editDmMessage(conversationId: string, messageId: string, content: string): Promise<Message> {
+    const { message } = await this.request<{ message: Message }>(
+      `${BASE}/dm/${conversationId}/messages`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, content }),
+      },
+      true
+    );
+    return message;
+  }
+
   async openDm(targetUser: string): Promise<Conversation> {
     const { conversation } = await this.post<{ conversation: Conversation }>(
       `${BASE}/dm`,
@@ -222,6 +236,19 @@ class ChatService {
     const { message } = await this.post<{ message: Message }>(
       `${BASE}/channels/${channelId}/messages`,
       { content, replyTo: replyTo || null },
+      true
+    );
+    return message;
+  }
+
+  async editMessage(channelId: string, messageId: string, content: string): Promise<Message> {
+    const { message } = await this.request<{ message: Message }>(
+      `${BASE}/channels/${channelId}/messages`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, content }),
+      },
       true
     );
     return message;

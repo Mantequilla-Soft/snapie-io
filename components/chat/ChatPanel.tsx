@@ -106,12 +106,14 @@ function MessageBubble({
   onOpenDm,
   onReplySelect,
   replyPreview,
+  onEditSelect,
 }: {
   msg: Message;
   isOwn: boolean;
   onOpenDm?: (username: string) => void;
   onReplySelect?: (message: Message) => void;
   replyPreview?: Message | null;
+  onEditSelect?: (message: Message) => void;
 }) {
   const canOpenDm = !isOwn && !!onOpenDm;
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -119,6 +121,13 @@ function MessageBubble({
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       onReplySelect(msg);
+    }
+  };
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!onEditSelect) return;
+    if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      onEditSelect(msg);
     }
   };
   if (isOwn) {
@@ -158,9 +167,22 @@ function MessageBubble({
             {msg.content}
           </Text>
           <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
-            {formatTime(msg.createdAt)}
+            {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
           </Text>
         </Box>
+        {onEditSelect && (
+          <HStack justify="flex-end" mt={1}>
+            <Button
+              size="2xs"
+              variant="ghost"
+              colorScheme="whiteAlpha"
+              onClick={() => onEditSelect(msg)}
+              onKeyDown={handleEditKeyDown}
+            >
+              Edit
+            </Button>
+          </HStack>
+        )}
       </Box>
     );
   }
@@ -224,7 +246,7 @@ function MessageBubble({
               {msg.content}
             </Text>
             <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
-              {formatTime(msg.createdAt)}
+              {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
             </Text>
           </Box>
         </Box>
@@ -294,6 +316,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [messageCache, setMessageCache] = useState<Record<string, Message>>({});
   const [dmStatus, setDmStatus] = useState<DmStatusInfo | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -452,6 +475,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     shouldAutoScrollRef.current = true;
     setDmStatus(null);
     setReplyingTo(null);
+    setEditingMessage(null);
     setMessageCache({});
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
@@ -728,6 +752,20 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     const replyTo = replyingTo?._id;
     try {
       setPanelError('');
+      if (editingMessage) {
+        let edited: Message;
+        if (activeConversation.type === 'dm') {
+          edited = await chatService.editDmMessage(activeConversation._id, editingMessage._id, content);
+        } else {
+          edited = await chatService.editMessage(activeConversation._id, editingMessage._id, content);
+        }
+        setMessages(prev => prev.map(m => (m._id === edited._id ? edited : m)));
+        setMessageCache(prev => ({ ...prev, [edited._id]: edited }));
+        setEditingMessage(null);
+        setReplyingTo(null);
+        setSending(false);
+        return;
+      }
       let msg: Message;
       let dmDelivery: { hasFcm: boolean; memoSuggested: boolean; cooldownMs: number } | undefined;
       if (activeConversation.type === 'dm') {
@@ -738,6 +776,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
         msg = await chatService.sendMessage(activeConversation._id, content, replyTo);
       }
       setMessages(prev => [...prev, msg]);
+      setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
       setReplyingTo(null);
       if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
@@ -1210,6 +1249,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       onOpenDm={openDmByUsername}
                       onReplySelect={setReplyingTo}
                       replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
+                      onEditSelect={msg.sender === user ? (m) => {
+                        setEditingMessage(m);
+                        setReplyingTo(null);
+                        setDraft(m.content);
+                      } : undefined}
                     />
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
@@ -1364,6 +1408,35 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                     </HStack>
                     <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
                       {replyingTo.content}
+                    </Text>
+                  </Box>
+                )}
+                {editingMessage && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="orange.300"
+                    bg="orange.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <HStack justify="space-between" mb={1}>
+                      <Text fontSize="11px" color="orange.100" fontWeight="600">
+                        Editing your message
+                      </Text>
+                      <IconButton
+                        aria-label="Cancel edit"
+                        icon={<FiX />}
+                        size="2xs"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingMessage(null);
+                          setDraft('');
+                        }}
+                      />
+                    </HStack>
+                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                      {editingMessage.content}
                     </Text>
                   </Box>
                 )}

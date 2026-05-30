@@ -86,3 +86,33 @@ export const POST = withChatAuth(async (req, { username, params }) => {
 
   return NextResponse.json({ message }, { status: 201 });
 });
+
+export const PATCH = withChatAuth(async (req, { username, params }) => {
+  const channelId = params?.id;
+  if (!channelId) return NextResponse.json({ error: 'Channel id missing' }, { status: 400 });
+
+  const { messageId, content } = await req.json();
+  if (!messageId || typeof messageId !== 'string' || !mongoose.isValidObjectId(messageId)) {
+    return NextResponse.json({ error: 'Valid messageId required' }, { status: 400 });
+  }
+
+  const validated = validateMessageBody(content);
+  if (!validated.ok) return validated.response;
+
+  const channel = await Channel.findById(channelId);
+  if (!channel) return NextResponse.json({ error: 'Channel not found' }, { status: 404 });
+  const memberList = Array.isArray(channel.members) ? channel.members : [];
+  const isMember = memberList.includes(username);
+  if (!channel.isPublic && !isMember) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  const message = await Message.findOneAndUpdate(
+    { _id: messageId, type: 'channel', target: channelId, sender: username },
+    { $set: { content: validated.value, editedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+
+  if (!message) return NextResponse.json({ error: 'Message not found or not editable' }, { status: 404 });
+  return NextResponse.json({ message });
+});

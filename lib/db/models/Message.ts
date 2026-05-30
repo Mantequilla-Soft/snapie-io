@@ -7,6 +7,7 @@ export interface IMessage extends Document {
   sender: string;
   content: string;
   replyTo?: Types.ObjectId | null;
+  editedAt?: Date | null;
   createdAt: Date;
 }
 
@@ -17,6 +18,7 @@ const MessageSchema = new Schema<IMessage>(
     sender: { type: String, required: true },
     content: { type: String, required: true, maxlength: 2000 },
     replyTo: { type: Schema.Types.ObjectId, ref: 'Message', default: null },
+    editedAt: { type: Date, default: null },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
