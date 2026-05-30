@@ -1,168 +1,36 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef } from "react";
 import {
-  Box,
-  VStack,
-  HStack,
-  Text,
-  Input,
-  Button,
-  Flex,
-  IconButton,
-  Spinner,
   Avatar,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanels,
-  TabPanel,
+  AvatarGroup,
   Badge,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  PopoverBody,
-  Wrap,
-  WrapItem,
-  Tooltip,
-} from "@chakra-ui/react";
-import { CloseIcon, ChevronLeftIcon, AddIcon, MinusIcon } from "@chakra-ui/icons";
-import { buildEcencyAccessToken, bootstrapEcencyChat, hasEcencyChatSession } from "@/lib/hive/ecency-auth";
-import { useAioha } from "@aioha/react-ui";
-import { getHiveAvatarUrl } from "@/lib/utils/avatarUtils";
-import { FiMessageSquare } from "react-icons/fi";
-import Image from "next/image";
-
-// Common emoji reactions
-const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👀"];
-
-// Map Mattermost emoji names back to emoji characters for display
-const NAME_TO_EMOJI: { [key: string]: string } = {
-  "+1": "👍",
-  "-1": "👎",
-  "thumbsup": "👍",
-  "thumbsdown": "👎",
-  "heart": "❤️",
-  "joy": "😂",
-  "open_mouth": "😮",
-  "cry": "😢",
-  "fire": "🔥",
-  "tada": "🎉",
-  "eyes": "👀",
-  "grinning": "😀",
-  "slightly_smiling_face": "🙂",
-  "heart_eyes": "😍",
-  "thinking": "🤔",
-  "clap": "👏",
-  "rocket": "🚀",
-};
-
-// Regex to detect GIF/image URLs
-const GIF_URL_REGEX = /(https?:\/\/[^\s]+\.(?:gif|gifv|webp|png|jpg|jpeg)(?:\?[^\s]*)?)/gi;
-const GIPHY_MEDIA_REGEX = /(https?:\/\/media[0-9]?\.giphy\.com\/[^\s]+)/gi;
-
-// Helper function to render message content with GIF support
-function renderMessageContent(message: string): React.ReactNode {
-  // Check for GIF/image URLs (including Giphy media URLs)
-  const gifMatches = message.match(GIF_URL_REGEX) || message.match(GIPHY_MEDIA_REGEX);
-  
-  if (gifMatches && gifMatches.length > 0) {
-    // Split message into parts (text and images)
-    const parts: React.ReactNode[] = [];
-    let remainingText = message;
-    let keyIndex = 0;
-    
-    // Find all image URLs and split around them
-    const allUrls = [...(message.match(GIF_URL_REGEX) || []), ...(message.match(GIPHY_MEDIA_REGEX) || [])];
-    const uniqueUrls = [...new Set(allUrls)];
-    
-    for (const url of uniqueUrls) {
-      const index = remainingText.indexOf(url);
-      if (index !== -1) {
-        // Add text before the URL
-        if (index > 0) {
-          const textBefore = remainingText.substring(0, index).trim();
-          if (textBefore) {
-            parts.push(
-              <Text key={`text-${keyIndex++}`} wordBreak="break-word" whiteSpace="pre-wrap">
-                {textBefore}
-              </Text>
-            );
-          }
-        }
-        
-        // Add the image
-        parts.push(
-          <Box key={`img-${keyIndex++}`} mt={1} mb={1} position="relative" maxW="200px" maxH="200px">
-            <Image 
-              src={url} 
-              alt="GIF"
-              width={200}
-              height={200}
-              style={{ 
-                borderRadius: '8px',
-                objectFit: 'contain',
-                width: 'auto',
-                height: 'auto',
-                maxWidth: '200px',
-                maxHeight: '200px'
-              }}
-              unoptimized // GIFs need to be unoptimized to animate
-            />
-          </Box>
-        );
-        
-        // Update remaining text
-        remainingText = remainingText.substring(index + url.length);
-      }
-    }
-    
-    // Add any remaining text
-    if (remainingText.trim()) {
-      parts.push(
-        <Text key={`text-${keyIndex++}`} wordBreak="break-word" whiteSpace="pre-wrap">
-          {remainingText.trim()}
-        </Text>
-      );
-    }
-    
-    return <>{parts}</>;
-  }
-  
-  // No images, just return text with proper wrapping
-  return (
-    <Text wordBreak="break-word" whiteSpace="pre-wrap">
-      {message}
-    </Text>
-  );
-}
-
-interface Reaction {
-  emoji_name: string;
-  user_id: string;
-  username?: string;
-}
-
-interface Message {
-  id: string;
-  message: string;
-  user_id: string;
-  username?: string;
-  create_at: number;
-  reactions?: Reaction[];
-}
-
-interface Channel {
-  id: string;
-  name: string;
-  display_name: string;
-  type?: string; // 'O' for open/community, 'D' for direct
-  last_post_at?: number;
-}
-
-interface DMChannel extends Channel {
-  otherUser: string; // The username of the other person in the DM
-}
+  Box,
+  Button,
+  Divider,
+  Flex,
+  HStack,
+  Icon,
+  IconButton,
+  Input,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  Switch,
+  Spinner,
+  Text,
+  VStack,
+  useBreakpointValue,
+} from '@chakra-ui/react';
+import { keyframes } from '@emotion/react';
+import { useState, useEffect, useRef, useCallback, KeyboardEvent } from 'react';
+import { useAioha } from '@aioha/react-ui';
+import { FiArrowLeft, FiChevronDown, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { KeyTypes } from '@aioha/aioha';
+import { chatService, Channel, Conversation, Message } from '@/lib/chat/ChatService';
+import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
+import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { transferEncryptedMemoWithAioha } from '@/lib/hive/aioha';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -170,1097 +38,1083 @@ interface ChatPanelProps {
   isMinimized?: boolean;
   onMinimize?: () => void;
   onRestore?: () => void;
-  unreadCount?: number;
 }
 
-export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore, unreadCount = 0 }: ChatPanelProps) {
-  const { user } = useAioha();
-  const isLoggedIn = !!user;
-  const [isBootstrapped, setIsBootstrapped] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Draggable bubble state - start above mobile footer (60px footer + some padding).
-  // Always start at the SSR-safe default so server + first client render match;
-  // the real viewport-based position is set after mount (see useEffect below).
-  const [bubblePosition, setBubblePosition] = useState({ x: 20, y: 500 });
-  useEffect(() => {
-    setBubblePosition({ x: 20, y: window.innerHeight - 140 });
-  }, []);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
-  const bubbleRef = useRef<HTMLDivElement>(null);
-  
-  const [channel, setChannel] = useState<Channel | null>(null);
-  const [communityChannel, setCommunityChannel] = useState<Channel | null>(null);
-  const [dmChannels, setDmChannels] = useState<DMChannel[]>([]); // List of DM conversations
+const POLL_INTERVAL = 15000;
+const QUICK_EMOJIS = ['😀', '😂', '❤️', '🔥', '👏', '👍', '🙏', '🎉', '😮', '😢'];
+const fadeIn = keyframes`from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); }`;
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function avatarNameForConversation(conv: Conversation): string {
+  if (conv.type === 'dm') return conv.peer || conv.name.replace(/^@/, '');
+  if (conv.members?.length) return conv.members[0];
+  return conv.name;
+}
+
+function ConversationAvatar({ conv }: { conv: Conversation }) {
+  if (conv.type === 'group' && conv.members && conv.members.length > 1) {
+    return (
+      <AvatarGroup size="xs" max={2}>
+        {conv.members.slice(0, 2).map(member => (
+          <Avatar key={member} name={member} src={getHiveAvatarUrl(member, 'small')} />
+        ))}
+      </AvatarGroup>
+    );
+  }
+  if (conv.type === 'channel') {
+    return (
+      <Flex
+        w="28px"
+        h="28px"
+        borderRadius="full"
+        bg="whiteAlpha.200"
+        align="center"
+        justify="center"
+        flexShrink={0}
+      >
+        <Icon as={FiHash} boxSize={3} color="whiteAlpha.800" />
+      </Flex>
+    );
+  }
+  const username = avatarNameForConversation(conv);
+  return <Avatar size="xs" name={username} src={getHiveAvatarUrl(username, 'small')} />;
+}
+
+function MessageBubble({
+  msg,
+  isOwn,
+  onOpenDm,
+}: {
+  msg: Message;
+  isOwn: boolean;
+  onOpenDm?: (username: string) => void;
+}) {
+  const canOpenDm = !isOwn && !!onOpenDm;
+  return (
+    <Box
+      animation={`${fadeIn} 0.18s ease`}
+      alignSelf={isOwn ? 'flex-end' : 'flex-start'}
+      maxW="88%"
+    >
+      <HStack align="flex-end" spacing={2}>
+        {!isOwn && (
+          <Box
+            onDoubleClick={() => onOpenDm?.(msg.sender)}
+            cursor={canOpenDm ? 'pointer' : 'default'}
+            title={canOpenDm ? 'Double-click to open DM' : undefined}
+          >
+            <Avatar size="2xs" name={msg.sender} src={getHiveAvatarUrl(msg.sender, 'small')} />
+          </Box>
+        )}
+        <Box>
+          {!isOwn && (
+            <Text
+              fontSize="10px"
+              color="blue.300"
+              fontWeight="600"
+              mb="2px"
+              ml="2px"
+              letterSpacing="0.03em"
+              onDoubleClick={() => onOpenDm?.(msg.sender)}
+              cursor={canOpenDm ? 'pointer' : 'default'}
+              title={canOpenDm ? 'Double-click to open DM' : undefined}
+            >
+              @{msg.sender}
+            </Text>
+          )}
+          <Box
+            bg={isOwn ? 'blue.600' : 'whiteAlpha.100'}
+            px={3}
+            py={2}
+            borderRadius={isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px'}
+            border="1px solid"
+            borderColor={isOwn ? 'blue.500' : 'whiteAlpha.100'}
+          >
+            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+              {msg.content}
+            </Text>
+          </Box>
+          <Text fontSize="9px" color="whiteAlpha.400" mt="2px" textAlign={isOwn ? 'right' : 'left'} mx="2px">
+            {formatTime(msg.createdAt)}
+          </Text>
+        </Box>
+      </HStack>
+    </Box>
+  );
+}
+
+function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isActive: boolean; onClick: () => void }) {
+  return (
+    <Flex
+      onClick={onClick}
+      px={3}
+      py={2}
+      borderRadius="12px"
+      bg={isActive ? 'blue.600' : 'transparent'}
+      border="1px solid"
+      borderColor={isActive ? 'blue.400' : 'transparent'}
+      cursor="pointer"
+      _hover={{ bg: isActive ? 'blue.600' : 'whiteAlpha.100' }}
+      align="center"
+      justify="space-between"
+    >
+      <HStack spacing={2} minW={0}>
+        <ConversationAvatar conv={conv} />
+        <Box minW={0}>
+          <Text color="white" fontSize="sm" fontWeight="600" noOfLines={1}>
+            {conv.type === 'channel' ? `#${conv.name}` : conv.name}
+          </Text>
+          <Text fontSize="11px" color="whiteAlpha.600" noOfLines={1}>
+            {conv.lastMessage ? `${conv.lastMessage.sender}: ${conv.lastMessage.content}` : 'No messages yet'}
+          </Text>
+        </Box>
+      </HStack>
+      {conv.unread && <Box w="7px" h="7px" borderRadius="full" bg="blue.300" />}
+    </Flex>
+  );
+}
+
+export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore }: ChatPanelProps) {
+  const { user, aioha } = useAioha();
+  const isMobile = useBreakpointValue({ base: true, md: false });
+
+  const [authState, setAuthState] = useState<'idle' | 'connecting' | 'done' | 'error'>('idle');
+  const [authError, setAuthError] = useState<string>('');
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>(
+    process.env.NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL || 'general'
+  );
+  const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
+  const [listAction, setListAction] = useState<'none' | 'new-dm' | 'new-group'>('none');
+  const [dmTarget, setDmTarget] = useState('');
+  const [groupName, setGroupName] = useState('');
+  const [groupMemberDraft, setGroupMemberDraft] = useState('');
+  const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [groupIsPublic, setGroupIsPublic] = useState(false);
+  const [memberInput, setMemberInput] = useState('');
+  const [memberActionBusy, setMemberActionBusy] = useState(false);
+  const [panelError, setPanelError] = useState('');
+  const [confirmBlockUser, setConfirmBlockUser] = useState<string | null>(null);
+  const [showMemoFallbackPrompt, setShowMemoFallbackPrompt] = useState<null | { conversationId: string; peer: string }>(null);
+  const [memoAssetChoice, setMemoAssetChoice] = useState<'HIVE' | 'HBD'>('HIVE');
+  const [mutedUsers, setMutedUsers] = useState<string[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isDM, setIsDM] = useState(false);
-  const [activeTab, setActiveTab] = useState(0); // 0 = Community, 1 = DMs
-  const [selectedDM, setSelectedDM] = useState<DMChannel | null>(null); // Currently viewing DM
-  
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-  const lastMessageCountRef = useRef<number>(0);
-  const previousUserRef = useRef<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const oldestIdRef = useRef<string | undefined>(undefined);
 
-  // Reset chat state when user changes (login/logout/switch account)
-  useEffect(() => {
-    // Skip on initial mount
-    if (previousUserRef.current === null) {
-      previousUserRef.current = user || '';
-      return;
-    }
+  const isAuthed = chatService.isAuthenticated();
+  const activeConversation = conversations.find(c => c._id === activeConversationId);
 
-    // User changed - reset everything
-    if (previousUserRef.current !== (user || '')) {
-      console.log('👤 [Chat] User changed from', previousUserRef.current, 'to', user, '- resetting chat');
-      
-      // Clear all chat state
-      setIsBootstrapped(false);
-      setChannel(null);
-      setCommunityChannel(null);
-      setDmChannels([]);
-      setMessages([]);
-      setSelectedDM(null);
-      setActiveTab(0);
-      setError(null);
-      lastMessageCountRef.current = 0;
-      
-      // Clear the mm_pat cookie by setting it to expire
-      document.cookie = 'mm_pat=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      
-      previousUserRef.current = user || '';
-      
-      // If new user exists and chat is open, they'll need to re-bootstrap
-      // The UI will show the "Connect to Chat" button
-    }
-  }, [user]);
-
-  // Check if already bootstrapped on mount
-  useEffect(() => {
-    if (hasEcencyChatSession()) {
-      setIsBootstrapped(true);
-      loadChannel();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Intentionally run only on mount
-
-  // Scroll to bottom when messages change (only if new messages arrived)
-  useEffect(() => {
-    // Only auto-scroll if we have more messages than before (new message arrived)
-    if (messages.length > lastMessageCountRef.current) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-      }, 50);
-    }
-    lastMessageCountRef.current = messages.length;
-  }, [messages]);
-
-  // Poll for new messages when chat is open and not minimized
-  useEffect(() => {
-    // Clear any existing interval
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-
-    // Only poll if chat is open, not minimized, bootstrapped, and has a channel
-    const shouldPoll = isOpen && !isMinimized && isBootstrapped && channel;
-    
-    if (!shouldPoll) {
-      return;
-    }
-
-    console.log('💬 [Chat] Starting message polling (3s interval)');
-    
-    pollingRef.current = setInterval(async () => {
-      // Check if tab is visible (Page Visibility API)
-      if (document.hidden) {
-        return;
-      }
-      
-      try {
-        const response = await fetch(`/api/chat/channels/${channel.id}/posts`, {
-          credentials: "include",
+  const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
+    const byId = new Map(baseConversations.map(c => [c._id, c]));
+    for (const ch of publicChannels) {
+      if (!byId.has(ch._id)) {
+        byId.set(ch._id, {
+          _id: ch._id,
+          name: ch.name,
+          description: ch.description,
+          type: ch.conversationKind === 'group' ? 'group' : 'channel',
+          isPublic: ch.isPublic,
+          owner: ch.owner,
+          members: ch.members || [],
+          memberCount: ch.memberCount,
+          lastMessage: null,
+          unread: false,
         });
-
-        if (!response.ok) return;
-
-        const data = await response.json();
-        
-        // Parse messages (same logic as loadMessages but without setting loading state)
-        let newMessages: Message[] = [];
-        
-        if (Array.isArray(data.posts) && data.posts.length > 0) {
-          newMessages = data.posts.map((post: any) => ({
-            id: post.id,
-            message: post.message,
-            user_id: post.user_id,
-            username: data.users?.[post.user_id]?.username || post.username || "Unknown",
-            create_at: post.create_at,
-            reactions: post.metadata?.reactions || [],
-          })).sort((a: Message, b: Message) => a.create_at - b.create_at);
-        } else if (data.posts && data.order) {
-          newMessages = data.order.map((id: string) => ({
-            id,
-            message: data.posts[id].message,
-            user_id: data.posts[id].user_id,
-            username: data.users?.[data.posts[id].user_id]?.username || "Unknown",
-            create_at: data.posts[id].create_at,
-            reactions: data.posts[id].metadata?.reactions || [],
-          })).reverse();
-        }
-
-        // Only update if we have new messages (compare by length and last message id)
-        if (newMessages.length > 0) {
-          const lastNewId = newMessages[newMessages.length - 1]?.id;
-          const lastCurrentId = messages[messages.length - 1]?.id;
-          
-          if (lastNewId !== lastCurrentId || newMessages.length !== messages.length) {
-            setMessages(newMessages);
-          }
-        }
-      } catch (err) {
-        // Silent fail for polling - don't show errors
-        console.log('💬 [Chat] Polling error (silent):', err);
       }
-    }, 3000);
+    }
+    return Array.from(byId.values());
+  }, []);
 
-    return () => {
-      if (pollingRef.current) {
-        console.log('💬 [Chat] Stopping message polling');
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isMinimized, isBootstrapped, channel?.id]); // channel object and messages intentionally excluded to avoid infinite loop
-
-  // Drag handlers for the floating bubble
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    dragOffset.current = {
-      x: clientX - bubblePosition.x,
-      y: clientY - bubblePosition.y,
-    };
+  const resetListActions = () => {
+    setListAction('none');
+    setDmTarget('');
+    setGroupName('');
+    setGroupMemberDraft('');
+    setGroupMembers([]);
+    setGroupIsPublic(false);
+    setPanelError('');
   };
+
+  const reloadConversations = useCallback(async () => {
+    if (!isOpen || !isAuthed) return;
+    const [pubChannels, convs] = await Promise.all([
+      chatService.getChannels().catch(() => [] as Channel[]),
+      chatService.getConversations().catch(() => [] as Conversation[]),
+    ]);
+    setChannels(pubChannels);
+    setConversations(mergeConversations(convs, pubChannels));
+  }, [isAuthed, isOpen, mergeConversations]);
+
+  const reloadPreferences = useCallback(async () => {
+    if (!isAuthed) return;
+    try {
+      const prefs = await chatService.getPreferences();
+      setMutedUsers(prefs.mutedUsers || []);
+      setBlockedUsers(prefs.blockedUsers || []);
+    } catch {}
+  }, [isAuthed]);
+
+  // ── Load conversations/channels on open ────────────────────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    Promise.all([
+      chatService.getChannels().catch(() => [] as Channel[]),
+      isAuthed ? chatService.getConversations().catch(() => [] as Conversation[]) : Promise.resolve([] as Conversation[]),
+    ]).then(([pubChannels, convs]) => {
+      setChannels(pubChannels);
+      setConversations(mergeConversations(convs, pubChannels));
+    });
+    if (isAuthed) reloadPreferences();
+  }, [isOpen, isAuthed, mergeConversations, reloadPreferences]);
 
   useEffect(() => {
-    const handleDragMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      const newX = Math.max(0, Math.min(window.innerWidth - 60, clientX - dragOffset.current.x));
-      // Keep bubble above mobile footer (60px) + padding, max Y is innerHeight - 60 (bubble) - 70 (footer + padding)
-      const maxY = window.innerWidth < 640 ? window.innerHeight - 130 : window.innerHeight - 60;
-      const newY = Math.max(0, Math.min(maxY, clientY - dragOffset.current.y));
-      setBubblePosition({ x: newX, y: newY });
-    };
+    if (!conversations.length) return;
+    const exists = conversations.some(c => c._id === activeConversationId);
+    if (!exists) setActiveConversationId(conversations[0]._id);
+  }, [conversations, activeConversationId]);
 
-    const handleDragEnd = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      window.addEventListener('mousemove', handleDragMove);
-      window.addEventListener('mouseup', handleDragEnd);
-      window.addEventListener('touchmove', handleDragMove, { passive: false });
-      window.addEventListener('touchend', handleDragEnd);
+  const fetchMessagesForConversation = useCallback(async (
+    convId: string,
+    convType: Conversation['type'] | undefined,
+    opts: { before?: string; limit?: number } = {}
+  ): Promise<Message[]> => {
+    if (!convId) return [];
+    if (convType === 'dm') {
+      return chatService.getDmMessages(convId, opts);
     }
+    return chatService.getMessages(convId, opts);
+  }, []);
 
-    return () => {
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-      window.removeEventListener('touchmove', handleDragMove);
-      window.removeEventListener('touchend', handleDragEnd);
-    };
-  }, [isDragging, bubblePosition]);
-
-  const handleBootstrap = async () => {
-    if (!user) {
-      setError("Please log in first");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
+  // ── Load messages when active conversation changes ────────────────────
+  const loadMessages = useCallback(async (
+    convId: string,
+    convType: Conversation['type'] | undefined,
+    append = false
+  ) => {
+    setLoadingMessages(!append);
     try {
-      // Generate access token using Keychain
-      const accessToken = await buildEcencyAccessToken(user);
-
-      // Bootstrap chat
-      const response = await fetch("/api/chat/bootstrap", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          username: user,
-          accessToken,
-        }),
+      const msgs = await fetchMessagesForConversation(convId, convType, {
+        before: append ? oldestIdRef.current : undefined,
+        limit: 50,
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Bootstrap failed");
-      }
-
-      const data = await response.json();
-      setIsBootstrapped(true);
-      
-      // Load channel
-      await loadChannel();
-    } catch (err: any) {
-      console.error("Bootstrap error:", err);
-      setError(err.message || "Failed to connect to chat");
-    } finally {
-      setIsLoading(false);
+      if (msgs.length > 0) oldestIdRef.current = msgs[0]._id;
+      setMessages(prev => append ? [...msgs, ...prev] : msgs);
+    } catch {
+      setMessages([]);
     }
-  };
+    setLoadingMessages(false);
+  }, [fetchMessagesForConversation]);
 
-  const loadChannel = async () => {
-    try {
-      const response = await fetch("/api/chat/channels", {
-        credentials: "include",
-      });
+  useEffect(() => {
+    if (!isOpen || isMinimized) return;
+    oldestIdRef.current = undefined;
+    loadMessages(activeConversationId, activeConversation?.type);
+  }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
 
-      if (!response.ok) {
-        throw new Error("Failed to load channels");
-      }
-
-      const data = await response.json();
-      console.log("🔵 Channels API response:", data);
-      
-      // Handle different response formats
-      const channels = Array.isArray(data) ? data : data.channels || [];
-      const users = data.users || {}; // User ID to username mapping
-      
-      if (!Array.isArray(channels)) {
-        console.error("🔴 Channels is not an array:", channels);
-        setError("Invalid channels response");
-        return;
-      }
-      
-      // Find Snapie community channel
-      const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || "hive-178315";
-      const snapieChannel = channels.find((ch: Channel) => 
-        ch.name?.includes(communityTag) || ch.display_name?.includes("Snapie")
-      );
-
-      console.log("🔵 Found channel:", snapieChannel);
-      console.log("🔵 Users mapping:", users);
-
-      // Extract DM channels (type 'D' or name contains '__')
-      const directChannels = channels
-        .filter((ch: Channel) => ch.type === 'D' || ch.name?.includes('__'))
-        .map((ch: any) => {
-          // Try multiple ways to get the other user's name:
-          // 1. From channel's members array if available
-          // 2. From users mapping using member IDs
-          // 3. From display_name (Ecency often sets this to the other user)
-          // 4. Parse from channel name (user1__user2 format)
-          
-          let otherUser = 'Unknown';
-          
-          // Check if display_name looks like a username (not a UUID)
-          if (ch.display_name && !ch.display_name.includes('-') && ch.display_name.length < 20) {
-            otherUser = ch.display_name;
-          }
-          // Check header field (some Mattermost setups use this)
-          else if (ch.header && !ch.header.includes('-') && ch.header.length < 20) {
-            otherUser = ch.header;
-          }
-          // Try to find from users mapping if we have member IDs
-          else if (ch.members && Array.isArray(ch.members)) {
-            const otherMemberId = ch.members.find((id: string) => users[id]?.username !== user);
-            if (otherMemberId && users[otherMemberId]) {
-              otherUser = users[otherMemberId].username;
-            }
-          }
-          // Last resort: try parsing name (but it's usually UUIDs for DMs)
-          else {
-            const parts = ch.name?.split('__') || [];
-            if (parts.length === 2) {
-              // Check if either part is in the users mapping
-              for (const part of parts) {
-                if (users[part]?.username && users[part].username !== user) {
-                  otherUser = users[part].username;
-                  break;
-                }
-              }
-            }
-          }
-          
-          return {
-            ...ch,
-            otherUser,
-          } as DMChannel;
-        })
-        .sort((a: DMChannel, b: DMChannel) => (b.last_post_at || 0) - (a.last_post_at || 0));
-      
-      console.log("🔵 Found DM channels:", directChannels);
-      setDmChannels(directChannels);
-
-      if (snapieChannel) {
-        setChannel(snapieChannel);
-        setCommunityChannel(snapieChannel);
-        await loadMessages(snapieChannel.id);
-      } else {
-        console.log("🟡 No Snapie channel found. Available channels:", channels.map((c: Channel) => c.name));
-        setError("Snapie channel not found. Try rejoining.");
-      }
-    } catch (err: any) {
-      console.error("Load channel error:", err);
-      setError(err.message);
-    }
-  };
-
-  const loadMessages = async (channelId: string, updateDMName: boolean = false) => {
-    try {
-      console.log("🔵 Loading messages for channel:", channelId);
-      const response = await fetch(`/api/chat/channels/${channelId}/posts`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to load messages");
-      }
-
-      const data = await response.json();
-      console.log("🔵 Messages API response:", data);
-      
-      // If this is a DM and we have users data, update the DM channel name
-      if (updateDMName && data.users) {
-        const usersMap = data.users;
-        // Find the other user (not the current logged-in user)
-        const otherUserId = Object.keys(usersMap).find(id => usersMap[id].username !== user);
-        if (otherUserId && usersMap[otherUserId]?.username) {
-          const otherUsername = usersMap[otherUserId].username;
-          console.log("🔵 Found other user in DM:", otherUsername);
-          
-          // Update the DM channels list with the correct username
-          setDmChannels(prev => prev.map(dm => 
-            dm.id === channelId ? { ...dm, otherUser: otherUsername } : dm
-          ));
-          
-          // Update selected DM if it's the current one
-          setSelectedDM(prev => 
-            prev?.id === channelId ? { ...prev, otherUser: otherUsername } : prev
-          );
-        }
-      }
-      
-      // Handle Ecency's response format - posts is an array
-      if (Array.isArray(data.posts) && data.posts.length > 0) {
-        const parsedMessages = data.posts.map((post: any) => ({
-          id: post.id,
-          message: post.message,
-          user_id: post.user_id,
-          username: data.users?.[post.user_id]?.username || post.username || "Unknown",
-          create_at: post.create_at,
-          reactions: post.metadata?.reactions || [],
-        })).sort((a: Message, b: Message) => a.create_at - b.create_at); // Sort by time
-
-        console.log("🔵 Parsed messages:", parsedMessages.length);
-        setMessages(parsedMessages);
-      } else if (data.posts && data.order) {
-        // Fallback for Mattermost's standard format (object with order)
-        const parsedMessages = data.order.map((id: string) => ({
-          id,
-          message: data.posts[id].message,
-          user_id: data.posts[id].user_id,
-          username: data.users?.[data.posts[id].user_id]?.username || "Unknown",
-          create_at: data.posts[id].create_at,
-          reactions: data.posts[id].metadata?.reactions || [],
-        })).reverse();
-
-        console.log("🔵 Parsed messages (order format):", parsedMessages.length);
-        setMessages(parsedMessages);
-      } else {
-        console.log("🟡 No messages found in response");
-        setMessages([]);
-      }
-    } catch (err: any) {
-      console.error("Load messages error:", err);
-      setError(err.message);
-    }
-  };
-
-  // Start a DM with a user
-  const startDirectMessage = async (username: string) => {
-    if (!username || username === user) return; // Don't DM yourself
-    
-    try {
-      setIsLoading(true);
-      const response = await fetch("/api/chat/direct", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ username }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to start DM");
-      }
-
-      const dmChannel = await response.json();
-      console.log("🔵 DM channel created:", dmChannel);
-      
-      // Ecency returns { channelId: '...' }
-      const dmChannelId = dmChannel.channelId || dmChannel.id;
-      
-      if (!dmChannelId) {
-        throw new Error("No channel ID returned from DM creation");
-      }
-      
-      // Create the DM channel object
-      const newDMChannel: DMChannel = {
-        id: dmChannelId,
-        name: `${user}__${username}`,
-        display_name: `DM with @${username}`,
-        otherUser: username,
-        type: 'D',
-      };
-      
-      // Add to DM channels list if not already there
-      setDmChannels(prev => {
-        const exists = prev.some(ch => ch.id === dmChannelId);
-        if (exists) return prev;
-        return [newDMChannel, ...prev];
-      });
-      
-      // Switch to DM channel
-      setChannel(newDMChannel);
-      setSelectedDM(newDMChannel);
-      setIsDM(true);
-      setActiveTab(1); // Switch to DMs tab
-      await loadMessages(dmChannelId);
-    } catch (err: any) {
-      console.error("Start DM error:", err);
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Open an existing DM conversation
-  const openDMConversation = async (dm: DMChannel) => {
-    setSelectedDM(dm);
-    setChannel(dm);
-    setIsDM(true);
-    // Pass true to update the DM name from user data
-    await loadMessages(dm.id, true);
-  };
-
-  // Go back to DM list
-  const backToDMList = () => {
-    setSelectedDM(null);
-    setIsDM(false);
-  };
-
-  // Go back to community channel
-  const backToCommunity = async () => {
-    setIsDM(false);
-    setSelectedDM(null);
-    setActiveTab(0);
-    
-    // Use stored community channel if available (no network request needed)
-    if (communityChannel) {
-      setChannel(communityChannel);
-      await loadMessages(communityChannel.id);
-    } else {
-      // Fallback to fetching channels if not stored
-      await loadChannel();
-    }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newMessage.trim() || !channel) return;
-
-    try {
-      const response = await fetch(`/api/chat/channels/${channel.id}/posts`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          message: newMessage,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send message");
-      }
-
-      setNewMessage("");
-      
-      // Reload messages
-      await loadMessages(channel.id);
-      
-      // Force scroll to bottom after sending (with small delay for DOM update)
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-      }, 100);
-    } catch (err: any) {
-      console.error("Send message error:", err);
-      setError(err.message);
-    }
-  };
-
-  // Handle adding/removing emoji reaction
-  const handleReaction = async (messageId: string, emoji: string) => {
-    if (!channel) return;
-    
-    try {
-      const response = await fetch(
-        `/api/chat/channels/${channel.id}/posts/${messageId}/reactions`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({ emoji, add: true }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to add reaction");
-      }
-
-      // Reload messages to get updated reactions
-      await loadMessages(channel.id);
-    } catch (err: any) {
-      console.error("Reaction error:", err);
-    }
-  };
-
-  // Group reactions by emoji and count them
-  const groupReactions = (reactions: Reaction[] = []) => {
-    const grouped: { [emoji: string]: { count: number; users: string[] } } = {};
-    reactions.forEach((r) => {
-      // Convert emoji name to emoji character for display
-      const emojiChar = NAME_TO_EMOJI[r.emoji_name] || r.emoji_name;
-      if (!grouped[emojiChar]) {
-        grouped[emojiChar] = { count: 0, users: [] };
-      }
-      grouped[emojiChar].count++;
-      if (r.username) {
-        grouped[emojiChar].users.push(r.username);
-      }
-    });
-    return grouped;
-  };
-
-  // Don't render if not open
-  if (!isOpen) {
-    return null;
+  async function handleOpenConversation(conv: Conversation) {
+    setPanelError('');
+    setActiveConversationId(conv._id);
+    if (isMobile) setMobileView('thread');
+    if (!isAuthed || conv.type === 'dm') return;
+    try { await chatService.joinChannel(conv._id); } catch {}
   }
 
-  // Render floating bubble when minimized
+  async function handleCreateDmSubmit() {
+    const target = dmTarget.trim();
+    if (!target || !isAuthed) return;
+    try {
+      const conv = await chatService.openDm(target);
+      await reloadConversations();
+      setActiveConversationId(conv._id);
+      if (isMobile) setMobileView('thread');
+      resetListActions();
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not start DM');
+    }
+  }
+
+  async function openDmByUsername(targetUser: string) {
+    if (!targetUser || !isAuthed) return;
+    try {
+      const conv = await chatService.openDm(targetUser);
+      await reloadConversations();
+      setActiveConversationId(conv._id);
+      if (isMobile) setMobileView('thread');
+      setPanelError('');
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not open DM');
+    }
+  }
+
+  async function handleCreateGroupSubmit() {
+    if (!isAuthed) return;
+    const name = groupName.trim();
+    if (!name) return;
+    try {
+      const group = await chatService.createGroup({ name, members: groupMembers, isPublic: groupIsPublic });
+      await reloadConversations();
+      setActiveConversationId(group._id);
+      if (isMobile) setMobileView('thread');
+      resetListActions();
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not create group');
+    }
+  }
+
+  function addGroupMemberDraft() {
+    const normalized = groupMemberDraft.trim().toLowerCase();
+    if (!normalized) return;
+    setGroupMembers(prev => (prev.includes(normalized) ? prev : [...prev, normalized]));
+    setGroupMemberDraft('');
+  }
+
+  function removeDraftGroupMember(member: string) {
+    setGroupMembers(prev => prev.filter(m => m !== member));
+  }
+
+  async function handleAddMember() {
+    if (!activeConversation || activeConversation.type !== 'group') return;
+    const member = memberInput.trim();
+    if (!member || memberActionBusy) return;
+    setMemberActionBusy(true);
+    setPanelError('');
+    try {
+      await chatService.addGroupMember(activeConversation._id, member);
+      setMemberInput('');
+      await reloadConversations();
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not add member');
+    }
+    setMemberActionBusy(false);
+  }
+
+  async function handleRemoveMember(member: string) {
+    if (!activeConversation || activeConversation.type !== 'group' || memberActionBusy) return;
+    const confirmed = window.confirm(`Remove @${member} from this group?`);
+    if (!confirmed) return;
+    setMemberActionBusy(true);
+    setPanelError('');
+    try {
+      await chatService.removeGroupMember(activeConversation._id, member);
+      await reloadConversations();
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not remove member');
+    }
+    setMemberActionBusy(false);
+  }
+
+  async function handleMute(username: string) {
+    try {
+      await chatService.muteUser(username);
+      await reloadPreferences();
+      await loadMessages(activeConversationId, activeConversation?.type);
+    } catch {}
+  }
+
+  async function handleUnmute(username: string) {
+    try {
+      await chatService.unmuteUser(username);
+      await reloadPreferences();
+      await loadMessages(activeConversationId, activeConversation?.type);
+    } catch {}
+  }
+
+  async function handleBlock(username: string) {
+    setConfirmBlockUser(username);
+  }
+
+  async function confirmBlockAction() {
+    const username = confirmBlockUser;
+    if (!username) return;
+    try {
+      await chatService.blockUser(username);
+      await reloadPreferences();
+      await loadMessages(activeConversationId, activeConversation?.type);
+    } catch {}
+    setConfirmBlockUser(null);
+  }
+
+  async function handleUnblock(username: string) {
+    try {
+      await chatService.unblockUser(username);
+      await reloadPreferences();
+      await loadMessages(activeConversationId, activeConversation?.type);
+    } catch {}
+  }
+
+  async function handleMemoFallbackConfirm() {
+    if (!showMemoFallbackPrompt || !user) return;
+    const payload = `[sent from snapie.io] New DM from @${user}. Open snapie.io chat to reply.`;
+    try {
+      await transferEncryptedMemoWithAioha(showMemoFallbackPrompt.peer, 0.001, memoAssetChoice, payload);
+      await chatService.markDmMemoFallbackSent(showMemoFallbackPrompt.conversationId);
+      setPanelError('');
+    } catch (memoErr: any) {
+      setPanelError(memoErr?.message || 'Hive memo notify failed');
+    }
+    setShowMemoFallbackPrompt(null);
+  }
+
+  // ── Poll fallback ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen || isMinimized || !isAuthed) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        await reloadConversations();
+        const msgs = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, { limit: 20 });
+        setMessages(msgs);
+      } catch {}
+    }, POLL_INTERVAL);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [isOpen, isMinimized, isAuthed, activeConversationId, activeConversation?.type, reloadConversations, fetchMessagesForConversation]);
+
+  // ── FCM foreground listener ────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAuthed) return () => {};
+    return onForegroundMessage(async () => {
+      await reloadConversations();
+      const msgs = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, { limit: 20 });
+      setMessages(msgs);
+    });
+  }, [isAuthed, activeConversationId, activeConversation?.type, reloadConversations, fetchMessagesForConversation]);
+
+  // ── Auto-scroll to bottom on new messages ─────────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // ── Auth ──────────────────────────────────────────────────────────────
+  async function handleConnect() {
+    if (!user) return;
+    setAuthState('connecting');
+    try {
+      await chatService.authenticate(user, async (challenge) => {
+        const res = await aioha.signMessage(challenge, KeyTypes.Posting);
+        if (!res.success || !res.result) throw new Error('Sign failed');
+        return res.result as string;
+      });
+      await chatService.joinChannel(activeConversationId);
+      const fcmToken = await getFCMToken();
+      if (fcmToken) {
+        await chatService.registerDevice(fcmToken);
+      }
+      await reloadConversations();
+      setAuthState('done');
+    } catch (err: any) {
+      setAuthError(err?.message || 'Unknown error');
+      setAuthState('error');
+    }
+  }
+
+  // ── Send ───────────────────────────────────────────────────────────────
+  async function handleSend() {
+    const content = draft.trim();
+    if (!content || sending || !activeConversation) return;
+    setSending(true);
+    setDraft('');
+    try {
+      setPanelError('');
+      let msg: Message;
+      let dmDelivery: { hasFcm: boolean; memoSuggested: boolean; cooldownMs: number } | undefined;
+      if (activeConversation.type === 'dm') {
+        const out = await chatService.sendDmMessageWithDelivery(activeConversation._id, content);
+        msg = out.message;
+        dmDelivery = out.delivery;
+      } else {
+        msg = await chatService.sendMessage(activeConversation._id, content);
+      }
+      setMessages(prev => [...prev, msg]);
+      if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
+        setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
+      }
+      await reloadConversations();
+    } catch (err: any) {
+      if (err?.message === 'CHAT_UNAUTHORIZED') setAuthState('idle');
+      setDraft(content);
+    }
+    setSending(false);
+  }
+
+  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
+
+  // ── Panel dimensions ───────────────────────────────────────────────────
+  const panelW = isMobile ? '100vw' : '460px';
+  const panelH = isMobile ? '85vh' : '680px';
+  const panelBottom = isMobile ? '0' : '0';
+  const panelRight = isMobile ? '0' : '16px';
+  const borderRadius = isMobile ? '20px 20px 0 0' : '16px 16px 0 0';
+  const showList = isMobile ? mobileView === 'list' : true;
+  const showThread = isMobile ? mobileView === 'thread' : true;
+  const isDesktopSplit = !isMobile;
+  const canManageMembers = !!(
+    user &&
+    activeConversation &&
+    activeConversation.type === 'group' &&
+    activeConversation.owner === user
+  );
+
+  if (!isOpen) return null;
+
+  // ── Minimized strip ────────────────────────────────────────────────────
   if (isMinimized) {
     return (
       <Box
-        ref={bubbleRef}
         position="fixed"
-        left={`${bubblePosition.x}px`}
-        top={`${bubblePosition.y}px`}
-        zIndex={1001}
-        w="56px"
-        h="56px"
-        borderRadius="full"
-        bg="blue.500"
-        boxShadow="lg"
-        cursor={isDragging ? "grabbing" : "grab"}
+        bottom="0"
+        right={{ base: '0', md: '16px' }}
+        w={{ base: '100vw', md: '220px' }}
+        h="44px"
+        bg="rgba(6,17,31,0.96)"
+        backdropFilter="blur(12px)"
+        borderRadius="12px 12px 0 0"
+        border="1px solid"
+        borderColor="whiteAlpha.100"
+        borderBottom="none"
+        zIndex={1400}
+        px={4}
+        cursor="pointer"
+        onClick={onRestore}
         display="flex"
         alignItems="center"
-        justifyContent="center"
-        onMouseDown={handleDragStart}
-        onTouchStart={handleDragStart}
-        onClick={(e) => {
-          // Only restore if not dragging (to avoid accidental clicks while dragging)
-          if (!isDragging) {
-            onRestore?.();
-          }
-        }}
-        _hover={{ transform: isDragging ? "none" : "scale(1.05)", bg: "blue.600" }}
-        transition={isDragging ? "none" : "all 0.2s"}
-        userSelect="none"
+        justifyContent="space-between"
+        _hover={{ borderColor: 'blue.500' }}
+        transition="border-color 0.2s"
       >
-        <FiMessageSquare size={24} color="white" />
-        {unreadCount > 0 && (
-          <Badge
-            position="absolute"
-            top="-4px"
-            right="-4px"
-            colorScheme="red"
-            borderRadius="full"
-            minW="20px"
-            h="20px"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            fontSize="xs"
-          >
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </Badge>
-        )}
+        <HStack spacing={2}>
+          <Icon as={FiMessageSquare} color="blue.300" boxSize={4} />
+          <Text fontSize="sm" fontWeight="600" color="white">Chat</Text>
+        </HStack>
+        <HStack spacing={1}>
+          <IconButton aria-label="Restore" icon={<FiMaximize2 />} size="xs" variant="ghost" color="whiteAlpha.600" _hover={{ color: 'white' }} onClick={onRestore} />
+          <IconButton aria-label="Close" icon={<FiX />} size="xs" variant="ghost" color="whiteAlpha.600" _hover={{ color: 'white' }} onClick={(e) => { e.stopPropagation(); onClose(); }} />
+        </HStack>
       </Box>
     );
   }
 
   return (
     <>
+      {/* Mobile backdrop */}
+      {isMobile && (
         <Box
-          position="fixed"
-          // Mobile: full screen above footer, Desktop: floating panel
-          bottom={{ base: "60px", sm: "20px" }}
-          right={{ base: "0", sm: "20px" }}
-          left={{ base: "0", sm: "auto" }}
-          top={{ base: "0", sm: "auto" }}
-          zIndex={1000}
-          width={{ base: "100%", sm: "400px" }}
-          // Use dvh for iOS Safari keyboard compatibility, fallback to vh
-          height={{ base: "calc(100dvh - 60px)", sm: "500px" }}
-          maxHeight={{ base: "calc(100dvh - 60px)", sm: "500px" }}
-          bg="background"
-          borderRadius={{ base: "0", sm: "lg" }}
-          boxShadow="2xl"
-          display="flex"
-          flexDirection="column"
-          border={{ base: "none", sm: "1px solid" }}
-          borderColor="border"
-          // iOS Safari fix: prevent body scroll and ensure proper positioning
-          sx={{
-            '@supports (-webkit-touch-callout: none)': {
-              // iOS Safari specific
-              height: { base: 'calc(100dvh - 60px)', sm: '500px' },
-            },
-          }}
+          position="fixed" inset="0" zIndex={1399}
+          bg="blackAlpha.600"
+          backdropFilter="blur(2px)"
+          onClick={onClose}
+        />
+      )}
+
+      <Box
+        position="fixed"
+        bottom={panelBottom}
+        right={panelRight}
+        w={panelW}
+        h={panelH}
+        maxH={isMobile ? '85vh' : 'calc(100vh - 24px)'}
+        zIndex={1400}
+        display="flex"
+        flexDirection="column"
+        bg="rgba(6,17,31,0.95)"
+        backdropFilter="blur(16px)"
+        borderRadius={borderRadius}
+        border="1px solid"
+        borderColor="whiteAlpha.100"
+        borderBottom="none"
+        overflow="hidden"
+        boxShadow="0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(24,168,255,0.08)"
+        sx={{
+          '&': { animation: isMobile ? 'slideUp 0.25s cubic-bezier(0.32,0.72,0,1)' : 'fadeUp 0.2s ease' },
+          '@keyframes slideUp': { from: { transform: 'translateY(100%)' }, to: { transform: 'translateY(0)' } },
+          '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+        }}
+      >
+
+        {/* Header */}
+        <Flex
+          align="center"
+          justify="space-between"
+          px={4}
+          py={3}
+          borderBottom="1px solid"
+          borderColor="whiteAlpha.100"
+          flexShrink={0}
         >
-          {/* Header */}
-          <Flex
-            p={3}
-            borderBottom="1px solid"
-            borderColor="border"
-            justify="space-between"
-            align="center"
-          >
-            <HStack spacing={2}>
-              {selectedDM && (
-                <IconButton
-                  aria-label="Back to list"
-                  icon={<ChevronLeftIcon boxSize={5} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={backToDMList}
-                />
-              )}
-              <Text fontWeight="semibold" color="text" fontSize="md">
-                {selectedDM ? `@${selectedDM.otherUser?.replace(/^@/, '')}` : "Snapie Chat"}
-              </Text>
-            </HStack>
-            <HStack spacing={1}>
-              <Tooltip label="Minimize to bubble">
-                <IconButton
-                  aria-label="Minimize chat"
-                  icon={<MinusIcon />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={onMinimize}
-                />
-              </Tooltip>
+          <HStack spacing={2}>
+            {isMobile && mobileView === 'thread' && (
               <IconButton
-                aria-label="Close chat"
-                icon={<CloseIcon />}
-                size="sm"
+                aria-label="Back to conversations"
+                icon={<FiArrowLeft />}
+                size="xs"
                 variant="ghost"
-                onClick={onClose}
+                color="whiteAlpha.700"
+                onClick={() => setMobileView('list')}
               />
-            </HStack>
-          </Flex>
-
-          {/* Content */}
-          <Flex flex={1} overflow="hidden" direction="column">
-            {!user ? (
-              <Flex flex={1} align="center" justify="center" p={4}>
-                <VStack spacing={4}>
-                  <Text color="text" textAlign="center">
-                    Please log in with Hive Keychain to use chat
-                  </Text>
-                </VStack>
-              </Flex>
-            ) : !isBootstrapped ? (
-              <Flex flex={1} align="center" justify="center" p={4}>
-                <VStack spacing={4}>
-                  <Text color="text">
-                    Connect to Snapie chat
-                  </Text>
-                  <Button
-                    colorScheme="blue"
-                    onClick={handleBootstrap}
-                    isLoading={isLoading}
-                    loadingText="Connecting..."
-                  >
-                    Connect
-                  </Button>
-                  {error && (
-                    <Text color="red.500" fontSize="sm">{error}</Text>
-                  )}
-                </VStack>
-              </Flex>
-            ) : selectedDM ? (
-              // DM Conversation View
+            )}
+            <Text fontSize="sm" fontWeight="700" color="white" letterSpacing="0.02em">
+              {showList && !showThread ? 'Conversations' : (activeConversation?.type === 'channel' ? `#${activeConversation?.name}` : activeConversation?.name || 'Chat')}
+            </Text>
+            {showThread && activeConversation?.type === 'group' && (
+              <Badge colorScheme="purple" variant="subtle" borderRadius="full" px={2}>
+                {activeConversation.members?.length || 0} members
+              </Badge>
+            )}
+          </HStack>
+          <HStack spacing={1}>
+            {showList && isAuthed && (
               <>
-                {/* Messages */}
-                <Box flex={1} overflowY="auto" p={4}>
-                  <VStack spacing={3} align="stretch">
-                    {messages.map((msg) => {
-                      const groupedReactions = groupReactions(msg.reactions);
-                      return (
-                        <Box key={msg.id} role="group">
-                          <HStack align="flex-start" spacing={2}>
-                            <Avatar
-                              size="xs"
-                              name={msg.username || 'Unknown'}
-                              src={getHiveAvatarUrl(msg.username || 'unknown', 'small')}
-                            />
-                            <Box flex={1}>
-                              <HStack spacing={2} mb={0}>
-                                <Text fontWeight="semibold" fontSize="sm" color="text">
-                                  {msg.username || 'Unknown'}
-                                </Text>
-                                <Text fontSize="xs" color="gray.500">
-                                  {new Date(msg.create_at).toLocaleTimeString()}
-                                </Text>
-                              </HStack>
-                              <Box color="text" fontSize="sm" maxW="100%" overflow="hidden">
-                                {renderMessageContent(msg.message)}
-                              </Box>
-                              {/* Reactions display */}
-                              <HStack spacing={1} mt={1} flexWrap="wrap">
-                                {Object.entries(groupedReactions).map(([emoji, data]) => (
-                                  <Tooltip 
-                                    key={emoji} 
-                                    label={data.users.join(', ')} 
-                                    fontSize="xs"
-                                  >
-                                    <Badge
-                                      variant="subtle"
-                                      colorScheme="gray"
-                                      borderRadius="full"
-                                      px={2}
-                                      py={0.5}
-                                      cursor="pointer"
-                                      onClick={() => handleReaction(msg.id, emoji)}
-                                    >
-                                      {emoji} {data.count}
-                                    </Badge>
-                                  </Tooltip>
-                                ))}
-                                {/* Add reaction button */}
-                                <Popover placement="top" isLazy>
-                                  <PopoverTrigger>
-                                    <IconButton
-                                      aria-label="Add reaction"
-                                      icon={<Text fontSize="xs">😀</Text>}
-                                      size="xs"
-                                      variant="ghost"
-                                      opacity={0}
-                                      _groupHover={{ opacity: 1 }}
-                                      h="20px"
-                                      minW="20px"
-                                    />
-                                  </PopoverTrigger>
-                                  <PopoverContent w="auto" bg="secondary">
-                                    <PopoverBody p={2}>
-                                      <Wrap spacing={1}>
-                                        {REACTION_EMOJIS.map((emoji) => (
-                                          <WrapItem key={emoji}>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              onClick={() => handleReaction(msg.id, emoji)}
-                                              p={1}
-                                              minW="auto"
-                                            >
-                                              {emoji}
-                                            </Button>
-                                          </WrapItem>
-                                        ))}
-                                      </Wrap>
-                                    </PopoverBody>
-                                  </PopoverContent>
-                                </Popover>
-                              </HStack>
-                            </Box>
-                          </HStack>
-                        </Box>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </VStack>
-                </Box>
+                <IconButton
+                  aria-label="Start DM"
+                  icon={<FiMessageSquare />}
+                  size="xs"
+                  variant="ghost"
+                  color="whiteAlpha.500"
+                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  onClick={() => {
+                    setListAction(listAction === 'new-dm' ? 'none' : 'new-dm');
+                    setPanelError('');
+                  }}
+                />
+                <IconButton
+                  aria-label="Create group"
+                  icon={<FiUsers />}
+                  size="xs"
+                  variant="ghost"
+                  color="whiteAlpha.500"
+                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  onClick={() => {
+                    setListAction(listAction === 'new-group' ? 'none' : 'new-group');
+                    setPanelError('');
+                  }}
+                />
+              </>
+            )}
+            {onMinimize && (
+              <IconButton
+                aria-label="Minimize"
+                icon={<FiMinus />}
+                size="xs"
+                variant="ghost"
+                color="whiteAlpha.500"
+                _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                onClick={onMinimize}
+              />
+            )}
+            <IconButton
+              aria-label="Close chat"
+              icon={<FiX />}
+              size="xs"
+              variant="ghost"
+              color="whiteAlpha.500"
+              _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+              onClick={onClose}
+            />
+          </HStack>
+        </Flex>
 
-                {/* Composer */}
-                <Box
-                  as="form"
-                  onSubmit={handleSendMessage}
-                  p={4}
-                  borderTop="1px solid"
-                  borderColor="border"
-                >
-                  <HStack spacing={2}>
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message..."
-                      bg="inputBackground"
-                      color="text"
-                      fontSize="16px"
-                      autoComplete="off"
-                      autoCorrect="off"
-                    />
-                    <Button
-                      type="submit"
-                      colorScheme="blue"
-                      isDisabled={!newMessage.trim()}
-                    >
-                      Send
+        <Flex
+          flex="1"
+          minH={0}
+          direction={isDesktopSplit ? 'row' : 'column'}
+        >
+          {/* Conversation list */}
+          {showList && (
+            <Flex
+              px={3}
+              py={2}
+              direction="column"
+              gap={2}
+              overflowY="auto"
+              flex={isDesktopSplit ? '0 0 42%' : '1'}
+              minW={0}
+              borderRight={isDesktopSplit ? '1px solid' : 'none'}
+              borderRightColor={isDesktopSplit ? 'whiteAlpha.100' : 'transparent'}
+              sx={{
+                '&::-webkit-scrollbar': { width: '3px' },
+                '&::-webkit-scrollbar-track': { bg: 'transparent' },
+                '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
+              }}
+            >
+            {listAction === 'new-dm' && (
+              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="12px" p={3} bg="whiteAlpha.50">
+                <Text color="white" fontSize="xs" mb={2}>Start Direct Message</Text>
+                <HStack>
+                  <Input
+                    value={dmTarget}
+                    onChange={e => setDmTarget(e.target.value)}
+                    placeholder="Hive username"
+                    size="sm"
+                    bg="blackAlpha.300"
+                    borderColor="whiteAlpha.200"
+                    color="white"
+                  />
+                  <Button size="sm" colorScheme="blue" onClick={handleCreateDmSubmit}>Start</Button>
+                </HStack>
+              </Box>
+            )}
+            {listAction === 'new-group' && (
+              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="12px" p={3} bg="whiteAlpha.50">
+                <Text color="white" fontSize="xs" mb={2}>Create Group Chat</Text>
+                <VStack spacing={2} align="stretch">
+                  <Input
+                    value={groupName}
+                    onChange={e => setGroupName(e.target.value)}
+                    placeholder="Group name"
+                    size="sm"
+                    bg="blackAlpha.300"
+                    borderColor="whiteAlpha.200"
+                    color="white"
+                  />
+                  <Input
+                    value={groupMemberDraft}
+                    onChange={e => setGroupMemberDraft(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ',') {
+                        e.preventDefault();
+                        addGroupMemberDraft();
+                      }
+                    }}
+                    placeholder="Add member username"
+                    size="sm"
+                    bg="blackAlpha.300"
+                    borderColor="whiteAlpha.200"
+                    color="white"
+                  />
+                  <HStack justify="space-between">
+                    <HStack spacing={2} flexWrap="wrap">
+                      {groupMembers.map(member => (
+                        <HStack key={member} spacing={1} bg="whiteAlpha.100" px={2} py={1} borderRadius="full">
+                          <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
+                          <Text fontSize="10px" color="whiteAlpha.900">@{member}</Text>
+                          <IconButton
+                            aria-label={`Remove ${member}`}
+                            icon={<FiX />}
+                            size="2xs"
+                            variant="ghost"
+                            color="red.300"
+                            onClick={() => removeDraftGroupMember(member)}
+                          />
+                        </HStack>
+                      ))}
+                    </HStack>
+                    <Button size="xs" variant="ghost" colorScheme="blue" onClick={addGroupMemberDraft}>
+                      Add
                     </Button>
                   </HStack>
-                </Box>
-              </>
-            ) : (
-              // Tabs View (Community / DMs)
-              <Tabs 
-                index={activeTab} 
-                onChange={async (index) => {
-                  setActiveTab(index);
-                  // When switching to Community tab, reload community messages
-                  if (index === 0 && communityChannel) {
-                    setChannel(communityChannel);
-                    await loadMessages(communityChannel.id);
-                  }
-                }} 
-                display="flex" 
-                flexDirection="column" 
-                flex={1}
-                overflow="hidden"
-              >
-                <TabList borderBottom="1px solid" borderColor="border" px={2}>
-                  <Tab 
-                    fontSize="sm" 
-                    _selected={{ color: "blue.400", borderColor: "blue.400" }}
-                  >
-                    Community
-                  </Tab>
-                  <Tab 
-                    fontSize="sm" 
-                    _selected={{ color: "blue.400", borderColor: "blue.400" }}
-                  >
-                    DMs {dmChannels.length > 0 && (
-                      <Badge ml={1} colorScheme="blue" borderRadius="full" fontSize="xs">
-                        {dmChannels.length}
-                      </Badge>
-                    )}
-                  </Tab>
-                </TabList>
-
-                <TabPanels flex={1} overflow="hidden" display="flex" flexDirection="column">
-                  {/* Community Tab */}
-                  <TabPanel p={0} flex={1} display="flex" flexDirection="column" overflow="hidden">
-                    {/* Messages */}
-                    <Box flex={1} overflowY="auto" p={4}>
-                      <VStack spacing={3} align="stretch">
-                        {messages.map((msg) => {
-                          const groupedReactions = groupReactions(msg.reactions);
-                          return (
-                            <Box key={msg.id} role="group">
-                              <HStack align="flex-start" spacing={2}>
-                                <Avatar
-                                  size="xs"
-                                  name={msg.username || 'Unknown'}
-                                  src={getHiveAvatarUrl(msg.username || 'unknown', 'small')}
-                                  cursor="pointer"
-                                  onClick={() => msg.username && startDirectMessage(msg.username)}
-                                />
-                                <Box flex={1}>
-                                  <HStack spacing={2} mb={0}>
-                                    <Text 
-                                      fontWeight="semibold" 
-                                      fontSize="sm" 
-                                      color="text"
-                                      cursor={msg.username !== user ? "pointer" : "default"}
-                                      _hover={msg.username !== user ? { color: "blue.400", textDecoration: "underline" } : {}}
-                                      onClick={() => msg.username && msg.username !== user && startDirectMessage(msg.username)}
-                                    >
-                                      {msg.username || 'Unknown'}
-                                    </Text>
-                                    <Text fontSize="xs" color="gray.500">
-                                      {new Date(msg.create_at).toLocaleTimeString()}
-                                    </Text>
-                                  </HStack>
-                                  <Box color="text" fontSize="sm" maxW="100%" overflow="hidden">
-                                    {renderMessageContent(msg.message)}
-                                  </Box>
-                                  {/* Reactions display */}
-                                  <HStack spacing={1} mt={1} flexWrap="wrap">
-                                    {Object.entries(groupedReactions).map(([emoji, data]) => (
-                                      <Tooltip 
-                                        key={emoji} 
-                                        label={data.users.join(', ')} 
-                                        fontSize="xs"
-                                      >
-                                        <Badge
-                                          variant="subtle"
-                                          colorScheme="gray"
-                                          borderRadius="full"
-                                          px={2}
-                                          py={0.5}
-                                          cursor="pointer"
-                                          onClick={() => handleReaction(msg.id, emoji)}
-                                        >
-                                          {emoji} {data.count}
-                                        </Badge>
-                                      </Tooltip>
-                                    ))}
-                                    {/* Add reaction button */}
-                                    <Popover placement="top" isLazy>
-                                      <PopoverTrigger>
-                                        <IconButton
-                                          aria-label="Add reaction"
-                                          icon={<Text fontSize="xs">😀</Text>}
-                                          size="xs"
-                                          variant="ghost"
-                                          opacity={0}
-                                          _groupHover={{ opacity: 1 }}
-                                          h="20px"
-                                          minW="20px"
-                                        />
-                                      </PopoverTrigger>
-                                      <PopoverContent w="auto" bg="secondary">
-                                        <PopoverBody p={2}>
-                                          <Wrap spacing={1}>
-                                            {REACTION_EMOJIS.map((emoji) => (
-                                              <WrapItem key={emoji}>
-                                                <Button
-                                                  size="sm"
-                                                  variant="ghost"
-                                                  onClick={() => handleReaction(msg.id, emoji)}
-                                                  p={1}
-                                                  minW="auto"
-                                                >
-                                                  {emoji}
-                                                </Button>
-                                              </WrapItem>
-                                            ))}
-                                          </Wrap>
-                                        </PopoverBody>
-                                      </PopoverContent>
-                                    </Popover>
-                                  </HStack>
-                                </Box>
-                              </HStack>
-                            </Box>
-                          );
-                        })}
-                        <div ref={messagesEndRef} />
-                      </VStack>
-                    </Box>
-
-                    {/* Composer */}
-                    <Box
-                      as="form"
-                      onSubmit={handleSendMessage}
-                      p={4}
-                      borderTop="1px solid"
-                      borderColor="border"
-                    >
-                      <HStack spacing={2}>
-                        <Input
-                          value={newMessage}
-                          onChange={(e) => setNewMessage(e.target.value)}
-                          placeholder="Type a message..."
-                          bg="inputBackground"
-                          color="text"
-                          fontSize="16px"
-                          autoComplete="off"
-                          autoCorrect="off"
-                        />
-                        <Button
-                          type="submit"
-                          colorScheme="blue"
-                          isDisabled={!newMessage.trim()}
-                        >
-                          Send
-                        </Button>
-                      </HStack>
-                    </Box>
-                  </TabPanel>
-
-                  {/* DMs Tab */}
-                  <TabPanel p={0} flex={1} overflowY="auto">
-                    {dmChannels.length === 0 ? (
-                      <Flex flex={1} align="center" justify="center" p={4} minH="200px">
-                        <VStack spacing={2}>
-                          <Text color="gray.500" fontSize="sm" textAlign="center">
-                            No direct messages yet
-                          </Text>
-                          <Text color="gray.400" fontSize="xs" textAlign="center">
-                            Click on a username in the community chat to start a DM
-                          </Text>
-                        </VStack>
-                      </Flex>
-                    ) : (
-                      <VStack spacing={0} align="stretch">
-                        {dmChannels.map((dm) => (
-                          <HStack
-                            key={dm.id}
-                            p={3}
-                            spacing={3}
-                            cursor="pointer"
-                            _hover={{ bg: "whiteAlpha.100" }}
-                            onClick={() => openDMConversation(dm)}
-                            borderBottom="1px solid"
-                            borderColor="border"
-                          >
-                            <Avatar
-                              size="sm"
-                              name={dm.otherUser?.replace(/^@/, '')}
-                              src={getHiveAvatarUrl(dm.otherUser?.replace(/^@/, '') || 'unknown', 'small')}
-                            />
-                            <Box flex={1}>
-                              <Text fontWeight="medium" fontSize="sm" color="text">
-                                @{dm.otherUser?.replace(/^@/, '')}
-                              </Text>
-                              <Text fontSize="xs" color="gray.500" noOfLines={1}>
-                                Tap to view conversation
-                              </Text>
-                            </Box>
-                          </HStack>
-                        ))}
-                      </VStack>
-                    )}
-                  </TabPanel>
-                </TabPanels>
-              </Tabs>
+                  <HStack justify="space-between">
+                    <HStack>
+                      <Switch size="sm" isChecked={groupIsPublic} onChange={e => setGroupIsPublic(e.target.checked)} />
+                      <Text color="whiteAlpha.700" fontSize="xs">Public group</Text>
+                    </HStack>
+                    <Button size="sm" colorScheme="blue" onClick={handleCreateGroupSubmit}>Create</Button>
+                  </HStack>
+                </VStack>
+              </Box>
             )}
-          </Flex>
-        </Box>
+            {!!panelError && (
+              <Text fontSize="xs" color="red.300" px={1}>{panelError}</Text>
+            )}
+            {conversations.length === 0 ? (
+              <Flex flex="1" align="center" justify="center" py={6}>
+                <Text fontSize="xs" color="whiteAlpha.500">No conversations yet</Text>
+              </Flex>
+            ) : (
+              conversations.map(conv => (
+                <ConversationRow
+                  key={conv._id}
+                  conv={conv}
+                  isActive={conv._id === activeConversationId}
+                  onClick={() => handleOpenConversation(conv)}
+                />
+              ))
+            )}
+            </Flex>
+          )}
+
+          {/* Thread view */}
+          {showThread && (
+            <Flex flex="1" minW={0} direction="column">
+              {canManageMembers && (
+                <Box px={3} py={2} borderBottom="1px solid" borderColor="whiteAlpha.100" bg="whiteAlpha.50">
+                  <Text fontSize="10px" color="whiteAlpha.600" mb={2}>Group members (owner controls)</Text>
+                  <HStack mb={2}>
+                    <Input
+                      value={memberInput}
+                      onChange={e => setMemberInput(e.target.value)}
+                      placeholder="Add member username"
+                      size="xs"
+                      bg="blackAlpha.300"
+                      borderColor="whiteAlpha.200"
+                      color="white"
+                    />
+                    <Button size="xs" colorScheme="blue" onClick={handleAddMember} isLoading={memberActionBusy}>Add</Button>
+                  </HStack>
+                  <HStack spacing={2} flexWrap="wrap">
+                    {(activeConversation?.members || []).map(member => (
+                      <HStack key={member} spacing={1} bg="whiteAlpha.100" px={2} py={1} borderRadius="full">
+                        <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
+                        <Text fontSize="10px" color="whiteAlpha.900">@{member}</Text>
+                        {member === activeConversation.owner && (
+                          <Badge colorScheme="purple" variant="solid" fontSize="8px" borderRadius="full">Owner</Badge>
+                        )}
+                        {member !== activeConversation.owner && (
+                          <Badge colorScheme="blue" variant="subtle" fontSize="8px" borderRadius="full">Member</Badge>
+                        )}
+                        {member !== activeConversation.owner && (
+                          <IconButton
+                            aria-label={`Remove ${member}`}
+                            icon={<FiX />}
+                            size="2xs"
+                            variant="ghost"
+                            color="red.300"
+                            onClick={() => handleRemoveMember(member)}
+                          />
+                        )}
+                      </HStack>
+                    ))}
+                  </HStack>
+                  <Divider mt={2} borderColor="whiteAlpha.200" />
+                </Box>
+              )}
+              <Flex
+                flex="1"
+                direction="column"
+                overflowY="auto"
+                px={4}
+                py={3}
+                gap={2}
+                sx={{
+                  '&::-webkit-scrollbar': { width: '3px' },
+                  '&::-webkit-scrollbar-track': { bg: 'transparent' },
+                  '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
+                }}
+              >
+                {loadingMessages ? (
+                  <Flex justify="center" align="center" flex="1">
+                    <Spinner color="blue.300" size="sm" />
+                  </Flex>
+                ) : messages.length === 0 ? (
+                  <Flex direction="column" justify="center" align="center" flex="1" gap={2} opacity={0.5}>
+                    <Icon as={FiMessageSquare} boxSize={8} color="whiteAlpha.400" />
+                    <Text fontSize="xs" color="whiteAlpha.500">No messages yet. Say hello!</Text>
+                  </Flex>
+                ) : (
+                  <VStack align="stretch" spacing={2}>
+                    {messages.map(msg => (
+                    <MessageBubble
+                      key={msg._id}
+                      msg={msg}
+                      isOwn={msg.sender === user}
+                      onOpenDm={openDmByUsername}
+                    />
+                    ))}
+                  </VStack>
+                )}
+                <div ref={messagesEndRef} />
+              </Flex>
+
+              {/* Auth overlay / compose bar */}
+              {!isAuthed || authState === 'idle' ? (
+                <Flex
+                  px={4}
+                  py={4}
+                  borderTop="1px solid"
+                  borderColor="whiteAlpha.100"
+                  direction="column"
+                  align="center"
+                  gap={2}
+                  flexShrink={0}
+                >
+                  {!user ? (
+                    <Text fontSize="xs" color="whiteAlpha.500" textAlign="center">
+                      Log in to send messages
+                    </Text>
+                  ) : (
+                    <>
+                      <Text fontSize="xs" color="whiteAlpha.500" textAlign="center">
+                        Connect your Hive account to chat
+                      </Text>
+                      <Button
+                        size="sm"
+                        colorScheme="blue"
+                        onClick={handleConnect}
+                        isLoading={authState === 'connecting'}
+                        loadingText="Signing in…"
+                        leftIcon={<Icon as={FiPlus} />}
+                        borderRadius="full"
+                        px={6}
+                      >
+                        Connect
+                      </Button>
+                      {authState === 'error' && (
+                        <Text fontSize="xs" color="red.400">{authError || 'Sign failed — try again'}</Text>
+                      )}
+                    </>
+                  )}
+                </Flex>
+              ) : (
+              <Flex
+                px={3}
+                py={3}
+                borderTop="1px solid"
+                borderColor="whiteAlpha.100"
+                gap={2}
+                align="center"
+                flexShrink={0}
+                pb="calc(12px + env(safe-area-inset-bottom))"
+                direction="column"
+              >
+                {confirmBlockUser && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="red.400"
+                    bg="red.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <Text fontSize="xs" color="white" mb={2}>
+                      Block @{confirmBlockUser}? You will no longer receive their messages.
+                    </Text>
+                    <HStack justify="flex-end">
+                      <Button size="xs" variant="ghost" onClick={() => setConfirmBlockUser(null)}>Cancel</Button>
+                      <Button size="xs" colorScheme="red" onClick={confirmBlockAction}>Block</Button>
+                    </HStack>
+                  </Box>
+                )}
+                {showMemoFallbackPrompt && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="blue.400"
+                    bg="blue.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <Text fontSize="xs" color="white" mb={2}>
+                      @{showMemoFallbackPrompt.peer} has no push token. Send encrypted Hive memo fallback?
+                    </Text>
+                    <HStack mb={2}>
+                      <Button
+                        size="xs"
+                        variant={memoAssetChoice === 'HIVE' ? 'solid' : 'ghost'}
+                        colorScheme="blue"
+                        onClick={() => setMemoAssetChoice('HIVE')}
+                      >
+                        HIVE
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant={memoAssetChoice === 'HBD' ? 'solid' : 'ghost'}
+                        colorScheme="blue"
+                        onClick={() => setMemoAssetChoice('HBD')}
+                      >
+                        HBD
+                      </Button>
+                    </HStack>
+                    <HStack justify="flex-end">
+                      <Button size="xs" variant="ghost" onClick={() => setShowMemoFallbackPrompt(null)}>Skip</Button>
+                      <Button size="xs" colorScheme="blue" onClick={handleMemoFallbackConfirm}>
+                        Send 0.001 {memoAssetChoice}
+                      </Button>
+                    </HStack>
+                  </Box>
+                )}
+                <HStack spacing={1} w="100%" justify="space-between">
+                  <HStack spacing={1} flexWrap="wrap">
+                    {QUICK_EMOJIS.map(em => (
+                      <Button
+                        key={em}
+                        size="xs"
+                        variant="ghost"
+                        minW="unset"
+                        px={2}
+                        onClick={() => setDraft(prev => `${prev}${em}`)}
+                      >
+                        {em}
+                      </Button>
+                    ))}
+                  </HStack>
+                  {activeConversation?.type === 'dm' && activeConversation.peer && (
+                    <Menu>
+                      <MenuButton as={Button} size="xs" variant="ghost" rightIcon={<FiChevronDown />}>
+                        Manage
+                      </MenuButton>
+                      <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+                        {mutedUsers.includes(activeConversation.peer) ? (
+                          <MenuItem bg="gray.800" color="white" onClick={() => handleUnmute(activeConversation.peer || '')}>
+                            Unmute @{activeConversation.peer}
+                          </MenuItem>
+                        ) : (
+                          <MenuItem bg="gray.800" color="white" onClick={() => handleMute(activeConversation.peer || '')}>
+                            Mute @{activeConversation.peer}
+                          </MenuItem>
+                        )}
+                        {blockedUsers.includes(activeConversation.peer) ? (
+                          <MenuItem bg="gray.800" color="white" onClick={() => handleUnblock(activeConversation.peer || '')}>
+                            Unblock @{activeConversation.peer}
+                          </MenuItem>
+                        ) : (
+                          <MenuItem bg="gray.800" color="red.300" onClick={() => handleBlock(activeConversation.peer || '')}>
+                            Block @{activeConversation.peer}
+                          </MenuItem>
+                        )}
+                      </MenuList>
+                    </Menu>
+                  )}
+                </HStack>
+                <HStack w="100%">
+                  <Input
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Message…"
+                    size="sm"
+                    borderRadius="full"
+                    bg="whiteAlpha.50"
+                    border="1px solid"
+                    borderColor="whiteAlpha.100"
+                    color="white"
+                    _placeholder={{ color: 'whiteAlpha.400' }}
+                    _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)', bg: 'whiteAlpha.100' }}
+                    _hover={{ borderColor: 'whiteAlpha.300' }}
+                    maxLength={2000}
+                    autoComplete="off"
+                  />
+                  <IconButton
+                    aria-label="Send"
+                    icon={<FiSend />}
+                    size="sm"
+                    colorScheme="blue"
+                    borderRadius="full"
+                    isLoading={sending}
+                    isDisabled={!draft.trim()}
+                    onClick={handleSend}
+                    flexShrink={0}
+                  />
+                </HStack>
+                </Flex>
+              )}
+            </Flex>
+          )}
+        </Flex>
+      </Box>
     </>
   );
 }

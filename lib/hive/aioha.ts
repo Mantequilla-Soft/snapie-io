@@ -154,6 +154,20 @@ export async function transferWithAioha(
   }, `Approve transfer of ${amount.toFixed(3)} ${currency}`);
 }
 
+export async function transferEncryptedMemoWithAioha(
+  to: string,
+  amount: number,
+  currency: string,
+  memo: string,
+) {
+  const encryptedMemo = memo.startsWith('#') ? memo : `#${memo}`;
+  return withTxApproval(async () => {
+    const result = await getAioha().transfer(to, amount, currency as any, encryptedMemo);
+    if (!result.success) throw new Error(result.error || 'Transfer failed');
+    return { success: true as const, result: result.result };
+  }, `Approve encrypted memo transfer of ${amount.toFixed(3)} ${currency}`);
+}
+
 export async function customJsonWithAioha(
   keyType: KeyTypes,
   id: string,

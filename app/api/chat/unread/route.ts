@@ -1,60 +1,54 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { withChatAuth } from '@/lib/chat/auth';
+import { ChatUser } from '@/lib/db/models/ChatUser';
+import { Message } from '@/lib/db/models/Message';
 
-export const dynamic = 'force-dynamic';
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-const ECENCY_CHAT_BASE = "https://ecency.com/api/mattermost";
-
-/**
- * Get unread message count across all channels
- * GET /api/chat/unread
- */
-export async function GET(request: NextRequest) {
-  try {
-    const mmPatCookie = request.cookies.get("mm_pat");
-    
-    if (!mmPatCookie) {
-      // Not authenticated - return 0 unread
-      return NextResponse.json({ unread: 0 });
-    }
-
-    // Fetch channels to get unread counts
-    const response = await fetch(`${ECENCY_CHAT_BASE}/channels`, {
-      method: "GET",
-      headers: {
-        Cookie: `mm_pat=${mmPatCookie.value}`,
-      },
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ unread: 0 });
-    }
-
-    const data = await response.json();
-    const channels = Array.isArray(data) ? data : data.channels || [];
-    
-    // Sum up unread counts from all channels
-    // Mattermost typically includes msg_count, mention_count, or total_msg_count_root
-    let totalUnread = 0;
-    
-    for (const channel of channels) {
-      // Different possible field names for unread counts
-      totalUnread += channel.msg_count || 0;
-      totalUnread += channel.mention_count || 0;
-    }
-
-    return NextResponse.json({ 
-      unread: totalUnread,
-      // Also return per-channel breakdown for potential future use
-      channels: channels.map((ch: any) => ({
-        id: ch.id,
-        name: ch.name,
-        display_name: ch.display_name,
-        msg_count: ch.msg_count || 0,
-        mention_count: ch.mention_count || 0,
-      }))
-    });
-  } catch (error: any) {
-    console.error("Unread count error:", error);
+export const GET = withChatAuth(async (_req, { username }) => {
+  const chatUser = await ChatUser.findById(username);
+  if (!chatUser) {
     return NextResponse.json({ unread: 0 });
   }
-}
+
+  const channelIds = chatUser.channels || [];
+  let unread = 0;
+
+  if (channelIds.length > 0) {
+    const channels = await Message.aggregate([
+      {
+        $match: {
+          type: 'channel',
+          target: { $in: channelIds },
+          sender: { $ne: username },
+        }
+      },
+      { $group: { _id: '$target', lastCreatedAt: { $max: '$createdAt' } } },
+    ]);
+
+    for (const row of channels) {
+      const seenAt = chatUser.conversationSeen?.get?.(row._id) || chatUser.lastSeen || new Date(0);
+      if (row.lastCreatedAt > seenAt) unread += 1;
+    }
+  }
+
+  const dms = await Message.aggregate([
+    {
+      $match: {
+        type: 'dm',
+        sender: { $ne: username },
+        target: { $regex: `^dm:.*${escapeRegExp(username)}.*$` },
+      }
+    },
+    { $group: { _id: '$target', lastCreatedAt: { $max: '$createdAt' } } },
+  ]);
+
+  for (const row of dms) {
+    const seenAt = chatUser.conversationSeen?.get?.(row._id) || new Date(0);
+    if (row.lastCreatedAt > seenAt) unread += 1;
+  }
+
+  return NextResponse.json({ unread });
+});

@@ -1,12 +1,12 @@
 'use client'
 import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import FooterNavigation from '@/components/layout/FooterNavigation';
 import ChatPanel from '@/components/chat/ChatPanel';
+import { chatService } from '@/lib/chat/ChatService';
 import { useHangout } from '@/contexts/HangoutContext';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
@@ -17,53 +17,30 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isComposePage = pathname === '/compose';
   const isEmbedMode = searchParams.get('embed') === 'true';
   const { activeRoom, closeRoom } = useHangout();
+
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   useEffect(() => {
-    // Add embed-mode class to body when embed mode is active
     if (isEmbedMode) {
       document.body.classList.add('embed-mode');
     } else {
       document.body.classList.remove('embed-mode');
     }
-    return () => {
-      document.body.classList.remove('embed-mode');
-    };
+    return () => { document.body.classList.remove('embed-mode'); };
   }, [isEmbedMode]);
 
-  // Poll for unread messages (skip when embed mode or chat is open)
+  // Poll unread count when chat is closed
   useEffect(() => {
     if (isEmbedMode || isChatOpen) return;
-
-    const fetchUnread = async () => {
-      try {
-        const res = await fetch('/api/chat/unread', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          setChatUnreadCount(data.unread || 0);
-        }
-      } catch (err) {
-        // Silently fail - don't spam console
-      }
-    };
-
-    // Fetch immediately
-    fetchUnread();
-
-    // Poll every 30 seconds while chat stays closed
-    const interval = setInterval(fetchUnread, 30000);
-
-    return () => clearInterval(interval);
+    const poll = async () => { setChatUnreadCount(await chatService.getUnreadCount()); };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => clearInterval(id);
   }, [isChatOpen, isEmbedMode]);
 
-  // Clear unread count when chat is opened
-  useEffect(() => {
-    if (isChatOpen) {
-      setChatUnreadCount(0);
-    }
-  }, [isChatOpen]);
+  useEffect(() => { if (isChatOpen) setChatUnreadCount(0); }, [isChatOpen]);
 
   return (
     <Box
@@ -94,8 +71,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             onClose={() => setIsChatOpen(false)}
             isMinimized={isChatMinimized}
             onMinimize={() => setIsChatMinimized(true)}
-            onRestore={() => setIsChatMinimized(false)}
-            unreadCount={chatUnreadCount}
+            onRestore={() => { setIsChatMinimized(false); setIsChatOpen(true); }}
           />
         </>
       )}

@@ -9,12 +9,12 @@ import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 
 interface FooterNavigationProps {
-    isChatOpen: boolean;
-    setIsChatOpen: (isOpen: boolean) => void;
+    isChatOpen?: boolean;
+    setIsChatOpen?: (v: boolean) => void;
     chatUnreadCount?: number;
 }
 
-export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
+export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
 
     const { user, aioha } = useAioha();
     const { openLoginModal } = useLoginModal();
@@ -190,7 +190,7 @@ export default function FooterNavigation({ isChatOpen, setIsChatOpen, chatUnread
                         <Tooltip label="Chat" aria-label="Chat tooltip">
                             <Box position="relative">
                                 <Button
-                                    onClick={() => setIsChatOpen(!isChatOpen)}
+                                    onClick={() => setIsChatOpen?.(!isChatOpen)}
                                     variant="ghost"
                                     color="white"
                                     size="sm"

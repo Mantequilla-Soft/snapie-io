@@ -29,12 +29,12 @@ interface CommunityInfo {
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
 interface SidebarProps {
-    isChatOpen: boolean;
-    setIsChatOpen: (isOpen: boolean) => void;
+    isChatOpen?: boolean;
+    setIsChatOpen?: (v: boolean) => void;
     chatUnreadCount?: number;
 }
 
-export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
+export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
     const { user, aioha } = useAioha();
     const { openLoginModal } = useLoginModal();
     const isLoggedIn = !!user;
@@ -276,7 +276,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             <Tooltip label="Chat" placement="right" hasArrow isDisabled={!isCompactMode}>
                                 <Box w="full" position="relative">
                                     <Button
-                                        onClick={() => setIsChatOpen(!isChatOpen)}
+                                        onClick={() => setIsChatOpen?.(!isChatOpen)}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -294,7 +294,7 @@ export default function Sidebar({ isChatOpen, setIsChatOpen, chatUnreadCount = 0
                             </Tooltip>
                         </>
                     )}
-                    
+
                     {/* Login/Logout Button */}
                     <Tooltip label={isLoggedIn ? 'Logout' : 'Login'} placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full" mt="auto">

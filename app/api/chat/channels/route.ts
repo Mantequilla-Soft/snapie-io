@@ -1,46 +1,34 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/lib/db/mongodb';
+import { Channel } from '@/lib/db/models/Channel';
+import { withChatAuth } from '@/lib/chat/auth';
+import { seedDefaultChannels } from '@/lib/chat/seedChannels';
 
-export const dynamic = 'force-dynamic';
-
-const ECENCY_CHAT_BASE = "https://ecency.com/api/mattermost";
-
-/**
- * Get channels for current user
- * GET /api/chat/channels
- */
-export async function GET(request: NextRequest) {
-  try {
-    const mmPatCookie = request.cookies.get("mm_pat");
-    
-    if (!mmPatCookie) {
-      return NextResponse.json(
-        { error: "Not authenticated. Call /api/chat/bootstrap first." },
-        { status: 401 }
-      );
-    }
-
-    const response = await fetch(`${ECENCY_CHAT_BASE}/channels`, {
-      method: "GET",
-      headers: {
-        Cookie: `mm_pat=${mmPatCookie.value}`,
-      },
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      return NextResponse.json(
-        { error: `Failed to fetch channels: ${error}` },
-        { status: response.status }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
-    console.error("Channels fetch error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch channels" },
-      { status: 500 }
-    );
-  }
+export async function GET() {
+  await connectDB();
+  await seedDefaultChannels();
+  const channels = await Channel.find({ isPublic: true, conversationKind: 'channel' }).sort({ name: 1 });
+  return NextResponse.json({ channels });
 }
+
+export const POST = withChatAuth(async (req, { username }) => {
+  const { id, name, description, type } = await req.json();
+  if (!id || !name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
+
+  const channel = await Channel.findOneAndUpdate(
+    { _id: id },
+    {
+      $setOnInsert: {
+        name,
+        description,
+        type: type || 'community',
+        conversationKind: 'channel',
+        isPublic: true,
+        createdBy: username,
+        memberCount: 0,
+      }
+    },
+    { upsert: true, returnDocument: 'after' }
+  );
+  return NextResponse.json({ channel }, { status: 201 });
+});
