@@ -108,14 +108,53 @@ function MessageBubble({
   onOpenDm?: (username: string) => void;
 }) {
   const canOpenDm = !isOwn && !!onOpenDm;
+  if (isOwn) {
+    return (
+      <Box
+        animation={`${fadeIn} 0.18s ease`}
+        alignSelf="flex-end"
+        maxW="88%"
+      >
+        <Box
+          bg="blue.600"
+          px={3}
+          py={2}
+          borderRadius="16px 16px 4px 16px"
+          border="1px solid"
+          borderColor="blue.500"
+        >
+          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+            {msg.content}
+          </Text>
+          <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
+            {formatTime(msg.createdAt)}
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box
       animation={`${fadeIn} 0.18s ease`}
-      alignSelf={isOwn ? 'flex-end' : 'flex-start'}
+      alignSelf="flex-start"
       maxW="88%"
     >
       <HStack align="flex-end" spacing={2}>
-        {!isOwn && (
+        <VStack spacing={1} align="center" minW="52px">
+          <Text
+            fontSize="10px"
+            color="blue.300"
+            fontWeight="600"
+            letterSpacing="0.03em"
+            onDoubleClick={() => onOpenDm?.(msg.sender)}
+            cursor={canOpenDm ? 'pointer' : 'default'}
+            title={canOpenDm ? 'Double-click to open DM' : undefined}
+            noOfLines={1}
+            maxW="52px"
+          >
+            @{msg.sender}
+          </Text>
           <Box
             onDoubleClick={() => onOpenDm?.(msg.sender)}
             cursor={canOpenDm ? 'pointer' : 'default'}
@@ -123,36 +162,19 @@ function MessageBubble({
           >
             <Avatar size="2xs" name={msg.sender} src={getHiveAvatarUrl(msg.sender, 'small')} />
           </Box>
-        )}
-        <Box>
-          {!isOwn && (
-            <Text
-              fontSize="10px"
-              color="blue.300"
-              fontWeight="600"
-              mb="2px"
-              ml="2px"
-              letterSpacing="0.03em"
-              onDoubleClick={() => onOpenDm?.(msg.sender)}
-              cursor={canOpenDm ? 'pointer' : 'default'}
-              title={canOpenDm ? 'Double-click to open DM' : undefined}
-            >
-              @{msg.sender}
-            </Text>
-          )}
-          <Box
-            bg={isOwn ? 'blue.600' : 'whiteAlpha.100'}
-            px={3}
-            py={2}
-            borderRadius={isOwn ? '16px 16px 4px 16px' : '16px 16px 16px 4px'}
-            border="1px solid"
-            borderColor={isOwn ? 'blue.500' : 'whiteAlpha.100'}
-          >
-            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              {msg.content}
-            </Text>
-          </Box>
-          <Text fontSize="9px" color="whiteAlpha.400" mt="2px" textAlign={isOwn ? 'right' : 'left'} mx="2px">
+        </VStack>
+        <Box
+          bg="whiteAlpha.100"
+          px={3}
+          py={2}
+          borderRadius="16px 16px 16px 4px"
+          border="1px solid"
+          borderColor="whiteAlpha.100"
+        >
+          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+            {msg.content}
+          </Text>
+          <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
             {formatTime(msg.createdAt)}
           </Text>
         </Box>
