@@ -54,7 +54,7 @@ export async function verifyHiveSignature(
     const [account] = await HiveClient.database.getAccounts([normalizedUser]);
     if (!account) return false;
 
-    const postingKeys: string[] = account.posting.key_auths.map(([key]: [string, number]) => key);
+    const postingKeys: string[] = account.posting.key_auths.map(([key]) => String(key));
     if (postingKeys.length === 0) return false;
 
     // Recover public key from signature and compare to on-chain posting key

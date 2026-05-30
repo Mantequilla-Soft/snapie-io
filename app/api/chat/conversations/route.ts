@@ -50,7 +50,7 @@ export const GET = withChatAuth(async (_req, { username }) => {
       lastMap.get(conv._id)?.createdAt &&
       (
         !chatUser?.conversationSeen?.get?.(conv._id) ||
-        lastMap.get(conv._id).createdAt > chatUser.conversationSeen.get(conv._id)
+        lastMap.get(conv._id)!.createdAt > chatUser.conversationSeen.get(conv._id)!
       )
     ),
   }));
