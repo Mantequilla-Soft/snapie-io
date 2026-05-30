@@ -69,10 +69,12 @@ export const POST = withChatAuth(async (req, { username, params }) => {
 
   const now = Date.now();
   const cooldownMs = 3 * 60 * 1000;
-  const lastMemoAt = peerUser?.memoNotifyAt?.[id] ? new Date(peerUser.memoNotifyAt[id]).getTime() : 0;
+  const lastMemoAt = peerUser?.memoNotifyAt?.get?.(id)
+    ? new Date(peerUser.memoNotifyAt.get(id) as Date).getTime()
+    : 0;
   const hasFcm = !!peerUser?.fcmTokens?.length;
-  const peerConversationSeenAt = peerUser?.conversationSeen?.[id]
-    ? new Date(peerUser.conversationSeen[id]).getTime()
+  const peerConversationSeenAt = peerUser?.conversationSeen?.get?.(id)
+    ? new Date(peerUser.conversationSeen.get(id) as Date).getTime()
     : 0;
   const peerLastSeenAt = peerUser?.lastSeen ? new Date(peerUser.lastSeen).getTime() : 0;
   const peerLastActiveAt = Math.max(peerConversationSeenAt, peerLastSeenAt);

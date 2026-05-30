@@ -5,6 +5,7 @@ import { Channel } from '@/lib/db/models/Channel';
 import { sendChannelMessage } from '@/lib/chat/fcm';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { isRateLimited, validateMessageBody } from '@/lib/chat/messages';
+import mongoose from 'mongoose';
 
 export const GET = withChatAuth(async (req: NextRequest, { username, params }) => {
   const { searchParams } = new URL(req.url);
@@ -30,7 +31,12 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
   }
 
   const query: Record<string, unknown> = { target: channelId, type: 'channel' };
-  if (before) query._id = { $lt: before };
+  if (before) {
+    if (!mongoose.isValidObjectId(before)) {
+      return NextResponse.json({ error: 'Invalid before cursor' }, { status: 400 });
+    }
+    query._id = { $lt: before };
+  }
 
   const me = await ChatUser.findById(username);
   const blocked = new Set<string>([

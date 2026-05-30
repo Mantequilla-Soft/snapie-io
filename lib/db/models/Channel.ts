@@ -22,7 +22,7 @@ const ChannelSchema = new Schema<IChannel>(
     name: { type: String, required: true },
     description: String,
     type: { type: String, enum: ['community', 'livestream', 'hangout', 'custom', 'group'], default: 'community' },
-    conversationKind: { type: String, enum: ['channel', 'group'], default: 'channel', index: true },
+    conversationKind: { type: String, enum: ['channel', 'group'], default: 'channel' },
     createdBy: { type: String, required: true },
     owner: { type: String },
     members: { type: [String], default: [] },

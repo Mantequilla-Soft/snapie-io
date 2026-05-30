@@ -14,12 +14,16 @@ export function isRateLimited(username: string): boolean {
 }
 
 export function validateMessageBody(content: unknown): { ok: true; value: string } | { ok: false; response: NextResponse } {
-  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+  if (!content || typeof content !== 'string') {
     return { ok: false, response: NextResponse.json({ error: 'content required' }, { status: 400 }) };
   }
-  if (content.length > 2000) {
+  const trimmed = content.trim();
+  if (trimmed.length === 0) {
+    return { ok: false, response: NextResponse.json({ error: 'content required' }, { status: 400 }) };
+  }
+  if (trimmed.length > 2000) {
     return { ok: false, response: NextResponse.json({ error: 'Message too long' }, { status: 400 }) };
   }
-  return { ok: true, value: content.trim() };
+  return { ok: true, value: trimmed };
 }
 

@@ -7,8 +7,8 @@ export interface IChatUser extends Document<string> {
   mutedUsers: string[];
   blockedUsers: string[];
   lastSeen: Date;
-  conversationSeen: Record<string, Date>;
-  memoNotifyAt: Record<string, Date>;
+  conversationSeen: Map<string, Date>;
+  memoNotifyAt: Map<string, Date>;
 }
 
 const ChatUserSchema = new Schema<IChatUser>(

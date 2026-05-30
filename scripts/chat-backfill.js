@@ -13,7 +13,7 @@ function loadEnvFile(fileName) {
     if (idx === -1) continue;
     const key = trimmed.slice(0, idx).trim();
     const value = trimmed.slice(idx + 1);
-    if (!process.env[key]) process.env[key] = value;
+    if (!(key in process.env)) process.env[key] = value;
   }
 }
 

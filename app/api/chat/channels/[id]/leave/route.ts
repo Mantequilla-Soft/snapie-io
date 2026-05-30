@@ -20,17 +20,14 @@ export const POST = withChatAuth(async (_req, { username, params }) => {
     { returnDocument: 'before' }
   );
 
-  const memberList = Array.isArray(channel.members) ? channel.members : [];
-  const wasMember = memberList.includes(username);
-  if (wasMember) {
-    await Channel.findByIdAndUpdate(
-      channelId,
-      {
-        $pull: { members: username },
-        $set: { memberCount: Math.max((channel.memberCount || 1) - 1, 0) }
-      }
-    );
-  }
+  await Channel.findOneAndUpdate(
+    { _id: channelId, members: username },
+    { $pull: { members: username }, $inc: { memberCount: -1 } }
+  );
+  await Channel.updateOne(
+    { _id: channelId, memberCount: { $lt: 0 } },
+    { $set: { memberCount: 0 } }
+  );
 
   // Unsubscribe all registered devices from this channel's FCM topic
   if (chatUser?.fcmTokens?.length) {

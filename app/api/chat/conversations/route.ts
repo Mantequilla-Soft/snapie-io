@@ -46,7 +46,13 @@ export const GET = withChatAuth(async (_req, { username }) => {
   ].map((conv: any) => ({
     ...conv,
     lastMessage: lastMap.get(conv._id) || null,
-    unread: !!(chatUser?.conversationSeen?.[conv._id] && lastMap.get(conv._id)?.createdAt > chatUser.conversationSeen[conv._id]),
+    unread: !!(
+      lastMap.get(conv._id)?.createdAt &&
+      (
+        !chatUser?.conversationSeen?.get?.(conv._id) ||
+        lastMap.get(conv._id).createdAt > chatUser.conversationSeen.get(conv._id)
+      )
+    ),
   }));
 
   conversations.sort((a: any, b: any) => {

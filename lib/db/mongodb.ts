@@ -12,6 +12,12 @@ declare global {
 
 export async function connectDB(): Promise<typeof mongoose> {
   if (global._mongooseConn) return global._mongooseConn;
-  global._mongooseConn = mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
-  return global._mongooseConn;
+  const connPromise = mongoose.connect(MONGODB_URI, { dbName: MONGODB_DB });
+  global._mongooseConn = connPromise;
+  try {
+    return await connPromise;
+  } catch (err) {
+    global._mongooseConn = undefined;
+    throw err;
+  }
 }

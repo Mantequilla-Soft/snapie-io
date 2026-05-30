@@ -13,7 +13,7 @@ export interface IMessage extends Document {
 const MessageSchema = new Schema<IMessage>(
   {
     type: { type: String, enum: ['channel', 'dm'], required: true },
-    target: { type: String, required: true, index: true },
+    target: { type: String, required: true },
     sender: { type: String, required: true },
     content: { type: String, required: true, maxlength: 2000 },
     replyTo: { type: Schema.Types.ObjectId, ref: 'Message', default: null },

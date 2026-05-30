@@ -6,6 +6,13 @@ import { getMessaging, getToken, onMessage, Messaging } from 'firebase/messaging
 let app: FirebaseApp | null = null;
 let messaging: Messaging | null = null;
 
+function toBase64Utf8(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
 function getFirebaseApp(): FirebaseApp | null {
   if (app) return app;
   const configStr = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
@@ -46,7 +53,7 @@ export async function getFCMToken(): Promise<string | null> {
     // first registration works even when there is no active worker yet.
     const configStr = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
     const configEncoded = configStr
-      ? encodeURIComponent(btoa(unescape(encodeURIComponent(configStr))))
+      ? encodeURIComponent(toBase64Utf8(configStr))
       : '';
     const swUrl = configEncoded
       ? `/firebase-messaging-sw.js?firebaseConfig=${configEncoded}`

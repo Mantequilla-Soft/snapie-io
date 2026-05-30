@@ -3,6 +3,10 @@ import { withChatAuth } from '@/lib/chat/auth';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { Message } from '@/lib/db/models/Message';
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export const GET = withChatAuth(async (_req, { username }) => {
   const chatUser = await ChatUser.findById(username);
   if (!chatUser) {
@@ -25,7 +29,7 @@ export const GET = withChatAuth(async (_req, { username }) => {
     ]);
 
     for (const row of channels) {
-      const seenAt = chatUser.conversationSeen?.[row._id] || chatUser.lastSeen || new Date(0);
+      const seenAt = chatUser.conversationSeen?.get?.(row._id) || chatUser.lastSeen || new Date(0);
       if (row.lastCreatedAt > seenAt) unread += 1;
     }
   }
@@ -35,14 +39,14 @@ export const GET = withChatAuth(async (_req, { username }) => {
       $match: {
         type: 'dm',
         sender: { $ne: username },
-        target: { $regex: `^dm:.*${username}.*$` },
+        target: { $regex: `^dm:.*${escapeRegExp(username)}.*$` },
       }
     },
     { $group: { _id: '$target', lastCreatedAt: { $max: '$createdAt' } } },
   ]);
 
   for (const row of dms) {
-    const seenAt = chatUser.conversationSeen?.[row._id] || new Date(0);
+    const seenAt = chatUser.conversationSeen?.get?.(row._id) || new Date(0);
     if (row.lastCreatedAt > seenAt) unread += 1;
   }
 

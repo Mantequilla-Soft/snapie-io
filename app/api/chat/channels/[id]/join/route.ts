@@ -21,12 +21,10 @@ export const POST = withChatAuth(async (_req, { username, params }) => {
     { upsert: true, returnDocument: 'after' }
   );
 
-  if (!memberList.includes(username)) {
-    await Channel.findByIdAndUpdate(
-      channelId,
-      { $addToSet: { members: username }, $set: { memberCount: channel.memberCount + 1 } }
-    );
-  }
+  await Channel.findOneAndUpdate(
+    { _id: channelId, members: { $ne: username } },
+    { $addToSet: { members: username }, $inc: { memberCount: 1 } }
+  );
 
   // Subscribe all registered devices to this channel's FCM topic
   if (chatUser?.fcmTokens?.length) {

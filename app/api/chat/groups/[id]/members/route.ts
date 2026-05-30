@@ -3,6 +3,7 @@ import { withChatAuth } from '@/lib/chat/auth';
 import { Channel } from '@/lib/db/models/Channel';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { normalizeHiveUser } from '@/lib/chat/conversations';
+import { unsubscribeFromChannel } from '@/lib/chat/fcm';
 
 async function getOwnedGroup(id: string, username: string) {
   const group = await Channel.findById(id);
@@ -24,13 +25,12 @@ export const POST = withChatAuth(async (req: NextRequest, { username, params }) 
   }
   const normalizedMember = normalizeHiveUser(member);
   if (!normalizedMember) return NextResponse.json({ error: 'member required' }, { status: 400 });
-  if (owned.members.includes(normalizedMember)) return NextResponse.json({ ok: true });
-
-  const updated = await Channel.findByIdAndUpdate(
-    groupId,
-    { $addToSet: { members: normalizedMember }, $set: { memberCount: owned.members.length + 1 } },
+  const updated = await Channel.findOneAndUpdate(
+    { _id: groupId, members: { $ne: normalizedMember } },
+    { $addToSet: { members: normalizedMember }, $inc: { memberCount: 1 } },
     { returnDocument: 'after' }
   );
+  if (!updated) return NextResponse.json({ ok: true });
   await ChatUser.updateOne(
     { _id: normalizedMember },
     { $setOnInsert: { _id: normalizedMember }, $addToSet: { channels: groupId } },
@@ -56,12 +56,20 @@ export const DELETE = withChatAuth(async (req: NextRequest, { username, params }
     return NextResponse.json({ error: 'Cannot remove owner' }, { status: 400 });
   }
 
-  const updated = await Channel.findByIdAndUpdate(
-    groupId,
-    { $pull: { members: normalizedMember }, $set: { memberCount: Math.max(owned.members.length - 1, 1) } },
+  const updated = await Channel.findOneAndUpdate(
+    { _id: groupId, members: normalizedMember },
+    { $pull: { members: normalizedMember }, $inc: { memberCount: -1 } },
     { returnDocument: 'after' }
   );
+  await Channel.updateOne(
+    { _id: groupId, memberCount: { $lt: 1 } },
+    { $set: { memberCount: 1 } }
+  );
   await ChatUser.updateOne({ _id: normalizedMember }, { $pull: { channels: groupId } });
+  const removedUser = await ChatUser.findById(normalizedMember);
+  if (removedUser?.fcmTokens?.length) {
+    Promise.all(removedUser.fcmTokens.map(t => unsubscribeFromChannel(t, groupId))).catch(() => {});
+  }
   return NextResponse.json({ group: updated });
 });
 
