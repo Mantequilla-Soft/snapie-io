@@ -24,9 +24,9 @@ import {
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent, useMemo } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiChevronDown, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiChevronDown, FiCornerUpLeft, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -104,10 +104,14 @@ function MessageBubble({
   msg,
   isOwn,
   onOpenDm,
+  onReplySelect,
+  replyPreview,
 }: {
   msg: Message;
   isOwn: boolean;
   onOpenDm?: (username: string) => void;
+  onReplySelect?: (message: Message) => void;
+  replyPreview?: Message | null;
 }) {
   const canOpenDm = !isOwn && !!onOpenDm;
   if (isOwn) {
@@ -124,7 +128,22 @@ function MessageBubble({
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
           borderColor="blue.500"
+          onClick={() => onReplySelect?.(msg)}
+          cursor={onReplySelect ? 'pointer' : 'default'}
         >
+          {msg.replyTo && (
+            <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
+              <HStack spacing={1} mb="2px">
+                <Icon as={FiCornerUpLeft} boxSize={3} color="whiteAlpha.700" />
+                <Text fontSize="10px" color="whiteAlpha.700" fontWeight="600">
+                  @{replyPreview?.sender || 'message'}
+                </Text>
+              </HStack>
+              <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                {replyPreview?.content || 'Original message unavailable'}
+              </Text>
+            </Box>
+          )}
           <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
             {msg.content}
           </Text>
@@ -172,7 +191,22 @@ function MessageBubble({
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
             borderColor="whiteAlpha.100"
+            onClick={() => onReplySelect?.(msg)}
+            cursor={onReplySelect ? 'pointer' : 'default'}
           >
+            {msg.replyTo && (
+              <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
+                <HStack spacing={1} mb="2px">
+                  <Icon as={FiCornerUpLeft} boxSize={3} color="whiteAlpha.700" />
+                  <Text fontSize="10px" color="whiteAlpha.700" fontWeight="600">
+                    @{replyPreview?.sender || 'message'}
+                  </Text>
+                </HStack>
+                <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                  {replyPreview?.content || 'Original message unavailable'}
+                </Text>
+              </Box>
+            )}
             <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
               {msg.content}
             </Text>
@@ -245,6 +279,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [dmStatus, setDmStatus] = useState<DmStatusInfo | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
@@ -261,6 +296,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const messageById = useMemo(() => new Map(messages.map(m => [m._id, m])), [messages]);
 
   const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
     const byId = new Map(baseConversations.map(c => [c._id, c]));
@@ -402,6 +438,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     oldestIdRef.current = undefined;
     shouldAutoScrollRef.current = true;
     setDmStatus(null);
+    setReplyingTo(null);
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
 
@@ -663,18 +700,20 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (!content || sending || !activeConversation) return;
     setSending(true);
     setDraft('');
+    const replyTo = replyingTo?._id;
     try {
       setPanelError('');
       let msg: Message;
       let dmDelivery: { hasFcm: boolean; memoSuggested: boolean; cooldownMs: number } | undefined;
       if (activeConversation.type === 'dm') {
-        const out = await chatService.sendDmMessageWithDelivery(activeConversation._id, content);
+        const out = await chatService.sendDmMessageWithDelivery(activeConversation._id, content, replyTo);
         msg = out.message;
         dmDelivery = out.delivery;
       } else {
-        msg = await chatService.sendMessage(activeConversation._id, content);
+        msg = await chatService.sendMessage(activeConversation._id, content, replyTo);
       }
       setMessages(prev => [...prev, msg]);
+      setReplyingTo(null);
       if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
       }
@@ -1144,6 +1183,8 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                       msg={msg}
                       isOwn={msg.sender === user}
                       onOpenDm={openDmByUsername}
+                      onReplySelect={setReplyingTo}
+                      replyPreview={msg.replyTo ? messageById.get(msg.replyTo) || null : null}
                     />
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
@@ -1270,6 +1311,35 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                         Send 0.001 {memoAssetChoice}
                       </Button>
                     </HStack>
+                  </Box>
+                )}
+                {replyingTo && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="blue.300"
+                    bg="blue.900"
+                    borderRadius="10px"
+                    p={2}
+                  >
+                    <HStack justify="space-between" mb={1}>
+                      <HStack spacing={1}>
+                        <Icon as={FiCornerUpLeft} boxSize={3} color="blue.200" />
+                        <Text fontSize="11px" color="blue.100" fontWeight="600">
+                          Replying to @{replyingTo.sender}
+                        </Text>
+                      </HStack>
+                      <IconButton
+                        aria-label="Cancel reply"
+                        icon={<FiX />}
+                        size="2xs"
+                        variant="ghost"
+                        onClick={() => setReplyingTo(null)}
+                      />
+                    </HStack>
+                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                      {replyingTo.content}
+                    </Text>
                   </Box>
                 )}
                 <HStack spacing={1} w="100%" justify="space-between">
