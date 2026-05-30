@@ -123,7 +123,7 @@ function MessageBubble({
       onReplySelect(msg);
     }
   };
-  const handleEditKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLButtonElement>) => {
     if (!onEditSelect) return;
     if (e.key === 'e' || e.key === 'E') {
       e.preventDefault();
