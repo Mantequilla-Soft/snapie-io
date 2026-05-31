@@ -145,7 +145,7 @@ export default function SnapieSpeakAudio({ playUrl }: Props) {
         maxW="550px"
         mx="auto"
         mb={2}
-        px={4}
+        px={5}
         py={3}
         borderRadius="full"
         border="1px solid rgba(102, 228, 255, 0.22)"
@@ -167,8 +167,8 @@ export default function SnapieSpeakAudio({ playUrl }: Props) {
       maxW="550px"
       mx="auto"
       mb={2}
-      px={4}
-      py={2.5}
+      px={5}
+      py={3}
       minH={`${SPEAK_AUDIO_IFRAME_HEIGHT_PX}px`}
       borderRadius="full"
       border="1px solid rgba(102, 228, 255, 0.22)"

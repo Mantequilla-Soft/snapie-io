@@ -52,10 +52,11 @@ export const blueSkyTheme = extendTheme({
     radii: {
         none: '0',
         sm: '4px',
-        base: '8px',
-        md: '12px',
-        lg: '16px',
-        full: '9999px', // For fully rounded corners
+        base: '10px',
+        md: '10px',
+        lg: '12px',
+        xl: '14px',
+        full: '9999px',
     },
     space: {
         px: '1px',
@@ -116,6 +117,14 @@ export const blueSkyTheme = extendTheme({
         'dark-lg': 'rgba(0, 0, 0, 0.4) 0px 10px 15px -3px, rgba(0, 0, 0, 0.3) 0px 4px 6px -2px',
     },
     components: {
+        Link: {
+            baseStyle: {
+                color: 'primary',
+                _hover: {
+                    textDecoration: 'underline',
+                },
+            },
+        },
         Button: {
             baseStyle: {
                 fontWeight: 'bold',
