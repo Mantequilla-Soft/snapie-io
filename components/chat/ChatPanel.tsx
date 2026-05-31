@@ -2053,6 +2053,11 @@ export default function ChatPanel({
                     </VStack>
                   </Box>
                 )}
+                {isTabletLayout && (
+                  <Text fontSize="10px" color="whiteAlpha.500" w="100%" px={1}>
+                    Tip: type @ to mention someone in this conversation.
+                  </Text>
+                )}
                 </Flex>
               )}
             </Flex>
