@@ -12,6 +12,15 @@ import { NextRequest, NextResponse } from 'next/server';
  * - Provides automatic fallback between services
  */
 
+const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/avif',
+]);
+
 // Upload to images.hive.blog
 async function uploadToHive(file: File, username: string, signature: string): Promise<string> {
   const formData = new FormData();
@@ -77,33 +86,44 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: 'Invalid upload payload' },
+        { status: 400 }
+      );
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      return NextResponse.json(
+        { error: 'Unsupported image type. Allowed: jpeg, png, webp, gif, avif' },
+        { status: 400 }
+      );
+    }
+    if (file.size <= 0 || file.size > MAX_IMAGE_UPLOAD_BYTES) {
+      return NextResponse.json(
+        { error: `Image must be between 1 byte and ${MAX_IMAGE_UPLOAD_BYTES / (1024 * 1024)}MB` },
+        { status: 400 }
+      );
+    }
 
     // Try primary upload to images.hive.blog
     if (username && signature) {
       try {
-        console.log('📤 Attempting Hive.blog upload for:', file.name);
         const url = await uploadToHive(file, username, signature);
-        console.log('✅ Hive.blog upload successful:', url);
         return NextResponse.json({ success: true, url });
       } catch (hiveError) {
-        console.warn('⚠️ Hive.blog upload failed:', hiveError);
         // Continue to fallback
       }
     }
 
     // Fallback to 3Speak
     try {
-      console.log('📤 Attempting 3Speak fallback upload for:', file.name);
       const url = await uploadTo3Speak(file);
-      console.log('✅ 3Speak upload successful:', url);
       return NextResponse.json({ success: true, url, source: '3speak' });
     } catch (fallbackError) {
-      console.error('❌ 3Speak upload failed:', fallbackError);
       throw fallbackError;
     }
 
   } catch (error) {
-    console.error('❌ Image upload failed:', error);
     return NextResponse.json(
       { 
         error: 'Image upload failed',

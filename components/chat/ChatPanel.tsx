@@ -11,6 +11,7 @@ import {
   HStack,
   Icon,
   IconButton,
+  Image,
   Input,
   Menu,
   MenuButton,
@@ -24,9 +25,9 @@ import {
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiChevronDown, FiCornerUpLeft, FiHash, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -48,6 +49,93 @@ const CHAT_PANEL_SIZE_KEY = 'snapie-chat-panel-size';
 const CHAT_PANEL_RESIZE_HINT_KEY = 'snapie-chat-resize-hint-dismissed';
 const DESKTOP_PANEL_DEFAULT = { width: 460, height: 680 };
 const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
+const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const CHAT_IMAGE_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+const MENTION_REGEX = /@[a-z0-9.-]+/gi;
+
+function isImageUrl(url: string): boolean {
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const pathname = parsed.pathname.toLowerCase();
+    return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif'].some(ext => pathname.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
+function extractImageUrls(content: string): string[] {
+  if (!content) return [];
+  const urls = content.match(/https?:\/\/[^\s)]+/gi) || [];
+  return urls.filter(isImageUrl);
+}
+
+function normalizeMentionToken(value: string): string {
+  return value.replace(/^@/, '').trim().toLowerCase();
+}
+
+function messageMentionsUser(content: string, username?: string | null): boolean {
+  if (!content || !username) return false;
+  const target = normalizeMentionToken(username);
+  const matches = content.match(MENTION_REGEX) || [];
+  return matches.some(token => normalizeMentionToken(token) === target);
+}
+
+function contentWithMentions(content: string, activeUsername?: string | null): Array<{ text: string; highlighted: boolean }> {
+  if (!content) return [];
+  const out: Array<{ text: string; highlighted: boolean }> = [];
+  const target = activeUsername ? normalizeMentionToken(activeUsername) : '';
+  const regex = new RegExp(MENTION_REGEX.source, 'gi');
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    const mention = match[0];
+    const start = match.index;
+    if (start > lastIndex) {
+      out.push({ text: content.slice(lastIndex, start), highlighted: false });
+    }
+    out.push({
+      text: mention,
+      highlighted: !!target && normalizeMentionToken(mention) === target,
+    });
+    lastIndex = start + mention.length;
+  }
+
+  if (lastIndex < content.length) {
+    out.push({ text: content.slice(lastIndex), highlighted: false });
+  }
+
+  return out.length ? out : [{ text: content, highlighted: false }];
+}
+
+function MentionAwareText({ content, activeUsername }: { content: string; activeUsername?: string | null }) {
+  const segments = contentWithMentions(content, activeUsername);
+  return (
+    <>
+      {segments.map((seg, idx) =>
+        seg.highlighted ? (
+          <Box
+            key={`${seg.text}-${idx}`}
+            as="span"
+            px="1"
+            borderRadius="md"
+            bg="yellow.300"
+            color="black"
+            fontWeight="700"
+          >
+            {seg.text}
+          </Box>
+        ) : (
+          <Box as="span" key={`${seg.text}-${idx}`}>
+            {seg.text}
+          </Box>
+        )
+      )}
+    </>
+  );
+}
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -107,6 +195,8 @@ function MessageBubble({
   onReplySelect,
   replyPreview,
   onEditSelect,
+  activeUsername,
+  highlightMention,
 }: {
   msg: Message;
   isOwn: boolean;
@@ -114,7 +204,10 @@ function MessageBubble({
   onReplySelect?: (message: Message) => void;
   replyPreview?: Message | null;
   onEditSelect?: (message: Message) => void;
+  activeUsername?: string | null;
+  highlightMention?: boolean;
 }) {
+  const imageUrls = extractImageUrls(msg.content);
   const canOpenDm = !isOwn && !!onOpenDm;
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!onReplySelect) return;
@@ -138,12 +231,12 @@ function MessageBubble({
         maxW="88%"
       >
         <Box
-          bg="blue.600"
+          bg={highlightMention ? 'purple.600' : 'blue.600'}
           px={3}
           py={2}
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
-          borderColor="blue.500"
+          borderColor={highlightMention ? 'purple.300' : 'blue.500'}
           onClick={() => onReplySelect?.(msg)}
           cursor={onReplySelect ? 'pointer' : 'default'}
           role={onReplySelect ? 'button' : undefined}
@@ -164,8 +257,31 @@ function MessageBubble({
             </Box>
           )}
           <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            {msg.content}
+            <MentionAwareText content={msg.content} activeUsername={activeUsername} />
           </Text>
+          {imageUrls.length > 0 && (
+            <VStack align="stretch" spacing={2} mt={2}>
+              {imageUrls.map(url => (
+                <Box
+                  key={`${msg._id}-${url}`}
+                  borderRadius="10px"
+                  overflow="hidden"
+                  border="1px solid"
+                  borderColor="whiteAlpha.200"
+                  bg="blackAlpha.200"
+                >
+                  <Image
+                    src={url}
+                    alt="Shared image"
+                    maxH="280px"
+                    w="100%"
+                    objectFit="cover"
+                    loading="lazy"
+                  />
+                </Box>
+              ))}
+            </VStack>
+          )}
           <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
             {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
           </Text>
@@ -173,11 +289,15 @@ function MessageBubble({
         {onEditSelect && (
           <HStack justify="flex-end" mt={1}>
             <Button
-              size="2xs"
-              variant="ghost"
-              colorScheme="whiteAlpha"
+              size="xs"
+              variant="link"
+              color="whiteAlpha.500"
+              fontSize="10px"
+              fontWeight="500"
+              minH="unset"
               onClick={() => onEditSelect(msg)}
               onKeyDown={handleEditKeyDown}
+              _hover={{ color: 'whiteAlpha.700' }}
             >
               Edit
             </Button>
@@ -217,12 +337,12 @@ function MessageBubble({
             @{msg.sender}
           </Text>
           <Box
-            bg="whiteAlpha.100"
+            bg={highlightMention ? 'purple.900' : 'whiteAlpha.100'}
             px={3}
             py={2}
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
-            borderColor="whiteAlpha.100"
+            borderColor={highlightMention ? 'purple.300' : 'whiteAlpha.100'}
             onClick={() => onReplySelect?.(msg)}
             cursor={onReplySelect ? 'pointer' : 'default'}
             role={onReplySelect ? 'button' : undefined}
@@ -243,8 +363,31 @@ function MessageBubble({
               </Box>
             )}
             <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              {msg.content}
+              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
             </Text>
+            {imageUrls.length > 0 && (
+              <VStack align="stretch" spacing={2} mt={2}>
+                {imageUrls.map(url => (
+                  <Box
+                    key={`${msg._id}-${url}`}
+                    borderRadius="10px"
+                    overflow="hidden"
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                    bg="blackAlpha.200"
+                  >
+                    <Image
+                      src={url}
+                      alt="Shared image"
+                      maxH="280px"
+                      w="100%"
+                      objectFit="cover"
+                      loading="lazy"
+                    />
+                  </Box>
+                ))}
+              </VStack>
+            )}
             <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
               {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
             </Text>
@@ -323,16 +466,29 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [panelSize, setPanelSize] = useState(DESKTOP_PANEL_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
   const [showResizeHint, setShowResizeHint] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messageNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
   const shouldAutoScrollRef = useRef(true);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const sortedMentions = useMemo(
+    () => messages
+      .map((msg, idx) => ({ msg, idx }))
+      .filter(entry => messageMentionsUser(entry.msg.content, user)),
+    [messages, user]
+  );
+  const latestMention = sortedMentions.length ? sortedMentions[sortedMentions.length - 1] : null;
+  const shouldShowJumpToMention =
+    !!latestMention &&
+    latestMention.idx < Math.max(messages.length - 3, 0);
 
   const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
     const byId = new Map(baseConversations.map(c => [c._id, c]));
@@ -633,6 +789,44 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     setShowMemoFallbackPrompt(null);
   }
 
+  async function handleImageUpload(file: File) {
+    if (!file || !user) return;
+    if (!CHAT_IMAGE_ACCEPT.includes(file.type)) {
+      setPanelError('Unsupported image type (use jpg, png, webp, gif, avif).');
+      return;
+    }
+    if (file.size <= 0 || file.size > CHAT_IMAGE_MAX_BYTES) {
+      setPanelError('Image must be smaller than 8MB.');
+      return;
+    }
+    setUploadingImage(true);
+    setPanelError('');
+    try {
+      const signatureRes = await aioha.signMessage(file.name, KeyTypes.Posting);
+      if (!signatureRes.success || !signatureRes.result) {
+        throw new Error('Could not sign image upload request');
+      }
+      const form = new FormData();
+      form.append('file', file);
+      form.append('username', user);
+      form.append('signature', String(signatureRes.result));
+      const response = await fetch('/api/upload-image', {
+        method: 'POST',
+        body: form,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error || 'Image upload failed');
+      }
+      setDraft(prev => `${prev}${prev.trim() ? '\n' : ''}${data.url}`);
+    } catch (err: any) {
+      setPanelError(err?.message || 'Image upload failed');
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  }
+
   // ── Poll fallback ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen || isMinimized || !isAuthed) return;
@@ -667,6 +861,13 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 80;
+  }
+
+  function jumpToLatestMention() {
+    if (!latestMention) return;
+    const el = messageNodeRefs.current[latestMention.msg._id];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
@@ -1242,19 +1443,27 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 ) : (
                   <VStack align="stretch" spacing={2}>
                     {messages.map(msg => (
-                    <MessageBubble
+                    <Box
                       key={msg._id}
-                      msg={msg}
-                      isOwn={msg.sender === user}
-                      onOpenDm={openDmByUsername}
-                      onReplySelect={setReplyingTo}
-                      replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
-                      onEditSelect={msg.sender === user ? (m) => {
-                        setEditingMessage(m);
-                        setReplyingTo(null);
-                        setDraft(m.content);
-                      } : undefined}
-                    />
+                      ref={el => {
+                        messageNodeRefs.current[msg._id] = el;
+                      }}
+                    >
+                      <MessageBubble
+                        msg={msg}
+                        isOwn={msg.sender === user}
+                        onOpenDm={openDmByUsername}
+                        onReplySelect={setReplyingTo}
+                        replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
+                        onEditSelect={msg.sender === user ? (m) => {
+                          setEditingMessage(m);
+                          setReplyingTo(null);
+                          setDraft(m.content);
+                        } : undefined}
+                        activeUsername={user}
+                        highlightMention={messageMentionsUser(msg.content, user)}
+                      />
+                    </Box>
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
                       const myLast = [...messages].reverse().find(m => m.sender === user);
@@ -1273,6 +1482,21 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                   </VStack>
                 )}
                 <div ref={messagesEndRef} />
+                {shouldShowJumpToMention && (
+                  <IconButton
+                    aria-label="Jump to latest mention"
+                    icon={<FiArrowUp />}
+                    size="sm"
+                    colorScheme="yellow"
+                    variant="solid"
+                    position="absolute"
+                    bottom="82px"
+                    right="14px"
+                    borderRadius="full"
+                    onClick={jumpToLatestMention}
+                    title="Jump to latest @mention"
+                  />
+                )}
               </Flex>
 
               {/* Auth overlay / compose bar */}
@@ -1484,6 +1708,27 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                   )}
                 </HStack>
                 <HStack w="100%">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept={CHAT_IMAGE_ACCEPT.join(',')}
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.currentTarget.files?.[0];
+                      if (file) void handleImageUpload(file);
+                    }}
+                  />
+                  <IconButton
+                    aria-label="Upload image"
+                    icon={<FiImage />}
+                    size="sm"
+                    variant="ghost"
+                    borderRadius="full"
+                    isLoading={uploadingImage}
+                    onClick={() => imageInputRef.current?.click()}
+                    isDisabled={sending || !isAuthed}
+                    flexShrink={0}
+                  />
                   <Input
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
