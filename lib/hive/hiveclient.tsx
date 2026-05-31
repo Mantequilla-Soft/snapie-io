@@ -1,8 +1,8 @@
 import { Client } from "@hiveio/dhive"
 
 const FALLBACK_NODES = [
-  "https://api.openhive.network",
   "https://api.hive.blog",
+  "https://api.openhive.network",
   "https://techcoderx.com",
   "https://rpc.mahdiyari.info",
   "https://api.c0ff33a.uk",
@@ -15,10 +15,18 @@ const EXCLUDED_NODE_HOSTS = [
 const BEACON_API = "https://beacon.peakd.com/api/nodes"
 const MIN_SCORE = 80
 
+// True when this module is evaluated in the browser.
+// Server-side (SSR/API routes): typeof window === 'undefined'
+const IS_BROWSER = typeof window !== "undefined"
+
 // Proxy object so reassigning .client propagates to all importers
 // (export default captures a value, not a binding)
 const hive = {
-  client: new Client(filterNodeList(FALLBACK_NODES)),
+  client: IS_BROWSER
+    // Browser: route through our own API proxy — eliminates CORS entirely
+    ? new Client([window.location.origin + "/api/hive-rpc"])
+    // Server: call Hive nodes directly (no CORS constraints)
+    : new Client(filterNodeList(FALLBACK_NODES)),
 }
 
 function isExcludedNode(endpoint: string): boolean {
@@ -30,7 +38,7 @@ function isExcludedNode(endpoint: string): boolean {
   }
 }
 
-/** Dedupe and drop excluded / bad endpoints (defensive: beacon shape changes, stray URLs). */
+/** Dedupe and drop excluded / bad endpoints. */
 function filterNodeList(urls: string[]): string[] {
   const seen = new Set<string>()
   const out: string[] = []
@@ -44,7 +52,7 @@ function filterNodeList(urls: string[]): string[] {
   return out
 }
 
-async function fetchHealthyNodes(): Promise<string[]> {
+export async function fetchHealthyNodes(): Promise<string[]> {
   try {
     const res = await fetch(BEACON_API)
     if (!res.ok) return filterNodeList(FALLBACK_NODES)
@@ -71,25 +79,27 @@ async function fetchHealthyNodes(): Promise<string[]> {
   }
 }
 
-// Initialize with healthy nodes on first load (client and server)
-fetchHealthyNodes().then(nodes => {
-  hive.client = new Client(nodes)
-  if (process.env.NODE_ENV === "development") {
-    console.log("🔗 HiveClient initialized with beacon nodes:", nodes)
-  }
-}).catch(err => {
-  if (process.env.NODE_ENV === "development") {
-    console.error("Failed to initialize HiveClient with beacon nodes:", err)
-  }
-})
+// Server-side only: initialize with beacon nodes on first load.
+// The browser always uses the proxy route — no direct node access needed.
+if (!IS_BROWSER) {
+  fetchHealthyNodes().then(nodes => {
+    hive.client = new Client(nodes)
+    if (process.env.NODE_ENV === "development") {
+      console.log("🔗 HiveClient (server) initialized with beacon nodes:", nodes)
+    }
+  }).catch(err => {
+    if (process.env.NODE_ENV === "development") {
+      console.error("Failed to initialize HiveClient with beacon nodes:", err)
+    }
+  })
+}
 
-/** Call before a critical broadcast to guarantee fresh, healthy nodes are in use. */
+/** Call before a critical server-side broadcast to guarantee fresh, healthy nodes. */
 export async function refreshHiveNodes(): Promise<void> {
+  if (IS_BROWSER) return // Browser always uses the proxy — nothing to refresh
   const nodes = await fetchHealthyNodes()
   hive.client = new Client(nodes)
 }
-
-export { fetchHealthyNodes }
 
 // Proxy that delegates all property access to the current hive.client.
 // This lets consumers keep `import HiveClient from './hiveclient'`
