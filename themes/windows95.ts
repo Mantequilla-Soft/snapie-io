@@ -119,6 +119,12 @@ export const windows95Theme = extendTheme({
         'dark-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4)',
     },
     components: {
+        Link: {
+            baseStyle: {
+                color: 'primary',
+                _hover: { textDecoration: 'underline' },
+            },
+        },
         Button: {
             baseStyle: {
                 fontWeight: '600',

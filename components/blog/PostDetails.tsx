@@ -1,11 +1,14 @@
 'use client';
 
-import { Box, Text, Avatar, Flex, Link } from '@chakra-ui/react';
+import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip } from '@chakra-ui/react';
 import React, { useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import NextLink from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAioha } from '@aioha/react-ui';
+import { FaEdit } from 'react-icons/fa';
 import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
@@ -31,25 +34,35 @@ const bodySx = {
     '& h5': { fontSize: 'sm', fontWeight: 'bold', marginTop: '0.75em', marginBottom: '0.5em', lineHeight: '1.4' },
     '& h6': { fontSize: 'xs', fontWeight: 'bold', marginTop: '0.75em', marginBottom: '0.5em', lineHeight: '1.4' },
     '& p': { marginBottom: '1em', lineHeight: '1.6', textAlign: 'inherit' },
+    '& a': { color: 'var(--chakra-colors-primary)', _hover: { textDecoration: 'underline' } },
     '& img': { marginTop: '1em', marginBottom: '1em', maxWidth: '100%', height: 'auto' },
     '& center': { marginTop: '1em', marginBottom: '1em', display: 'block', textAlign: 'center' },
     '& hr': { marginTop: '1em', marginBottom: '1em' },
     '& center img': { display: 'block', marginLeft: 'auto', marginRight: 'auto' },
+    '& p > img:only-child': { display: 'block', marginLeft: 'auto', marginRight: 'auto' },
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
 export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
+    const { user } = useAioha();
+    const router = useRouter();
+    const canEdit = !isEmbedMode && user === author;
 
     const bodySegments = useMemo((): BodySegment[] => {
         let html = markdownRenderer(body, { defaultEmojiOwner: author });
 
-        // Fallback: convert any audio.3speak.tv anchor tags the renderer missed
+        // Fallback: convert audio.3speak.tv anchor tags the renderer missed.
+        // Only convert when the inner text IS the raw URL (auto-linked plain URL),
+        // not when it's a markdown link like [Play on 3Speak](url) — those stay as links.
         html = html.replace(
-            /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?[^"]+)"[^>]*>.*?<\/a>/gi,
-            (_m, url: string) => {
+            /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?[^"]+)"[^>]*>(.*?)<\/a>/gi,
+            (_m, url: string, innerText: string) => {
                 const clean = url.replace(/&amp;/gi, '&').replace(/&#38;/gi, '&').trim();
+                const textOnly = innerText.replace(/<[^>]*>/g, '').trim();
+                // Keep as link if the inner text differs from the URL (it's a labelled link)
+                if (textOnly && textOnly !== clean && textOnly !== url.trim()) return _m;
                 try {
                     const u = new URL(clean.replace(/^http:/i, 'https:'));
                     u.searchParams.set('mode', 'compact');
@@ -149,11 +162,12 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
         <Box
             position="relative"
             border="tb1"
-            borderRadius={isEmbedMode ? 'none' : '30px'}
+            borderRadius={isEmbedMode ? 'none' : 'lg'}
             overflow="hidden"
             bg={isEmbedMode ? 'transparent' : 'rgba(8, 24, 40, 0.72)'}
             mb={3}
-            p={isEmbedMode ? 2 : 5}
+            px={isEmbedMode ? 2 : { base: 4, md: 16, lg: 24 }}
+            py={isEmbedMode ? 2 : { base: 5, md: 10 }}
             w="100%"
             boxShadow={isEmbedMode ? 'none' : 'lg'}
             _before={isEmbedMode ? undefined : {
@@ -179,6 +193,17 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                         </Text>
                     </Box>
                 </Flex>
+                {canEdit && (
+                    <Tooltip label="Edit post">
+                        <IconButton
+                            aria-label="Edit post"
+                            icon={<FaEdit />}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => router.push(`/edit/${author}/${post.permlink}`)}
+                        />
+                    </Tooltip>
+                )}
             </Flex>
             <Box mt={4} data-blog-post-body sx={bodySx}>
                 {bodySegments.map((seg, i) => {

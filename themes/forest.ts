@@ -108,6 +108,12 @@ const forestTheme = extendTheme({
         'dark-lg': 'rgba(0, 0, 0, 0.4) 0px 10px 15px -3px, rgba(0, 0, 0, 0.3) 0px 4px 6px -2px',
     },
     components: {
+        Link: {
+            baseStyle: {
+                color: 'primary',
+                _hover: { textDecoration: 'underline' },
+            },
+        },
         Button: {
             baseStyle: {
                 fontWeight: 'medium',

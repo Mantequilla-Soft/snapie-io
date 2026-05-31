@@ -115,6 +115,12 @@ export const mengaoTheme = extendTheme({
         },
     },
     components: {
+        Link: {
+            baseStyle: {
+                color: 'primary',
+                _hover: { textDecoration: 'underline' },
+            },
+        },
         Button: {
             baseStyle: {
                 fontWeight: 'bold',

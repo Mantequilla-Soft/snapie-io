@@ -52,10 +52,14 @@ export const hackerTheme = extendTheme({
         borderRadius: '22px',
     },
     radii: {
-        base: '22px',
-        md: '18px',
-        lg: '24px',
-        xl: '30px',
+        none: '0',
+        sm: '4px',
+        base: '10px',
+        md: '10px',
+        lg: '12px',
+        xl: '14px',
+        '2xl': '16px',
+        '3xl': '20px',
         full: '9999px',
     },
     space: {
@@ -117,10 +121,18 @@ export const hackerTheme = extendTheme({
         'dark-lg': '0 24px 60px rgba(0, 0, 0, 0.42)',
     },
     components: {
+        Link: {
+            baseStyle: {
+                color: 'primary',
+                _hover: {
+                    textDecoration: 'underline',
+                },
+            },
+        },
         Button: {
             baseStyle: {
                 fontWeight: '700',
-                borderRadius: 'full',
+                borderRadius: 'base',
                 letterSpacing: '-0.01em',
             },
             sizes: {
