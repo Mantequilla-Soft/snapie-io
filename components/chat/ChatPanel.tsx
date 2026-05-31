@@ -52,6 +52,7 @@ const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CHAT_IMAGE_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 const MENTION_REGEX = /@[a-z0-9.-]+/gi;
+const MENTION_INPUT_REGEX = /(?:^|\s)@([a-z0-9.-]{0,32})$/i;
 
 function isImageUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -80,6 +81,26 @@ function messageMentionsUser(content: string, username?: string | null): boolean
   const target = normalizeMentionToken(username);
   const matches = content.match(MENTION_REGEX) || [];
   return matches.some(token => normalizeMentionToken(token) === target);
+}
+
+type ActiveMentionDraft = {
+  start: number;
+  end: number;
+  query: string;
+};
+
+function getActiveMentionDraft(content: string, cursorPos: number): ActiveMentionDraft | null {
+  if (!content || cursorPos < 0 || cursorPos > content.length) return null;
+  const beforeCursor = content.slice(0, cursorPos);
+  const match = beforeCursor.match(MENTION_INPUT_REGEX);
+  if (!match) return null;
+  const atIdx = beforeCursor.lastIndexOf('@');
+  if (atIdx < 0) return null;
+  return {
+    start: atIdx,
+    end: cursorPos,
+    query: (match[1] || '').toLowerCase(),
+  };
 }
 
 function contentWithMentions(content: string, activeUsername?: string | null): Array<{ text: string; highlighted: boolean }> {
@@ -467,6 +488,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [isResizing, setIsResizing] = useState(false);
   const [showResizeHint, setShowResizeHint] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
+  const [activeMentionIdx, setActiveMentionIdx] = useState(0);
+  const [hasValidMentionInDraft, setHasValidMentionInDraft] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -476,9 +502,18 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const shouldAutoScrollRef = useRef(true);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const composerInputRef = useRef<HTMLInputElement>(null);
+  const typingPingAtRef = useRef(0);
+  const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const typingLabel = useMemo(() => {
+    if (!typingUsers.length) return '';
+    if (typingUsers.length === 1) return `@${typingUsers[0]} is typing...`;
+    if (typingUsers.length === 2) return `@${typingUsers[0]} and @${typingUsers[1]} are typing...`;
+    return `${typingUsers.length} people are typing...`;
+  }, [typingUsers]);
   const sortedMentions = useMemo(
     () => messages
       .map((msg, idx) => ({ msg, idx }))
@@ -489,6 +524,19 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const shouldShowJumpToMention =
     !!latestMention &&
     latestMention.idx < Math.max(messages.length - 3, 0);
+  const mentionCandidates = useMemo(() => {
+    if (!activeConversation) return [] as string[];
+    const set = new Set<string>();
+    if (user) set.add(normalizeMentionToken(user));
+    if (activeConversation.members?.length) {
+      for (const member of activeConversation.members) set.add(normalizeMentionToken(member));
+    }
+    if (activeConversation.peer) set.add(normalizeMentionToken(activeConversation.peer));
+    if (messages.length) {
+      for (const msg of messages) set.add(normalizeMentionToken(msg.sender));
+    }
+    return Array.from(set).filter(Boolean);
+  }, [activeConversation, messages, user]);
 
   const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
     const byId = new Map(baseConversations.map(c => [c._id, c]));
@@ -633,8 +681,50 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     setReplyingTo(null);
     setEditingMessage(null);
     setMessageCache({});
+    setTypingUsers([]);
+    setMentionQuery('');
+    setMentionSuggestions([]);
+    setHasValidMentionInDraft(false);
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
+
+  useEffect(() => {
+    const maybeMention = getActiveMentionDraft(draft, draft.length);
+    if (!maybeMention) {
+      setMentionQuery('');
+      setMentionSuggestions([]);
+      setActiveMentionIdx(0);
+      const hasValid = !!(user && draft.match(MENTION_REGEX)?.some(m => normalizeMentionToken(m) === normalizeMentionToken(user)));
+      setHasValidMentionInDraft(hasValid);
+      return;
+    }
+    const q = maybeMention.query;
+    const options = mentionCandidates
+      .filter(candidate => candidate.includes(q))
+      .slice(0, 6);
+    setMentionQuery(q);
+    setMentionSuggestions(options);
+    setActiveMentionIdx(prev => Math.min(prev, Math.max(options.length - 1, 0)));
+    const hasValid = !!(user && draft.match(MENTION_REGEX)?.some(m => normalizeMentionToken(m) === normalizeMentionToken(user)));
+    setHasValidMentionInDraft(hasValid);
+  }, [draft, mentionCandidates, user]);
+
+  useEffect(() => {
+    if (!isOpen || isMinimized || !isAuthed || !activeConversationId) return;
+
+    const loadTyping = async () => {
+      try {
+        const out = await chatService.getTyping(activeConversationId);
+        setTypingUsers(out.users || []);
+      } catch {}
+    };
+    loadTyping();
+    typingPollRef.current = setInterval(loadTyping, 3000);
+    return () => {
+      if (typingPollRef.current) clearInterval(typingPollRef.current);
+      typingPollRef.current = null;
+    };
+  }, [isOpen, isMinimized, isAuthed, activeConversationId]);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -979,6 +1069,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       setMessages(prev => [...prev, msg]);
       setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
       setReplyingTo(null);
+      try { await chatService.setTyping(activeConversation._id, false); } catch {}
       if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
       }
@@ -990,7 +1081,55 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     setSending(false);
   }
 
+  function applyMentionSuggestion(username: string) {
+    const input = composerInputRef.current;
+    const cursorPos = input?.selectionStart ?? draft.length;
+    const active = getActiveMentionDraft(draft, cursorPos);
+    if (!active) return;
+    const next = `${draft.slice(0, active.start)}@${username} ${draft.slice(active.end)}`;
+    setDraft(next);
+    setMentionSuggestions([]);
+    setMentionQuery('');
+    setActiveMentionIdx(0);
+    const nextCursor = active.start + username.length + 2;
+    requestAnimationFrame(() => {
+      if (!composerInputRef.current) return;
+      composerInputRef.current.focus();
+      composerInputRef.current.setSelectionRange(nextCursor, nextCursor);
+    });
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (mentionSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveMentionIdx(prev => (prev + 1) % mentionSuggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveMentionIdx(prev => (prev - 1 + mentionSuggestions.length) % mentionSuggestions.length);
+        return;
+      }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        applyMentionSuggestion(mentionSuggestions[activeMentionIdx] || mentionSuggestions[0]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setMentionSuggestions([]);
+        setMentionQuery('');
+        return;
+      }
+    }
+
+    if (isAuthed && activeConversation && !sending) {
+      const now = Date.now();
+      if (now - typingPingAtRef.current > 1500) {
+        typingPingAtRef.current = now;
+        chatService.setTyping(activeConversation._id, true).catch(() => {});
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1482,6 +1621,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                   </VStack>
                 )}
                 <div ref={messagesEndRef} />
+                {!!typingLabel && (
+                  <Text fontSize="11px" color="whiteAlpha.600" mt={1}>
+                    {typingLabel}
+                  </Text>
+                )}
                 {shouldShowJumpToMention && (
                   <IconButton
                     aria-label="Jump to latest mention"
@@ -1730,15 +1874,16 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                     flexShrink={0}
                   />
                   <Input
+                    ref={composerInputRef}
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Message…"
                     size="sm"
                     borderRadius="full"
-                    bg="whiteAlpha.50"
+                    bg={hasValidMentionInDraft ? 'yellow.900' : 'whiteAlpha.50'}
                     border="1px solid"
-                    borderColor="whiteAlpha.100"
+                    borderColor={hasValidMentionInDraft ? 'yellow.400' : 'whiteAlpha.100'}
                     color="white"
                     _placeholder={{ color: 'whiteAlpha.400' }}
                     _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)', bg: 'whiteAlpha.100' }}
@@ -1758,6 +1903,36 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                     flexShrink={0}
                   />
                 </HStack>
+                {mentionSuggestions.length > 0 && (
+                  <Box
+                    w="100%"
+                    border="1px solid"
+                    borderColor="whiteAlpha.200"
+                    borderRadius="10px"
+                    bg="gray.800"
+                    overflow="hidden"
+                  >
+                    <Text fontSize="10px" color="whiteAlpha.600" px={2} pt={2}>
+                      Mention suggestions {mentionQuery ? `for "${mentionQuery}"` : ''}
+                    </Text>
+                    <VStack align="stretch" spacing={0} p={1}>
+                      {mentionSuggestions.map((name, idx) => (
+                        <Button
+                          key={name}
+                          size="sm"
+                          justifyContent="flex-start"
+                          variant="ghost"
+                          borderRadius="8px"
+                          bg={idx === activeMentionIdx ? 'whiteAlpha.200' : 'transparent'}
+                          onClick={() => applyMentionSuggestion(name)}
+                          onMouseEnter={() => setActiveMentionIdx(idx)}
+                        >
+                          @{name}
+                        </Button>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
                 </Flex>
               )}
             </Flex>
