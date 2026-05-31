@@ -27,7 +27,7 @@ import {
 import { keyframes } from '@emotion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -40,6 +40,8 @@ interface ChatPanelProps {
   isMinimized?: boolean;
   onMinimize?: () => void;
   onRestore?: () => void;
+  onPopout?: () => void;
+  isPopoutWindow?: boolean;
 }
 
 const POLL_INTERVAL = 15000;
@@ -80,6 +82,20 @@ function messageMentionsUser(content: string, username?: string | null): boolean
   const target = normalizeMentionToken(username);
   const matches = content.match(MENTION_REGEX) || [];
   return matches.some(token => normalizeMentionToken(token) === target);
+}
+
+function stripInlineImageUrls(content: string, imageUrls: string[]): string {
+  if (!content || imageUrls.length === 0) return content;
+  let out = content;
+  for (const url of imageUrls) {
+    // Remove standalone inline image URLs that are rendered separately.
+    out = out.split(url).join('');
+  }
+  return out
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 function contentWithMentions(content: string, activeUsername?: string | null): Array<{ text: string; highlighted: boolean }> {
@@ -208,6 +224,7 @@ function MessageBubble({
   highlightMention?: boolean;
 }) {
   const imageUrls = extractImageUrls(msg.content);
+  const textContent = stripInlineImageUrls(msg.content, imageUrls);
   const canOpenDm = !isOwn && !!onOpenDm;
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!onReplySelect) return;
@@ -256,9 +273,11 @@ function MessageBubble({
               </Text>
             </Box>
           )}
-          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-          </Text>
+          {textContent && (
+            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+              <MentionAwareText content={textContent} activeUsername={activeUsername} />
+            </Text>
+          )}
           {imageUrls.length > 0 && (
             <VStack align="stretch" spacing={2} mt={2}>
               {imageUrls.map(url => (
@@ -362,9 +381,11 @@ function MessageBubble({
                 </Text>
               </Box>
             )}
-            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-            </Text>
+            {textContent && (
+              <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                <MentionAwareText content={textContent} activeUsername={activeUsername} />
+              </Text>
+            )}
             {imageUrls.length > 0 && (
               <VStack align="stretch" spacing={2} mt={2}>
                 {imageUrls.map(url => (
@@ -429,7 +450,15 @@ function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isAc
   );
 }
 
-export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore }: ChatPanelProps) {
+export default function ChatPanel({
+  isOpen,
+  onClose,
+  isMinimized,
+  onMinimize,
+  onRestore,
+  onPopout,
+  isPopoutWindow,
+}: ChatPanelProps) {
   const { user, aioha } = useAioha();
   const isMobile = useBreakpointValue({ base: true, md: false });
 
@@ -1234,6 +1263,17 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 color="whiteAlpha.500"
                 _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
                 onClick={onMinimize}
+              />
+            )}
+            {!isMobile && !!onPopout && !isPopoutWindow && (
+              <IconButton
+                aria-label="Pop out chat"
+                icon={<FiExternalLink />}
+                size="xs"
+                variant="ghost"
+                color="whiteAlpha.500"
+                _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                onClick={onPopout}
               />
             )}
             <IconButton
