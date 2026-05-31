@@ -516,6 +516,9 @@ export default function ChatPanel({
   const composerInputRef = useRef<HTMLInputElement>(null);
   const typingPingAtRef = useRef(0);
   const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasInteractedRef = useRef(false);
+  const prevMessageIdsRef = useRef<Set<string>>(new Set());
+  const didPrimeMessageSetRef = useRef(false);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
@@ -696,8 +699,22 @@ export default function ChatPanel({
     setMentionQuery('');
     setMentionSuggestions([]);
     setHasValidMentionInDraft(false);
+    prevMessageIdsRef.current = new Set();
+    didPrimeMessageSetRef.current = false;
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
+
+  useEffect(() => {
+    const markInteracted = () => {
+      hasInteractedRef.current = true;
+    };
+    window.addEventListener('pointerdown', markInteracted, { passive: true });
+    window.addEventListener('keydown', markInteracted);
+    return () => {
+      window.removeEventListener('pointerdown', markInteracted);
+      window.removeEventListener('keydown', markInteracted);
+    };
+  }, []);
 
   useEffect(() => {
     const maybeMention = getActiveMentionDraft(draft, draft.length);
@@ -745,6 +762,50 @@ export default function ChatPanel({
       return next;
     });
   }, [messages]);
+
+  const playNotificationChime = useCallback(() => {
+    if (!hasInteractedRef.current) return;
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(920, now);
+      osc.frequency.exponentialRampToValueAtTime(720, now + 0.14);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.20);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.22);
+      setTimeout(() => ctx.close().catch(() => {}), 280);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const nextIds = new Set(messages.map(m => m._id));
+    if (!didPrimeMessageSetRef.current) {
+      prevMessageIdsRef.current = nextIds;
+      didPrimeMessageSetRef.current = true;
+      return;
+    }
+    const prevIds = prevMessageIdsRef.current;
+    const incoming = messages.filter(m => !prevIds.has(m._id) && m.sender !== user);
+    prevMessageIdsRef.current = nextIds;
+    if (!incoming.length || !activeConversation) return;
+
+    const shouldChime = incoming.some(m => {
+      if (activeConversation.type === 'dm') return true;
+      const mention = messageMentionsUser(m.content, user);
+      const replyToMine = !!(m.replyTo && messageCache[m.replyTo]?.sender === user);
+      return mention || replyToMine;
+    });
+    if (shouldChime) playNotificationChime();
+  }, [messages, activeConversation, user, messageCache, playNotificationChime]);
 
   async function handleOpenConversation(conv: Conversation) {
     setPanelError('');
