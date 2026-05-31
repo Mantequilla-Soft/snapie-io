@@ -216,6 +216,7 @@ function MessageBubble({
   isOwn,
   onOpenDm,
   onReplySelect,
+  onMentionSelect,
   replyPreview,
   onEditSelect,
   activeUsername,
@@ -225,6 +226,7 @@ function MessageBubble({
   isOwn: boolean;
   onOpenDm?: (username: string) => void;
   onReplySelect?: (message: Message) => void;
+  onMentionSelect?: (username: string) => void;
   replyPreview?: Message | null;
   onEditSelect?: (message: Message) => void;
   activeUsername?: string | null;
@@ -260,11 +262,6 @@ function MessageBubble({
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
           borderColor={highlightMention ? 'purple.300' : 'blue.500'}
-          onClick={() => onReplySelect?.(msg)}
-          cursor={onReplySelect ? 'pointer' : 'default'}
-          role={onReplySelect ? 'button' : undefined}
-          tabIndex={onReplySelect ? 0 : undefined}
-          onKeyDown={handleReplyKeyDown}
         >
           {msg.replyTo && (
             <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -279,9 +276,17 @@ function MessageBubble({
               </Text>
             </Box>
           )}
-          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-          </Text>
+          <Box
+            onClick={() => onReplySelect?.(msg)}
+            cursor={onReplySelect ? 'pointer' : 'default'}
+            role={onReplySelect ? 'button' : undefined}
+            tabIndex={onReplySelect ? 0 : undefined}
+            onKeyDown={handleReplyKeyDown}
+          >
+            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+            </Text>
+          </Box>
           {imageUrls.length > 0 && (
             <VStack align="stretch" spacing={2} mt={2}>
               {imageUrls.map(url => (
@@ -352,9 +357,10 @@ function MessageBubble({
             fontWeight="600"
             letterSpacing="0.03em"
             mb="2px"
+            onClick={() => onMentionSelect?.(msg.sender)}
             onDoubleClick={() => onOpenDm?.(msg.sender)}
-            cursor={canOpenDm ? 'pointer' : 'default'}
-            title={canOpenDm ? 'Double-click to open DM' : undefined}
+            cursor={canOpenDm || onMentionSelect ? 'pointer' : 'default'}
+            title={canOpenDm ? 'Click to mention • Double-click to open DM' : 'Click to mention'}
             noOfLines={1}
           >
             @{msg.sender}
@@ -366,11 +372,6 @@ function MessageBubble({
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
             borderColor={highlightMention ? 'purple.300' : 'whiteAlpha.100'}
-            onClick={() => onReplySelect?.(msg)}
-            cursor={onReplySelect ? 'pointer' : 'default'}
-            role={onReplySelect ? 'button' : undefined}
-            tabIndex={onReplySelect ? 0 : undefined}
-            onKeyDown={handleReplyKeyDown}
           >
             {msg.replyTo && (
               <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -385,9 +386,17 @@ function MessageBubble({
                 </Text>
               </Box>
             )}
-            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-            </Text>
+            <Box
+              onClick={() => onReplySelect?.(msg)}
+              cursor={onReplySelect ? 'pointer' : 'default'}
+              role={onReplySelect ? 'button' : undefined}
+              tabIndex={onReplySelect ? 0 : undefined}
+              onKeyDown={handleReplyKeyDown}
+            >
+              <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+              </Text>
+            </Box>
             {imageUrls.length > 0 && (
               <VStack align="stretch" spacing={2} mt={2}>
                 {imageUrls.map(url => (
@@ -463,6 +472,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const { user, aioha } = useAioha();
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false }) ?? false;
 
   const [authState, setAuthState] = useState<'idle' | 'connecting' | 'done' | 'error'>('idle');
   const [authError, setAuthError] = useState<string>('');
@@ -622,7 +632,7 @@ export default function ChatPanel({
   }, [conversations, activeConversationId]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     try {
       const raw = localStorage.getItem(CHAT_PANEL_SIZE_KEY);
       if (!raw) return;
@@ -635,22 +645,22 @@ export default function ChatPanel({
         height: Math.min(Math.max(parsed.height, DESKTOP_PANEL_MIN.height), maxHeight),
       });
     } catch {}
-  }, [isMobile]);
+  }, [isMobile, isPopoutWindow]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     localStorage.setItem(CHAT_PANEL_SIZE_KEY, JSON.stringify(panelSize));
-  }, [panelSize, isMobile]);
+  }, [panelSize, isMobile, isPopoutWindow]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     try {
       const dismissed = localStorage.getItem(CHAT_PANEL_RESIZE_HINT_KEY) === '1';
       setShowResizeHint(!dismissed);
     } catch {
       setShowResizeHint(true);
     }
-  }, [isMobile]);
+  }, [isMobile, isPopoutWindow]);
 
   const fetchMessagesForConversation = useCallback(async (
     convId: string,
@@ -1045,7 +1055,7 @@ export default function ChatPanel({
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     e.preventDefault();
     e.stopPropagation();
     setShowResizeHint(false);
@@ -1183,6 +1193,20 @@ export default function ChatPanel({
     });
   }
 
+  function insertMentionForUser(username: string) {
+    const normalized = normalizeMentionToken(username);
+    if (!normalized) return;
+    setDraft(prev => {
+      const token = `@${normalized}`;
+      if (prev.includes(token)) return prev;
+      const spacer = prev.trim().length ? ' ' : '';
+      return `${prev}${spacer}${token} `;
+    });
+    requestAnimationFrame(() => {
+      composerInputRef.current?.focus();
+    });
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (mentionSuggestions.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -1221,14 +1245,15 @@ export default function ChatPanel({
   }
 
   // ── Panel dimensions ───────────────────────────────────────────────────
-  const panelW = isMobile ? '100vw' : `${panelSize.width}px`;
-  const panelH = isMobile ? '85vh' : `${panelSize.height}px`;
-  const panelBottom = isMobile ? '0' : '0';
-  const panelRight = isMobile ? '0' : '16px';
-  const borderRadius = isMobile ? '20px 20px 0 0' : '16px 16px 0 0';
+  const panelW = isPopoutWindow ? '100vw' : (isMobile ? '100vw' : `${panelSize.width}px`);
+  const panelH = isPopoutWindow ? '100vh' : (isMobile ? '85vh' : `${panelSize.height}px`);
+  const panelBottom = isPopoutWindow ? '0' : (isMobile ? '0' : '0');
+  const panelRight = isPopoutWindow ? '0' : (isMobile ? '0' : '16px');
+  const borderRadius = isPopoutWindow ? '0' : (isMobile ? '20px 20px 0 0' : '16px 16px 0 0');
+  const isDesktopSplit = !isMobile && !isTablet;
+  const isTabletLayout = isTablet;
   const showList = isMobile ? mobileView === 'list' : true;
   const showThread = isMobile ? mobileView === 'thread' : true;
-  const isDesktopSplit = !isMobile;
   const canManageMembers = !!(
     user &&
     activeConversation &&
@@ -1293,7 +1318,7 @@ export default function ChatPanel({
         right={panelRight}
         w={panelW}
         h={panelH}
-        maxH={isMobile ? '85vh' : 'calc(100vh - 24px)'}
+        maxH={isPopoutWindow ? '100vh' : (isMobile ? '85vh' : 'calc(100vh - 24px)')}
         zIndex={1400}
         display="flex"
         flexDirection="column"
@@ -1303,7 +1328,7 @@ export default function ChatPanel({
         borderRadius={borderRadius}
         border="1px solid"
         borderColor="whiteAlpha.100"
-        borderBottom="none"
+        borderBottom={isPopoutWindow ? '1px solid' : 'none'}
         overflow="hidden"
         boxShadow="0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(24,168,255,0.08)"
         sx={{
@@ -1312,7 +1337,7 @@ export default function ChatPanel({
           '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
         }}
       >
-        {!isMobile && (
+        {!isMobile && !isPopoutWindow && (
           <Tooltip label="Drag to resize" hasArrow placement="top" isOpen={showResizeHint ? undefined : false}>
             <Box
               position="absolute"
@@ -1691,6 +1716,7 @@ export default function ChatPanel({
                         isOwn={msg.sender === user}
                         onOpenDm={openDmByUsername}
                         onReplySelect={setReplyingTo}
+                        onMentionSelect={insertMentionForUser}
                         replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
                         onEditSelect={msg.sender === user ? (m) => {
                           setEditingMessage(m);
@@ -1798,13 +1824,13 @@ export default function ChatPanel({
               ) : (
               <Flex
                 px={3}
-                py={3}
+                py={isTabletLayout ? 2 : 3}
                 borderTop="1px solid"
                 borderColor="whiteAlpha.100"
                 gap={2}
                 align="center"
                 flexShrink={0}
-                pb="calc(12px + env(safe-area-inset-bottom))"
+                pb={isTabletLayout ? 'calc(8px + env(safe-area-inset-bottom))' : 'calc(12px + env(safe-area-inset-bottom))'}
                 direction="column"
               >
                 {confirmBlockUser && (
@@ -1964,7 +1990,7 @@ export default function ChatPanel({
                     </Menu>
                   )}
                 </HStack>
-                <HStack w="100%">
+                <HStack w="100%" align="stretch">
                   <input
                     ref={imageInputRef}
                     type="file"
@@ -1992,8 +2018,8 @@ export default function ChatPanel({
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Message…"
-                    size="sm"
-                    borderRadius="full"
+                    size={isTabletLayout ? 'md' : 'sm'}
+                    borderRadius={isTabletLayout ? '14px' : 'full'}
                     bg={hasValidMentionInDraft ? 'yellow.900' : 'whiteAlpha.50'}
                     border="1px solid"
                     borderColor={hasValidMentionInDraft ? 'yellow.400' : 'whiteAlpha.100'}
@@ -2003,11 +2029,16 @@ export default function ChatPanel({
                     _hover={{ borderColor: 'whiteAlpha.300' }}
                     maxLength={2000}
                     autoComplete="off"
+                    minW={0}
+                    flex="1"
+                    whiteSpace="nowrap"
+                    textOverflow="ellipsis"
+                    overflowX="hidden"
                   />
                   <IconButton
                     aria-label="Send"
                     icon={<FiSend />}
-                    size="sm"
+                    size={isTabletLayout ? 'md' : 'sm'}
                     colorScheme="blue"
                     borderRadius="full"
                     isLoading={sending}
@@ -2045,6 +2076,11 @@ export default function ChatPanel({
                       ))}
                     </VStack>
                   </Box>
+                )}
+                {isTabletLayout && (
+                  <Text fontSize="10px" color="whiteAlpha.500" w="100%" px={1}>
+                    Tip: type @ to mention someone in this conversation.
+                  </Text>
                 )}
                 </Flex>
               )}
