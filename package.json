@@ -27,7 +27,7 @@
     "@livekit/components-react": "^2.9.20",
     "@mantequilla-soft/3speak-player": "^0.3.2",
     "@snapie/composer": "workspace:*",
-    "@snapie/hangouts-core": "^0.5.0",
+    "@snapie/hangouts-core": "^0.5.1",
     "@snapie/hangouts-react": "^0.6.1",
     "@snapie/operations": "workspace:*",
     "@snapie/renderer": "workspace:*",
