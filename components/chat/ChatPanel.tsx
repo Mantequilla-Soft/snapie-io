@@ -463,6 +463,7 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const { user, aioha } = useAioha();
   const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false }) ?? false;
 
   const [authState, setAuthState] = useState<'idle' | 'connecting' | 'done' | 'error'>('idle');
   const [authError, setAuthError] = useState<string>('');
@@ -1226,9 +1227,10 @@ export default function ChatPanel({
   const panelBottom = isPopoutWindow ? '0' : (isMobile ? '0' : '0');
   const panelRight = isPopoutWindow ? '0' : (isMobile ? '0' : '16px');
   const borderRadius = isPopoutWindow ? '0' : (isMobile ? '20px 20px 0 0' : '16px 16px 0 0');
+  const isDesktopSplit = !isMobile && !isTablet;
+  const isTabletLayout = isTablet;
   const showList = isMobile ? mobileView === 'list' : true;
   const showThread = isMobile ? mobileView === 'thread' : true;
-  const isDesktopSplit = !isMobile;
   const canManageMembers = !!(
     user &&
     activeConversation &&
@@ -1798,13 +1800,13 @@ export default function ChatPanel({
               ) : (
               <Flex
                 px={3}
-                py={3}
+                py={isTabletLayout ? 2 : 3}
                 borderTop="1px solid"
                 borderColor="whiteAlpha.100"
                 gap={2}
                 align="center"
                 flexShrink={0}
-                pb="calc(12px + env(safe-area-inset-bottom))"
+                pb={isTabletLayout ? 'calc(8px + env(safe-area-inset-bottom))' : 'calc(12px + env(safe-area-inset-bottom))'}
                 direction="column"
               >
                 {confirmBlockUser && (
@@ -1964,7 +1966,7 @@ export default function ChatPanel({
                     </Menu>
                   )}
                 </HStack>
-                <HStack w="100%">
+                <HStack w="100%" align="stretch">
                   <input
                     ref={imageInputRef}
                     type="file"
@@ -1992,8 +1994,8 @@ export default function ChatPanel({
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Message…"
-                    size="sm"
-                    borderRadius="full"
+                    size={isTabletLayout ? 'md' : 'sm'}
+                    borderRadius={isTabletLayout ? '14px' : 'full'}
                     bg={hasValidMentionInDraft ? 'yellow.900' : 'whiteAlpha.50'}
                     border="1px solid"
                     borderColor={hasValidMentionInDraft ? 'yellow.400' : 'whiteAlpha.100'}
@@ -2003,11 +2005,16 @@ export default function ChatPanel({
                     _hover={{ borderColor: 'whiteAlpha.300' }}
                     maxLength={2000}
                     autoComplete="off"
+                    minW={0}
+                    flex="1"
+                    whiteSpace="nowrap"
+                    textOverflow="ellipsis"
+                    overflowX="hidden"
                   />
                   <IconButton
                     aria-label="Send"
                     icon={<FiSend />}
-                    size="sm"
+                    size={isTabletLayout ? 'md' : 'sm'}
                     colorScheme="blue"
                     borderRadius="full"
                     isLoading={sending}
