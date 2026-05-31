@@ -34,6 +34,11 @@ export interface DmStatusInfo {
   peerOnline: boolean;
 }
 
+export interface TypingStatusInfo {
+  users: string[];
+  ttlMs: number;
+}
+
 export interface Conversation {
   _id: string;
   name: string;
@@ -274,6 +279,15 @@ class ChatService {
     } catch {
       return 0;
     }
+  }
+
+  async setTyping(conversationId: string, isTyping: boolean): Promise<void> {
+    await this.post(`${BASE}/typing`, { conversationId, isTyping }, true);
+  }
+
+  async getTyping(conversationId: string): Promise<TypingStatusInfo> {
+    const qs = new URLSearchParams({ conversationId }).toString();
+    return this.get<TypingStatusInfo>(`${BASE}/typing?${qs}`, true);
   }
 
   private async get<T>(url: string, auth: boolean): Promise<T> {

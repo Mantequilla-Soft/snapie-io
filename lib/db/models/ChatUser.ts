@@ -9,6 +9,7 @@ export interface IChatUser extends Document<string> {
   lastSeen: Date;
   conversationSeen: Map<string, Date>;
   memoNotifyAt: Map<string, Date>;
+  typingAt: Map<string, Date>;
 }
 
 const ChatUserSchema = new Schema<IChatUser>(
@@ -21,6 +22,7 @@ const ChatUserSchema = new Schema<IChatUser>(
     lastSeen: { type: Date, default: Date.now },
     conversationSeen: { type: Map, of: Date, default: {} },
     memoNotifyAt: { type: Map, of: Date, default: {} },
+    typingAt: { type: Map, of: Date, default: {} },
   },
   { timestamps: false }
 );

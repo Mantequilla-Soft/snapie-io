@@ -467,6 +467,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [isResizing, setIsResizing] = useState(false);
   const [showResizeHint, setShowResizeHint] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -476,9 +477,17 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const shouldAutoScrollRef = useRef(true);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const typingPingAtRef = useRef(0);
+  const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const typingLabel = useMemo(() => {
+    if (!typingUsers.length) return '';
+    if (typingUsers.length === 1) return `@${typingUsers[0]} is typing...`;
+    if (typingUsers.length === 2) return `@${typingUsers[0]} and @${typingUsers[1]} are typing...`;
+    return `${typingUsers.length} people are typing...`;
+  }, [typingUsers]);
   const sortedMentions = useMemo(
     () => messages
       .map((msg, idx) => ({ msg, idx }))
@@ -633,8 +642,26 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     setReplyingTo(null);
     setEditingMessage(null);
     setMessageCache({});
+    setTypingUsers([]);
     loadMessages(activeConversationId, activeConversation?.type);
   }, [isOpen, isMinimized, activeConversationId, activeConversation?.type, loadMessages]);
+
+  useEffect(() => {
+    if (!isOpen || isMinimized || !isAuthed || !activeConversationId) return;
+
+    const loadTyping = async () => {
+      try {
+        const out = await chatService.getTyping(activeConversationId);
+        setTypingUsers(out.users || []);
+      } catch {}
+    };
+    loadTyping();
+    typingPollRef.current = setInterval(loadTyping, 3000);
+    return () => {
+      if (typingPollRef.current) clearInterval(typingPollRef.current);
+      typingPollRef.current = null;
+    };
+  }, [isOpen, isMinimized, isAuthed, activeConversationId]);
 
   useEffect(() => {
     if (!messages.length) return;
@@ -979,6 +1006,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
       setMessages(prev => [...prev, msg]);
       setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
       setReplyingTo(null);
+      try { await chatService.setTyping(activeConversation._id, false); } catch {}
       if (activeConversation.type === 'dm' && dmDelivery?.memoSuggested && activeConversation.peer && user) {
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
       }
@@ -991,6 +1019,13 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (isAuthed && activeConversation && !sending) {
+      const now = Date.now();
+      if (now - typingPingAtRef.current > 1500) {
+        typingPingAtRef.current = now;
+        chatService.setTyping(activeConversation._id, true).catch(() => {});
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -1482,6 +1517,11 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                   </VStack>
                 )}
                 <div ref={messagesEndRef} />
+                {!!typingLabel && (
+                  <Text fontSize="11px" color="whiteAlpha.600" mt={1}>
+                    {typingLabel}
+                  </Text>
+                )}
                 {shouldShowJumpToMention && (
                   <IconButton
                     aria-label="Jump to latest mention"
