@@ -768,8 +768,16 @@ export async function getCommunityInfo(username: string) {
 }
 
 export async function findPosts(query: string, params: any) {
-  const by = 'get_discussions_by_' + query;
-  const posts = await HiveClient.database.call(by, [params]);
+  // Bridge API has no 7-day payout-window restriction unlike the legacy
+  // get_discussions_by_* condenser methods, so all posts are returned.
+  const posts = await HiveClient.call('bridge', 'get_ranked_posts', {
+    sort: query,
+    tag: params.tag || '',
+    observer: '',
+    limit: params.limit ?? 12,
+    start_author: params.start_author || '',
+    start_permlink: params.start_permlink || '',
+  });
   return posts;
 }
 
