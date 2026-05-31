@@ -139,7 +139,7 @@ export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) 
         </HangoutsProvider>
         <Center p={6}>
           <Text color="primary" fontSize="sm">
-            Sign in with Hive to host or speak.
+            Sign in with Hive to host a room.
           </Text>
         </Center>
       </div>
