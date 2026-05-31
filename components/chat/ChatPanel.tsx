@@ -622,7 +622,7 @@ export default function ChatPanel({
   }, [conversations, activeConversationId]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     try {
       const raw = localStorage.getItem(CHAT_PANEL_SIZE_KEY);
       if (!raw) return;
@@ -635,22 +635,22 @@ export default function ChatPanel({
         height: Math.min(Math.max(parsed.height, DESKTOP_PANEL_MIN.height), maxHeight),
       });
     } catch {}
-  }, [isMobile]);
+  }, [isMobile, isPopoutWindow]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     localStorage.setItem(CHAT_PANEL_SIZE_KEY, JSON.stringify(panelSize));
-  }, [panelSize, isMobile]);
+  }, [panelSize, isMobile, isPopoutWindow]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     try {
       const dismissed = localStorage.getItem(CHAT_PANEL_RESIZE_HINT_KEY) === '1';
       setShowResizeHint(!dismissed);
     } catch {
       setShowResizeHint(true);
     }
-  }, [isMobile]);
+  }, [isMobile, isPopoutWindow]);
 
   const fetchMessagesForConversation = useCallback(async (
     convId: string,
@@ -1045,7 +1045,7 @@ export default function ChatPanel({
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
-    if (isMobile) return;
+    if (isMobile || isPopoutWindow) return;
     e.preventDefault();
     e.stopPropagation();
     setShowResizeHint(false);
@@ -1221,11 +1221,11 @@ export default function ChatPanel({
   }
 
   // ── Panel dimensions ───────────────────────────────────────────────────
-  const panelW = isMobile ? '100vw' : `${panelSize.width}px`;
-  const panelH = isMobile ? '85vh' : `${panelSize.height}px`;
-  const panelBottom = isMobile ? '0' : '0';
-  const panelRight = isMobile ? '0' : '16px';
-  const borderRadius = isMobile ? '20px 20px 0 0' : '16px 16px 0 0';
+  const panelW = isPopoutWindow ? '100vw' : (isMobile ? '100vw' : `${panelSize.width}px`);
+  const panelH = isPopoutWindow ? '100vh' : (isMobile ? '85vh' : `${panelSize.height}px`);
+  const panelBottom = isPopoutWindow ? '0' : (isMobile ? '0' : '0');
+  const panelRight = isPopoutWindow ? '0' : (isMobile ? '0' : '16px');
+  const borderRadius = isPopoutWindow ? '0' : (isMobile ? '20px 20px 0 0' : '16px 16px 0 0');
   const showList = isMobile ? mobileView === 'list' : true;
   const showThread = isMobile ? mobileView === 'thread' : true;
   const isDesktopSplit = !isMobile;
@@ -1293,7 +1293,7 @@ export default function ChatPanel({
         right={panelRight}
         w={panelW}
         h={panelH}
-        maxH={isMobile ? '85vh' : 'calc(100vh - 24px)'}
+        maxH={isPopoutWindow ? '100vh' : (isMobile ? '85vh' : 'calc(100vh - 24px)')}
         zIndex={1400}
         display="flex"
         flexDirection="column"
@@ -1303,7 +1303,7 @@ export default function ChatPanel({
         borderRadius={borderRadius}
         border="1px solid"
         borderColor="whiteAlpha.100"
-        borderBottom="none"
+        borderBottom={isPopoutWindow ? '1px solid' : 'none'}
         overflow="hidden"
         boxShadow="0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(24,168,255,0.08)"
         sx={{
@@ -1312,7 +1312,7 @@ export default function ChatPanel({
           '@keyframes fadeUp': { from: { opacity: 0, transform: 'translateY(12px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
         }}
       >
-        {!isMobile && (
+        {!isMobile && !isPopoutWindow && (
           <Tooltip label="Drag to resize" hasArrow placement="top" isOpen={showResizeHint ? undefined : false}>
             <Box
               position="absolute"
