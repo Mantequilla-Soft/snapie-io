@@ -216,6 +216,7 @@ function MessageBubble({
   isOwn,
   onOpenDm,
   onReplySelect,
+  onMentionSelect,
   replyPreview,
   onEditSelect,
   activeUsername,
@@ -225,6 +226,7 @@ function MessageBubble({
   isOwn: boolean;
   onOpenDm?: (username: string) => void;
   onReplySelect?: (message: Message) => void;
+  onMentionSelect?: (username: string) => void;
   replyPreview?: Message | null;
   onEditSelect?: (message: Message) => void;
   activeUsername?: string | null;
@@ -260,11 +262,6 @@ function MessageBubble({
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
           borderColor={highlightMention ? 'purple.300' : 'blue.500'}
-          onClick={() => onReplySelect?.(msg)}
-          cursor={onReplySelect ? 'pointer' : 'default'}
-          role={onReplySelect ? 'button' : undefined}
-          tabIndex={onReplySelect ? 0 : undefined}
-          onKeyDown={handleReplyKeyDown}
         >
           {msg.replyTo && (
             <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -279,9 +276,17 @@ function MessageBubble({
               </Text>
             </Box>
           )}
-          <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-          </Text>
+          <Box
+            onClick={() => onReplySelect?.(msg)}
+            cursor={onReplySelect ? 'pointer' : 'default'}
+            role={onReplySelect ? 'button' : undefined}
+            tabIndex={onReplySelect ? 0 : undefined}
+            onKeyDown={handleReplyKeyDown}
+          >
+            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+            </Text>
+          </Box>
           {imageUrls.length > 0 && (
             <VStack align="stretch" spacing={2} mt={2}>
               {imageUrls.map(url => (
@@ -352,9 +357,10 @@ function MessageBubble({
             fontWeight="600"
             letterSpacing="0.03em"
             mb="2px"
+            onClick={() => onMentionSelect?.(msg.sender)}
             onDoubleClick={() => onOpenDm?.(msg.sender)}
-            cursor={canOpenDm ? 'pointer' : 'default'}
-            title={canOpenDm ? 'Double-click to open DM' : undefined}
+            cursor={canOpenDm || onMentionSelect ? 'pointer' : 'default'}
+            title={canOpenDm ? 'Click to mention • Double-click to open DM' : 'Click to mention'}
             noOfLines={1}
           >
             @{msg.sender}
@@ -366,11 +372,6 @@ function MessageBubble({
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
             borderColor={highlightMention ? 'purple.300' : 'whiteAlpha.100'}
-            onClick={() => onReplySelect?.(msg)}
-            cursor={onReplySelect ? 'pointer' : 'default'}
-            role={onReplySelect ? 'button' : undefined}
-            tabIndex={onReplySelect ? 0 : undefined}
-            onKeyDown={handleReplyKeyDown}
           >
             {msg.replyTo && (
               <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
@@ -385,9 +386,17 @@ function MessageBubble({
                 </Text>
               </Box>
             )}
-            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
-            </Text>
+            <Box
+              onClick={() => onReplySelect?.(msg)}
+              cursor={onReplySelect ? 'pointer' : 'default'}
+              role={onReplySelect ? 'button' : undefined}
+              tabIndex={onReplySelect ? 0 : undefined}
+              onKeyDown={handleReplyKeyDown}
+            >
+              <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+              </Text>
+            </Box>
             {imageUrls.length > 0 && (
               <VStack align="stretch" spacing={2} mt={2}>
                 {imageUrls.map(url => (
@@ -1184,6 +1193,20 @@ export default function ChatPanel({
     });
   }
 
+  function insertMentionForUser(username: string) {
+    const normalized = normalizeMentionToken(username);
+    if (!normalized) return;
+    setDraft(prev => {
+      const token = `@${normalized}`;
+      if (prev.includes(token)) return prev;
+      const spacer = prev.trim().length ? ' ' : '';
+      return `${prev}${spacer}${token} `;
+    });
+    requestAnimationFrame(() => {
+      composerInputRef.current?.focus();
+    });
+  }
+
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (mentionSuggestions.length > 0) {
       if (e.key === 'ArrowDown') {
@@ -1693,6 +1716,7 @@ export default function ChatPanel({
                         isOwn={msg.sender === user}
                         onOpenDm={openDmByUsername}
                         onReplySelect={setReplyingTo}
+                        onMentionSelect={insertMentionForUser}
                         replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
                         onEditSelect={msg.sender === user ? (m) => {
                           setEditingMessage(m);
