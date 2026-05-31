@@ -27,7 +27,7 @@ import {
 import { keyframes } from '@emotion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -40,6 +40,8 @@ interface ChatPanelProps {
   isMinimized?: boolean;
   onMinimize?: () => void;
   onRestore?: () => void;
+  onPopout?: () => void;
+  isPopoutWindow?: boolean;
 }
 
 const POLL_INTERVAL = 15000;
@@ -450,7 +452,15 @@ function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isAc
   );
 }
 
-export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, onRestore }: ChatPanelProps) {
+export default function ChatPanel({
+  isOpen,
+  onClose,
+  isMinimized,
+  onMinimize,
+  onRestore,
+  onPopout,
+  isPopoutWindow,
+}: ChatPanelProps) {
   const { user, aioha } = useAioha();
   const isMobile = useBreakpointValue({ base: true, md: false });
 
@@ -493,6 +503,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
   const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
   const [activeMentionIdx, setActiveMentionIdx] = useState(0);
   const [hasValidMentionInDraft, setHasValidMentionInDraft] = useState(false);
+  const [showJumpToNow, setShowJumpToNow] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -946,11 +957,17 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    if (!messages.length) return;
+    if (!shouldAutoScrollRef.current) setShowJumpToNow(true);
+  }, [messages]);
+
   function handleMessagesScroll() {
     const el = messagesContainerRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 80;
+    setShowJumpToNow(distanceFromBottom > 160);
   }
 
   function jumpToLatestMention() {
@@ -958,6 +975,12 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     const el = messageNodeRefs.current[latestMention.msg._id];
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function jumpToNow() {
+    shouldAutoScrollRef.current = true;
+    setShowJumpToNow(false);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
@@ -1375,6 +1398,20 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 onClick={onMinimize}
               />
             )}
+            {!isMobile && !!onPopout && !isPopoutWindow && (
+              <Tooltip label="Open chat in a separate window" hasArrow>
+                <Button
+                  size="xs"
+                  leftIcon={<FiExternalLink />}
+                  variant="ghost"
+                  color="whiteAlpha.500"
+                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  onClick={onPopout}
+                >
+                  Pop out
+                </Button>
+              </Tooltip>
+            )}
             <IconButton
               aria-label="Close chat"
               icon={<FiX />}
@@ -1626,6 +1663,21 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                     {typingLabel}
                   </Text>
                 )}
+                {showJumpToNow && (
+                  <IconButton
+                    aria-label="Jump to current messages"
+                    icon={<FiArrowDown />}
+                    size="sm"
+                    colorScheme="blue"
+                    variant="solid"
+                    position="absolute"
+                    bottom="82px"
+                    right="14px"
+                    borderRadius="full"
+                    onClick={jumpToNow}
+                    title="Jump to current messages"
+                  />
+                )}
                 {shouldShowJumpToMention && (
                   <IconButton
                     aria-label="Jump to latest mention"
@@ -1634,7 +1686,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                     colorScheme="yellow"
                     variant="solid"
                     position="absolute"
-                    bottom="82px"
+                    bottom={showJumpToNow ? '124px' : '82px'}
                     right="14px"
                     borderRadius="full"
                     onClick={jumpToLatestMention}
