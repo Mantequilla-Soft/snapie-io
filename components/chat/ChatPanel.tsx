@@ -25,9 +25,9 @@ import {
   useBreakpointValue,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useAioha } from '@aioha/react-ui';
-import { FiArrowLeft, FiChevronDown, FiCornerUpLeft, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -51,6 +51,7 @@ const DESKTOP_PANEL_DEFAULT = { width: 460, height: 680 };
 const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CHAT_IMAGE_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
+const MENTION_REGEX = /@[a-z0-9.-]+/gi;
 
 function isImageUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -68,6 +69,72 @@ function extractImageUrls(content: string): string[] {
   if (!content) return [];
   const urls = content.match(/https?:\/\/[^\s)]+/gi) || [];
   return urls.filter(isImageUrl);
+}
+
+function normalizeMentionToken(value: string): string {
+  return value.replace(/^@/, '').trim().toLowerCase();
+}
+
+function messageMentionsUser(content: string, username?: string | null): boolean {
+  if (!content || !username) return false;
+  const target = normalizeMentionToken(username);
+  const matches = content.match(MENTION_REGEX) || [];
+  return matches.some(token => normalizeMentionToken(token) === target);
+}
+
+function contentWithMentions(content: string, activeUsername?: string | null): Array<{ text: string; highlighted: boolean }> {
+  if (!content) return [];
+  const out: Array<{ text: string; highlighted: boolean }> = [];
+  const target = activeUsername ? normalizeMentionToken(activeUsername) : '';
+  const regex = new RegExp(MENTION_REGEX.source, 'gi');
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    const mention = match[0];
+    const start = match.index;
+    if (start > lastIndex) {
+      out.push({ text: content.slice(lastIndex, start), highlighted: false });
+    }
+    out.push({
+      text: mention,
+      highlighted: !!target && normalizeMentionToken(mention) === target,
+    });
+    lastIndex = start + mention.length;
+  }
+
+  if (lastIndex < content.length) {
+    out.push({ text: content.slice(lastIndex), highlighted: false });
+  }
+
+  return out.length ? out : [{ text: content, highlighted: false }];
+}
+
+function MentionAwareText({ content, activeUsername }: { content: string; activeUsername?: string | null }) {
+  const segments = contentWithMentions(content, activeUsername);
+  return (
+    <>
+      {segments.map((seg, idx) =>
+        seg.highlighted ? (
+          <Box
+            key={`${seg.text}-${idx}`}
+            as="span"
+            px="1"
+            borderRadius="md"
+            bg="yellow.300"
+            color="black"
+            fontWeight="700"
+          >
+            {seg.text}
+          </Box>
+        ) : (
+          <Box as="span" key={`${seg.text}-${idx}`}>
+            {seg.text}
+          </Box>
+        )
+      )}
+    </>
+  );
 }
 
 function formatTime(iso: string): string {
@@ -128,6 +195,8 @@ function MessageBubble({
   onReplySelect,
   replyPreview,
   onEditSelect,
+  activeUsername,
+  highlightMention,
 }: {
   msg: Message;
   isOwn: boolean;
@@ -135,6 +204,8 @@ function MessageBubble({
   onReplySelect?: (message: Message) => void;
   replyPreview?: Message | null;
   onEditSelect?: (message: Message) => void;
+  activeUsername?: string | null;
+  highlightMention?: boolean;
 }) {
   const imageUrls = extractImageUrls(msg.content);
   const canOpenDm = !isOwn && !!onOpenDm;
@@ -160,12 +231,12 @@ function MessageBubble({
         maxW="88%"
       >
         <Box
-          bg="blue.600"
+          bg={highlightMention ? 'purple.600' : 'blue.600'}
           px={3}
           py={2}
           borderRadius="16px 16px 4px 16px"
           border="1px solid"
-          borderColor="blue.500"
+          borderColor={highlightMention ? 'purple.300' : 'blue.500'}
           onClick={() => onReplySelect?.(msg)}
           cursor={onReplySelect ? 'pointer' : 'default'}
           role={onReplySelect ? 'button' : undefined}
@@ -186,7 +257,7 @@ function MessageBubble({
             </Box>
           )}
           <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-            {msg.content}
+            <MentionAwareText content={msg.content} activeUsername={activeUsername} />
           </Text>
           {imageUrls.length > 0 && (
             <VStack align="stretch" spacing={2} mt={2}>
@@ -266,12 +337,12 @@ function MessageBubble({
             @{msg.sender}
           </Text>
           <Box
-            bg="whiteAlpha.100"
+            bg={highlightMention ? 'purple.900' : 'whiteAlpha.100'}
             px={3}
             py={2}
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
-            borderColor="whiteAlpha.100"
+            borderColor={highlightMention ? 'purple.300' : 'whiteAlpha.100'}
             onClick={() => onReplySelect?.(msg)}
             cursor={onReplySelect ? 'pointer' : 'default'}
             role={onReplySelect ? 'button' : undefined}
@@ -292,7 +363,7 @@ function MessageBubble({
               </Box>
             )}
             <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              {msg.content}
+              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
             </Text>
             {imageUrls.length > 0 && (
               <VStack align="stretch" spacing={2} mt={2}>
@@ -399,6 +470,7 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messageNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
   const shouldAutoScrollRef = useRef(true);
@@ -407,6 +479,16 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const sortedMentions = useMemo(
+    () => messages
+      .map((msg, idx) => ({ msg, idx }))
+      .filter(entry => messageMentionsUser(entry.msg.content, user)),
+    [messages, user]
+  );
+  const latestMention = sortedMentions.length ? sortedMentions[sortedMentions.length - 1] : null;
+  const shouldShowJumpToMention =
+    !!latestMention &&
+    latestMention.idx < Math.max(messages.length - 3, 0);
 
   const mergeConversations = useCallback((baseConversations: Conversation[], publicChannels: Channel[]): Conversation[] => {
     const byId = new Map(baseConversations.map(c => [c._id, c]));
@@ -779,6 +861,13 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     shouldAutoScrollRef.current = distanceFromBottom < 80;
+  }
+
+  function jumpToLatestMention() {
+    if (!latestMention) return;
+    const el = messageNodeRefs.current[latestMention.msg._id];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
@@ -1354,19 +1443,27 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                 ) : (
                   <VStack align="stretch" spacing={2}>
                     {messages.map(msg => (
-                    <MessageBubble
+                    <Box
                       key={msg._id}
-                      msg={msg}
-                      isOwn={msg.sender === user}
-                      onOpenDm={openDmByUsername}
-                      onReplySelect={setReplyingTo}
-                      replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
-                      onEditSelect={msg.sender === user ? (m) => {
-                        setEditingMessage(m);
-                        setReplyingTo(null);
-                        setDraft(m.content);
-                      } : undefined}
-                    />
+                      ref={el => {
+                        messageNodeRefs.current[msg._id] = el;
+                      }}
+                    >
+                      <MessageBubble
+                        msg={msg}
+                        isOwn={msg.sender === user}
+                        onOpenDm={openDmByUsername}
+                        onReplySelect={setReplyingTo}
+                        replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
+                        onEditSelect={msg.sender === user ? (m) => {
+                          setEditingMessage(m);
+                          setReplyingTo(null);
+                          setDraft(m.content);
+                        } : undefined}
+                        activeUsername={user}
+                        highlightMention={messageMentionsUser(msg.content, user)}
+                      />
+                    </Box>
                     ))}
                     {activeConversation?.type === 'dm' && (() => {
                       const myLast = [...messages].reverse().find(m => m.sender === user);
@@ -1385,6 +1482,21 @@ export default function ChatPanel({ isOpen, onClose, isMinimized, onMinimize, on
                   </VStack>
                 )}
                 <div ref={messagesEndRef} />
+                {shouldShowJumpToMention && (
+                  <IconButton
+                    aria-label="Jump to latest mention"
+                    icon={<FiArrowUp />}
+                    size="sm"
+                    colorScheme="yellow"
+                    variant="solid"
+                    position="absolute"
+                    bottom="82px"
+                    right="14px"
+                    borderRadius="full"
+                    onClick={jumpToLatestMention}
+                    title="Jump to latest @mention"
+                  />
+                )}
               </Flex>
 
               {/* Auth overlay / compose bar */}
