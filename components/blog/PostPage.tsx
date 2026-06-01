@@ -1,7 +1,8 @@
 // app/page.tsx
 'use client';
 
-import { Box, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Spinner } from '@chakra-ui/react';
+import PostSidebar from '@/components/blog/PostSidebar';
 import SnapList from '../homepage/SnapList';
 import SnapComposer from '../homepage/SnapComposer';
 import { useEffect, useState } from 'react';
@@ -98,23 +99,41 @@ export default function PostPage({ author, permlink }: PostPageProps) {
 
   return (
     <Box bg="background" color="text" minH="100vh" p={isEmbedMode ? 2 : 4}>
-      <PostDetails post={post} isEmbedMode={isEmbedMode} />
-      {!isEmbedMode && !conversation ? (
-        <>
-          <SnapComposer pa={author} pp={permlink} onNewComment={handleTopLevelComment} post={true} onClose={() => {}} />
-          <SnapList
-            author={author}
-            permlink={permlink}
-            setConversation={setConversation}
-            onOpen={onOpen}
-            setReply={setReply}
-            post={true}
-            data={commentsData}
-          />
-        </>
-      ) : !isEmbedMode && conversation ? (
-        <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
-      ) : null}
+      <Flex gap={6} align="flex-start">
+        <Box flex="1" minW={0}>
+          <PostDetails post={post} isEmbedMode={isEmbedMode} />
+          {!isEmbedMode && !conversation ? (
+            <>
+              <SnapComposer pa={author} pp={permlink} onNewComment={handleTopLevelComment} post={true} onClose={() => {}} />
+              <SnapList
+                author={author}
+                permlink={permlink}
+                setConversation={setConversation}
+                onOpen={onOpen}
+                setReply={setReply}
+                post={true}
+                data={commentsData}
+              />
+            </>
+          ) : !isEmbedMode && conversation ? (
+            <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
+          ) : null}
+        </Box>
+
+        {!isEmbedMode && (
+          <Box
+            display={{ base: 'none', lg: 'flex' }}
+            flexDir="column"
+            w="300px"
+            flexShrink={0}
+            position="sticky"
+            top={4}
+            alignSelf="flex-start"
+          >
+            <PostSidebar author={author} permlink={permlink} />
+          </Box>
+        )}
+      </Flex>
       {!isEmbedMode && isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
     </Box>
   );

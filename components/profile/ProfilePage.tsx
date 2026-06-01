@@ -27,11 +27,6 @@ interface ProfilePageProps {
 export default function ProfilePage({ username }: ProfilePageProps) {
   const { user } = useAioha();
   const { hiveAccount, isLoading, error } = useHiveAccount(username);
-  const [profileMetadata, setProfileMetadata] = useState<{ profileImage: string; coverImage: string; website: string }>({
-    profileImage: '',
-    coverImage: '',
-    website: '',
-  });
   const [profileInfo, setProfileInfo] = useState<any>(null);
 
   // Posts tab state
@@ -103,37 +98,26 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   }, [username]);
 
   useEffect(() => {
-    if (hiveAccount?.json_metadata) {
-      try {
-        const parsedMetadata = JSON.parse(hiveAccount.posting_json_metadata);
-        const profile = parsedMetadata?.profile || {};
-        setProfileMetadata({
-          profileImage: profile.profile_image || '',
-          coverImage: profile.cover_image || '',
-          website: profile.website || '',
-        });
-      } catch (err) {
-        console.error('Failed to parse profile metadata', err);
-      }
-    }
-  }, [hiveAccount]);
-
-  useEffect(() => {
     const fetchProfileInfo = async () => {
       try {
-        const profileData = await getProfile(username);
+        const profileData = await getProfile(username, user || '');
         setProfileInfo(profileData);
       } catch (err) {
         console.error('Failed to fetch profile info', err);
       }
     };
     if (username) fetchProfileInfo();
-  }, [username]);
+  }, [username, user]);
 
+  const profileMeta = profileInfo?.metadata?.profile || {};
   const followers = profileInfo?.stats?.followers || 0;
   const following = profileInfo?.stats?.following || 0;
-  const location = profileInfo?.metadata?.profile?.location || '';
-  const about = profileInfo?.metadata?.profile?.about || '';
+  const postCount = profileInfo?.post_count ?? null;
+  const memberSince = profileInfo?.created ? new Date(profileInfo.created).getFullYear() : null;
+  const location = profileMeta.location || '';
+  const about = profileMeta.about || '';
+  const coverImage = profileMeta.cover_image || '';
+  const website = profileMeta.website || '';
 
   const handleSnapReply = () => {
     setTimeout(() => {
@@ -167,13 +151,18 @@ export default function ProfilePage({ username }: ProfilePageProps) {
       <Box position="relative" height="200px">
         <Container id="cover" maxW="container.lg" p={0} overflow="hidden" position="relative" height="100%">
           <Image
-            src={profileMetadata.coverImage}
+            src={coverImage}
             alt={`${hiveAccount?.name} cover`}
             width="100%"
             height="100%"
             objectFit="cover"
-            mb={4}
-            fallback={<div></div>}
+            fallback={
+              <Box
+                width="100%"
+                height="100%"
+                bgGradient="linear(to-br, blue.700, purple.600, teal.500)"
+              />
+            }
           />
         </Container>
       </Box>
@@ -193,7 +182,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           <Box>
             <Flex alignItems="center">
               <Heading as="h2" size="lg" color="primary" mr={2}>
-                {profileInfo?.metadata?.profile?.name || username}
+                {profileMeta.name || username}
               </Heading>
               <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
@@ -218,16 +207,18 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               >
                 Followers: {followers}
               </Text>
-              {' | '}
-              Location: {location}
-              <br />
-              {about}
+              {postCount != null && (
+                <>{' | '}Posts: {postCount.toLocaleString()}</>
+              )}
+              {location && <>{' | '}Location: {location}</>}
+              {memberSince && <>{' | '}Member since {memberSince}</>}
+              {about && <><br />{about}</>}
             </Text>
 
-            {profileMetadata.website && (
+            {website && (
               <Flex alignItems="center">
-                <Icon as={FaGlobe} w={2} h={2} onClick={() => window.open(profileMetadata.website, '_blank')} style={{ cursor: 'pointer' }} />
-                <Text ml={2} fontSize="xs" color="primary">{profileMetadata.website}</Text>
+                <Icon as={FaGlobe} w={2} h={2} onClick={() => window.open(website, '_blank')} style={{ cursor: 'pointer' }} />
+                <Text ml={2} fontSize="xs" color="primary">{website}</Text>
               </Flex>
             )}
           </Box>

@@ -757,9 +757,28 @@ export async function convertVestToHive(amount: number) {
   return vestHive;
 }
 
-export async function getProfile(username: string) {
-  const profile = await HiveClient.call('bridge', 'get_profile', { account: username });
+export async function getProfile(username: string, observer?: string) {
+  const profile = await HiveClient.call('bridge', 'get_profile', { account: username, observer: observer || '' });
   return profile;
+}
+
+export async function getAccountPosts(account: string, limit: number, observer: string) {
+  return HiveClient.call('bridge', 'get_account_posts', {
+    sort: 'blog',
+    account,
+    start_author: '',
+    start_permlink: '',
+    limit,
+    observer,
+  });
+}
+
+export async function getSimilarPosts(author: string, permlink: string, limit = 3) {
+  const observer = process.env.NEXT_PUBLIC_HIVE_USER || '';
+  const url = `https://api.hive.blog/hivesense-api/posts/${author}/${permlink}/similar?truncate=20&result_limit=${limit}&full_posts=10&observer=${observer}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  return res.json();
 }
 
 export async function getCommunityInfo(username: string) {
