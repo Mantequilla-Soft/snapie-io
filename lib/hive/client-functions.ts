@@ -980,116 +980,290 @@ export interface Transaction {
   trx_id?: string;
 }
 
+// bits 2,3,4,8,32,33,34,39,40,48,49 — real wallet ops, safely < 2^53
+const REAL_OPS_MASK = 846104262344988;
+// bits 50,51,52,55,56,59 — virtual wallet ops, span only 10 bits so exactly representable
+const VIRTUAL_OPS_MASK = 692428442708213760;
+
+function formatHiveAmount(amount: { amount: string; precision: number; nai: string } | string): string {
+  if (typeof amount === 'string') return amount;
+  const symbols: Record<string, string> = {
+    '@@000000021': 'HIVE',
+    '@@000000013': 'HBD',
+    '@@000000037': 'VESTS',
+  };
+  const val = (parseInt(amount.amount) / 10 ** amount.precision).toFixed(amount.precision);
+  return `${val} ${symbols[amount.nai] || amount.nai}`;
+}
+
 export async function getTransactionHistory(
   username: string,
   start: number = -1,
   limit: number = 1000
 ): Promise<{ transactions: Transaction[], oldestIndex: number }> {
   try {
-    const history = await HiveClient.database.getAccountHistory(
-      username,
-      start,
-      limit
-    );
+    // Fetch global properties once — avoids one get_dynamic_global_properties call per vesting op
+    const globalProps = await HiveClient.call('condenser_api', 'get_dynamic_global_properties', []);
+    const totalVestingFund = extractNumber(globalProps.total_vesting_fund_hive);
+    const totalVestingShares = extractNumber(globalProps.total_vesting_shares);
+    const vestsToHive = (vests: number) => (totalVestingFund * vests) / totalVestingShares;
+
+    const [realResult, virtualResult] = await Promise.all([
+      HiveClient.call('account_history_api', 'get_account_history', {
+        account: username,
+        start,
+        limit,
+        include_reversible: true,
+        operation_filter_low: REAL_OPS_MASK,
+      }),
+      HiveClient.call('account_history_api', 'get_account_history', {
+        account: username,
+        start,
+        limit,
+        include_reversible: true,
+        operation_filter_low: VIRTUAL_OPS_MASK,
+      }),
+    ]);
+
+    const pageItems: [number, any][] = [
+      ...(realResult?.history ?? []),
+      ...(virtualResult?.history ?? []),
+    ].sort((a, b) => b[0] - a[0]).slice(0, limit);
 
     const transactions: Transaction[] = [];
-    let oldestIndex = -1;
+    const oldestIndex = pageItems.length > 0 ? pageItems[pageItems.length - 1][0] : -1;
 
-    for (const [index, transaction] of history) {
-      if (oldestIndex === -1 || index < oldestIndex) {
-        oldestIndex = index;
-      }
+    for (const [, tx] of pageItems) {
 
-      const op = transaction.op;
-      const opType = op[0];
-      const opData = op[1];
+      const opType = (tx.op.type as string).replace('_operation', '');
+      const opData = tx.op.value;
+      const timestamp: string = tx.timestamp;
+      const trx_id: string = tx.trx_id;
 
-      if (opType === 'transfer') {
-        transactions.push({
-          type: 'transfer',
-          from: opData.from,
-          to: opData.to,
-          amount: opData.amount,
-          memo: opData.memo || '',
-          timestamp: transaction.timestamp,
-          trx_id: transaction.trx_id,
-        });
-      } else if (opType === 'transfer_to_vesting') {
-        transactions.push({
-          type: 'power_up',
-          from: opData.from,
-          to: opData.to,
-          amount: opData.amount,
-          memo: 'Power Up',
-          timestamp: transaction.timestamp,
-          trx_id: transaction.trx_id,
-        });
-      } else if (opType === 'withdraw_vesting') {
-        const vestsAmount = parseFloat(opData.vesting_shares.split(' ')[0]);
-        const hiveAmount = await convertVestToHive(vestsAmount);
-
-        transactions.push({
-          type: 'power_down',
-          from: opData.account,
-          to: opData.account,
-          amount: `${hiveAmount.toFixed(3)} HIVE`,
-          memo: 'Power Down',
-          timestamp: transaction.timestamp,
-          trx_id: transaction.trx_id,
-        });
-      } else if (opType === 'transfer_to_savings') {
-        transactions.push({
-          type: 'to_savings',
-          from: opData.from,
-          to: opData.to,
-          amount: opData.amount,
-          memo: opData.memo || 'Transfer to Savings',
-          timestamp: transaction.timestamp,
-          trx_id: transaction.trx_id,
-        });
-      } else if (opType === 'transfer_from_savings') {
-        transactions.push({
-          type: 'from_savings',
-          from: opData.from,
-          to: opData.to,
-          amount: opData.amount,
-          memo: opData.memo || 'Withdraw from Savings',
-          timestamp: transaction.timestamp,
-          trx_id: transaction.trx_id,
-        });
-      } else if (opType === 'claim_reward_balance') {
-        const rewards = [];
-
-        if (opData.reward_hive && opData.reward_hive !== '0.000 HIVE') {
-          rewards.push(opData.reward_hive);
-        }
-        if (opData.reward_hbd && opData.reward_hbd !== '0.000 HBD') {
-          rewards.push(opData.reward_hbd);
-        }
-        if (opData.reward_vests && opData.reward_vests !== '0.000000 VESTS') {
-          const vestsAmount = parseFloat(opData.reward_vests.split(' ')[0]);
-          const hiveAmount = await convertVestToHive(vestsAmount);
-          rewards.push(`${hiveAmount.toFixed(3)} HP`);
-        }
-
-        if (rewards.length > 0) {
+      switch (opType) {
+        case 'transfer':
+        case 'recurrent_transfer':
           transactions.push({
-            type: 'claim_rewards',
-            from: 'rewards',
-            to: opData.account,
-            amount: rewards.join(' + '),
-            memo: 'Claim Rewards',
-            timestamp: transaction.timestamp,
-            trx_id: transaction.trx_id,
+            type: 'transfer',
+            from: opData.from,
+            to: opData.to,
+            amount: formatHiveAmount(opData.amount),
+            memo: opData.memo || '',
+            timestamp,
+            trx_id,
           });
+          break;
+
+        case 'transfer_to_vesting':
+          transactions.push({
+            type: 'power_up',
+            from: opData.from,
+            to: opData.to,
+            amount: formatHiveAmount(opData.amount),
+            memo: 'Power Up',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'withdraw_vesting': {
+          const vestsStr = formatHiveAmount(opData.vesting_shares);
+          const vestsAmt = parseFloat(vestsStr.split(' ')[0]);
+          const hive = vestsToHive(vestsAmt);
+          transactions.push({
+            type: 'power_down',
+            from: opData.account,
+            to: opData.account,
+            amount: `${hive.toFixed(3)} HIVE`,
+            memo: 'Power Down Initiated',
+            timestamp,
+            trx_id,
+          });
+          break;
         }
+
+        case 'fill_vesting_withdraw':
+          transactions.push({
+            type: 'power_down_payment',
+            from: opData.from_account,
+            to: opData.to_account,
+            amount: formatHiveAmount(opData.deposited),
+            memo: 'Power Down Payment',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'transfer_to_savings':
+          transactions.push({
+            type: 'to_savings',
+            from: opData.from,
+            to: opData.to,
+            amount: formatHiveAmount(opData.amount),
+            memo: opData.memo || 'Transfer to Savings',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'transfer_from_savings':
+          transactions.push({
+            type: 'from_savings',
+            from: opData.from,
+            to: opData.to,
+            amount: formatHiveAmount(opData.amount),
+            memo: opData.memo || 'Withdraw from Savings',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'fill_transfer_from_savings':
+          transactions.push({
+            type: 'savings_complete',
+            from: opData.from,
+            to: opData.to,
+            amount: formatHiveAmount(opData.amount),
+            memo: opData.memo || 'Savings Withdrawal Complete',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'cancel_transfer_from_savings':
+          transactions.push({
+            type: 'savings_cancel',
+            from: opData.from,
+            to: opData.from,
+            amount: '',
+            memo: 'Savings Withdrawal Cancelled',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'claim_reward_balance': {
+          const parts: string[] = [];
+          const hive = formatHiveAmount(opData.reward_hive);
+          const hbd = formatHiveAmount(opData.reward_hbd);
+          const vestsStr = formatHiveAmount(opData.reward_vests);
+          if (parseFloat(hive) > 0) parts.push(hive);
+          if (parseFloat(hbd) > 0) parts.push(hbd);
+          const vestsAmt = parseFloat(vestsStr.split(' ')[0]);
+          const hp = vestsToHive(vestsAmt);
+          if (hp > 0) parts.push(`${hp.toFixed(3)} HP`);
+          if (parts.length > 0) {
+            transactions.push({
+              type: 'claim_rewards',
+              from: 'rewards',
+              to: opData.account,
+              amount: parts.join(' + '),
+              memo: 'Claim Rewards',
+              timestamp,
+              trx_id,
+            });
+          }
+          break;
+        }
+
+        case 'author_reward': {
+          const parts: string[] = [];
+          const hbd = formatHiveAmount(opData.hbd_payout);
+          const hive = formatHiveAmount(opData.hive_payout);
+          if (parseFloat(hbd) > 0) parts.push(hbd);
+          if (parseFloat(hive) > 0) parts.push(hive);
+          if (opData.vesting_payout) {
+            const vestsAmt = parseFloat(formatHiveAmount(opData.vesting_payout).split(' ')[0]);
+            const hp = vestsToHive(vestsAmt);
+            if (hp > 0) parts.push(`${hp.toFixed(3)} HP`);
+          }
+          if (parts.length > 0) {
+            transactions.push({
+              type: 'author_reward',
+              from: 'rewards',
+              to: opData.author,
+              amount: parts.join(' + '),
+              memo: opData.permlink || '',
+              timestamp,
+              trx_id,
+            });
+          }
+          break;
+        }
+
+        case 'curation_reward': {
+          const vestsAmt = parseFloat(formatHiveAmount(opData.reward).split(' ')[0]);
+          const hp = vestsToHive(vestsAmt);
+          if (hp > 0) {
+            transactions.push({
+              type: 'curation_reward',
+              from: 'rewards',
+              to: opData.curator,
+              amount: `${hp.toFixed(3)} HP`,
+              memo: `@${opData.author}/${opData.permlink}`,
+              timestamp,
+              trx_id,
+            });
+          }
+          break;
+        }
+
+        case 'interest':
+          transactions.push({
+            type: 'interest',
+            from: 'blockchain',
+            to: opData.owner,
+            amount: formatHiveAmount(opData.interest),
+            memo: 'HBD Interest',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'delegate_vesting_shares': {
+          const vestsAmt = parseFloat(formatHiveAmount(opData.vesting_shares).split(' ')[0]);
+          const hp = vestsToHive(vestsAmt);
+          transactions.push({
+            type: 'delegation',
+            from: opData.delegator,
+            to: opData.delegatee,
+            amount: `${hp.toFixed(3)} HP`,
+            memo: 'Delegation',
+            timestamp,
+            trx_id,
+          });
+          break;
+        }
+
+        case 'fill_convert_request':
+        case 'fill_collateralized_convert_request':
+          transactions.push({
+            type: 'conversion',
+            from: opData.owner,
+            to: opData.owner,
+            amount: formatHiveAmount(opData.amount_out),
+            memo: 'Conversion Complete',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'convert':
+        case 'collateralized_convert':
+          transactions.push({
+            type: 'conversion',
+            from: opData.owner,
+            to: opData.owner,
+            amount: formatHiveAmount(opData.amount),
+            memo: 'Conversion Initiated',
+            timestamp,
+            trx_id,
+          });
+          break;
       }
     }
 
-    return {
-      transactions: transactions.reverse(),
-      oldestIndex: oldestIndex
-    };
+    return { transactions, oldestIndex };
   } catch (error) {
     console.error('Error fetching transaction history:', error);
     return { transactions: [], oldestIndex: -1 };
