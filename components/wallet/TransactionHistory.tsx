@@ -16,7 +16,7 @@ import {
   Checkbox,
   Heading,
 } from '@chakra-ui/react';
-import { FaArrowUp, FaArrowDown, FaPiggyBank, FaGift, FaExchangeAlt, FaStore, FaShieldAlt, FaVoteYea } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaPiggyBank, FaGift, FaExchangeAlt, FaShareAlt, FaRandom, FaBan } from 'react-icons/fa';
 import { getTransactionHistory, Transaction } from '@/lib/hive/client-functions';
 import InfiniteScroll from 'react-infinite-scroll-component';
 
@@ -41,6 +41,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
     rewards: true,
     powerUpDown: true,
     savings: true,
+    conversions: true,
+    delegations: true,
   });
 
   useEffect(() => {
@@ -119,39 +121,51 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
-      case 'transfer':
-        return FaExchangeAlt;
-      case 'power_up':
-        return FaArrowUp;
+      case 'transfer': return FaExchangeAlt;
+      case 'power_up': return FaArrowUp;
       case 'power_down':
-        return FaArrowDown;
+      case 'power_down_payment': return FaArrowDown;
       case 'to_savings':
       case 'from_savings':
-        return FaPiggyBank;
+      case 'savings_complete':
+      case 'savings_cancel': return FaPiggyBank;
       case 'claim_rewards':
-        return FaGift;
-      default:
-        return FaExchangeAlt;
+      case 'author_reward':
+      case 'curation_reward':
+      case 'interest': return FaGift;
+      case 'delegation': return FaShareAlt;
+      case 'conversion': return FaRandom;
+      default: return FaExchangeAlt;
     }
   };
 
   const getTransactionColor = (type: string, from: string) => {
-    // Return theme color names instead of Chakra color schemes
-    if (type === 'claim_rewards') return 'accent';
+    if (type === 'claim_rewards' || type === 'author_reward' || type === 'curation_reward' || type === 'interest') return 'accent';
     if (type === 'power_up') return 'success';
-    if (type === 'power_down') return 'warning';
-    if (type === 'to_savings') return 'primary';
-    if (type === 'from_savings') return 'primary';
+    if (type === 'power_down' || type === 'power_down_payment') return 'warning';
+    if (type === 'to_savings' || type === 'from_savings' || type === 'savings_complete' || type === 'savings_cancel') return 'primary';
+    if (type === 'delegation') return 'primary';
+    if (type === 'conversion') return 'warning';
     return from === username ? 'error' : 'success';
   };
 
   const getTransactionLabel = (type: string, from: string, to: string) => {
-    if (type === 'claim_rewards') return 'Claim Rewards';
-    if (type === 'power_up') return 'Power Up';
-    if (type === 'power_down') return 'Power Down';
-    if (type === 'to_savings') return 'To Savings';
-    if (type === 'from_savings') return 'From Savings';
-    return from === username ? 'Sent' : 'Received';
+    switch (type) {
+      case 'claim_rewards': return 'Claim Rewards';
+      case 'author_reward': return 'Author Reward';
+      case 'curation_reward': return 'Curation Reward';
+      case 'interest': return 'HBD Interest';
+      case 'power_up': return 'Power Up';
+      case 'power_down': return 'Power Down';
+      case 'power_down_payment': return 'Power Down Payment';
+      case 'to_savings': return 'To Savings';
+      case 'from_savings': return 'From Savings';
+      case 'savings_complete': return 'Savings Withdrawal';
+      case 'savings_cancel': return 'Savings Cancelled';
+      case 'delegation': return from === username ? 'Delegated' : 'Received Delegation';
+      case 'conversion': return 'Conversion';
+      default: return from === username ? 'Sent' : 'Received';
+    }
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -173,22 +187,16 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
   // Filter transactions based on selected filters
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      // Transfer filters
       if (tx.type === 'transfer') {
         const isOutgoing = tx.from === username;
         if (isOutgoing && !filters.outgoing) return false;
         if (!isOutgoing && !filters.incoming) return false;
       }
-
-      // Rewards filter
-      if (tx.type === 'claim_rewards' && !filters.rewards) return false;
-
-      // Power Up/Down filter
-      if ((tx.type === 'power_up' || tx.type === 'power_down') && !filters.powerUpDown) return false;
-
-      // Savings filter
-      if ((tx.type === 'to_savings' || tx.type === 'from_savings') && !filters.savings) return false;
-
+      if (['claim_rewards', 'author_reward', 'curation_reward', 'interest'].includes(tx.type) && !filters.rewards) return false;
+      if (['power_up', 'power_down', 'power_down_payment'].includes(tx.type) && !filters.powerUpDown) return false;
+      if (['to_savings', 'from_savings', 'savings_complete', 'savings_cancel'].includes(tx.type) && !filters.savings) return false;
+      if (tx.type === 'conversion' && !filters.conversions) return false;
+      if (tx.type === 'delegation' && !filters.delegations) return false;
       return true;
     });
   }, [transactions, filters, username]);
@@ -261,6 +269,20 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
                 size="sm"
               >
                 <Text fontSize="sm">To / From Savings</Text>
+              </Checkbox>
+              <Checkbox
+                isChecked={filters.conversions}
+                onChange={(e) => setFilters({ ...filters, conversions: e.target.checked })}
+                size="sm"
+              >
+                <Text fontSize="sm">Conversions</Text>
+              </Checkbox>
+              <Checkbox
+                isChecked={filters.delegations}
+                onChange={(e) => setFilters({ ...filters, delegations: e.target.checked })}
+                size="sm"
+              >
+                <Text fontSize="sm">Delegations</Text>
               </Checkbox>
             </VStack>
           </Box>
