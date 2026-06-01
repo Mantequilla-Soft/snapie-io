@@ -18,7 +18,9 @@ interface PostCardProps {
 export default function PostCard({ post }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
     const postDate = getPostDate(created);
-    const metadata = JSON.parse(json_metadata);
+    const metadata = typeof json_metadata === 'object' && json_metadata !== null
+        ? json_metadata
+        : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })();
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const router = useRouter();
 

@@ -8,10 +8,10 @@ interface PostsInfiniteScrollProps {
     allPosts: Discussion[];
     fetchPosts: () => Promise<void>;
     viewMode: 'grid' | 'list';
+    hasMore?: boolean;
 }
 
-export default function PostsInfiniteScroll({ allPosts, fetchPosts, viewMode }: PostsInfiniteScrollProps) {
-    const hasMore = allPosts.length % 12 === 0; // Adjust this logic based on your pagination
+export default function PostsInfiniteScroll({ allPosts, fetchPosts, viewMode, hasMore = true }: PostsInfiniteScrollProps) {
 
     return (
         <InfiniteScroll

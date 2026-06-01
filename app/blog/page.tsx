@@ -13,6 +13,7 @@ export default function Blog() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [query, setQuery] = useState("created");
     const [allPosts, setAllPosts] = useState<Discussion[]>([]);
+    const [hasMore, setHasMore] = useState(true);
     const [mutedLoaded, setMutedLoaded] = useState(false);
     const isFetching = useRef(false);
     const mutedSetRef = useRef<Set<string>>(new Set());
@@ -21,35 +22,44 @@ export default function Blog() {
 
     const params = useRef({
         tag: tag,
-        limit: 12,
+        limit: 20,
         start_author: '',
         start_permlink: '',
     });
 
     async function fetchPosts() {
-        if (isFetching.current) return; // Prevent multiple fetches
+        if (isFetching.current) return;
         isFetching.current = true;
         try {
             const posts = await findPosts(query, params.current);
-            
+
+            if (posts.length === 0) {
+                setHasMore(false);
+                isFetching.current = false;
+                return;
+            }
+
             // Filter out comments and muted accounts
             const topLevelPosts = posts.filter((post: Discussion) => {
-                const isTopLevel = post.parent_author === '';
+                const isTopLevel = !post.parent_author;
                 const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
                 return isTopLevel && !isMuted;
             });
-            
-            if (topLevelPosts.length > 0) {
-                setAllPosts(prevPosts => [...prevPosts, ...topLevelPosts]);
-                // Use last visible post for pagination
-                const lastVisible = topLevelPosts[topLevelPosts.length - 1] ?? posts[posts.length - 1];
-                params.current = {
-                    tag: tag,
-                    limit: 12,
-                    start_author: lastVisible?.author || '',
-                    start_permlink: lastVisible?.permlink || '',
-                };
-            }
+
+            setAllPosts(prevPosts => [...prevPosts, ...topLevelPosts]);
+
+            // Advance cursor to last post from the API batch (not filtered list)
+            // so we don't re-fetch posts that were filtered out
+            const lastPost = posts[posts.length - 1];
+            params.current = {
+                tag: tag,
+                limit: 20,
+                start_author: lastPost?.author || '',
+                start_permlink: lastPost?.permlink || '',
+            };
+
+            if (posts.length < 20) setHasMore(false);
+
             isFetching.current = false;
         } catch (error) {
             console.log(error);
@@ -72,9 +82,10 @@ export default function Blog() {
         if (!mutedLoaded) return; // Wait for muted accounts to load
         
         setAllPosts([]);
+        setHasMore(true);
         params.current = {
             tag: tag,
-            limit: 12,
+            limit: 20,
             start_author: '',
             start_permlink: '',
         };
@@ -97,7 +108,7 @@ export default function Blog() {
             }}
         >
             <TopBar viewMode={viewMode} setViewMode={setViewMode} setQuery={setQuery} />
-            <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode={viewMode} />
+            <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode={viewMode} hasMore={hasMore} />
         </Box>
     );
 }
