@@ -7,9 +7,10 @@ import { useAioha } from '@aioha/react-ui';
 interface UserActionButtonsProps {
   targetUsername: string;
   currentUsername: string | null;
+  showBlacklist?: boolean;
 }
 
-export default function UserActionButtons({ targetUsername, currentUsername }: UserActionButtonsProps) {
+export default function UserActionButtons({ targetUsername, currentUsername, showBlacklist = true }: UserActionButtonsProps) {
   const { user } = useAioha();
   const toast = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
@@ -213,16 +214,18 @@ export default function UserActionButtons({ targetUsername, currentUsername }: U
       >
         {isMuted ? 'Unmute' : 'Mute'}
       </Button>
-      <Button
-        size="sm"
-        colorScheme={isBlacklisted ? 'red' : 'gray'}
-        variant={isBlacklisted ? 'solid' : 'outline'}
-        onClick={handleBlacklist}
-        isDisabled={isProcessing}
-        isLoading={isProcessing}
-      >
-        {isBlacklisted ? 'Unblacklist' : 'Blacklist'}
-      </Button>
+      {showBlacklist && (
+        <Button
+          size="sm"
+          colorScheme={isBlacklisted ? 'red' : 'gray'}
+          variant={isBlacklisted ? 'solid' : 'outline'}
+          onClick={handleBlacklist}
+          isDisabled={isProcessing}
+          isLoading={isProcessing}
+        >
+          {isBlacklisted ? 'Unblacklist' : 'Blacklist'}
+        </Button>
+      )}
     </HStack>
   );
 }
