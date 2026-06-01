@@ -255,7 +255,6 @@ export default function ProfilePage({ username }: ProfilePageProps) {
                   setConversation={setConversation}
                   onOpen={() => setIsReplyOpen(true)}
                   setReply={(c) => setReply(c as ExtendedComment)}
-                  post={true}
                   data={profileSnaps}
                 />
               )}

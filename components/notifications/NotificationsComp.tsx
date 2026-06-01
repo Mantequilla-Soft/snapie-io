@@ -38,6 +38,7 @@ import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 import {
   formatNotificationTime,
   getNotificationActor,
+  getNotificationPostKey,
   getNotificationRoute,
   getNotificationTypeLabel,
   NOTIFICATION_CATEGORIES,
@@ -580,16 +581,25 @@ function SingleNotificationRow({
   nested?: boolean;
 }) {
   const actor = getNotificationActor(notification);
+  const postKey = getNotificationPostKey(notification);
+  const permlink = postKey ? postKey.split('/')[1] : null;
+  const readableTitle = permlink ? permlink.replace(/-/g, ' ') : null;
 
   return (
     <NotificationShell unread={unread} onClick={onClick} nested={nested}>
       <Avatar size="sm" src={actor ? getHiveAvatarUrl(actor, 'small') : undefined} name={actor || undefined} />
       <Box flex="1" minW={0}>
         <Text fontWeight="semibold">{notification.msg || getNotificationTypeLabel(notification.type)}</Text>
-        <HStack fontSize="sm" opacity={0.72} spacing={2}>
+        <HStack fontSize="sm" opacity={0.72} spacing={2} flexWrap="wrap">
           <Text>{getNotificationTypeLabel(notification.type)}</Text>
           <Text>·</Text>
           <Text>{formatNotificationTime(notification.date)}</Text>
+          {readableTitle && (
+            <>
+              <Text>·</Text>
+              <Text isTruncated maxW="160px" opacity={0.8} fontStyle="italic">{readableTitle}</Text>
+            </>
+          )}
         </HStack>
       </Box>
     </NotificationShell>
