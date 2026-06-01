@@ -28,7 +28,7 @@
     "@mantequilla-soft/3speak-player": "^0.3.2",
     "@snapie/composer": "workspace:*",
     "@snapie/hangouts-core": "^0.6.1",
-    "@snapie/hangouts-react": "^0.7.1",
+    "@snapie/hangouts-react": "^0.7.2",
     "@snapie/operations": "workspace:*",
     "@snapie/renderer": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
