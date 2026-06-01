@@ -1,5 +1,5 @@
 import HiveClient from '@/lib/hive/hiveclient';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExtendedComment } from './useComments';
 import { getFollowing } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
@@ -17,9 +17,11 @@ interface UseSnapsProps {
 }
 
 export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps = {}) => {
-  const lastContainerRef = useRef<lastContainerInfo | null>(null); // Use useRef for last container
-  const fetchedPermlinksRef = useRef<Set<string>>(new Set()); // Track fetched permlinks
-  const followingListRef = useRef<string[]>([]); // Cache following list
+  const lastContainerRef = useRef<lastContainerInfo | null>(null);
+  const fetchedPermlinksRef = useRef<Set<string>>(new Set());
+  const followingListRef = useRef<string[]>([]);
+  const isFetchingRef = useRef(false);
+  const isThrottledRef = useRef(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [comments, setComments] = useState<ExtendedComment[]>([]);
@@ -148,10 +150,11 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
   useEffect(() => {
     lastContainerRef.current = null;
     fetchedPermlinksRef.current.clear();
+    isFetchingRef.current = false;
     setComments([]);
     setHasMore(true);
     setCurrentPage(1);
-    setFetchTrigger(prev => prev + 1); // Trigger a new fetch
+    setFetchTrigger(prev => prev + 1);
   }, [filterType, username]);
 
   // Fetch posts when `currentPage` changes (or when followingListLoaded changes for following filter)
@@ -164,15 +167,16 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     }
 
     const fetchPosts = async () => {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
       setIsLoading(true);
       try {
         const newSnaps = await getMoreSnaps();
 
         if (newSnaps.length < pageMinSize) {
-          setHasMore(false); // No more items to fetch
+          setHasMore(false);
         }
 
-        // Avoid duplicates in the comments array
         setComments((prevPosts) => {
           const existingPermlinks = new Set(prevPosts.map((post) => post.permlink));
           const uniqueSnaps = newSnaps.filter((snap) => !existingPermlinks.has(snap.permlink));
@@ -182,6 +186,7 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
         console.error('Error fetching posts:', err);
       } finally {
         setIsLoading(false);
+        isFetchingRef.current = false;
       }
     };
 
@@ -189,25 +194,18 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, fetchTrigger]);
 
-  // Load the next page with throttling
-  const loadNextPage = (() => {
-    let isThrottled = false;
-    return () => {
-      if (!isLoading && hasMore && !isThrottled) {
-        isThrottled = true;
-        setCurrentPage((prevPage) => prevPage + 1);
-        // Throttle for 1 second
-        setTimeout(() => {
-          isThrottled = false;
-        }, 1000);
-      }
-    };
-  })();
+  // Load the next page with throttling — ref-based so the flag survives re-renders
+  const loadNextPage = useCallback(() => {
+    if (isLoading || !hasMore || isThrottledRef.current) return;
+    isThrottledRef.current = true;
+    setCurrentPage((prevPage) => prevPage + 1);
+    setTimeout(() => { isThrottledRef.current = false; }, 1000);
+  }, [isLoading, hasMore]);
 
-  // Refresh function to refetch data (F5 equivalent)
   const refresh = () => {
     lastContainerRef.current = null;
     fetchedPermlinksRef.current.clear();
+    isFetchingRef.current = false;
     setComments([]);
     setHasMore(true);
     setCurrentPage(1);
