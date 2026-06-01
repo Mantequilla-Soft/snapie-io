@@ -45,7 +45,7 @@ export default function RightSideBar() {
         
         // Filter out comments and muted accounts
         const topLevelPosts = posts.filter((post: Discussion) => {
-          const isTopLevel = post.parent_author === '';
+          const isTopLevel = !post.parent_author;
           const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
           return isTopLevel && !isMuted;
         });

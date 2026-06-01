@@ -683,17 +683,17 @@ export async function getPost(user: string, postId: string) {
 export function getPayoutValue(post: any): string {
   if (!post?.created) return "0.000";
 
-  const createdDate = new Date(post.created);
-  const now = new Date();
+  // Bridge API returns payout as a plain number (pending or paid-out, already summed)
+  if (typeof post.payout === 'number') {
+    return post.payout.toFixed(3);
+  }
 
-  const timeDifferenceInMs = now.getTime() - createdDate.getTime();
-  const timeDifferenceInDays = timeDifferenceInMs / (1000 * 60 * 60 * 24);
-
+  // Condenser API: pick field based on whether the 7-day payout window has closed
+  const timeDifferenceInDays = (Date.now() - new Date(post.created).getTime()) / (1000 * 60 * 60 * 24);
   if (timeDifferenceInDays >= 7) {
     return (post.total_payout_value ?? "0.000 HBD").replace(" HBD", "");
-  } else {
-    return (post.pending_payout_value ?? "0.000 HBD").replace(" HBD", "");
   }
+  return (post.pending_payout_value ?? "0.000 HBD").replace(" HBD", "");
 }
 
 export async function findLastNotificationsReset(username: string, start = -1, loopCount = 0): Promise<string> {
@@ -768,9 +768,13 @@ export async function getCommunityInfo(username: string) {
 }
 
 export async function findPosts(query: string, params: any) {
+  // 'author_before_date' is a condenser-only method; bridge doesn't support it.
+  if (query === 'author_before_date') {
+    return HiveClient.database.call('get_discussions_by_author_before_date', [params]);
+  }
   // Bridge API has no 7-day payout-window restriction unlike the legacy
   // get_discussions_by_* condenser methods, so all posts are returned.
-  const posts = await HiveClient.call('bridge', 'get_ranked_posts', {
+  return HiveClient.call('bridge', 'get_ranked_posts', {
     sort: query,
     tag: params.tag || '',
     observer: '',
@@ -778,7 +782,6 @@ export async function findPosts(query: string, params: any) {
     start_author: params.start_author || '',
     start_permlink: params.start_permlink || '',
   });
-  return posts;
 }
 
 export async function getLastSnapsContainer() {

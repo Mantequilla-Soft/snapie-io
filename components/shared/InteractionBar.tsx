@@ -1,7 +1,7 @@
 import { Box, Flex, Icon, Button, Text, Slider, SliderTrack, SliderFilledTrack, SliderThumb, useToast } from '@chakra-ui/react';
 import React, { useState, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { FaHeart, FaComment, FaRegHeart, FaShare } from 'react-icons/fa';
+import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/fa';
 import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
@@ -151,13 +151,20 @@ export default function InteractionBar({
                         />
                         <Text ml={2} fontSize="sm">{voteCount}</Text>
                         
-                        <Icon 
-                            as={FaComment} 
-                            ml={4} 
+                        <Icon
+                            as={FaComment}
+                            ml={4}
                             cursor={onCommentClick ? "pointer" : "default"}
                             onClick={onCommentClick}
                         />
                         <Text ml={2} fontSize="sm">{post.children}</Text>
+
+                        {(post as any).reblogs > 0 && (
+                            <>
+                                <Icon as={FaRetweet} ml={4} />
+                                <Text ml={2} fontSize="sm">{(post as any).reblogs}</Text>
+                            </>
+                        )}
                         
                         {showShare && (
                             <Icon as={FaShare} ml={4} cursor="pointer" onClick={handleShare} />
