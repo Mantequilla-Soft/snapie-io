@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   VStack,
@@ -33,6 +33,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [oldestIndex, setOldestIndex] = useState(-1);
+  const isLoadingMore = useRef(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -53,10 +54,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
     const loadInitial = async () => {
       try {
         setLoading(true);
-        console.log('Loading initial transactions for:', username);
         const result = await getTransactionHistory(username, -1, 100);
         
-        console.log('Initial load - transactions:', result.transactions.length, 'oldestIndex:', result.oldestIndex);
         
         if (result.transactions.length === 0) {
           setHasMore(false);
@@ -69,10 +68,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
         
         // Only stop if we got less than 100 AND we're at index 0
         if (result.oldestIndex <= 0) {
-          console.log('All transactions loaded in initial batch');
           setHasMore(false);
         } else {
-          console.log('More transactions available, hasMore = true');
           setHasMore(true);
         }
         
@@ -88,34 +85,32 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
   }, [username]);
 
   const loadMore = async () => {
+    if (isLoadingMore.current) return;
+    isLoadingMore.current = true;
     try {
       if (oldestIndex <= 0) {
-        console.log('Reached the beginning of transaction history');
         setHasMore(false);
+        isLoadingMore.current = false;
         return;
       }
 
-      console.log('Loading more transactions from index:', oldestIndex);
       const result = await getTransactionHistory(username, oldestIndex - 1, 100);
       
-      console.log('Loaded', result.transactions.length, 'transactions, new oldestIndex:', result.oldestIndex);
       
       if (result.transactions.length === 0) {
-        console.log('No more transactions found');
         setHasMore(false);
         return;
       }
 
       setTransactions(prev => [...prev, ...result.transactions]);
       setOldestIndex(result.oldestIndex);
-      
-      if (result.oldestIndex <= 0) {
-        console.log('Reached transaction index 0');
-        setHasMore(false);
-      }
+
+      if (result.oldestIndex <= 0) setHasMore(false);
     } catch (error) {
       console.error('Error loading more transactions:', error);
       setHasMore(false);
+    } finally {
+      isLoadingMore.current = false;
     }
   };
 
