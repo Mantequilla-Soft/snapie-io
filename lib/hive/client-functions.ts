@@ -1025,16 +1025,15 @@ export async function getTransactionHistory(
       }),
     ]);
 
-    const allItems: [number, any][] = [
+    const pageItems: [number, any][] = [
       ...(realResult?.history ?? []),
       ...(virtualResult?.history ?? []),
-    ].sort((a, b) => b[0] - a[0]);
+    ].sort((a, b) => b[0] - a[0]).slice(0, limit);
 
     const transactions: Transaction[] = [];
-    let oldestIndex = -1;
+    const oldestIndex = pageItems.length > 0 ? pageItems[pageItems.length - 1][0] : -1;
 
-    for (const [index, tx] of allItems) {
-      if (oldestIndex === -1 || index < oldestIndex) oldestIndex = index;
+    for (const [, tx] of pageItems) {
 
       const opType = (tx.op.type as string).replace('_operation', '');
       const opData = tx.op.value;
@@ -1249,6 +1248,7 @@ export async function getTransactionHistory(
           });
           break;
 
+        case 'convert':
         case 'collateralized_convert':
           transactions.push({
             type: 'conversion',
