@@ -190,6 +190,3 @@ This script normalizes missing fields in existing `channels` and `chatusers` doc
 3. Run `npm run lint`
 4. Open a PR with a clear summary + test plan
 
----
-
-If you want, I can also refresh `.env.local.example` comments and add a short `docs/chat.md` with sequence diagrams for auth, DM delivery, and FCM fallback behavior.
