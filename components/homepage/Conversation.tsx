@@ -2,9 +2,10 @@ import { Box, Text, HStack, Button, Avatar, Divider, VStack, Spinner } from '@ch
 import { Comment } from '@hiveio/dhive';
 import { useComments } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
-import { ArrowBackIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface ConversationProps {
     comment: Comment;
@@ -16,7 +17,9 @@ interface ConversationProps {
 
 const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigger }: ConversationProps) => {
     const { hiveUser } = useHiveUser();
+    const router = useRouter();
     const { comments, isLoading, error, updateComments } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
+    const isTopLevel = !comment.parent_author || comment.parent_author === 'peak.snaps';
 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) updateComments();
@@ -47,6 +50,21 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
                 <Button onClick={onBackClick} variant="ghost" leftIcon={<ArrowBackIcon />}></Button>
                 <Text fontSize="lg" fontWeight="bold">Conversation</Text>
             </HStack>
+            {!isTopLevel && (
+                <HStack
+                    mb={2}
+                    px={1}
+                    spacing={1}
+                    fontSize="sm"
+                    color="gray.500"
+                    cursor="pointer"
+                    _hover={{ color: 'primary' }}
+                    onClick={() => router.push(`/@${comment.parent_author}/${comment.parent_permlink}`)}
+                >
+                    <ArrowUpIcon boxSize={3} />
+                    <Text>Replying to @{comment.parent_author}</Text>
+                </HStack>
+            )}
             <Snap comment={comment} onOpen={onOpen} setReply={setReply} />
             <Divider my={4} />
             <HStack justify="space-between" mt={3} onClick={handleReplyModal}>
