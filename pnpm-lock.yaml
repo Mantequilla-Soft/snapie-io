@@ -63,8 +63,8 @@ importers:
         specifier: ^0.6.1
         version: 0.6.1
       '@snapie/hangouts-react':
-        specifier: ^0.8.0
-        version: 0.8.0(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react@18.3.1)
+        specifier: ^0.8.1
+        version: 0.8.1(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react@18.3.1)
       '@snapie/operations':
         specifier: workspace:*
         version: link:packages/operations
@@ -1351,8 +1351,8 @@ packages:
   '@snapie/hangouts-core@0.6.1':
     resolution: {integrity: sha512-ucisCBuVLPQFALc4f4lwkmz2cUwUtSQvakpuEMFXk6ooUWdAyPOnf3WZURrWUiWUAhoIlV8BxMChKQrEHDM3wA==}
 
-  '@snapie/hangouts-react@0.8.0':
-    resolution: {integrity: sha512-YUDpbRwzGwziYdSbkGo2RvAV8dRq6ptRLz48hEn3LGnb8Qoz9AImxXHC4RYhUDZ6U0jG5DIKyBoO2yzPbWUI4Q==}
+  '@snapie/hangouts-react@0.8.1':
+    resolution: {integrity: sha512-LRTj0Fs8D7Kv22ZIJ2knPV814ZcBZc2KUGtfprxFLYcI7mz2dJpvkYj3MVXj76SfA11HAgaUC1R7waHCIr2CpQ==}
     peerDependencies:
       '@livekit/components-react': ^2.0.0
       livekit-client: ^2.0.0
@@ -5679,7 +5679,7 @@ snapshots:
 
   '@snapie/hangouts-core@0.6.1': {}
 
-  '@snapie/hangouts-react@0.8.0(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react@18.3.1)':
+  '@snapie/hangouts-react@0.8.1(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react@18.3.1)':
     dependencies:
       '@livekit/components-react': 2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1)
       '@snapie/hangouts-core': 0.5.1
