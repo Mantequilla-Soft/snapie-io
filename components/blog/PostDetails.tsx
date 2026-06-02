@@ -49,6 +49,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
     const { user } = useAioha();
     const router = useRouter();
     const canEdit = !isEmbedMode && user === author;
+    const hasParent = Boolean(post.depth > 0 && post.parent_author && post.parent_permlink);
 
     const bodySegments = useMemo((): BodySegment[] => {
         let html = markdownRenderer(body, { defaultEmojiOwner: author });
@@ -205,6 +206,20 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     </Tooltip>
                 )}
             </Flex>
+            {!isEmbedMode && hasParent && (
+                <Flex mb={3} gap={3} align="center" wrap="wrap">
+                    <Text fontSize="sm" color="secondary">Reply context:</Text>
+                    <Link
+                        as={NextLink}
+                        href={`/@${post.parent_author}/${post.parent_permlink}`}
+                        fontSize="sm"
+                        color="primary"
+                        fontWeight="semibold"
+                    >
+                        View parent
+                    </Link>
+                </Flex>
+            )}
             <Box mt={4} data-blog-post-body sx={bodySx}>
                 {bodySegments.map((seg, i) => {
                     if (seg.type === 'audio') {

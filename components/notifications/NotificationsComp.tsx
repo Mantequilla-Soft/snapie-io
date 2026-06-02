@@ -47,6 +47,7 @@ import {
 } from '@/lib/utils/notificationHelpers';
 import { groupNotifications, NotificationGroup } from '@/lib/utils/notificationGrouping';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { useNotificationContext } from '@/hooks/useNotificationContext';
 
 interface NotificationCompProps {
   username: string
@@ -229,6 +230,7 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
 
   const grouped = useMemo(() => groupNotifications(filtered), [filtered]);
   const bucketed = useMemo(() => bucketize(grouped), [grouped]);
+  const notificationContext = useNotificationContext(filtered);
 
   const summary = useMemo(() => {
     const now = new Date();
@@ -388,6 +390,7 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
                       group={group}
                       isUnread={isUnread}
                       onClick={handleNotificationClick}
+                      contextById={notificationContext}
                     />
                   ))}
                 </Stack>
@@ -500,10 +503,12 @@ function NotificationRow({
   group,
   isUnread,
   onClick,
+  contextById,
 }: {
   group: NotificationGroup;
   isUnread: (notification: Notifications) => boolean;
   onClick: (notification: Notifications) => void;
+  contextById: Record<string, { label: string; previewText: string; parentRoute: string } | undefined>;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -513,6 +518,7 @@ function NotificationRow({
         notification={group.notification}
         unread={isUnread(group.notification)}
         onClick={() => onClick(group.notification)}
+        contextPreview={contextById[group.notification.id]}
       />
     );
   }
@@ -561,6 +567,7 @@ function NotificationRow({
               unread={isUnread(notification)}
               onClick={() => onClick(notification)}
               nested
+              contextPreview={contextById[notification.id]}
             />
           ))}
         </Stack>
@@ -574,11 +581,13 @@ function SingleNotificationRow({
   unread,
   onClick,
   nested = false,
+  contextPreview,
 }: {
   notification: Notifications;
   unread: boolean;
   onClick: () => void;
   nested?: boolean;
+  contextPreview?: { label: string; previewText: string; parentRoute: string };
 }) {
   const actor = getNotificationActor(notification);
   const postKey = getNotificationPostKey(notification);
@@ -601,6 +610,21 @@ function SingleNotificationRow({
             </>
           )}
         </HStack>
+        {contextPreview && (
+          <Text mt={1} fontSize="sm" opacity={0.86} noOfLines={2}>
+            <Text as="span" fontWeight="semibold">{contextPreview.label}: </Text>
+            <Text
+              as="a"
+              href={contextPreview.parentRoute}
+              onClick={(event) => event.stopPropagation()}
+              color="primary"
+              textDecoration="underline"
+              _hover={{ opacity: 0.9 }}
+            >
+              {`"${contextPreview.previewText}"`}
+            </Text>
+          </Text>
+        )}
       </Box>
     </NotificationShell>
   );
