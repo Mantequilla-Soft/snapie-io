@@ -7,7 +7,6 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { useRouter } from 'next/navigation';
 import NextLink from 'next/link';
 import InteractionBar from '@/components/shared/InteractionBar';
 
@@ -23,8 +22,8 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         ? json_metadata
         : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })();
     const [imageUrls, setImageUrls] = useState<string[]>([]);
-    const router = useRouter();
     const safeBody = typeof body === 'string' ? body : '';
+    const postHref = `/@${encodeURIComponent(author || '')}/${encodeURIComponent(post.permlink || '')}`;
     const snippet = safeBody
         .replace(/<[^>]*>/g, ' ')
         .replace(/!\[[^\]]*]\(([^)]+)\)/g, ' ')
@@ -57,10 +56,6 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         const markdownImages = markdownMatches.map(match => match[1]);
         const htmlImages = htmlMatches.map(match => match[1]);
         return [...markdownImages, ...htmlImages];
-    }
-
-    function viewPost() {
-        router.push('/@' + author + '/' + post.permlink);
     }
 
     // **Function to load more slides**
@@ -104,23 +99,27 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             {/* Content Section */}
             <Box display="flex" flexDirection="column" flexGrow={1} cursor="pointer">
                 <Text
+                    as={NextLink}
+                    href={postHref}
                     fontWeight="bold"
                     fontSize="lg"
                     textAlign="left"
-                    onClick={viewPost}
                     mb={2}
                     noOfLines={compact ? 2 : 1}
+                    _hover={{ textDecoration: 'underline', textUnderlineOffset: '3px' }}
                 >
                     {title || 'Untitled post'}
                 </Text>
                 {compact && snippet && (
                     <Text
+                        as={NextLink}
+                        href={postHref}
                         fontSize="sm"
                         color="text"
                         opacity={0.82}
                         noOfLines={3}
                         mb={3}
-                        onClick={viewPost}
+                        _hover={{ opacity: 1 }}
                     >
                         {snippet}
                     </Text>
@@ -137,7 +136,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                     >
                         {imageUrls.slice(0, visibleImages).map((url, index) => (
                             <SwiperSlide key={index}>
-                                <Box h="200px" w="100%">
+                                <Box as={NextLink} href={postHref} h="200px" w="100%" cursor="pointer">
                                     <Image
                                         src={url}
                                         alt={title}

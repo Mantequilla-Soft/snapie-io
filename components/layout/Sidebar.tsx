@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import NextLink from 'next/link';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus } from 'react-icons/fi';
@@ -39,7 +40,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const { openLoginModal } = useLoginModal();
     const isLoggedIn = !!user;
     const logout = () => aioha.logout();
-    const router = useRouter();
     const pathname = usePathname();
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null); // State to hold community info
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null); // State to hold profile info
@@ -84,12 +84,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
 
         fetchData();
     }, []);
-
-    const handleNavigation = (path: string) => {
-        if (router) {
-            router.push(path);
-        }
-    };
 
     return (
         <Box
@@ -153,7 +147,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                     <Tooltip label="Home" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
-                                onClick={() => handleNavigation("/")}
+                                as={NextLink}
+                                href="/"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -170,7 +165,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                     <Tooltip label="Blog" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
-                                onClick={() => handleNavigation("/blog")}
+                                as={NextLink}
+                                href="/blog"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -186,7 +182,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                     <Tooltip label="OpenPods" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full" position="relative">
                             <Button
-                                onClick={() => handleNavigation("/hangouts")}
+                                as={NextLink}
+                                href="/hangouts"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -205,7 +202,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Tooltip label="Notifications" placement="right" hasArrow isDisabled={!isCompactMode}>
                                 <Box w="full" position="relative">
                                     <Button
-                                        onClick={() => handleNavigation("/@" + user + "/notifications")}
+                                        as={NextLink}
+                                        href={`/@${user}/notifications`}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -233,7 +231,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Tooltip label="Profile" placement="right" hasArrow isDisabled={!isCompactMode}>
                                 <Box w="full">
                                     <Button
-                                        onClick={() => handleNavigation("/@" + user)}
+                                        as={NextLink}
+                                        href={`/@${user}`}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -260,7 +259,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Tooltip label="Wallet" placement="right" hasArrow isDisabled={!isCompactMode}>
                                 <Box w="full">
                                     <Button
-                                        onClick={() => handleNavigation("/@" + user + '/wallet')}
+                                        as={NextLink}
+                                        href={`/@${user}/wallet`}
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -316,7 +316,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Tooltip label="Create account" placement="right" hasArrow isDisabled={!isCompactMode}>
                             <Box w="full">
                                 <Button
-                                    onClick={() => router.push('/join')}
+                                    as={NextLink}
+                                    href="/join"
                                     variant="ghost"
                                     w="full"
                                     justifyContent={iconJustify}
