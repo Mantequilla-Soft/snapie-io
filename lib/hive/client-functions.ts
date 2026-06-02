@@ -1002,6 +1002,123 @@ export async function getCryptoPrices(): Promise<{ hive: number; hbd: number }> 
   }
 }
 
+export type SwapDirection = 'HIVE_TO_HBD' | 'HBD_TO_HIVE';
+
+interface HiveTickerResponse {
+  latest?: string;
+  highest_bid?: string;
+  lowest_ask?: string;
+}
+
+interface HiveMarketQuote {
+  latest: number;
+  highestBid: number;
+  lowestAsk: number;
+}
+
+async function getHiveHbdMarketQuote(): Promise<HiveMarketQuote> {
+  const ticker = await HiveClient.call('condenser_api', 'get_ticker', []) as HiveTickerResponse;
+  return {
+    latest: Number(ticker?.latest || 0),
+    highestBid: Number(ticker?.highest_bid || 0),
+    lowestAsk: Number(ticker?.lowest_ask || 0),
+  };
+}
+
+export async function getHiveHbdTicker(): Promise<number> {
+  try {
+    const { latest, highestBid, lowestAsk } = await getHiveHbdMarketQuote();
+    if (Number.isFinite(latest) && latest > 0) return latest;
+
+    if (Number.isFinite(highestBid) && Number.isFinite(lowestAsk) && highestBid > 0 && lowestAsk > 0) {
+      return (highestBid + lowestAsk) / 2;
+    }
+  } catch (error) {
+    console.error('Error fetching Hive ticker:', error);
+  }
+
+  throw new Error('Unable to fetch HIVE/HBD market price.');
+}
+
+function toAsset(value: number, symbol: 'HIVE' | 'HBD'): string {
+  return `${value.toFixed(3)} ${symbol}`;
+}
+
+async function formatExpirationFromHeadBlock(minutesFromNow = 5): Promise<string> {
+  const dynamicProps = await HiveClient.call('condenser_api', 'get_dynamic_global_properties', []);
+  const headBlockTimeRaw = dynamicProps?.time;
+  if (!headBlockTimeRaw || typeof headBlockTimeRaw !== 'string') {
+    throw new Error('Unable to read head block time for swap expiration.');
+  }
+
+  // Chain time is UTC without timezone marker.
+  const headBlockMs = Date.parse(`${headBlockTimeRaw}Z`);
+  if (!Number.isFinite(headBlockMs)) {
+    throw new Error('Invalid head block time returned by node.');
+  }
+
+  return new Date(headBlockMs + minutesFromNow * 60 * 1000).toISOString().split('.')[0];
+}
+
+function randomOrderId(): number {
+  return Math.floor(100000000 + Math.random() * 900000000);
+}
+
+interface FastSwapArgs {
+  username: string;
+  direction: SwapDirection;
+  amount: number;
+  slippagePercent: number;
+}
+
+export async function swapHiveHbdWithSlippage({
+  username,
+  direction,
+  amount,
+  slippagePercent,
+}: FastSwapArgs) {
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Swap amount must be greater than zero.');
+  }
+  if (!Number.isFinite(slippagePercent) || slippagePercent < 0 || slippagePercent > 20) {
+    throw new Error('Slippage must be between 0% and 20%.');
+  }
+
+  const quote = await getHiveHbdMarketQuote();
+  const executablePrice = direction === 'HIVE_TO_HBD'
+    ? quote.highestBid || quote.latest
+    : quote.lowestAsk || quote.latest;
+  if (!Number.isFinite(executablePrice) || executablePrice <= 0) {
+    throw new Error('Market price is unavailable. Please try again.');
+  }
+
+  const expectedReceive = direction === 'HIVE_TO_HBD'
+    ? amount * executablePrice
+    : amount / executablePrice;
+  const minReceive = expectedReceive * (1 - slippagePercent / 100);
+
+  const amountToSell = direction === 'HIVE_TO_HBD'
+    ? toAsset(amount, 'HIVE')
+    : toAsset(amount, 'HBD');
+  const minToReceive = direction === 'HIVE_TO_HBD'
+    ? toAsset(minReceive, 'HBD')
+    : toAsset(minReceive, 'HIVE');
+
+  const op = [
+    'limit_order_create',
+    {
+      owner: username,
+      orderid: randomOrderId(),
+      amount_to_sell: amountToSell,
+      min_to_receive: minToReceive,
+      fill_or_kill: true,
+      expiration: await formatExpirationFromHeadBlock(5),
+    },
+  ];
+
+  return broadcastWithKeychain(username, [op], 'active');
+}
+
 export interface Transaction {
   type: string;
   from: string;
@@ -1040,26 +1157,15 @@ export async function getTransactionHistory(
     const totalVestingShares = extractNumber(globalProps.total_vesting_shares);
     const vestsToHive = (vests: number) => (totalVestingFund * vests) / totalVestingShares;
 
-    const [realResult, virtualResult] = await Promise.all([
-      HiveClient.call('account_history_api', 'get_account_history', {
-        account: username,
-        start,
-        limit,
-        include_reversible: true,
-        operation_filter_low: REAL_OPS_MASK,
-      }),
-      HiveClient.call('account_history_api', 'get_account_history', {
-        account: username,
-        start,
-        limit,
-        include_reversible: true,
-        operation_filter_low: VIRTUAL_OPS_MASK,
-      }),
-    ]);
+    const historyResult = await HiveClient.call('account_history_api', 'get_account_history', {
+      account: username,
+      start,
+      limit,
+      include_reversible: true,
+    });
 
     const pageItems: [number, any][] = [
-      ...(realResult?.history ?? []),
-      ...(virtualResult?.history ?? []),
+      ...(historyResult?.history ?? []),
     ].sort((a, b) => b[0] - a[0]).slice(0, limit);
 
     const transactions: Transaction[] = [];
@@ -1292,6 +1398,48 @@ export async function getTransactionHistory(
             trx_id,
           });
           break;
+
+        case 'limit_order_create':
+        case 'limit_order_create2':
+          transactions.push({
+            type: opData.fill_or_kill ? 'market_swap_order' : 'limit_order',
+            from: opData.owner,
+            to: opData.owner,
+            amount: `${formatHiveAmount(opData.amount_to_sell)} -> ${formatHiveAmount(opData.min_to_receive)}`,
+            memo: opData.fill_or_kill ? 'Swap Order (IOC)' : 'Limit Order Created',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'limit_order_cancel':
+          transactions.push({
+            type: 'limit_order_cancel',
+            from: opData.owner,
+            to: opData.owner,
+            amount: '',
+            memo: 'Limit Order Cancelled',
+            timestamp,
+            trx_id,
+          });
+          break;
+
+        case 'fill_order': {
+          const isCurrentOwner = opData.current_owner === username;
+          const paid = isCurrentOwner ? opData.current_pays : opData.open_pays;
+          const received = isCurrentOwner ? opData.open_pays : opData.current_pays;
+          const counterparty = isCurrentOwner ? opData.open_owner : opData.current_owner;
+          transactions.push({
+            type: 'market_swap_fill',
+            from: username,
+            to: counterparty || username,
+            amount: `${formatHiveAmount(paid)} -> ${formatHiveAmount(received)}`,
+            memo: `Filled with @${counterparty || 'unknown'}`,
+            timestamp,
+            trx_id,
+          });
+          break;
+        }
       }
     }
 

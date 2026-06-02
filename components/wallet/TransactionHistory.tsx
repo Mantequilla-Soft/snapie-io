@@ -130,6 +130,10 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
       case 'interest': return FaGift;
       case 'delegation': return FaShareAlt;
       case 'conversion': return FaRandom;
+      case 'market_swap_order':
+      case 'market_swap_fill':
+      case 'limit_order':
+      case 'limit_order_cancel': return FaRandom;
       default: return FaExchangeAlt;
     }
   };
@@ -141,6 +145,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
     if (type === 'to_savings' || type === 'from_savings' || type === 'savings_complete' || type === 'savings_cancel') return 'primary';
     if (type === 'delegation') return 'primary';
     if (type === 'conversion') return 'warning';
+    if (type === 'market_swap_order' || type === 'market_swap_fill') return 'accent';
+    if (type === 'limit_order' || type === 'limit_order_cancel') return 'warning';
     return from === username ? 'error' : 'success';
   };
 
@@ -159,6 +165,10 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
       case 'savings_cancel': return 'Savings Cancelled';
       case 'delegation': return from === username ? 'Delegated' : 'Received Delegation';
       case 'conversion': return 'Conversion';
+      case 'market_swap_order': return 'Swap Order';
+      case 'market_swap_fill': return 'Swap Fill';
+      case 'limit_order': return 'Limit Order';
+      case 'limit_order_cancel': return 'Order Cancelled';
       default: return from === username ? 'Sent' : 'Received';
     }
   };
@@ -190,7 +200,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
       if (['claim_rewards', 'author_reward', 'curation_reward', 'interest'].includes(tx.type) && !filters.rewards) return false;
       if (['power_up', 'power_down', 'power_down_payment'].includes(tx.type) && !filters.powerUpDown) return false;
       if (['to_savings', 'from_savings', 'savings_complete', 'savings_cancel'].includes(tx.type) && !filters.savings) return false;
-      if (tx.type === 'conversion' && !filters.conversions) return false;
+      if (['conversion', 'market_swap_order', 'market_swap_fill', 'limit_order', 'limit_order_cancel'].includes(tx.type) && !filters.conversions) return false;
       if (tx.type === 'delegation' && !filters.delegations) return false;
       return true;
     });
@@ -305,8 +315,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
         >
           <VStack spacing={0} align="stretch">
             {filteredTransactions.map((tx, index) => {
-            const isOutgoing = tx.from === username && tx.type === 'transfer';
-            const otherParty = isOutgoing ? tx.to : tx.from;
+            const isOutgoingTransfer = tx.from === username && tx.type === 'transfer';
+            const otherParty = isOutgoingTransfer ? tx.to : tx.from;
             
             return (
               <Box key={`${tx.timestamp}-${index}`}>
@@ -346,7 +356,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
                       </Badge>
                       {tx.type === 'transfer' && (
                         <Text fontSize="xs" color="gray.600" isTruncated>
-                          {isOutgoing ? 'to' : 'from'} @{otherParty}
+                          {isOutgoingTransfer ? 'to' : 'from'} @{otherParty}
                         </Text>
                       )}
                       <Text fontSize="2xs" color="gray.400" ml="auto" flexShrink={0}>
@@ -365,10 +375,10 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
                   <Text
                     fontWeight="semibold"
                     fontSize="xs"
-                    color={isOutgoing && tx.type === 'transfer' ? 'error' : 'success'}
+                    color={isOutgoingTransfer && tx.type === 'transfer' ? 'error' : 'success'}
                     flexShrink={0}
                   >
-                    {isOutgoing && tx.type === 'transfer' ? '-' : '+'} {tx.amount}
+                    {tx.type === 'transfer' ? (isOutgoingTransfer ? '-' : '+') : ''} {tx.amount}
                   </Text>
                 </Flex>
                 {index < filteredTransactions.length - 1 && <Divider />}
