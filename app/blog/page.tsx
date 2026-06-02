@@ -1,17 +1,23 @@
 'use client';
-import { Box } from '@chakra-ui/react';
+import { Box, Text } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { findPosts } from '@/lib/hive/client-functions';
+import { findPosts, searchPosts } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
 import TopBar from '@/components/blog/TopBar';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 export default function Blog() {
     const { hiveUser } = useHiveUser();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-    const [query, setQuery] = useState("created");
+    const [query, setQuery] = useState('created');
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+    const [activeSearchTerm, setActiveSearchTerm] = useState(searchParams.get('q') || '');
     const [allPosts, setAllPosts] = useState<Discussion[]>([]);
     const [hasMore, setHasMore] = useState(true);
     const [mutedLoaded, setMutedLoaded] = useState(false);
@@ -27,10 +33,57 @@ export default function Blog() {
         start_permlink: '',
     });
 
+    useEffect(() => {
+        const initial = searchParams.get('q') || '';
+        setSearchTerm(initial);
+        setActiveSearchTerm(initial);
+    }, [searchParams]);
+
     async function fetchPosts() {
         if (isFetching.current) return;
         isFetching.current = true;
         try {
+            if (activeSearchTerm) {
+                const results = await searchPosts(activeSearchTerm, {
+                    limit: 20,
+                    truncate: 320,
+                    fullPosts: 10,
+                    observer: hiveUser?.name || '',
+                });
+
+                const seenKeys = new Set<string>();
+                const topLevelResults = results.filter((post: Discussion) => {
+                    const title = typeof post.title === 'string' ? post.title.trim() : '';
+                    const body = typeof post.body === 'string' ? post.body.trim() : '';
+                    const isTopLevel = !post.parent_author;
+                    const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
+                    const author = post.author || '';
+                    const permlink = post.permlink || '';
+                    const dedupeKey = `${author}/${permlink}`;
+                    const hasRenderableContent = Boolean(title && body);
+                    const hasGarbageNaN = /na+a+n/i.test(title) || /na+a+n/i.test(body);
+                    const isDuplicate = seenKeys.has(dedupeKey);
+                    if (!isDuplicate && author && permlink) seenKeys.add(dedupeKey);
+                    return (
+                        isTopLevel &&
+                        !isMuted &&
+                        !isDuplicate &&
+                        Boolean(author && permlink) &&
+                        hasRenderableContent &&
+                        !hasGarbageNaN
+                    );
+                }).sort((a: Discussion, b: Discussion) => {
+                    const aTime = a.created ? new Date(a.created).getTime() : 0;
+                    const bTime = b.created ? new Date(b.created).getTime() : 0;
+                    return bTime - aTime;
+                });
+
+                setAllPosts(topLevelResults);
+                setHasMore(false);
+                isFetching.current = false;
+                return;
+            }
+
             const posts = await findPosts(query, params.current);
 
             if (posts.length === 0) {
@@ -67,6 +120,15 @@ export default function Blog() {
         }
     }
 
+    useEffect(() => {
+        const next = new URLSearchParams(searchParams.toString());
+        if (activeSearchTerm) next.set('q', activeSearchTerm);
+        else next.delete('q');
+
+        const queryString = next.toString();
+        router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+    }, [activeSearchTerm, pathname, router, searchParams]);
+
     // Load muted accounts on mount and when user changes (login/logout)
     useEffect(() => {
         setMutedLoaded(false);
@@ -82,7 +144,7 @@ export default function Blog() {
         if (!mutedLoaded) return; // Wait for muted accounts to load
         
         setAllPosts([]);
-        setHasMore(true);
+        setHasMore(!activeSearchTerm);
         params.current = {
             tag: tag,
             limit: 20,
@@ -91,7 +153,16 @@ export default function Blog() {
         };
         fetchPosts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, mutedLoaded, tag]); // fetchPosts excluded - callback identity changes each render
+    }, [query, mutedLoaded, tag, activeSearchTerm, hiveUser?.name]); // fetchPosts excluded - callback identity changes each render
+
+    const submitSearch = () => {
+        setActiveSearchTerm(searchTerm.trim());
+    };
+
+    const clearSearch = () => {
+        setSearchTerm('');
+        setActiveSearchTerm('');
+    };
 
     return (
         <Box
@@ -107,8 +178,27 @@ export default function Blog() {
                 scrollbarWidth: 'none',
             }}
         >
-            <TopBar viewMode={viewMode} setViewMode={setViewMode} setQuery={setQuery} />
-            <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode={viewMode} hasMore={hasMore} />
+            <TopBar
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                setQuery={setQuery}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                onSearchSubmit={submitSearch}
+                onSearchClear={clearSearch}
+            />
+            {activeSearchTerm && (
+                <Text fontSize="sm" color="text" opacity={0.75} mb={3}>
+                    {`Search results for "${activeSearchTerm}" (${allPosts.length})`}
+                </Text>
+            )}
+            <PostInfiniteScroll
+                allPosts={allPosts}
+                fetchPosts={fetchPosts}
+                viewMode={viewMode}
+                hasMore={hasMore}
+                searchMode={Boolean(activeSearchTerm)}
+            />
         </Box>
     );
 }

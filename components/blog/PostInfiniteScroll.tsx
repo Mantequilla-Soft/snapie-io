@@ -9,9 +9,16 @@ interface PostsInfiniteScrollProps {
     fetchPosts: () => Promise<void>;
     viewMode: 'grid' | 'list';
     hasMore?: boolean;
+    searchMode?: boolean;
 }
 
-export default function PostsInfiniteScroll({ allPosts, fetchPosts, viewMode, hasMore = true }: PostsInfiniteScrollProps) {
+export default function PostsInfiniteScroll({
+    allPosts,
+    fetchPosts,
+    viewMode,
+    hasMore = true,
+    searchMode = false,
+}: PostsInfiniteScrollProps) {
 
     return (
         <InfiniteScroll
@@ -25,7 +32,13 @@ export default function PostsInfiniteScroll({ allPosts, fetchPosts, viewMode, ha
                 )}
             scrollableTarget="scrollableDiv"
         >
-            {allPosts && (<PostGrid posts={allPosts ?? []} columns={viewMode === 'grid' ? 3 : 1} />)}
+            {allPosts && (
+                <PostGrid
+                    posts={allPosts ?? []}
+                    columns={viewMode === 'grid' ? 3 : 1}
+                    searchMode={searchMode}
+                />
+            )}
         </InfiniteScroll>
     );
 }

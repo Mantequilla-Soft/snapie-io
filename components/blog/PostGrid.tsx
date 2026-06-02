@@ -10,9 +10,10 @@ import { Discussion } from '@hiveio/dhive';
 interface PostGridProps {
     posts: Discussion[];
     columns: 1 | 2 | 3 | 4;
+    searchMode?: boolean;
 }
 
-export default function PostGrid({ posts, columns }: PostGridProps) {
+export default function PostGrid({ posts, columns, searchMode = false }: PostGridProps) {
 
     return (
         <SimpleGrid
@@ -20,7 +21,7 @@ export default function PostGrid({ posts, columns }: PostGridProps) {
             spacing={4}
         >
             {posts.map((post) => (
-                <PostCard key={post.permlink} post={post} />
+                <PostCard key={`${post.author}/${post.permlink}`} post={post} compact={searchMode} />
             ))}
         </SimpleGrid>
     );

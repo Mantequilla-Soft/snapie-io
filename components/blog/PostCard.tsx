@@ -13,9 +13,10 @@ import InteractionBar from '@/components/shared/InteractionBar';
 
 interface PostCardProps {
     post: Discussion;
+    compact?: boolean;
 }
 
-export default function PostCard({ post }: PostCardProps) {
+export default function PostCard({ post, compact = false }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
     const postDate = getPostDate(created);
     const metadata = typeof json_metadata === 'object' && json_metadata !== null
@@ -23,6 +24,13 @@ export default function PostCard({ post }: PostCardProps) {
         : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })();
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const router = useRouter();
+    const safeBody = typeof body === 'string' ? body : '';
+    const snippet = safeBody
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/!\[[^\]]*]\(([^)]+)\)/g, ' ')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     // **State to control how many images to show initially**
     const [visibleImages, setVisibleImages] = useState<number>(3); // Start with 3 images
@@ -37,13 +45,15 @@ export default function PostCard({ post }: PostCardProps) {
                 : [];
             if (metaImages.length > 0) setImageUrls(metaImages);
         }
-    }, [body]);
+    }, [body, metadata]);
 
-    function extractImagesFromBody(body: string): string[] {
+    function extractImagesFromBody(rawBody: unknown): string[] {
+        if (typeof rawBody !== 'string' || !rawBody) return [];
+
         const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
         const htmlImageRegex = /<img\s+[^>]*src="([^"]*)"[^>]*>/g;
-        const markdownMatches = Array.from(body.matchAll(markdownImageRegex)) as RegExpExecArray[];
-        const htmlMatches = Array.from(body.matchAll(htmlImageRegex)) as RegExpExecArray[];
+        const markdownMatches = Array.from(rawBody.matchAll(markdownImageRegex)) as RegExpExecArray[];
+        const htmlMatches = Array.from(rawBody.matchAll(htmlImageRegex)) as RegExpExecArray[];
         const markdownImages = markdownMatches.map(match => match[1]);
         const htmlImages = htmlMatches.map(match => match[1]);
         return [...markdownImages, ...htmlImages];
@@ -93,17 +103,29 @@ export default function PostCard({ post }: PostCardProps) {
 
             {/* Content Section */}
             <Box display="flex" flexDirection="column" flexGrow={1} cursor="pointer">
-            <Text 
-    fontWeight="bold" 
-    fontSize="lg" 
-    textAlign="left" 
-    onClick={viewPost} 
-    mb={2}
-    isTruncated
->
-    {title}
-</Text>
-            {imageUrls.length > 0 && (
+                <Text
+                    fontWeight="bold"
+                    fontSize="lg"
+                    textAlign="left"
+                    onClick={viewPost}
+                    mb={2}
+                    noOfLines={compact ? 2 : 1}
+                >
+                    {title || 'Untitled post'}
+                </Text>
+                {compact && snippet && (
+                    <Text
+                        fontSize="sm"
+                        color="text"
+                        opacity={0.82}
+                        noOfLines={3}
+                        mb={3}
+                        onClick={viewPost}
+                    >
+                        {snippet}
+                    </Text>
+                )}
+            {imageUrls.length > 0 && !compact && (
                 <Box flex="1" display="flex" alignItems="flex-end" justifyContent="center">
                     <Swiper
                         spaceBetween={10}
@@ -134,7 +156,7 @@ export default function PostCard({ post }: PostCardProps) {
         </Box>
 
             {/* Interaction Bar */}
-            <Box mt="auto">
+            <Box mt="auto" opacity={compact ? 0.92 : 1}>
                 <InteractionBar post={post} showShare={false} />
             </Box>
         </Box>
