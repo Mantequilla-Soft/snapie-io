@@ -13,6 +13,7 @@ import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
+import { isSnapContainer } from '@/lib/utils/snapUtils';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -49,7 +50,14 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
     const { user } = useAioha();
     const router = useRouter();
     const canEdit = !isEmbedMode && user === author;
-    const hasParent = Boolean(post.depth > 0 && post.parent_author && post.parent_permlink);
+    // Suppress the parent link for "top snaps" (direct replies to the snap container):
+    // navigating there would load the entire container thread (hundreds of snaps).
+    const hasParent = Boolean(
+        post.depth > 0 &&
+        post.parent_author &&
+        post.parent_permlink &&
+        !isSnapContainer(post.parent_author, post.parent_permlink)
+    );
 
     const bodySegments = useMemo((): BodySegment[] => {
         let html = markdownRenderer(body, { defaultEmojiOwner: author });
