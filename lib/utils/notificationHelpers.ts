@@ -125,3 +125,35 @@ export function parseHiveDate(dateString?: string): Date {
   if (!dateString) return new Date(0);
   return new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
 }
+
+export function normalizeNotificationPreviewText(text?: string): string {
+  if (!text) return '';
+
+  return text
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/!\[[^\]]*]\(([^)]+)\)/g, ' ')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, ' ')
+    .replace(/[_*~>#-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function truncatePreviewWords(text: string, minWords = 12, maxWords = 16): string {
+  const cleaned = normalizeNotificationPreviewText(text);
+  if (!cleaned) return '';
+
+  const words = cleaned.split(/\s+/);
+  if (words.length <= maxWords) return cleaned;
+
+  let cut = maxWords;
+  for (let i = minWords; i <= maxWords; i += 1) {
+    const word = words[i - 1];
+    if (word && /[.!?]$/.test(word)) {
+      cut = i;
+      break;
+    }
+  }
+
+  return `${words.slice(0, cut).join(' ')}…`;
+}
