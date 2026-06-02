@@ -31,6 +31,7 @@ import {
   delegateWithKeychain,
   broadcastWithKeychain,
   getHiveHbdTicker,
+  getHiveHbdMarketQuote,
   swapHiveHbdWithSlippage,
   type SwapDirection,
 } from '@/lib/hive/client-functions';
@@ -69,6 +70,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [modalContent, setModalContent] = useState<WalletModalContent | null>(null);
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
   const [swapPrice, setSwapPrice] = useState<number | null>(null);
+  const [swapQuote, setSwapQuote] = useState<{ highestBid: number; lowestAsk: number; latest: number } | null>(null);
 
   const textMuted = 'gray.400';
   const successColor = 'success';
@@ -133,8 +135,12 @@ export default function WalletPage({ username }: WalletPageProps) {
   useEffect(() => {
     const fetchSwapPrice = async () => {
       try {
-        const ticker = await getHiveHbdTicker();
+        const [ticker, marketQuote] = await Promise.all([
+          getHiveHbdTicker(),
+          getHiveHbdMarketQuote(),
+        ]);
         setSwapPrice(ticker);
+        setSwapQuote(marketQuote);
       } catch (err) {
         console.error('Failed to fetch HIVE/HBD ticker', err);
       }
@@ -148,6 +154,12 @@ export default function WalletPage({ username }: WalletPageProps) {
     setModalContent(content);
     onOpen();
   };
+
+  const executableSwapPrice = modalContent?.swapDirection
+    ? (modalContent.swapDirection === 'HIVE_TO_HBD'
+      ? (swapQuote?.highestBid || swapQuote?.latest || swapPrice || 0)
+      : (swapQuote?.lowestAsk || swapQuote?.latest || swapPrice || 0))
+    : swapPrice || 0;
 
   async function handleConfirm(amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) {
     if (!modalContent || !user) return;
@@ -592,7 +604,7 @@ export default function WalletPage({ username }: WalletPageProps) {
         swapConfig={{
           enabled: Boolean(modalContent?.swapDirection),
           direction: modalContent?.swapDirection || 'HIVE_TO_HBD',
-          price: swapPrice || undefined,
+          price: executableSwapPrice || undefined,
           slippagePercent: 0.5,
         }}
         onConfirm={handleConfirm}

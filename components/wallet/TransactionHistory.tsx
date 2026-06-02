@@ -280,7 +280,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
                 onChange={(e) => setFilters({ ...filters, conversions: e.target.checked })}
                 size="sm"
               >
-                <Text fontSize="sm">Conversions</Text>
+                <Text fontSize="sm">Conversions / Swaps</Text>
               </Checkbox>
               <Checkbox
                 isChecked={filters.delegations}

@@ -1010,19 +1010,26 @@ interface HiveTickerResponse {
   lowest_ask?: string;
 }
 
-interface HiveMarketQuote {
+export interface HiveMarketQuote {
   latest: number;
   highestBid: number;
   lowestAsk: number;
 }
 
-async function getHiveHbdMarketQuote(): Promise<HiveMarketQuote> {
+export async function getHiveHbdMarketQuote(): Promise<HiveMarketQuote> {
   const ticker = await HiveClient.call('condenser_api', 'get_ticker', []) as HiveTickerResponse;
   return {
     latest: Number(ticker?.latest || 0),
     highestBid: Number(ticker?.highest_bid || 0),
     lowestAsk: Number(ticker?.lowest_ask || 0),
   };
+}
+
+function getExecutablePriceForDirection(direction: SwapDirection, quote: HiveMarketQuote): number {
+  const directional = direction === 'HIVE_TO_HBD'
+    ? quote.highestBid
+    : quote.lowestAsk;
+  return directional || quote.latest;
 }
 
 export async function getHiveHbdTicker(): Promise<number> {
@@ -1085,9 +1092,7 @@ export async function swapHiveHbdWithSlippage({
   }
 
   const quote = await getHiveHbdMarketQuote();
-  const executablePrice = direction === 'HIVE_TO_HBD'
-    ? quote.highestBid || quote.latest
-    : quote.lowestAsk || quote.latest;
+  const executablePrice = getExecutablePriceForDirection(direction, quote);
   if (!Number.isFinite(executablePrice) || executablePrice <= 0) {
     throw new Error('Market price is unavailable. Please try again.');
   }
@@ -1157,21 +1162,48 @@ export async function getTransactionHistory(
     const totalVestingShares = extractNumber(globalProps.total_vesting_shares);
     const vestsToHive = (vests: number) => (totalVestingFund * vests) / totalVestingShares;
 
-    const historyResult = await HiveClient.call('account_history_api', 'get_account_history', {
-      account: username,
-      start,
-      limit,
-      include_reversible: true,
-    });
+    const MAX_BATCH_SIZE = 1000;
+    const SEARCH_MULTIPLIER = 8;
+    const targetRawOps = Math.max(limit * SEARCH_MULTIPLIER, limit);
+    const batchSize = Math.min(MAX_BATCH_SIZE, Math.max(limit * 3, 200));
+    const pageItems: [number, any][] = [];
+    let cursor = start;
+    let exhausted = false;
 
-    const pageItems: [number, any][] = [
-      ...(historyResult?.history ?? []),
-    ].sort((a, b) => b[0] - a[0]).slice(0, limit);
+    while (pageItems.length < targetRawOps && !exhausted) {
+      const historyResult = await HiveClient.call('account_history_api', 'get_account_history', {
+        account: username,
+        start: cursor,
+        limit: batchSize,
+        include_reversible: true,
+      });
+
+      const historyBatch: [number, any][] = [
+        ...(historyResult?.history ?? []),
+      ].sort((a, b) => b[0] - a[0]);
+
+      if (historyBatch.length === 0) {
+        exhausted = true;
+        break;
+      }
+
+      pageItems.push(...historyBatch);
+
+      const oldestInBatch = historyBatch[historyBatch.length - 1][0];
+      if (oldestInBatch <= 0 || historyBatch.length < batchSize) {
+        exhausted = true;
+      } else {
+        cursor = oldestInBatch - 1;
+      }
+    }
+
+    pageItems.sort((a, b) => b[0] - a[0]);
 
     const transactions: Transaction[] = [];
-    const oldestIndex = pageItems.length > 0 ? pageItems[pageItems.length - 1][0] : -1;
+    let oldestIndex = pageItems.length > 0 ? pageItems[pageItems.length - 1][0] : -1;
 
-    for (const [, tx] of pageItems) {
+    for (const [index, tx] of pageItems) {
+      oldestIndex = index;
 
       const opType = (tx.op.type as string).replace('_operation', '');
       const opData = tx.op.value;
@@ -1400,7 +1432,6 @@ export async function getTransactionHistory(
           break;
 
         case 'limit_order_create':
-        case 'limit_order_create2':
           transactions.push({
             type: opData.fill_or_kill ? 'market_swap_order' : 'limit_order',
             from: opData.owner,
@@ -1411,6 +1442,23 @@ export async function getTransactionHistory(
             trx_id,
           });
           break;
+        case 'limit_order_create2': {
+          const base = formatHiveAmount(opData.amount_to_sell);
+          const rateBase = opData.exchange_rate?.base ? formatHiveAmount(opData.exchange_rate.base) : '';
+          const rateQuote = opData.exchange_rate?.quote ? formatHiveAmount(opData.exchange_rate.quote) : '';
+          transactions.push({
+            type: opData.fill_or_kill ? 'market_swap_order' : 'limit_order',
+            from: opData.owner,
+            to: opData.owner,
+            amount: rateBase && rateQuote
+              ? `${base} @ ${rateBase}/${rateQuote}`
+              : base,
+            memo: opData.fill_or_kill ? 'Swap Order (IOC)' : 'Limit Order Created',
+            timestamp,
+            trx_id,
+          });
+          break;
+        }
 
         case 'limit_order_cancel':
           transactions.push({
@@ -1440,6 +1488,10 @@ export async function getTransactionHistory(
           });
           break;
         }
+      }
+
+      if (transactions.length >= limit) {
+        break;
       }
     }
 

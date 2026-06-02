@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select } from '@chakra-ui/react';
 import type { SwapDirection } from '@/lib/hive/client-functions';
 
@@ -29,22 +29,24 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
 
-    const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
         setAmount(parseFloat(e.target.value) || 0);
     };
 
-    const handleMemoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleMemoChange = (e: ChangeEvent<HTMLInputElement>) => {
         setMemo(e.target.value);
     };
 
-    const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleUsernameChange = (e: ChangeEvent<HTMLInputElement>) => {
         setUsername(e.target.value);
     };
 
     const isSwapMode = Boolean(swapConfig?.enabled);
+    const parsedCustomSlippage = parseFloat(customSlippage);
+    const isCustomSlippageValid = Number.isFinite(parsedCustomSlippage);
     const effectiveSlippage = isSwapMode
         ? (selectedSlippage === 'custom'
-            ? parseFloat(customSlippage) || 0
+            ? (isCustomSlippageValid ? parsedCustomSlippage : undefined)
             : parseFloat(selectedSlippage || String(swapConfig?.slippagePercent || 0.5)))
         : undefined;
     const price = swapConfig?.price || 0;
@@ -123,6 +125,11 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                                     max={20}
                                     mb={3}
                                 />
+                            )}
+                            {selectedSlippage === 'custom' && !isCustomSlippageValid && customSlippage.length > 0 && (
+                                <Text fontSize="xs" color="red.400" mb={2}>
+                                    Enter a valid slippage percentage.
+                                </Text>
                             )}
                             <Text fontSize="xs" color="gray.500">
                                 {price > 0 ? `Market price: 1 HIVE ≈ ${price.toFixed(3)} HBD` : 'Market price unavailable'}
