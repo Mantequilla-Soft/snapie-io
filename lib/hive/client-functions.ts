@@ -781,6 +781,38 @@ export async function getSimilarPosts(author: string, permlink: string, limit = 
   return res.json();
 }
 
+interface SearchPostsOptions {
+  limit?: number;
+  truncate?: number;
+  fullPosts?: number;
+  observer?: string;
+}
+
+export async function searchPosts(query: string, options: SearchPostsOptions = {}): Promise<Discussion[]> {
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  const {
+    limit = 20,
+    truncate = 0,
+    fullPosts = 10,
+    observer = process.env.NEXT_PUBLIC_HIVE_USER || '',
+  } = options;
+
+  const url = new URL('https://api.hive.blog/hivesense-api/posts/search');
+  url.searchParams.set('q', trimmedQuery);
+  url.searchParams.set('truncate', String(truncate));
+  url.searchParams.set('result_limit', String(limit));
+  url.searchParams.set('full_posts', String(fullPosts));
+  url.searchParams.set('observer', observer);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return Array.isArray(data) ? (data as Discussion[]) : [];
+}
+
 export async function getCommunityInfo(username: string) {
   const profile = await HiveClient.call('bridge', 'get_community', { name: username });
   return profile;
