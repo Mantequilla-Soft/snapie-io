@@ -21,7 +21,20 @@ import {
 } from '@chakra-ui/react';
 import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine } from 'react-icons/fa';
 import useHiveAccount from '@/hooks/useHiveAccount';
-import { getProfile, convertVestToHive, getCryptoPrices, transferWithKeychain, powerUpWithKeychain, powerDownWithKeychain, delegateWithKeychain, broadcastWithKeychain } from '@/lib/hive/client-functions';
+import {
+  getProfile,
+  convertVestToHive,
+  getCryptoPrices,
+  transferWithKeychain,
+  powerUpWithKeychain,
+  powerDownWithKeychain,
+  delegateWithKeychain,
+  broadcastWithKeychain,
+  getHiveHbdTicker,
+  getHiveHbdMarketQuote,
+  swapHiveHbdWithSlippage,
+  type SwapDirection,
+} from '@/lib/hive/client-functions';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
@@ -31,6 +44,14 @@ import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface WalletPageProps {
   username: string;
+}
+
+interface WalletModalContent {
+  title: string;
+  description?: string;
+  showMemoField?: boolean;
+  showUsernameField?: boolean;
+  swapDirection?: SwapDirection;
 }
 
 export default function WalletPage({ username }: WalletPageProps) {
@@ -46,8 +67,10 @@ export default function WalletPage({ username }: WalletPageProps) {
     website: '',
   });
   const [profileInfo, setProfileInfo] = useState<any>(null);
-  const [modalContent, setModalContent] = useState<{ title: string, description?: string, showMemoField?: boolean, showUsernameField?: boolean } | null>(null);
+  const [modalContent, setModalContent] = useState<WalletModalContent | null>(null);
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
+  const [swapPrice, setSwapPrice] = useState<number | null>(null);
+  const [swapQuote, setSwapQuote] = useState<{ highestBid: number; lowestAsk: number; latest: number } | null>(null);
 
   const textMuted = 'gray.400';
   const successColor = 'success';
@@ -109,12 +132,36 @@ export default function WalletPage({ username }: WalletPageProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const handleModalOpen = (title: string, description?: string, showMemoField?: boolean, showUsernameField?: boolean) => {
-    setModalContent({ title, description, showMemoField, showUsernameField });
+  useEffect(() => {
+    const fetchSwapPrice = async () => {
+      try {
+        const [ticker, marketQuote] = await Promise.all([
+          getHiveHbdTicker(),
+          getHiveHbdMarketQuote(),
+        ]);
+        setSwapPrice(ticker);
+        setSwapQuote(marketQuote);
+      } catch (err) {
+        console.error('Failed to fetch HIVE/HBD ticker', err);
+      }
+    };
+    fetchSwapPrice();
+    const interval = setInterval(fetchSwapPrice, 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleModalOpen = (content: WalletModalContent) => {
+    setModalContent(content);
     onOpen();
   };
 
-  async function handleConfirm(amount: number, username?: string, memo?: string) {
+  const executableSwapPrice = modalContent?.swapDirection
+    ? (modalContent.swapDirection === 'HIVE_TO_HBD'
+      ? (swapQuote?.highestBid || swapQuote?.latest || swapPrice || 0)
+      : (swapQuote?.lowestAsk || swapQuote?.latest || swapPrice || 0))
+    : swapPrice || 0;
+
+  async function handleConfirm(amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) {
     if (!modalContent || !user) return;
     try {
       switch (modalContent.title) {
@@ -127,6 +174,18 @@ export default function WalletPage({ username }: WalletPageProps) {
         case 'Convert HIVE':
           await broadcastWithKeychain(user, [["convert", { "owner": user, "requestid": Math.floor(1000000000 + Math.random() * 9000000000), "amount": { "amount": amount.toFixed(3), "precision": 3, "nai": "@@000000013" } }]], 'active');
           break;
+        case 'Swap HIVE':
+        case 'Swap HBD': {
+          if (!swapDirection) throw new Error('Swap direction is required.');
+          if (!swapPrice) throw new Error('Market price unavailable.');
+          await swapHiveHbdWithSlippage({
+            username: user,
+            direction: swapDirection,
+            amount,
+            slippagePercent: slippagePercent ?? 0.5,
+          });
+          break;
+        }
         case 'HIVE Savings':
           await broadcastWithKeychain(user, [["transfer_to_savings", { "from": user, "to": user, "amount": amount.toFixed(3) + " HIVE", "memo": memo || "" }]], 'active');
           break;
@@ -404,10 +463,11 @@ export default function WalletPage({ username }: WalletPageProps) {
             </Flex>
             {isOwnWallet && (
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
-                <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen('Send HIVE', 'Send Hive to another account', true, true)} variant="outline" colorScheme="blue">Send</Button>
-                <Button size="sm" leftIcon={<FaArrowUp />} onClick={() => handleModalOpen('Power Up', 'Power Up your HIVE to HP')} variant="outline" colorScheme="purple">Power Up</Button>
-                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen('Convert HIVE', 'Convert HIVE to HBD')} variant="outline" colorScheme="orange">Convert</Button>
-                <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen('HIVE Savings', 'Transfer to HIVE savings')} variant="outline" colorScheme="teal">To Savings</Button>
+                <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HIVE', description: 'Send Hive to another account', showMemoField: true, showUsernameField: true })} variant="outline" colorScheme="blue">Send</Button>
+                <Button size="sm" leftIcon={<FaArrowUp />} onClick={() => handleModalOpen({ title: 'Power Up', description: 'Power Up your HIVE to HP' })} variant="outline" colorScheme="purple">Power Up</Button>
+                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HIVE', description: 'Convert HIVE to HBD (3.5 day settlement)' })} variant="outline" colorScheme="orange">Convert</Button>
+                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HIVE', description: 'Fast market swap HIVE -> HBD (immediate-or-cancel)', swapDirection: 'HIVE_TO_HBD' })} variant="outline" colorScheme="yellow">Swap</Button>
+                <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HIVE Savings', description: 'Transfer to HIVE savings' })} variant="outline" colorScheme="teal">To Savings</Button>
                 <Button size="sm" leftIcon={<FaShoppingCart />} onClick={() => {
                     const params = new URLSearchParams({
                       apiKey: '771c8ab6-b3ba-4450-b69d-ca35e4b25eb8',
@@ -447,8 +507,8 @@ export default function WalletPage({ username }: WalletPageProps) {
             </Flex>
             {isOwnWallet && (
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
-                <Button size="sm" leftIcon={<FaArrowDown />} onClick={() => handleModalOpen('Power Down', 'Unstake Hive Power')} variant="outline" colorScheme="red">Power Down</Button>
-                <Button size="sm" leftIcon={<FaShareAlt />} onClick={() => handleModalOpen('Delegate', 'Delegate HP to another user', false, true)} variant="outline" colorScheme="cyan">Delegate</Button>
+                <Button size="sm" leftIcon={<FaArrowDown />} onClick={() => handleModalOpen({ title: 'Power Down', description: 'Unstake Hive Power' })} variant="outline" colorScheme="red">Power Down</Button>
+                <Button size="sm" leftIcon={<FaShareAlt />} onClick={() => handleModalOpen({ title: 'Delegate', description: 'Delegate HP to another user', showMemoField: false, showUsernameField: true })} variant="outline" colorScheme="cyan">Delegate</Button>
               </Flex>
             )}
           </Box>
@@ -475,8 +535,9 @@ export default function WalletPage({ username }: WalletPageProps) {
             </Flex>
             {isOwnWallet && (
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
-                <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen('Send HBD', 'Send HBD to another account', true, true)} variant="outline" colorScheme="blue">Send</Button>
-                <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen('HBD Savings', 'Send HBD to Savings')} variant="outline" colorScheme="teal">To Savings</Button>
+                <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HBD', description: 'Send HBD to another account', showMemoField: true, showUsernameField: true })} variant="outline" colorScheme="blue">Send</Button>
+                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HBD', description: 'Fast market swap HBD -> HIVE (immediate-or-cancel)', swapDirection: 'HBD_TO_HIVE' })} variant="outline" colorScheme="yellow">Swap</Button>
+                <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HBD Savings', description: 'Send HBD to Savings' })} variant="outline" colorScheme="teal">To Savings</Button>
               </Flex>
             )}
           </Box>
@@ -502,7 +563,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE Savings</Text>
                   <Text fontSize="xl" fontWeight="bold" mb={2}>{savingsBalance}</Text>
                   {isOwnWallet && (
-                    <Button size="xs" leftIcon={<FaDollarSign />} onClick={() => handleModalOpen('Withdraw HIVE Savings', 'Withdraw HIVE from Savings')} variant="ghost" colorScheme="teal">
+                    <Button size="xs" leftIcon={<FaDollarSign />} onClick={() => handleModalOpen({ title: 'Withdraw HIVE Savings', description: 'Withdraw HIVE from Savings' })} variant="ghost" colorScheme="teal">
                       Withdraw
                     </Button>
                   )}
@@ -511,7 +572,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD Savings</Text>
                   <Text fontSize="xl" fontWeight="bold" mb={2}>{hbdSavingsBalance}</Text>
                   {isOwnWallet && (
-                    <Button size="xs" leftIcon={<FaDollarSign />} onClick={() => handleModalOpen('Withdraw HBD Savings', 'Withdraw HBD from Savings')} variant="ghost" colorScheme="teal">
+                    <Button size="xs" leftIcon={<FaDollarSign />} onClick={() => handleModalOpen({ title: 'Withdraw HBD Savings', description: 'Withdraw HBD from Savings' })} variant="ghost" colorScheme="teal">
                       Withdraw
                     </Button>
                   )}
@@ -540,6 +601,12 @@ export default function WalletPage({ username }: WalletPageProps) {
         description={modalContent?.description}
         showMemoField={modalContent?.showMemoField}
         showUsernameField={modalContent?.showUsernameField}
+        swapConfig={{
+          enabled: Boolean(modalContent?.swapDirection),
+          direction: modalContent?.swapDirection || 'HIVE_TO_HBD',
+          price: executableSwapPrice || undefined,
+          slippagePercent: 0.5,
+        }}
         onConfirm={handleConfirm}
       />
     </Box>
