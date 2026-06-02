@@ -2,7 +2,7 @@ import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
-import { useRouter } from 'next/navigation';
+import NextLink from 'next/link';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
@@ -19,7 +19,6 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
     const { user, aioha } = useAioha();
     const { openLoginModal } = useLoginModal();
     const logout = () => aioha.logout();
-    const router = useRouter();
     const { colorMode } = useColorMode();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showLeftFade, setShowLeftFade] = useState(false);
@@ -27,12 +26,6 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
     
-    const handleNavigation = (path: string) => {
-        if (router) {
-            router.push(path);
-        }
-    };
-
     // Check scroll position to show/hide fade indicators
     const checkScroll = () => {
         if (scrollRef.current) {
@@ -116,7 +109,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
             <HStack spacing={1} minW="max-content" justify="center" px={2}>
                 <Tooltip label="Home" aria-label="Home tooltip">
                     <Button
-                        onClick={() => handleNavigation("/")}
+                        as={NextLink}
+                        href="/"
                         variant="ghost"
                         color="white"
                         size="sm"
@@ -129,7 +123,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
 
                 <Tooltip label="Blog" aria-label="Blog tooltip">
                     <Button
-                        onClick={() => handleNavigation("/blog")}
+                        as={NextLink}
+                        href="/blog"
                         variant="ghost"
                         color="white"
                         size="sm"
@@ -143,7 +138,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                 <Tooltip label="OpenPods" aria-label="OpenPods tooltip">
                     <Box position="relative">
                         <Button
-                            onClick={() => handleNavigation("/hangouts")}
+                            as={NextLink}
+                            href="/hangouts"
                             variant="ghost"
                             color="white"
                             size="sm"
@@ -161,7 +157,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                         <Tooltip label="Notifications" aria-label="Notifications tooltip">
                             <Box position="relative">
                                 <Button
-                                    onClick={() => handleNavigation("/@" + user + "/notifications")}
+                                    as={NextLink}
+                                    href={`/@${user}/notifications`}
                                     variant="ghost"
                                     color="white"
                                     size="sm"
@@ -176,7 +173,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
 
                         <Tooltip label="Wallet" aria-label="Wallet tooltip">
                             <Button
-                                onClick={() => handleNavigation("/@" + user + '/wallet')}
+                                as={NextLink}
+                                href={`/@${user}/wallet`}
                                 variant="ghost"
                                 color="white"
                                 size="sm"
@@ -206,7 +204,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
 
                         <Tooltip label="Profile" aria-label="Profile tooltip">
                             <Button
-                                onClick={() => handleNavigation("/@" + user)}
+                                as={NextLink}
+                                href={`/@${user}`}
                                 variant="ghost"
                                 color="white"
                                 size="sm"
@@ -246,7 +245,8 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                         </Tooltip>
                         <Tooltip label="Create account" aria-label="Create account tooltip">
                             <Button
-                                onClick={() => handleNavigation('/join')}
+                                as={NextLink}
+                                href="/join"
                                 variant="ghost"
                                 color="white"
                                 size="sm"

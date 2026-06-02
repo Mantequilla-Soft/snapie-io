@@ -468,19 +468,16 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HIVE', description: 'Convert HIVE to HBD (3.5 day settlement)' })} variant="outline" colorScheme="orange">Convert</Button>
                 <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HIVE', description: 'Fast market swap HIVE -> HBD (immediate-or-cancel)', swapDirection: 'HIVE_TO_HBD' })} variant="outline" colorScheme="yellow">Swap</Button>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HIVE Savings', description: 'Transfer to HIVE savings' })} variant="outline" colorScheme="teal">To Savings</Button>
-                <Button size="sm" leftIcon={<FaShoppingCart />} onClick={() => {
-                    const params = new URLSearchParams({
-                      apiKey: '771c8ab6-b3ba-4450-b69d-ca35e4b25eb8',
-                      redirectURL: window.location.href,
-                      cryptoCurrencyCode: 'HIVE',
-                      defaultCryptoAmount: '200',
-                      exchangeScreenTitle: 'Buy HIVE',
-                      isFeeCalculationHidden: 'false',
-                      defaultPaymentMethod: 'credit_debit_card',
-                      walletAddress: user ?? '',
-                    });
-                    router.push(`https://global.transak.com/?${params.toString()}`);
-                  }} variant="outline" colorScheme="green">Buy HIVE</Button>
+                <Button
+                  size="sm"
+                  leftIcon={<FaShoppingCart />}
+                  variant="outline"
+                  colorScheme="green"
+                  isDisabled
+                  title="Coming soon"
+                >
+                  Buy HIVE (Coming soon)
+                </Button>
               </Flex>
             )}
           </Box>
