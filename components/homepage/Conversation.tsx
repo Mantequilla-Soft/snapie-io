@@ -6,6 +6,7 @@ import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { isSnapContainer } from '@/lib/utils/snapUtils';
 
 interface ConversationProps {
     comment: Comment;
@@ -19,7 +20,9 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
     const { hiveUser } = useHiveUser();
     const router = useRouter();
     const { comments, isLoading, error, updateComments } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
-    const isTopLevel = !comment.parent_author || comment.parent_author === 'peak.snaps';
+    // A "top snap" replies directly to the snap container; hide its parent link so users
+    // can't open the container and load hundreds of snaps at once.
+    const isTopLevel = !comment.parent_author || isSnapContainer(comment.parent_author, comment.parent_permlink);
 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) updateComments();

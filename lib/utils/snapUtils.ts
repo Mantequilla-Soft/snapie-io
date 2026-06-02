@@ -1,5 +1,26 @@
 import { Discussion } from "@hiveio/dhive";
 
+/**
+ * The snap "container" post that all top-level snaps reply to. Top snaps have this
+ * post as their direct parent. Navigating to it loads every snap reply at once
+ * (hundreds of them), so parent links must never point here.
+ */
+export const SNAP_CONTAINER_AUTHOR = "peak.snaps";
+export const SNAP_CONTAINER_PERMLINK = "snaps";
+
+/**
+ * True when (author, permlink) refers to the snap container post. A reply whose
+ * parent is the container is a "top snap" — we hide its parent link to avoid
+ * dumping the entire container thread on the user.
+ */
+export function isSnapContainer(author?: string | null, permlink?: string | null): boolean {
+  if (!author) return false;
+  // Permlink may be unknown in some call sites; author match alone is a safe signal
+  // since the container account only hosts the snaps thread.
+  if (author !== SNAP_CONTAINER_AUTHOR) return false;
+  return !permlink || permlink === SNAP_CONTAINER_PERMLINK;
+}
+
 /** Wrapper aspect for iframe/video embeds (avoids forcing vertical content into 16/9). */
 export type EmbedAspect = "16/9" | "9/16" | "4/5" | "3/4";
 
