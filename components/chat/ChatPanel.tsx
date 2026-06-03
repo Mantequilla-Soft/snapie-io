@@ -26,6 +26,7 @@ import {
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useAioha } from '@aioha/react-ui';
 import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
@@ -55,6 +56,9 @@ const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CHAT_IMAGE_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 const MENTION_REGEX = /@[a-z0-9.-]+/gi;
 const MENTION_INPUT_REGEX = /(?:^|\s)@([a-z0-9.-]{0,32})$/i;
+const INITIAL_MESSAGE_LIMIT = 50;
+const DELTA_MESSAGE_LIMIT = 50;
+const MAX_ACTIVE_MESSAGES = 600;
 
 function isImageUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -174,6 +178,25 @@ function formatLastSeen(iso: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function sortMessagesAsc(messages: Message[]): Message[] {
+  return [...messages].sort((a, b) => a._id.localeCompare(b._id));
+}
+
+function mergeMessagesById(existing: Message[], incoming: Message[], cap = MAX_ACTIVE_MESSAGES): Message[] {
+  if (!incoming.length) return existing;
+  const merged = new Map<string, Message>();
+  for (const msg of existing) merged.set(msg._id, msg);
+  for (const msg of incoming) merged.set(msg._id, msg);
+  const ordered = sortMessagesAsc(Array.from(merged.values()));
+  if (ordered.length <= cap) return ordered;
+  return ordered.slice(ordered.length - cap);
+}
+
+function trimMessagesTail(messages: Message[], cap = MAX_ACTIVE_MESSAGES): Message[] {
+  if (messages.length <= cap) return messages;
+  return messages.slice(messages.length - cap);
 }
 
 function avatarNameForConversation(conv: Conversation): string {
@@ -504,6 +527,7 @@ export default function ChatPanel({
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [panelSize, setPanelSize] = useState(DESKTOP_PANEL_DEFAULT);
   const [isResizing, setIsResizing] = useState(false);
   const [showResizeHint, setShowResizeHint] = useState(false);
@@ -515,12 +539,13 @@ export default function ChatPanel({
   const [hasValidMentionInDraft, setHasValidMentionInDraft] = useState(false);
   const [showJumpToNow, setShowJumpToNow] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const messageNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
+  const latestIdRef = useRef<string | undefined>(undefined);
   const shouldAutoScrollRef = useRef(true);
+  const loadingOlderRef = useRef(false);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const composerInputRef = useRef<HTMLInputElement>(null);
@@ -665,7 +690,7 @@ export default function ChatPanel({
   const fetchMessagesForConversation = useCallback(async (
     convId: string,
     convType: Conversation['type'] | undefined,
-    opts: { before?: string; limit?: number } = {}
+    opts: { before?: string; after?: string; limit?: number } = {}
   ): Promise<Message[]> => {
     if (!convId) return [];
     if (convType === 'dm') {
@@ -683,23 +708,56 @@ export default function ChatPanel({
     convType: Conversation['type'] | undefined,
     append = false
   ) => {
-    setLoadingMessages(!append);
+    if (append) {
+      if (loadingOlderRef.current) return;
+      loadingOlderRef.current = true;
+      setLoadingOlder(true);
+    } else {
+      setLoadingMessages(true);
+    }
     try {
       const msgs = await fetchMessagesForConversation(convId, convType, {
         before: append ? oldestIdRef.current : undefined,
-        limit: 50,
+        limit: INITIAL_MESSAGE_LIMIT,
       });
-      if (msgs.length > 0) oldestIdRef.current = msgs[0]._id;
-      setMessages(prev => append ? [...msgs, ...prev] : msgs);
+      if (append) {
+        if (!msgs.length) {
+          oldestIdRef.current = undefined;
+        } else {
+          oldestIdRef.current = msgs[0]._id;
+          setMessages(prev => mergeMessagesById(msgs, prev, MAX_ACTIVE_MESSAGES));
+        }
+      } else {
+        const ordered = trimMessagesTail(sortMessagesAsc(msgs), MAX_ACTIVE_MESSAGES);
+        if (ordered.length > 0) {
+          oldestIdRef.current = ordered[0]._id;
+          latestIdRef.current = ordered[ordered.length - 1]._id;
+        } else {
+          oldestIdRef.current = undefined;
+          latestIdRef.current = undefined;
+        }
+        setMessages(ordered);
+      }
     } catch {
-      setMessages([]);
+      if (!append) {
+        setMessages([]);
+        oldestIdRef.current = undefined;
+        latestIdRef.current = undefined;
+      }
+    } finally {
+      if (append) {
+        setLoadingOlder(false);
+        loadingOlderRef.current = false;
+      } else {
+        setLoadingMessages(false);
+      }
     }
-    setLoadingMessages(false);
   }, [fetchMessagesForConversation]);
 
   useEffect(() => {
     if (!isOpen || isMinimized) return;
     oldestIdRef.current = undefined;
+    latestIdRef.current = undefined;
     shouldAutoScrollRef.current = true;
     setDmStatus(null);
     setReplyingTo(null);
@@ -999,59 +1057,96 @@ export default function ChatPanel({
     }
   }
 
+  const loadOlderMessages = useCallback(async () => {
+    if (!activeConversationId || !activeConversation?.type) return;
+    if (loadingOlderRef.current || loadingMessages) return;
+    if (!oldestIdRef.current) return;
+    await loadMessages(activeConversationId, activeConversation?.type, true);
+  }, [activeConversationId, activeConversation?.type, loadMessages, loadingMessages]);
+
+  const refreshMessageDeltas = useCallback(async () => {
+    if (!activeConversationId || !activeConversation?.type) return;
+
+    const newestId = latestIdRef.current;
+    const delta = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, {
+      after: newestId,
+      limit: DELTA_MESSAGE_LIMIT,
+    });
+    if (!delta.length) return;
+
+    setMessages(prev => {
+      const merged = mergeMessagesById(prev, delta, MAX_ACTIVE_MESSAGES);
+      if (merged.length > 0) {
+        oldestIdRef.current = merged[0]._id;
+        latestIdRef.current = merged[merged.length - 1]._id;
+      }
+      return merged;
+    });
+  }, [activeConversationId, activeConversation?.type, fetchMessagesForConversation]);
+
   // ── Poll fallback ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen || isMinimized || !isAuthed) return;
     pollRef.current = setInterval(async () => {
       try {
         await reloadConversations();
-        const msgs = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, { limit: 20 });
-        setMessages(msgs);
+        await refreshMessageDeltas();
       } catch {}
     }, POLL_INTERVAL);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [isOpen, isMinimized, isAuthed, activeConversationId, activeConversation?.type, reloadConversations, fetchMessagesForConversation]);
+  }, [isOpen, isMinimized, isAuthed, activeConversationId, activeConversation?.type, reloadConversations, refreshMessageDeltas]);
 
   // ── FCM foreground listener ────────────────────────────────────────────
   useEffect(() => {
     if (!isAuthed) return () => {};
     return onForegroundMessage(async () => {
       await reloadConversations();
-      const msgs = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, { limit: 20 });
-      setMessages(msgs);
+      await refreshMessageDeltas();
     });
-  }, [isAuthed, activeConversationId, activeConversation?.type, reloadConversations, fetchMessagesForConversation]);
+  }, [isAuthed, activeConversationId, activeConversation?.type, reloadConversations, refreshMessageDeltas]);
 
   // ── Auto-scroll to bottom on new messages ─────────────────────────────
   useEffect(() => {
-    if (!shouldAutoScrollRef.current) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!messages.length) {
+      setShowJumpToNow(false);
+      return;
+    }
 
-  useEffect(() => {
-    if (!messages.length) return;
-    if (!shouldAutoScrollRef.current) setShowJumpToNow(true);
-  }, [messages]);
+    oldestIdRef.current = messages[0]?._id;
+    latestIdRef.current = messages[messages.length - 1]?._id;
 
-  function handleMessagesScroll() {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    shouldAutoScrollRef.current = distanceFromBottom < 80;
-    setShowJumpToNow(distanceFromBottom > 160);
-  }
+    if (!shouldAutoScrollRef.current) {
+      setShowJumpToNow(true);
+      return;
+    }
+
+    const lastIndex = messages.length - 1;
+    if (lastIndex < 0) return;
+
+    virtuosoRef.current?.scrollToIndex({
+      index: lastIndex,
+      align: 'end',
+      behavior: 'auto',
+    });
+
+    setShowJumpToNow(false);
+  }, [messages]);
 
   function jumpToLatestMention() {
     if (!latestMention) return;
-    const el = messageNodeRefs.current[latestMention.msg._id];
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    virtuosoRef.current?.scrollToIndex({
+      index: latestMention.idx,
+      align: 'center',
+      behavior: 'smooth',
+    });
   }
 
   function jumpToNow() {
     shouldAutoScrollRef.current = true;
     setShowJumpToNow(false);
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const lastIndex = messages.length - 1;
+    if (lastIndex < 0) return;
+    virtuosoRef.current?.scrollToIndex({ index: lastIndex, align: 'end', behavior: 'smooth' });
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
@@ -1160,7 +1255,7 @@ export default function ChatPanel({
       } else {
         msg = await chatService.sendMessage(activeConversation._id, content, replyTo);
       }
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => trimMessagesTail([...prev, msg], MAX_ACTIVE_MESSAGES));
       setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
       setReplyingTo(null);
       try { await chatService.setTyping(activeConversation._id, false); } catch {}
@@ -1676,79 +1771,94 @@ export default function ChatPanel({
                   <Divider mt={2} borderColor="whiteAlpha.200" />
                 </Box>
               )}
-              <Flex
-                ref={messagesContainerRef}
-                onScroll={handleMessagesScroll}
+              <Box
                 flex="1"
-                direction="column"
-                overflowY="auto"
+                position="relative"
                 px={4}
                 py={3}
-                gap={2}
                 sx={{
                   overscrollBehavior: 'contain',
                   WebkitOverflowScrolling: 'touch',
-                  '&::-webkit-scrollbar': { width: '3px' },
-                  '&::-webkit-scrollbar-track': { bg: 'transparent' },
-                  '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
+                  '& [data-virtuoso-scroller]::-webkit-scrollbar': { width: '3px' },
+                  '& [data-virtuoso-scroller]::-webkit-scrollbar-track': { bg: 'transparent' },
+                  '& [data-virtuoso-scroller]::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
                 }}
               >
                 {loadingMessages ? (
-                  <Flex justify="center" align="center" flex="1">
+                  <Flex justify="center" align="center" flex="1" h="100%">
                     <Spinner color="blue.300" size="sm" />
                   </Flex>
                 ) : messages.length === 0 ? (
-                  <Flex direction="column" justify="center" align="center" flex="1" gap={2} opacity={0.5}>
+                  <Flex direction="column" justify="center" align="center" flex="1" gap={2} opacity={0.5} h="100%">
                     <Icon as={FiMessageSquare} boxSize={8} color="whiteAlpha.400" />
                     <Text fontSize="xs" color="whiteAlpha.500">No messages yet. Say hello!</Text>
                   </Flex>
                 ) : (
-                  <VStack align="stretch" spacing={2}>
-                    {messages.map(msg => (
-                    <Box
-                      key={msg._id}
-                      ref={el => {
-                        messageNodeRefs.current[msg._id] = el;
-                      }}
-                    >
-                      <MessageBubble
-                        msg={msg}
-                        isOwn={msg.sender === user}
-                        onOpenDm={openDmByUsername}
-                        onReplySelect={setReplyingTo}
-                        onMentionSelect={insertMentionForUser}
-                        replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
-                        onEditSelect={msg.sender === user ? (m) => {
-                          setEditingMessage(m);
-                          setReplyingTo(null);
-                          setDraft(m.content);
-                        } : undefined}
-                        activeUsername={user}
-                        highlightMention={messageMentionsUser(msg.content, user)}
-                      />
-                    </Box>
-                    ))}
-                    {activeConversation?.type === 'dm' && (() => {
-                      const myLast = [...messages].reverse().find(m => m.sender === user);
-                      if (!myLast) return null;
-                      const peerSeenTs = dmStatus?.peerSeenAt ? new Date(dmStatus.peerSeenAt).getTime() : 0;
-                      const msgTs = new Date(myLast.createdAt).getTime();
-                      if (peerSeenTs && peerSeenTs >= msgTs) {
-                        return (
-                          <Text fontSize="10px" color="whiteAlpha.500" textAlign="right" pr={1}>
-                            Seen
-                          </Text>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </VStack>
-                )}
-                <div ref={messagesEndRef} />
-                {!!typingLabel && (
-                  <Text fontSize="11px" color="whiteAlpha.600" mt={1}>
-                    {typingLabel}
-                  </Text>
+                  <Virtuoso
+                    ref={virtuosoRef}
+                    style={{ height: '100%' }}
+                    data={messages}
+                    atBottomStateChange={(atBottom) => {
+                      shouldAutoScrollRef.current = atBottom;
+                      if (atBottom) setShowJumpToNow(false);
+                    }}
+                    startReached={loadOlderMessages}
+                    itemContent={(index, msg) => (
+                      <Box
+                        key={msg._id}
+                        ref={el => {
+                          messageNodeRefs.current[msg._id] = el;
+                        }}
+                        pb={2}
+                      >
+                        <MessageBubble
+                          msg={msg}
+                          isOwn={msg.sender === user}
+                          onOpenDm={openDmByUsername}
+                          onReplySelect={setReplyingTo}
+                          onMentionSelect={insertMentionForUser}
+                          replyPreview={msg.replyTo ? messageCache[msg.replyTo] || null : null}
+                          onEditSelect={msg.sender === user ? (m) => {
+                            setEditingMessage(m);
+                            setReplyingTo(null);
+                            setDraft(m.content);
+                          } : undefined}
+                          activeUsername={user}
+                          highlightMention={messageMentionsUser(msg.content, user)}
+                        />
+                      </Box>
+                    )}
+                    components={{
+                      Header: () => loadingOlder ? (
+                        <Flex justify="center" align="center" py={2}>
+                          <Spinner color="blue.300" size="xs" />
+                        </Flex>
+                      ) : <></>,
+                      Footer: () => (
+                        <>
+                          {activeConversation?.type === 'dm' && (() => {
+                            const myLast = [...messages].reverse().find(m => m.sender === user);
+                            if (!myLast) return null;
+                            const peerSeenTs = dmStatus?.peerSeenAt ? new Date(dmStatus.peerSeenAt).getTime() : 0;
+                            const msgTs = new Date(myLast.createdAt).getTime();
+                            if (peerSeenTs && peerSeenTs >= msgTs) {
+                              return (
+                                <Text fontSize="10px" color="whiteAlpha.500" textAlign="right" pr={1}>
+                                  Seen
+                                </Text>
+                              );
+                            }
+                            return null;
+                          })()}
+                          {!!typingLabel && (
+                            <Text fontSize="11px" color="whiteAlpha.600" mt={1}>
+                              {typingLabel}
+                            </Text>
+                          )}
+                        </>
+                      ),
+                    }}
+                  />
                 )}
                 {showJumpToNow && (
                   <IconButton
@@ -1780,7 +1890,7 @@ export default function ChatPanel({
                     title="Jump to latest @mention"
                   />
                 )}
-              </Flex>
+              </Box>
 
               {/* Auth overlay / compose bar */}
               {!isAuthed || authState === 'idle' ? (

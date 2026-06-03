@@ -110,10 +110,11 @@ class ChatService {
 
   async getDmMessages(
     conversationId: string,
-    opts: { before?: string; limit?: number } = {}
+    opts: { before?: string; after?: string; limit?: number } = {}
   ): Promise<{ messages: Message[]; status?: DmStatusInfo | null }> {
     const params = new URLSearchParams();
     if (opts.before) params.set('before', opts.before);
+    if (opts.after) params.set('after', opts.after);
     if (opts.limit) params.set('limit', String(opts.limit));
     const qs = params.toString();
     const { messages, status } = await this.get<{ messages: Message[]; status?: DmStatusInfo | null }>(
@@ -224,10 +225,11 @@ class ChatService {
 
   async getMessages(
     channelId: string,
-    opts: { before?: string; limit?: number } = {}
+    opts: { before?: string; after?: string; limit?: number } = {}
   ): Promise<Message[]> {
     const params = new URLSearchParams();
     if (opts.before) params.set('before', opts.before);
+    if (opts.after) params.set('after', opts.after);
     if (opts.limit) params.set('limit', String(opts.limit));
     const qs = params.toString();
     const { messages } = await this.get<{ messages: Message[] }>(
