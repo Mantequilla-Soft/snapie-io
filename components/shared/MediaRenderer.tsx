@@ -1,4 +1,4 @@
-import { Box, Image } from "@chakra-ui/react";
+import { Box, Image, Link, Text } from "@chakra-ui/react";
 import { useEffect, useMemo, useRef, useState, memo } from "react";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import {
@@ -8,6 +8,7 @@ import {
   speakPlaybackUrl,
   speakVideoKeyFromUrl,
   finalizeAudio3SpeakEmbedUrl,
+  getEmbedFallback,
 } from "@/lib/utils/snapUtils";
 import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
@@ -26,6 +27,16 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
   item: MediaItem;
   isVertical3Speak: boolean;
 }) {
+  const [embedFailed, setEmbedFailed] = useState(false);
+  const fallback = useMemo(
+    () => (item.src ? getEmbedFallback(item.src) : null),
+    [item.src]
+  );
+
+  useEffect(() => {
+    setEmbedFailed(false);
+  }, [item.src, item.content]);
+
   const sanitizedHtml = useMemo(() => {
     let iframeMarkup = item.content.replace(/<iframe/i, '<iframe loading="lazy"');
     if (item.src?.includes("play.3speak.tv")) {
@@ -73,7 +84,6 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
       aspectRatio={boxAspect}
       maxW={maxW}
       mx="auto"
-      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
       sx={{
         iframe: {
           width: "100%",
@@ -87,7 +97,44 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
           overflow: "hidden",
         },
       }}
-    />
+    >
+      <Box
+        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+        onLoadCapture={(event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.tagName.toLowerCase() === 'iframe') {
+            setEmbedFailed(false);
+          }
+        }}
+        onErrorCapture={(event) => {
+          const target = event.target as HTMLElement | null;
+          if (target?.tagName.toLowerCase() === 'iframe') {
+            setEmbedFailed(true);
+          }
+        }}
+      />
+      {embedFailed && fallback && (
+        <Box
+          position="absolute"
+          inset={0}
+          bg="blackAlpha.700"
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          px={4}
+          textAlign="center"
+          gap={2}
+        >
+          <Text fontSize="sm" color="whiteAlpha.900">
+            This browser blocked the embedded player.
+          </Text>
+          <Link href={fallback.href} isExternal color="blue.200" textDecoration="underline" fontWeight="semibold">
+            {fallback.label}
+          </Link>
+        </Box>
+      )}
+    </Box>
   );
 }, (prev, next) => {
   return (

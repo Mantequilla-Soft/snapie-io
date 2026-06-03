@@ -144,13 +144,15 @@ function fix3SpeakUrl(url: string): string {
 }
 
 /**
- * Extract YouTube video ID from various YouTube URL formats
+ * Extract YouTube video ID from various YouTube URL formats.
+ * Supports watch, short links, shorts, embed, and live routes.
  */
-function extractYouTubeId(url: string): string | null {
+export function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
     /youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
+    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/live\/([a-zA-Z0-9_-]{11})/
   ];
   
   for (const pattern of patterns) {
@@ -160,6 +162,49 @@ function extractYouTubeId(url: string): string | null {
     }
   }
   
+  return null;
+}
+
+/**
+ * Build a safe external fallback URL for blocked iframe embeds.
+ * Useful for privacy-focused browsers/extensions that block embedded players.
+ */
+export function getEmbedFallback(src: string): { href: string; label: string } | null {
+  if (!src) return null;
+
+  // YouTube embed variants (youtube.com/embed/* and youtube-nocookie.com/embed/*)
+  if (src.includes('youtube.com/embed/') || src.includes('youtube-nocookie.com/embed/')) {
+    const idMatch = src.match(/\/embed\/([a-zA-Z0-9_-]{11})/i);
+    if (!idMatch?.[1]) return null;
+    return {
+      href: `https://www.youtube.com/watch?v=${idMatch[1]}`,
+      label: 'Open video on YouTube',
+    };
+  }
+
+  // 3Speak embed/watch variants
+  if (src.includes('play.3speak.tv')) {
+    try {
+      const u = new URL(src);
+      const v = u.searchParams.get('v');
+      if (!v) return null;
+      const decoded = decodeURIComponent(v);
+      return {
+        href: `https://3speak.tv/watch?v=${decoded}`,
+        label: 'Open video on 3Speak',
+      };
+    } catch {
+      const m = src.match(/[?&]v=([^&]+)/);
+      if (!m?.[1]) return null;
+      let decoded = m[1];
+      try { decoded = decodeURIComponent(decoded); } catch {}
+      return {
+        href: `https://3speak.tv/watch?v=${decoded}`,
+        label: 'Open video on 3Speak',
+      };
+    }
+  }
+
   return null;
 }
 
