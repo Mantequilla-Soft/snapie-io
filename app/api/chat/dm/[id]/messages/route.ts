@@ -5,6 +5,7 @@ import { ChatUser } from '@/lib/db/models/ChatUser';
 import { getDmPeer, isDmParticipant } from '@/lib/chat/conversations';
 import { isRateLimited, validateMessageBody } from '@/lib/chat/messages';
 import { sendDirectMessageToTokens } from '@/lib/chat/fcm';
+import mongoose from 'mongoose';
 
 export const GET = withChatAuth(async (req: NextRequest, { username, params }) => {
   const id = params?.id;
@@ -13,6 +14,7 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
 
   const { searchParams } = new URL(req.url);
   const before = searchParams.get('before');
+  const after = searchParams.get('after');
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
 
   const me = await ChatUser.findById(username);
@@ -21,8 +23,19 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
     ...(me?.mutedUsers || []),
   ]);
   const query: Record<string, unknown> = { target: id, type: 'dm' };
-  if (before) query._id = { $lt: before };
-  const messages = await Message.find(query).sort({ _id: -1 }).limit(limit);
+  if (before) {
+    if (!mongoose.isValidObjectId(before)) {
+      return NextResponse.json({ error: 'Invalid before cursor' }, { status: 400 });
+    }
+    query._id = { $lt: before };
+  } else if (after) {
+    if (!mongoose.isValidObjectId(after)) {
+      return NextResponse.json({ error: 'Invalid after cursor' }, { status: 400 });
+    }
+    query._id = { $gt: after };
+  }
+  const sortDirection = after ? 1 : -1;
+  const messages = await Message.find(query).sort({ _id: sortDirection }).limit(limit);
   const visible = messages.filter(m => !blocked.has(m.sender));
 
   const now = Date.now();
@@ -58,6 +71,9 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
     };
   }
 
+  if (after) {
+    return NextResponse.json({ messages: visible, status });
+  }
   return NextResponse.json({ messages: visible.reverse(), status });
 });
 

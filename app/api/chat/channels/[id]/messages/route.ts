@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 export const GET = withChatAuth(async (req: NextRequest, { username, params }) => {
   const { searchParams } = new URL(req.url);
   const before = searchParams.get('before');
+  const after = searchParams.get('after');
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
   const channelId = params?.id;
   if (!channelId) return NextResponse.json({ error: 'Channel id missing' }, { status: 400 });
@@ -36,6 +37,11 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
       return NextResponse.json({ error: 'Invalid before cursor' }, { status: 400 });
     }
     query._id = { $lt: before };
+  } else if (after) {
+    if (!mongoose.isValidObjectId(after)) {
+      return NextResponse.json({ error: 'Invalid after cursor' }, { status: 400 });
+    }
+    query._id = { $gt: after };
   }
 
   const me = await ChatUser.findById(username);
@@ -43,8 +49,12 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
     ...(me?.blockedUsers || []),
     ...(me?.mutedUsers || []),
   ]);
-  const messages = await Message.find(query).sort({ _id: -1 }).limit(limit);
+  const sortDirection = after ? 1 : -1;
+  const messages = await Message.find(query).sort({ _id: sortDirection }).limit(limit);
   const visible = messages.filter(m => !blocked.has(m.sender));
+  if (after) {
+    return NextResponse.json({ messages: visible });
+  }
   return NextResponse.json({ messages: visible.reverse() });
 });
 
