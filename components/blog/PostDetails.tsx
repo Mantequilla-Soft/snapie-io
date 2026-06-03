@@ -109,18 +109,26 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
         html = html.replace(
             /<div class="videoWrapper">\s*<iframe[^>]*src="https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([^"?&/]+)[^"]*"[^>]*>\s*<\/iframe>\s*<\/div>/gi,
             (_match, embeddedId: string) => {
+                const id =
+                    extractYouTubeId(`https://www.youtube.com/embed/${embeddedId}`) ??
+                    (/^[a-zA-Z0-9_-]{11}$/.test(embeddedId) ? embeddedId : null);
+                if (!id) return _match;
                 const key = `__YOUTUBE_${youtubeIdx++}__`;
-                youtubeMap.set(key, embeddedId);
+                youtubeMap.set(key, id);
                 return key;
             }
         );
 
         // Fallback: promote un-embedded YouTube links (including /live/) into placeholders
         // so users still see the video block + fallback affordance.
+        // Only when the anchor text IS the raw URL (auto-linked), not labelled markdown links.
         html = html.replace(
-            /<a[^>]*href="(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^"]+)"[^>]*>.*?<\/a>/gi,
-            (match, rawUrl: string) => {
-                const id = extractYouTubeId(rawUrl);
+            /<a[^>]*href="(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^"]+)"[^>]*>(.*?)<\/a>/gi,
+            (match, rawUrl: string, innerText: string) => {
+                const clean = rawUrl.replace(/&amp;/gi, '&').replace(/&#38;/gi, '&').trim();
+                const textOnly = innerText.replace(/<[^>]*>/g, '').trim();
+                if (textOnly && textOnly !== clean && textOnly !== rawUrl.trim()) return match;
+                const id = extractYouTubeId(clean);
                 if (!id) return match;
                 const key = `__YOUTUBE_${youtubeIdx++}__`;
                 youtubeMap.set(key, id);

@@ -20,6 +20,8 @@ interface MediaRendererProps {
 }
 
 /** Isolated + memoized so parent re-renders do not rewrite iframe innerHTML and reload 3Speak. */
+const EMBED_READY_TIMEOUT_MS = 4000;
+
 const IframeEmbedBox = memo(function IframeEmbedBox({
   item,
   isVertical3Speak,
@@ -27,15 +29,47 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
   item: MediaItem;
   isVertical3Speak: boolean;
 }) {
-  const [embedFailed, setEmbedFailed] = useState(false);
+  const [embedBlocked, setEmbedBlocked] = useState(false);
   const fallback = useMemo(
     () => (item.src ? getEmbedFallback(item.src) : null),
     [item.src]
   );
+  const is3SpeakIframe = Boolean(item.src?.includes("play.3speak.tv"));
 
+  // Brave/CSP blocks often never fire iframe error events; use a readiness timeout for 3Speak
+  // and always show an external link when we have one (YouTube / 3Speak).
   useEffect(() => {
-    setEmbedFailed(false);
-  }, [item.src, item.content]);
+    setEmbedBlocked(false);
+    if (!fallback) return;
+
+    let ready = false;
+
+    const markReady = () => {
+      ready = true;
+      setEmbedBlocked(false);
+    };
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "3speak-player-ready") {
+        markReady();
+      }
+    };
+
+    if (is3SpeakIframe) {
+      window.addEventListener("message", onMessage);
+    }
+
+    const timer = window.setTimeout(() => {
+      if (!ready && is3SpeakIframe) {
+        setEmbedBlocked(true);
+      }
+    }, EMBED_READY_TIMEOUT_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [item.src, item.content, fallback, is3SpeakIframe]);
 
   const sanitizedHtml = useMemo(() => {
     let iframeMarkup = item.content.replace(/<iframe/i, '<iframe loading="lazy"');
@@ -98,22 +132,31 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
         },
       }}
     >
-      <Box
-        dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
-        onLoadCapture={(event) => {
-          const target = event.target as HTMLElement | null;
-          if (target?.tagName.toLowerCase() === 'iframe') {
-            setEmbedFailed(false);
-          }
-        }}
-        onErrorCapture={(event) => {
-          const target = event.target as HTMLElement | null;
-          if (target?.tagName.toLowerCase() === 'iframe') {
-            setEmbedFailed(true);
-          }
-        }}
-      />
-      {embedFailed && fallback && (
+      <Box dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+      {fallback && (
+        <Box
+          position="absolute"
+          bottom={2}
+          right={2}
+          bg="blackAlpha.700"
+          px={2}
+          py={1}
+          borderRadius="sm"
+          zIndex={1}
+        >
+          <Link
+            href={fallback.href}
+            isExternal
+            fontSize="xs"
+            color="blue.200"
+            textDecoration="underline"
+            fontWeight="semibold"
+          >
+            {fallback.label}
+          </Link>
+        </Box>
+      )}
+      {embedBlocked && fallback && (
         <Box
           position="absolute"
           inset={0}
@@ -125,6 +168,7 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
           px={4}
           textAlign="center"
           gap={2}
+          zIndex={2}
         >
           <Text fontSize="sm" color="whiteAlpha.900">
             This browser blocked the embedded player.
