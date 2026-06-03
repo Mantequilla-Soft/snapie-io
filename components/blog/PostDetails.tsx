@@ -13,12 +13,13 @@ import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
-import { isSnapContainer } from '@/lib/utils/snapUtils';
+import { extractYouTubeId, isSnapContainer } from '@/lib/utils/snapUtils';
 
 type BodySegment =
     | { type: 'html'; html: string }
     | { type: 'audio'; url: string }
     | { type: 'speak-video'; author: string; permlink: string }
+    | { type: 'youtube'; videoId: string }
     | { type: 'twitter'; tweetId: string };
 
 interface PostDetailsProps {
@@ -101,6 +102,40 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
             }
         );
 
+        // Extract YouTube wrappers so we can provide an explicit fallback link in-app
+        // when privacy-focused browsers block iframe playback.
+        const youtubeMap = new Map<string, string>();
+        let youtubeIdx = 0;
+        html = html.replace(
+            /<div class="videoWrapper">\s*<iframe[^>]*src="https?:\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([^"?&/]+)[^"]*"[^>]*>\s*<\/iframe>\s*<\/div>/gi,
+            (_match, embeddedId: string) => {
+                const id =
+                    extractYouTubeId(`https://www.youtube.com/embed/${embeddedId}`) ??
+                    (/^[a-zA-Z0-9_-]{11}$/.test(embeddedId) ? embeddedId : null);
+                if (!id) return _match;
+                const key = `__YOUTUBE_${youtubeIdx++}__`;
+                youtubeMap.set(key, id);
+                return key;
+            }
+        );
+
+        // Fallback: promote un-embedded YouTube links (including /live/) into placeholders
+        // so users still see the video block + fallback affordance.
+        // Only when the anchor text IS the raw URL (auto-linked), not labelled markdown links.
+        html = html.replace(
+            /<a[^>]*href="(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^"]+)"[^>]*>(.*?)<\/a>/gi,
+            (match, rawUrl: string, innerText: string) => {
+                const clean = rawUrl.replace(/&amp;/gi, '&').replace(/&#38;/gi, '&').trim();
+                const textOnly = innerText.replace(/<[^>]*>/g, '').trim();
+                if (textOnly && textOnly !== clean && textOnly !== rawUrl.trim()) return match;
+                const id = extractYouTubeId(clean);
+                if (!id) return match;
+                const key = `__YOUTUBE_${youtubeIdx++}__`;
+                youtubeMap.set(key, id);
+                return key;
+            }
+        );
+
         // Extract Twitter embed containers and replace with placeholders so they
         // render as stable <TwitterEmbed> components instead of dangerouslySetInnerHTML.
         const twitterMap = new Map<string, string>();
@@ -140,10 +175,10 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
         const base = rawSegments.length > 0 ? rawSegments : [{ type: 'html' as const, html }];
 
         // Fast path: no extracted embeds
-        if (speakVideoMap.size === 0 && twitterMap.size === 0) return base;
+        if (speakVideoMap.size === 0 && twitterMap.size === 0 && youtubeMap.size === 0) return base;
 
         // Expand speak-video and twitter placeholders within html segments
-        const placeholderRe = /(__SPEAKVIDEO_\d+__|__TWITTER_\d+__)/g;
+        const placeholderRe = /(__SPEAKVIDEO_\d+__|__TWITTER_\d+__|__YOUTUBE_\d+__)/g;
         const expanded: BodySegment[] = [];
         for (const seg of base) {
             if (seg.type !== 'html') { expanded.push(seg); continue; }
@@ -157,6 +192,11 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 const tweetId = twitterMap.get(part);
                 if (tweetId) {
                     expanded.push({ type: 'twitter', tweetId });
+                    continue;
+                }
+                const youtubeId = youtubeMap.get(part);
+                if (youtubeId) {
+                    expanded.push({ type: 'youtube', videoId: youtubeId });
                     continue;
                 }
                 if (part) {
@@ -238,6 +278,46 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     }
                     if (seg.type === 'twitter') {
                         return <TwitterEmbed key={`twitter-${seg.tweetId}-${i}`} tweetId={seg.tweetId} />;
+                    }
+                    if (seg.type === 'youtube') {
+                        return (
+                            <Box
+                                key={`youtube-${seg.videoId}-${i}`}
+                                position="relative"
+                                w="100%"
+                                maxW={{ base: '100%', md: '640px', lg: '800px' }}
+                                aspectRatio="16/9"
+                                mx="auto"
+                                my={4}
+                                borderRadius="md"
+                                overflow="hidden"
+                                bg="black"
+                            >
+                                <Box
+                                    as="iframe"
+                                    src={`https://www.youtube-nocookie.com/embed/${seg.videoId}`}
+                                    title="YouTube video player"
+                                    loading="lazy"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    w="100%"
+                                    h="100%"
+                                    border="none"
+                                />
+                                <Box position="absolute" bottom={2} right={2} bg="blackAlpha.700" px={2} py={1} borderRadius="sm">
+                                    <Link
+                                        href={`https://www.youtube.com/watch?v=${seg.videoId}`}
+                                        isExternal
+                                        fontSize="xs"
+                                        color="blue.200"
+                                        textDecoration="underline"
+                                        fontWeight="semibold"
+                                    >
+                                        Open on YouTube
+                                    </Link>
+                                </Box>
+                            </Box>
+                        );
                     }
                     return <Box key={`html-${i}`} dangerouslySetInnerHTML={{ __html: seg.html }} />;
                 })}
