@@ -15,6 +15,9 @@ interface PostCardProps {
     compact?: boolean;
 }
 
+/** Fixed preview height — cards must not grow with portrait images or grid row stretch. */
+const CARD_IMAGE_HEIGHT = '200px';
+
 export default function PostCard({ post, compact = false }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
     const postDate = getPostDate(created);
@@ -76,8 +79,6 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             p={4}
             display="flex"
             flexDirection="column"
-            justifyContent="space-between"
-            height="100%"
             backdropFilter="blur(16px)"
             transition="all 0.18s ease"
             _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg', borderColor: 'rgba(102, 228, 255, 0.34)' }}
@@ -97,7 +98,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             </Flex>
 
             {/* Content Section */}
-            <Box display="flex" flexDirection="column" flexGrow={1} cursor="pointer">
+            <Box display="flex" flexDirection="column" mt={3} cursor="pointer">
                 <Text
                     as={NextLink}
                     href={postHref}
@@ -125,25 +126,45 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                     </Text>
                 )}
             {imageUrls.length > 0 && !compact && (
-                <Box flex="1" display="flex" alignItems="flex-end" justifyContent="center">
+                <Box
+                    mt={2}
+                    w="100%"
+                    h={CARD_IMAGE_HEIGHT}
+                    maxH={CARD_IMAGE_HEIGHT}
+                    overflow="hidden"
+                    borderRadius="22px"
+                    sx={{
+                        '.swiper, .swiper-wrapper': { height: CARD_IMAGE_HEIGHT },
+                        '.swiper-slide': { height: CARD_IMAGE_HEIGHT, display: 'flex' },
+                    }}
+                >
                     <Swiper
+                        style={{ height: CARD_IMAGE_HEIGHT, width: '100%' }}
                         spaceBetween={10}
                         slidesPerView={1}
                         pagination={{ clickable: true }}
                         navigation={true}
                         modules={[Navigation, Pagination]}
-                        onSlideChange={handleSlideChange} // Listen to slide changes
+                        onSlideChange={handleSlideChange}
                     >
                         {imageUrls.slice(0, visibleImages).map((url, index) => (
                             <SwiperSlide key={index}>
-                                <Box as={NextLink} href={postHref} h="200px" w="100%" cursor="pointer">
+                                <Box
+                                    as={NextLink}
+                                    href={postHref}
+                                    h={CARD_IMAGE_HEIGHT}
+                                    w="100%"
+                                    cursor="pointer"
+                                    overflow="hidden"
+                                    borderRadius="22px"
+                                >
                                     <Image
                                         src={url}
                                         alt={title}
-                                        borderRadius="22px"
                                         objectFit="cover"
                                         w="100%"
-                                        h="100%"
+                                        h={CARD_IMAGE_HEIGHT}
+                                        maxH={CARD_IMAGE_HEIGHT}
                                         loading="lazy"
                                     />
                                 </Box>
@@ -155,7 +176,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         </Box>
 
             {/* Interaction Bar */}
-            <Box mt="auto" opacity={compact ? 0.92 : 1}>
+            <Box mt={3} opacity={compact ? 0.92 : 1}>
                 <InteractionBar post={post} showShare={false} />
             </Box>
         </Box>

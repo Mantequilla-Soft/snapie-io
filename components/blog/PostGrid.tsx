@@ -19,6 +19,7 @@ export default function PostGrid({ posts, columns, searchMode = false }: PostGri
         <SimpleGrid
             columns={{ base: 1, sm: columns === 1 ? 1 : 2, md: columns, lg: columns, xl: columns }}
             spacing={4}
+            alignItems="start"
         >
             {posts.map((post) => (
                 <PostCard key={`${post.author}/${post.permlink}`} post={post} compact={searchMode} />
