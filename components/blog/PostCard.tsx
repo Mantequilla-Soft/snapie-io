@@ -1,5 +1,5 @@
-import { Box, Image, Text, Avatar, Flex, Link } from '@chakra-ui/react';
-import React, { useState, useEffect } from 'react';
+import { Box, Image, Text, Avatar, Flex, Link, Spinner } from '@chakra-ui/react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination } from 'swiper/modules';
@@ -8,6 +8,7 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import NextLink from 'next/link';
+import { useRouter } from 'next/navigation';
 import InteractionBar from '@/components/shared/InteractionBar';
 
 interface PostCardProps {
@@ -21,12 +22,22 @@ const CARD_IMAGE_HEIGHT = '200px';
 export default function PostCard({ post, compact = false }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
     const postDate = getPostDate(created);
-    const metadata = typeof json_metadata === 'object' && json_metadata !== null
-        ? json_metadata
-        : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })();
+    const metadata = useMemo(() => (
+        typeof json_metadata === 'object' && json_metadata !== null
+            ? json_metadata
+            : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })()
+    ), [json_metadata]);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
     const safeBody = typeof body === 'string' ? body : '';
     const postHref = `/@${encodeURIComponent(author || '')}/${encodeURIComponent(post.permlink || '')}`;
+    const router = useRouter();
+    const [isNavigating, setIsNavigating] = useState(false);
+
+    function navigateToPost(e: React.MouseEvent) {
+        e.preventDefault();
+        setIsNavigating(true);
+        router.push(postHref);
+    }
     const snippet = safeBody
         .replace(/<[^>]*>/g, ' ')
         .replace(/!\[[^\]]*]\(([^)]+)\)/g, ' ')
@@ -82,7 +93,23 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             backdropFilter="blur(16px)"
             transition="all 0.18s ease"
             _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg', borderColor: 'rgba(102, 228, 255, 0.34)' }}
+            position="relative"
+            opacity={isNavigating ? 0.7 : 1}
         >
+            {isNavigating && (
+                <Box
+                    position="absolute"
+                    inset={0}
+                    zIndex={10}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
+                    borderRadius="26px"
+                    pointerEvents="none"
+                >
+                    <Spinner color="primary" size="lg" />
+                </Box>
+            )}
             <Flex justifyContent="space-between" alignItems="center">
                 <Flex alignItems="center">
                     <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/sm`} />
@@ -100,8 +127,9 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             {/* Content Section */}
             <Box display="flex" flexDirection="column" mt={3} cursor="pointer">
                 <Text
-                    as={NextLink}
+                    as="a"
                     href={postHref}
+                    onClick={navigateToPost}
                     fontWeight="bold"
                     fontSize="lg"
                     textAlign="left"
@@ -113,8 +141,9 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                 </Text>
                 {compact && snippet && (
                     <Text
-                        as={NextLink}
+                        as="a"
                         href={postHref}
+                        onClick={navigateToPost}
                         fontSize="sm"
                         color="text"
                         opacity={0.82}
@@ -150,8 +179,9 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                         {imageUrls.slice(0, visibleImages).map((url, index) => (
                             <SwiperSlide key={index}>
                                 <Box
-                                    as={NextLink}
+                                    as="a"
                                     href={postHref}
+                                    onClick={navigateToPost}
                                     h={CARD_IMAGE_HEIGHT}
                                     w="100%"
                                     cursor="pointer"
