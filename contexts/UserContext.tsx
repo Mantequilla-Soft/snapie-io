@@ -1,6 +1,6 @@
 'use client';
 import { HiveAccount } from "@/hooks/useHiveAccount";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export interface HiveUserContextProps {
   hiveUser: HiveAccount | null;
@@ -39,8 +39,9 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     return () => window.removeEventListener('hiveuser-saved', refreshUser);
   }, []);
 
-  // Wrapped setUser that also saves to localStorage
-  const setHiveUserWithPersistence = (newUser: HiveAccount | null) => {
+  // Wrapped setUser that also saves to localStorage.
+  // useCallback with [] is correct: setUser from useState is guaranteed stable.
+  const setHiveUserWithPersistence = useCallback((newUser: HiveAccount | null) => {
     setUser(newUser);
     try {
       if (newUser) {
@@ -51,7 +52,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (error) {
       console.error('Error saving user to localStorage:', error);
     }
-  };
+  }, []);
 
   return (
     <HiveUserContext.Provider

@@ -60,7 +60,10 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     try {
       const newPosts = await findPosts('author_before_date', params.current);
       if (newPosts.length > 0) {
-        setPosts(prev => [...prev, ...newPosts]);
+        setPosts(prev => {
+          const seen = new Set(prev.map((p: any) => `${p.author}/${p.permlink}`));
+          return [...prev, ...newPosts.filter((p: any) => !seen.has(`${p.author}/${p.permlink}`))];
+        });
         params.current = {
           author: username,
           start_permlink: newPosts[newPosts.length - 1].permlink,

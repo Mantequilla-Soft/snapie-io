@@ -7,6 +7,13 @@ interface PageProps {
   params: { slug: string[] };
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = params;
 
@@ -21,7 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   // Post page: /@author/permlink
   if (slug.length === 2 && slug[1] !== 'wallet' && slug[1] !== 'notifications') {
     const permlink = decodeURIComponent(slug[1]);
-    const post = await getPostForMetadata(username, permlink);
+    const post = await withTimeout(getPostForMetadata(username, permlink), 3000);
     if (post) {
       return buildPostMetadata(post);
     }
@@ -31,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (slug.length === 3 && decodeURIComponent(slug[1]).startsWith('@')) {
     const author = decodeURIComponent(slug[1]).substring(1);
     const permlink = decodeURIComponent(slug[2]);
-    const post = await getPostForMetadata(author, permlink);
+    const post = await withTimeout(getPostForMetadata(author, permlink), 3000);
     if (post) {
       return buildPostMetadata(post);
     }
@@ -39,7 +46,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // Profile page: /@username
   if (slug.length === 1) {
-    const profile = await getProfileForMetadata(username);
+    const profile = await withTimeout(getProfileForMetadata(username), 3000);
     if (profile) {
       return buildProfileMetadata(profile);
     }
