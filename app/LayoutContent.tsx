@@ -83,20 +83,20 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       minH="100vh"
       bgGradient="radial(circle at 18% 8%, rgba(24, 168, 255, 0.16), transparent 34%), radial(circle at 78% 0%, rgba(102, 228, 255, 0.10), transparent 30%), linear(to-br, #06111f, #071827 48%, #04101d)"
     >
-      <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">
-        {!isEmbedMode && !isChatPopoutMode && (
-          <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
-        )}
-        <Box
-          flex="1"
-          ml={isEmbedMode ? '0' : (isComposePage ? { base: '0', sm: '96px' } : { base: '0', sm: '96px', md: '296px' })}
-          h="100vh"
-          overflowY="auto"
-          transition="margin-left 0.3s ease"
-        >
-          {!isChatPopoutMode && children}
-        </Box>
-      </Flex>
+      <Box maxW="1320px" mx="auto" h="100vh">
+        <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">
+          {!isEmbedMode && !isChatPopoutMode && (
+            <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+          )}
+          <Box
+            flex="1"
+            h="100vh"
+            overflowY="auto"
+          >
+            {!isChatPopoutMode && children}
+          </Box>
+        </Flex>
+      </Box>
       {!isEmbedMode && !isChatPopoutMode && (
         <>
           <FooterNavigation isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
