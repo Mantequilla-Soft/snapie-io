@@ -61,7 +61,7 @@ export default function ShortsPlayer() {
             <ShortCard
               short={short}
               isActive={i === activeIndex}
-              isNext={i === activeIndex + 1}
+              isPreload={i === activeIndex - 1 || i === activeIndex + 1}
               muted={muted}
               onToggleMute={() => setMuted(m => !m)}
             />
