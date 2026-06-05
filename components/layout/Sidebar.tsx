@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useAioha } from '@aioha/react-ui';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus } from 'react-icons/fi';
+import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay } from 'react-icons/fi';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { animate, color, motion, px } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
@@ -176,6 +176,23 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Blog</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                    <Tooltip label="Shorts" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                as={NextLink}
+                                href="/shorts"
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiPlay} boxSize={4} />}
+                                px={3}
+                                borderRadius="10px"
+                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                            >
+                                <Text display={textDisplay}>Shorts</Text>
                             </Button>
                         </Box>
                     </Tooltip>
