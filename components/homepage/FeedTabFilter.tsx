@@ -40,7 +40,7 @@ export default function FeedTabFilter({
         p={2}
         bg="rgba(8, 24, 40, 0.78)"
         border="tb1"
-        borderRadius="30px"
+        borderRadius="full"
         boxShadow="lg"
         backdropFilter="blur(18px)"
       >

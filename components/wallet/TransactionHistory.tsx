@@ -208,14 +208,14 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
 
   if (loading && transactions.length === 0) {
     return (
-      <Box bg={cardBg} p={6} borderRadius="lg" border="1px" borderColor={borderColor} boxShadow="md" display="flex" justifyContent="center" alignItems="center" py={8}>
+      <Box bg={cardBg} p={6} borderRadius="10px" border="1px" borderColor={borderColor} boxShadow="md" display="flex" justifyContent="center" alignItems="center" py={8}>
         <Spinner size="lg" color="primary" />
       </Box>
     );
   }
 
   return (
-    <Flex bg={cardBg} borderRadius="lg" border="1px" borderColor={borderColor} boxShadow="md" gap={0}>
+    <Flex bg={cardBg} borderRadius="10px" border="1px" borderColor={borderColor} boxShadow="md" gap={0}>
       {/* Filters Sidebar */}
       <Box
         w="200px"

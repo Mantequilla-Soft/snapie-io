@@ -54,7 +54,7 @@ function MiniPostCard({ title, author, permlink, image, date }: {
 
 function SidebarBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Box border="1px solid" borderColor="muted" borderRadius="lg" p={4}>
+    <Box border="1px solid" borderColor="muted" borderRadius="10px" p={4}>
       <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" color="gray.500" mb={3}>
         {title}
       </Text>

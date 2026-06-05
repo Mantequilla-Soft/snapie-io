@@ -330,7 +330,7 @@ export default function WalletPage({ username }: WalletPageProps) {
           <Box
             bg="muted"
             p={7}
-            borderRadius="xl"
+            borderRadius="10px"
             border="tb1"
             boxShadow="lg"
             mb={6}
@@ -389,7 +389,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
         {/* Summary Stats */}
         <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={4} mb={8}>
-          <Box bg="muted" borderRadius="xl" border="tb1" boxShadow="md" overflow="hidden">
+          <Box bg="muted" borderRadius="10px" border="tb1" boxShadow="md" overflow="hidden">
             <Box h="3px" bgGradient="linear(90deg, primary, accent)" />
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={3}>
@@ -405,7 +405,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             </Box>
           </Box>
 
-          <Box bg="muted" borderRadius="xl" border="tb1" boxShadow="md" overflow="hidden">
+          <Box bg="muted" borderRadius="10px" border="tb1" boxShadow="md" overflow="hidden">
             <Box h="3px" bgGradient="linear(90deg, accent, primary)" />
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={3}>
@@ -421,7 +421,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             </Box>
           </Box>
 
-          <Box bg="muted" borderRadius="xl" border="tb1" boxShadow="md" overflow="hidden">
+          <Box bg="muted" borderRadius="10px" border="tb1" boxShadow="md" overflow="hidden">
             <Box h="3px" bgGradient="linear(90deg, success, primary)" />
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={3}>
@@ -443,7 +443,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
           {/* HIVE */}
           <Box
-            bg="muted" borderRadius="xl" boxShadow="md" overflow="hidden"
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
             sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-primary)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
@@ -484,7 +484,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
           {/* Hive Power */}
           <Box
-            bg="muted" borderRadius="xl" boxShadow="md" overflow="hidden"
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
             sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
@@ -512,7 +512,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
           {/* HBD */}
           <Box
-            bg="muted" borderRadius="xl" boxShadow="md" overflow="hidden"
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
             sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-success)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
@@ -541,7 +541,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
           {/* Savings */}
           <Box
-            bg="muted" borderRadius="xl" boxShadow="md" overflow="hidden"
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
             sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
           >
             <Box p={5}>
@@ -556,7 +556,7 @@ export default function WalletPage({ username }: WalletPageProps) {
               </Flex>
 
               <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
-                <Box p={4} bg="rgba(24, 168, 255, 0.04)" borderRadius="lg" border="tb1">
+                <Box p={4} bg="rgba(24, 168, 255, 0.04)" borderRadius="10px" border="tb1">
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE Savings</Text>
                   <Text fontSize="xl" fontWeight="bold" mb={2}>{savingsBalance}</Text>
                   {isOwnWallet && (
@@ -565,7 +565,7 @@ export default function WalletPage({ username }: WalletPageProps) {
                     </Button>
                   )}
                 </Box>
-                <Box p={4} bg="rgba(66, 231, 162, 0.04)" borderRadius="lg" border="tb1">
+                <Box p={4} bg="rgba(66, 231, 162, 0.04)" borderRadius="10px" border="tb1">
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD Savings</Text>
                   <Text fontSize="xl" fontWeight="bold" mb={2}>{hbdSavingsBalance}</Text>
                   {isOwnWallet && (

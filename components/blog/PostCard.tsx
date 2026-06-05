@@ -84,7 +84,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         <Box
             boxShadow="md"
             border="tb1"
-            borderRadius="26px"
+            borderRadius="10px"
             overflow="hidden"
             bg="rgba(8, 24, 40, 0.72)"
             p={4}
@@ -104,7 +104,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
-                    borderRadius="26px"
+                    borderRadius="10px"
                     pointerEvents="none"
                 >
                     <Spinner color="primary" size="lg" />
@@ -161,7 +161,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                     h={CARD_IMAGE_HEIGHT}
                     maxH={CARD_IMAGE_HEIGHT}
                     overflow="hidden"
-                    borderRadius="22px"
+                    borderRadius="10px"
                     sx={{
                         '.swiper, .swiper-wrapper': { height: CARD_IMAGE_HEIGHT },
                         '.swiper-slide': { height: CARD_IMAGE_HEIGHT, display: 'flex' },
@@ -186,7 +186,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                                     w="100%"
                                     cursor="pointer"
                                     overflow="hidden"
-                                    borderRadius="22px"
+                                    borderRadius="10px"
                                 >
                                     <Image
                                         src={url}
