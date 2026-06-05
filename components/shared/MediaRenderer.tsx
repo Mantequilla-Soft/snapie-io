@@ -1,5 +1,6 @@
 import { Box, Image, Link, Text } from "@chakra-ui/react";
 import { useEffect, useMemo, useRef, useState, memo } from "react";
+import ImageCarousel from "@/components/shared/ImageCarousel";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import {
   parseMediaContent,
@@ -189,14 +190,49 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
   );
 });
 
+type RenderGroup =
+  | { kind: 'single-image'; url: string }
+  | { kind: 'carousel'; urls: string[] }
+  | { kind: 'media'; item: MediaItem };
+
 const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
   );
+
+  const groupedItems = useMemo((): RenderGroup[] => {
+    const result: RenderGroup[] = [];
+    let i = 0;
+    while (i < mediaItems.length) {
+      if (mediaItems[i].type === 'image') {
+        const urls: string[] = [];
+        while (i < mediaItems.length && mediaItems[i].type === 'image') {
+          const m = mediaItems[i].content.match(/!\[.*?\]\((.*?)\)/);
+          if (m?.[1]) urls.push(m[1]);
+          i++;
+        }
+        if (urls.length === 1) result.push({ kind: 'single-image', url: urls[0] });
+        else if (urls.length > 1) result.push({ kind: 'carousel', urls });
+      } else {
+        result.push({ kind: 'media', item: mediaItems[i] });
+        i++;
+      }
+    }
+    return result;
+  }, [mediaItems]);
+
   const wrapperRef = useRef<HTMLDivElement>(null);
   /** 3Speak `v=` keys (owner/permlink) known to be portrait — stable across layout= URL changes. */
   const [verticalSpeakKeys, setVerticalSpeakKeys] = useState<Set<string>>(new Set());
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!lightboxUrl) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightboxUrl(null); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxUrl]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -232,37 +268,74 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
 
   return (
     <Box mb={4} ref={wrapperRef} data-snapie-media-layout>
-      {mediaItems.map((item: MediaItem, index: number) => {
+      {lightboxUrl && (
+        <Box
+          position="fixed"
+          inset={0}
+          zIndex={9999}
+          bg="blackAlpha.900"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          onClick={() => setLightboxUrl(null)}
+          cursor="zoom-out"
+        >
+          <Image
+            src={lightboxUrl}
+            alt="Full size image"
+            maxH="90vh"
+            maxW="90vw"
+            objectFit="contain"
+            borderRadius="md"
+            cursor="default"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </Box>
+      )}
+      {groupedItems.map((group, index) => {
+        if (group.kind === 'single-image') {
+          return (
+            <Box
+              key={index}
+              mb={2}
+              maxW="540px"
+              mx="auto"
+              borderRadius="md"
+              overflow="hidden"
+              cursor="zoom-in"
+              onClick={() => setLightboxUrl(group.url)}
+            >
+              <Image
+                src={group.url}
+                alt="Post media"
+                width="100%"
+                maxH="480px"
+                objectFit="cover"
+                display="block"
+                loading="lazy"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </Box>
+          );
+        }
+
+        if (group.kind === 'carousel') {
+          return (
+            <Box key={index} maxW="540px" mx="auto">
+              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} />
+            </Box>
+          );
+        }
+
+        // kind === 'media'
+        const item = group.item;
+
         if (item.type === "video" && item.src) {
           return (
             <Box key={index} mb={2}>
               <VideoRenderer src={item.src} />
             </Box>
           );
-        }
-
-        if (item.type === "image") {
-          const urlMatch = item.content.match(/!\[.*?\]\((.*?)\)/);
-          const imageUrl = urlMatch ? urlMatch[1] : null;
-
-          if (imageUrl) {
-            return (
-              <Box key={index} mb={2} maxW="540px" mx="auto">
-                <Image
-                  src={imageUrl}
-                  alt="Post media"
-                  width="100%"
-                  height="auto"
-                  objectFit="contain"
-                  borderRadius="md"
-                  loading="lazy"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-              </Box>
-            );
-          }
         }
 
         if (item.type === "iframe" && item.src) {

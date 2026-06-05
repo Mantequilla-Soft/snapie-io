@@ -75,7 +75,16 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
                     <Avatar size="sm" name="Your Name" />
                     <Text>Snap your reply</Text>
                 </HStack>
-                <Button variant="solid" colorScheme="primary" onClick={handleReplyModal}>
+                <Button
+                    onClick={handleReplyModal}
+                    borderRadius="full"
+                    px={6}
+                    bg="#2d5278"
+                    color="white"
+                    fontWeight="semibold"
+                    _hover={{ bg: '#356090' }}
+                    _active={{ bg: '#244466' }}
+                >
                     Reply
                 </Button>
             </HStack>
