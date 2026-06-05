@@ -147,10 +147,7 @@ export default function SnapieSpeakAudio({ playUrl }: Props) {
         mb={2}
         px={5}
         py={3}
-        borderRadius="full"
-        border="1px solid rgba(102, 228, 255, 0.22)"
-        bg="rgba(8, 24, 40, 0.55)"
-        backdropFilter="blur(14px)"
+        borderRadius="10px"
       >
         <Text fontSize="sm" color="rgba(255,255,255,0.85)" mb={2}>
           {loadError}
@@ -170,11 +167,7 @@ export default function SnapieSpeakAudio({ playUrl }: Props) {
       px={5}
       py={3}
       minH={`${SPEAK_AUDIO_IFRAME_HEIGHT_PX}px`}
-      borderRadius="full"
-      border="1px solid rgba(102, 228, 255, 0.22)"
-      bg="rgba(8, 24, 40, 0.5)"
-      backdropFilter="blur(16px)"
-      boxShadow="0 8px 28px rgba(0, 0, 0, 0.22)"
+      borderRadius="10px"
     >
       {loading && (
         <Flex align="center" justify="center" minH={`${SPEAK_AUDIO_IFRAME_HEIGHT_PX - 16}px`}>
