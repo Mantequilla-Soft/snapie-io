@@ -132,7 +132,7 @@ export default function RightSideBar() {
       top={3}
       bg="rgba(8, 24, 40, 0.62)"
       border="tb1"
-      borderRadius="30px"
+      borderRadius="10px"
       boxShadow="xl"
       backdropFilter="blur(18px)"
       ref={sidebarRef}

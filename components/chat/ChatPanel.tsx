@@ -459,7 +459,7 @@ function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isAc
       onClick={onClick}
       px={3}
       py={2}
-      borderRadius="12px"
+      borderRadius="10px"
       bg={isActive ? 'blue.600' : 'transparent'}
       border="1px solid"
       borderColor={isActive ? 'blue.400' : 'transparent'}
@@ -1631,7 +1631,7 @@ export default function ChatPanel({
               }}
             >
             {listAction === 'new-dm' && (
-              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="12px" p={3} bg="whiteAlpha.50">
+              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="10px" p={3} bg="whiteAlpha.50">
                 <Text color="white" fontSize="xs" mb={2}>Start Direct Message</Text>
                 <HStack>
                   <Input
@@ -1648,7 +1648,7 @@ export default function ChatPanel({
               </Box>
             )}
             {listAction === 'new-group' && (
-              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="12px" p={3} bg="whiteAlpha.50">
+              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="10px" p={3} bg="whiteAlpha.50">
                 <Text color="white" fontSize="xs" mb={2}>Create Group Chat</Text>
                 <VStack spacing={2} align="stretch">
                   <Input

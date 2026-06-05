@@ -99,7 +99,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             display={{ base: 'none', sm: 'block' }}
             transition="width 0.3s ease"
             border="tb1"
-            borderRadius="30px"
+            borderRadius="10px"
             boxShadow="xl"
             backdropFilter="blur(18px)"
             sx={{
@@ -155,7 +155,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 leftIcon={<Icon as={FiHome} boxSize={4} />}
                                 px={3}
                                 mt={4}
-                                borderRadius="18px"
+                                borderRadius="10px"
                                 _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Home</Text>
@@ -172,7 +172,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiBook} boxSize={4} />}
                                 px={3}
-                                borderRadius="18px"
+                                borderRadius="10px"
                                 _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Blog</Text>
@@ -189,7 +189,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiRadio} boxSize={4} />}
                                 px={3}
-                                borderRadius="18px"
+                                borderRadius="10px"
                                 _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>OpenPods</Text>
@@ -220,7 +220,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             )
                                         }
                                         px={3}
-                                        borderRadius="18px"
+                                        borderRadius="10px"
                                         _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Notifications</Text>
@@ -249,7 +249,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             )
                                         }
                                         px={3}
-                                        borderRadius="18px"
+                                        borderRadius="10px"
                                         _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Profile</Text>
@@ -266,7 +266,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         justifyContent={iconJustify}
                                         leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                                         px={3}
-                                        borderRadius="18px"
+                                        borderRadius="10px"
                                         _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Wallet</Text>
@@ -282,7 +282,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         justifyContent={iconJustify}
                                         leftIcon={<Icon as={FiMessageSquare} boxSize={4} />}
                                         px={3}
-                                        borderRadius="18px"
+                                        borderRadius="10px"
                                         bg={isChatOpen ? 'blue.500' : 'transparent'}
                                         color={isChatOpen ? 'white' : 'inherit'}
                                         _hover={{ bg: isChatOpen ? 'blue.600' : 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
@@ -306,7 +306,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={isLoggedIn ? FiLogOut : FiLogIn} boxSize={4} />}
                                 px={3}
-                                borderRadius="18px"
+                                borderRadius="10px"
                             >
                                 <Text display={textDisplay}>{isLoggedIn ? 'Logout' : 'Login'}</Text>
                             </Button>
@@ -323,7 +323,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     justifyContent={iconJustify}
                                     leftIcon={<Icon as={FiUserPlus} boxSize={4} />}
                                     px={3}
-                                    borderRadius="18px"
+                                    borderRadius="10px"
                                     _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                                 >
                                     <Text display={textDisplay}>Create account</Text>
@@ -343,7 +343,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 justifyContent={iconJustify}
                                 leftIcon={<Icon as={FiInfo} boxSize={4} />}
                                 px={3}
-                                borderRadius="18px"
+                                borderRadius="10px"
                                 _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>About</Text>

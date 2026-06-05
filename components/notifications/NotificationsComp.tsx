@@ -432,7 +432,7 @@ function ActivitySummaryCard({
   const summaryItems = getSummaryItems(summary);
 
   return (
-    <Box bg="muted" border="tb1" borderRadius="xl" p={5} mb={5}>
+    <Box bg="muted" border="tb1" borderRadius="10px" p={5} mb={5}>
       <Flex justify="space-between" align="center" gap={3} mb={5} flexWrap="wrap">
         <HStack spacing={2}>
           <Flex w={7} h={7} borderRadius="full" bg="rgba(24, 168, 255, 0.12)" border="1px solid" borderColor="rgba(24, 168, 255, 0.2)" alignItems="center" justifyContent="center">
@@ -469,7 +469,7 @@ function ActivitySummaryCard({
               borderWidth="1px"
               borderStyle="solid"
               borderColor={`${item.color}.800`}
-              borderRadius="xl"
+              borderRadius="10px"
               _hover={{ borderColor: `${item.color}.600`, transform: 'translateY(-1px)', boxShadow: 'sm' }}
               transition="all 0.15s ease"
             >
@@ -715,7 +715,7 @@ function AvatarStack({ actors, remaining }: { actors: string[]; remaining: numbe
 
 function EmptyState({ title }: { title: string }) {
   return (
-    <Box bg="muted" border="tb1" borderRadius="xl" p={12} textAlign="center">
+    <Box bg="muted" border="tb1" borderRadius="10px" p={12} textAlign="center">
       <Flex
         w={16} h={16}
         borderRadius="full"

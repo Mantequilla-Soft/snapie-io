@@ -32,7 +32,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
 
   if (loading) {
     return (
-      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="xl" bg="muted">
+      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="10px" bg="muted">
         <Text fontSize="sm" color="primary">Loading hangout...</Text>
       </Box>
     );
@@ -40,7 +40,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
 
   if (error) {
     return (
-      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="xl" bg="muted">
+      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="10px" bg="muted">
         <Text fontSize="sm" color="primary">{error}</Text>
       </Box>
     );
@@ -48,7 +48,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
 
   if (!room) {
     return (
-      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="xl" bg="muted">
+      <Box p={4} borderWidth="1px" borderColor="border" borderRadius="10px" bg="muted">
         <Text fontSize="sm" color="primary">This hangout has ended</Text>
       </Box>
     );
@@ -63,7 +63,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       aria-label={`Join hangout: ${room.title}`}
       borderWidth="1px"
       borderColor="border"
-      borderRadius="xl"
+      borderRadius="10px"
       bg="muted"
       overflow="hidden"
       onClick={() => openRoom(room.name)}

@@ -177,7 +177,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 mt={3}
                 mb={3}
                 border="tb1"
-                borderRadius="30px"
+                borderRadius="10px"
                 width="100%"
                 boxShadow="md"
                 backdropFilter="blur(16px)"
