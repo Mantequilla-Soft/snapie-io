@@ -3,7 +3,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import NextLink from 'next/link';
-import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus } from 'react-icons/fi';
+import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus, FiPlay } from 'react-icons/fi';
 import { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
@@ -132,6 +132,21 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                         borderRadius="full"
                         _hover={{ bg: 'whiteAlpha.200', color: 'accent' }}
                         leftIcon={<Icon as={FiBook} boxSize={4} />}
+                    />
+                </Tooltip>
+
+                <Tooltip label="Shorts" aria-label="Shorts tooltip">
+                    <Button
+                        as={NextLink}
+                        href="/shorts"
+                        aria-label="Shorts"
+                        variant="ghost"
+                        color="white"
+                        size="sm"
+                        minW="40px"
+                        borderRadius="full"
+                        _hover={{ bg: 'whiteAlpha.200', color: 'accent' }}
+                        leftIcon={<Icon as={FiPlay} boxSize={4} />}
                     />
                 </Tooltip>
 
