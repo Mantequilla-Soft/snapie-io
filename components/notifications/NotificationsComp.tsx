@@ -655,18 +655,24 @@ function NotificationShell({
       w="full"
       spacing={3}
       p={nested ? 3 : 4}
-      bg={unread ? 'secondary' : 'muted'}
+      bg="muted"
+      color="text"
       borderRadius="base"
       align="center"
       position="relative"
       _hover={{ transform: 'translateY(-1px)', boxShadow: 'md' }}
       transition="all 0.15s ease"
       onClick={onClick}
-      sx={
-        unread
-          ? { border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-primary)' }
-          : { border: '1px solid rgba(102, 228, 255, 0.18)' }
-      }
+      sx={{
+        border: '1px solid rgba(102, 228, 255, 0.18)',
+        ...(unread && {
+          borderLeftWidth: '3px',
+          borderLeftColor: 'var(--chakra-colors-primary)',
+          backgroundColor: 'var(--chakra-colors-muted)',
+          backgroundImage:
+            'linear-gradient(90deg, rgba(24, 168, 255, 0.12) 0%, rgba(24, 168, 255, 0.04) 42%, transparent 72%)',
+        }),
+      }}
     >
       {children}
     </HStack>
