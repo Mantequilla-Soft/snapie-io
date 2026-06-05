@@ -103,7 +103,7 @@ export default function ShortCard({ short, isActive, isNext }: ShortCardProps) {
     <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
       {/* Active: playing. Next: mounted but invisible (HLS buffers silently). Others: thumbnail. */}
       {(isActive || isNext) ? (
-        <ShortVideoPlayer author={short.author} permlink={short.hivePermlink} autoPlay={isActive} />
+        <ShortVideoPlayer author={short.author} permlink={short.permlink} autoPlay={isActive} />
       ) : (
         short.thumbnailUrl && (
           <Image
