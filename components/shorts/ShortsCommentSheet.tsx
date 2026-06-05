@@ -63,7 +63,7 @@ export default function ShortsCommentSheet({
               <VStack spacing={1} align="stretch">
                 {(comments as ExtendedComment[]).map((c) => (
                   <Snap
-                    key={c.permlink}
+                    key={`${c.author}/${c.permlink}`}
                     comment={c}
                     onOpen={openReply}
                     setReply={(r) => setReply(r as Comment)}

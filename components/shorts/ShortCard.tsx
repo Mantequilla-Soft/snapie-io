@@ -116,8 +116,10 @@ export default function ShortCard({ short, isActive, isNext, muted, onToggleMute
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({ url }).catch(() => {});
     } else {
-      navigator.clipboard?.writeText(url);
-      toast({ title: 'Link copied', status: 'success', duration: 2000, isClosable: true });
+      navigator.clipboard?.writeText(url).then(
+        () => toast({ title: 'Link copied', status: 'success', duration: 2000, isClosable: true }),
+        () => toast({ title: 'Copy failed', status: 'error', duration: 2000, isClosable: true }),
+      );
     }
   }
 

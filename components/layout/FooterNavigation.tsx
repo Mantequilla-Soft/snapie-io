@@ -139,6 +139,7 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                     <Button
                         as={NextLink}
                         href="/shorts"
+                        aria-label="Shorts"
                         variant="ghost"
                         color="white"
                         size="sm"

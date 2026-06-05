@@ -184,6 +184,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/shorts"
+                                aria-label="Shorts"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}

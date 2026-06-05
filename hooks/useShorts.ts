@@ -15,7 +15,9 @@ function parseEmbedUrl(embedUrl: string): { author: string; permlink: string } {
 }
 
 function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const date = new Date(dateStr);
+  if (!dateStr || !isFinite(date.getTime())) return '';
+  const diff = Date.now() - date.getTime();
   const s = Math.floor(diff / 1000);
   if (s < 60) return 'Just now';
   const m = Math.floor(s / 60);
@@ -61,14 +63,18 @@ export function useShorts() {
   const [hasMore, setHasMore] = useState(true);
   const pageRef = useRef(1);
   const inflightRef = useRef(false);
+  const failedPageRef = useRef<number | null>(null);
 
   const load = useCallback(async (reset = false) => {
     if (inflightRef.current) return;
+    // Skip a page that already failed to prevent a hot retry loop
+    if (!reset && failedPageRef.current === pageRef.current) return;
     inflightRef.current = true;
 
     if (reset) {
       seed = Math.floor(Math.random() * 1_000_000);
       pageRef.current = 1;
+      failedPageRef.current = null;
       setShorts([]);
       setHasMore(true);
     }
@@ -77,10 +83,12 @@ export function useShorts() {
     setError(null);
     try {
       const { shorts: newShorts, hasMore: more } = await fetchPage(pageRef.current, 10);
+      failedPageRef.current = null;
       setShorts(prev => (reset ? newShorts : [...prev, ...newShorts]));
       setHasMore(more);
       pageRef.current += 1;
     } catch (e: any) {
+      failedPageRef.current = pageRef.current;
       setError(e.message || 'Failed to load shorts');
     } finally {
       setLoading(false);
