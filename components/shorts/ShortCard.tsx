@@ -45,6 +45,18 @@ function ShortVideoPlayer({
     [playerCallbackRef],
   );
 
+  // usePlayer only reads autoPlay at mount and never re-triggers play/pause on prop changes.
+  // When a preloaded slide becomes active (or vice versa), drive it imperatively.
+  useEffect(() => {
+    const el = localRef.current;
+    if (!el) return;
+    if (autoPlay) {
+      el.play().catch(() => {});
+    } else {
+      el.pause();
+    }
+  }, [autoPlay]);
+
   // React's `muted` JSX prop is broken — setting it false via JSX does nothing.
   // Mutate the DOM element directly whenever the muted preference changes.
   useEffect(() => {
@@ -77,12 +89,12 @@ function ShortVideoPlayer({
 interface ShortCardProps {
   short: ShortItem;
   isActive: boolean;
-  isNext: boolean;
+  isPreload: boolean;
   muted: boolean;
   onToggleMute: () => void;
 }
 
-export default function ShortCard({ short, isActive, isNext, muted, onToggleMute }: ShortCardProps) {
+export default function ShortCard({ short, isActive, isPreload, muted, onToggleMute }: ShortCardProps) {
   const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
@@ -126,12 +138,12 @@ export default function ShortCard({ short, isActive, isNext, muted, onToggleMute
   return (
     <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
       {/* Active: playing. Next: mounted but invisible (HLS buffers silently). Others: thumbnail. */}
-      {(isActive || isNext) ? (
+      {(isActive || isPreload) ? (
         <ShortVideoPlayer
           author={short.author}
           permlink={short.permlink}
           autoPlay={isActive}
-          muted={isNext ? true : muted}
+          muted={isPreload ? true : muted}
         />
       ) : (
         short.thumbnailUrl && (
