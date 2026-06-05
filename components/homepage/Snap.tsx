@@ -188,10 +188,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     transform: 'translateY(-1px)',
                 }}
             >
-                <HStack mb={2}>
-                    <Avatar 
-                        size="sm" 
-                        name={comment.author} 
+                <HStack mb={2} px={3}>
+                    <Avatar
+                        size="sm"
+                        name={comment.author}
                         src={`https://images.hive.blog/u/${comment.author}/avatar/sm`}
                     />
                     <Box ml={3}>
@@ -209,7 +209,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 
                 {/* Render text content with proper markdown processing - clickable to open full post */}
                 {renderedText && (
-                    <Box 
+                    <Box
+                        px={3}
                         dangerouslySetInnerHTML={{ __html: renderedText }}
                         onClick={setConversation ? handleConversation : undefined}
                         cursor={setConversation ? "pointer" : "default"}
@@ -249,7 +250,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     </VStack>
                 )}
                 
-                <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2}>
+                <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2} px={3}>
                     <VoteControls
                         initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
                         initialVoteCount={comment.active_votes?.length || 0}
