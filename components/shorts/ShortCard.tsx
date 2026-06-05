@@ -10,11 +10,19 @@ import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 import ShortsCommentSheet from './ShortsCommentSheet';
 
-function ShortVideoPlayer({ author, permlink }: { author: string; permlink: string }) {
+function ShortVideoPlayer({
+  author,
+  permlink,
+  autoPlay,
+}: {
+  author: string;
+  permlink: string;
+  autoPlay: boolean;
+}) {
   const { ref } = usePlayer({
     apiBase: 'https://play.3speak.tv',
     autoLoad: `${author}/${permlink}`,
-    autoPlay: true,
+    autoPlay,
     muted: true,
     poster: false,
     hlsConfig: {
@@ -27,10 +35,10 @@ function ShortVideoPlayer({ author, permlink }: { author: string; permlink: stri
   return (
     <video
       ref={ref}
-      autoPlay
+      autoPlay={autoPlay}
       playsInline
       muted
-      loop
+      loop={autoPlay}
       style={{
         position: 'absolute',
         inset: 0,
@@ -38,6 +46,9 @@ function ShortVideoPlayer({ author, permlink }: { author: string; permlink: stri
         height: '100%',
         objectFit: 'cover',
         background: '#000',
+        // Invisible preload: HLS buffers silently, zero visual footprint
+        opacity: autoPlay ? 1 : 0,
+        pointerEvents: autoPlay ? 'auto' : 'none',
       }}
     />
   );
@@ -46,9 +57,10 @@ function ShortVideoPlayer({ author, permlink }: { author: string; permlink: stri
 interface ShortCardProps {
   short: ShortItem;
   isActive: boolean;
+  isNext: boolean;
 }
 
-export default function ShortCard({ short, isActive }: ShortCardProps) {
+export default function ShortCard({ short, isActive, isNext }: ShortCardProps) {
   const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
@@ -89,9 +101,9 @@ export default function ShortCard({ short, isActive }: ShortCardProps) {
 
   return (
     <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
-      {/* Player or thumbnail */}
-      {isActive ? (
-        <ShortVideoPlayer author={short.author} permlink={short.hivePermlink} />
+      {/* Active: playing. Next: mounted but invisible (HLS buffers silently). Others: thumbnail. */}
+      {(isActive || isNext) ? (
+        <ShortVideoPlayer author={short.author} permlink={short.hivePermlink} autoPlay={isActive} />
       ) : (
         short.thumbnailUrl && (
           <Image

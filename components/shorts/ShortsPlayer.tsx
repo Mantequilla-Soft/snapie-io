@@ -57,7 +57,11 @@ export default function ShortsPlayer() {
       >
         {shorts.map((short, i) => (
           <SwiperSlide key={short.id} style={{ height: '100%' }}>
-            <ShortCard short={short} isActive={i === activeIndex} />
+            <ShortCard
+              short={short}
+              isActive={i === activeIndex}
+              isNext={i === activeIndex + 1}
+            />
           </SwiperSlide>
         ))}
 
