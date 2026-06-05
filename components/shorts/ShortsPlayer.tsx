@@ -10,6 +10,7 @@ import ShortCard from './ShortCard';
 export default function ShortsPlayer() {
   const { shorts, loading, error, hasMore, load } = useShorts();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
     load(true);
@@ -61,6 +62,8 @@ export default function ShortsPlayer() {
               short={short}
               isActive={i === activeIndex}
               isNext={i === activeIndex + 1}
+              muted={muted}
+              onToggleMute={() => setMuted(m => !m)}
             />
           </SwiperSlide>
         ))}

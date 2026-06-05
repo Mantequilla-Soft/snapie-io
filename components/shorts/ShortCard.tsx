@@ -3,9 +3,9 @@ import {
   Box, Flex, Text, Image, VStack, IconButton, useDisclosure, useToast,
 } from '@chakra-ui/react';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
-import { FaHeart, FaRegHeart, FaComment, FaShare } from 'react-icons/fa';
+import { FaHeart, FaRegHeart, FaComment, FaShare, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import { ShortItem } from '@/lib/shorts/types';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAioha } from '@aioha/react-ui';
 import { vote } from '@/lib/hive/client-functions';
 import ShortsCommentSheet from './ShortsCommentSheet';
@@ -14,16 +14,21 @@ function ShortVideoPlayer({
   author,
   permlink,
   autoPlay,
+  muted,
 }: {
   author: string;
   permlink: string;
   autoPlay: boolean;
+  muted: boolean;
 }) {
-  const { ref } = usePlayer({
+  // usePlayer returns a callback ref, not a RefObject — we can't read .current from it.
+  // Capture the element ourselves via a combined ref so we can imperatively toggle muted.
+  const localRef = useRef<HTMLVideoElement | null>(null);
+  const { ref: playerCallbackRef } = usePlayer({
     apiBase: 'https://play.3speak.tv',
     autoLoad: `${author}/${permlink}`,
     autoPlay,
-    muted: true,
+    muted: true, // always start muted — autoplay requires it; we flip it below
     poster: false,
     hlsConfig: {
       maxBufferLength: 30,
@@ -32,9 +37,25 @@ function ShortVideoPlayer({
     },
   });
 
+  const combinedRef = useCallback(
+    (el: HTMLVideoElement | null) => {
+      localRef.current = el;
+      playerCallbackRef(el);
+    },
+    [playerCallbackRef],
+  );
+
+  // React's `muted` JSX prop is broken — setting it false via JSX does nothing.
+  // Mutate the DOM element directly whenever the muted preference changes.
+  useEffect(() => {
+    if (localRef.current) {
+      localRef.current.muted = muted;
+    }
+  }, [muted]);
+
   return (
     <video
-      ref={ref}
+      ref={combinedRef}
       autoPlay={autoPlay}
       playsInline
       muted
@@ -46,7 +67,6 @@ function ShortVideoPlayer({
         height: '100%',
         objectFit: 'cover',
         background: '#000',
-        // Invisible preload: HLS buffers silently, zero visual footprint
         opacity: autoPlay ? 1 : 0,
         pointerEvents: autoPlay ? 'auto' : 'none',
       }}
@@ -58,9 +78,11 @@ interface ShortCardProps {
   short: ShortItem;
   isActive: boolean;
   isNext: boolean;
+  muted: boolean;
+  onToggleMute: () => void;
 }
 
-export default function ShortCard({ short, isActive, isNext }: ShortCardProps) {
+export default function ShortCard({ short, isActive, isNext, muted, onToggleMute }: ShortCardProps) {
   const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
@@ -103,7 +125,12 @@ export default function ShortCard({ short, isActive, isNext }: ShortCardProps) {
     <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
       {/* Active: playing. Next: mounted but invisible (HLS buffers silently). Others: thumbnail. */}
       {(isActive || isNext) ? (
-        <ShortVideoPlayer author={short.author} permlink={short.permlink} autoPlay={isActive} />
+        <ShortVideoPlayer
+          author={short.author}
+          permlink={short.permlink}
+          autoPlay={isActive}
+          muted={isNext ? true : muted}
+        />
       ) : (
         short.thumbnailUrl && (
           <Image
@@ -161,6 +188,20 @@ export default function ShortCard({ short, isActive, isNext }: ShortCardProps) {
         align="center"
         zIndex={2}
       >
+        {/* Mute toggle — only shown on active slide */}
+        {isActive && (
+          <IconButton
+            aria-label={muted ? 'Unmute' : 'Mute'}
+            icon={muted ? <FaVolumeMute /> : <FaVolumeUp />}
+            variant="ghost"
+            color="white"
+            fontSize="22px"
+            size="lg"
+            onClick={onToggleMute}
+            _hover={{ bg: 'whiteAlpha.200' }}
+          />
+        )}
+
         <VStack spacing={0}>
           <IconButton
             aria-label="Like"
