@@ -818,6 +818,11 @@ export async function getCommunityInfo(username: string) {
   return profile;
 }
 
+export async function getUserSubscribedCommunities(username: string): Promise<{ id: string; title: string }[]> {
+  const subs = await HiveClient.call('bridge', 'list_all_subscriptions', { account: username });
+  return (subs as any[]).map((s: any[]) => ({ id: s[0], title: s[1] }));
+}
+
 export async function findPosts(query: string, params: any) {
   // 'author_before_date' is a condenser-only method; bridge doesn't support it.
   if (query === 'author_before_date') {

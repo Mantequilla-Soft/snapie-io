@@ -1,7 +1,7 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
+import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image, Select } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
@@ -212,9 +212,12 @@ interface EditorProps {
   onVideoEmbedUrlChange?: (url: string | null) => void;
   onAudioEmbedUrlChange?: (url: string | null) => void;
   onVideoThumbnailChange?: (url: string | null) => void;
+  selectedCommunity?: string;
+  onCommunityChange?: (id: string) => void;
+  communityOptions?: { id: string; title: string }[];
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, selectedCommunity, onCommunityChange, communityOptions }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -611,8 +614,33 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             />
                         </Box>
                         
+                        {/* Community Selector — only shown in compose (not edit) */}
+                        {communityOptions && communityOptions.length > 0 && (
+                            <Box
+                                border="1px solid"
+                                borderColor="border"
+                                borderRadius="md"
+                                bg="background"
+                            >
+                                <Select
+                                    value={selectedCommunity}
+                                    onChange={(e) => onCommunityChange?.(e.target.value)}
+                                    size="sm"
+                                    border="none"
+                                    borderRadius="md"
+                                    bg="background"
+                                    color="text"
+                                    _focus={{ boxShadow: 'none', borderColor: 'primary' }}
+                                >
+                                    {communityOptions.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                    ))}
+                                </Select>
+                            </Box>
+                        )}
+
                         {/* Markdown Editor Panel */}
-                        <Box 
+                        <Box
                             h="100%"
                             border="1px solid"
                             borderColor="border"
@@ -643,7 +671,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     px={2}
                                     fontSize="sm"
                                     fontWeight="bold"
-                                    color="white"
+                                    color="text"
                                 >
                                     H
                                 </MenuButton>
@@ -675,7 +703,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleBold}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Italic"
@@ -683,7 +711,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleItalic}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Underline"
@@ -691,7 +719,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleUnderline}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Strikethrough"
@@ -699,7 +727,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleStrikethrough}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Link"
@@ -707,7 +735,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleLink}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Bullet List"
@@ -715,7 +743,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleBulletList}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Numbered List"
@@ -723,7 +751,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleNumberedList}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Quote"
@@ -731,7 +759,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleQuote}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Code Block"
@@ -739,7 +767,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleCodeBlock}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Table"
@@ -747,7 +775,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleTable}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Spoiler"
@@ -755,7 +783,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleSpoiler}
-                                color="white"
+                                color="text"
                             />
                             {/* Emoji Picker */}
                             <Menu>
@@ -765,7 +793,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     icon={<FaSmile />}
                                     size="xs"
                                     variant="ghost"
-                                    color="white"
+                                    color="text"
                                 />
                                 <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="secondary" borderColor="border">
                                     {ALL_COMMON_EMOJIS.map((emoji, index) => (
@@ -792,7 +820,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={() => setGiphyModalOpen(!isGiphyModalOpen)}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Upload Image"
@@ -800,7 +828,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleImageClick}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Upload Video"
@@ -808,7 +836,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleVideoClick}
-                                color="white"
+                                color="text"
                                 isDisabled={!!selectedVideo || !!videoEmbedUrl}
                                 title="Upload video to 3Speak"
                             />
@@ -818,7 +846,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={() => setAudioRecorderOpen(true)}
-                                color="white"
+                                color="text"
                                 isDisabled={!!audioEmbedUrl}
                                 title="Record or upload audio"
                             />
@@ -875,7 +903,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     left="50%"
                                     transform="translate(-50%, -50%)"
                                     bg="blackAlpha.700"
-                                    color="white"
+                                    color="text"
                                     px={6}
                                     py={3}
                                     borderRadius="md"
