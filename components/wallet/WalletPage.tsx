@@ -58,7 +58,7 @@ interface WalletModalContent {
 export default function WalletPage({ username }: WalletPageProps) {
   const router = useRouter();
   const { user } = useAioha();
-  const { hiveAccount, isLoading, error } = useHiveAccount(username);
+  const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   const [prices, setPrices] = useState<{ hive: number; hbd: number } | null>(null);
@@ -216,6 +216,7 @@ export default function WalletPage({ username }: WalletPageProps) {
       console.error('Transaction failed:', error);
     }
     onClose();
+    setTimeout(refetch, 3500);
   }
 
   const followers = profileInfo?.stats?.followers || 0;
@@ -260,6 +261,7 @@ export default function WalletPage({ username }: WalletPageProps) {
     } finally {
       setIsClaiming(false);
     }
+    setTimeout(refetch, 3500);
   }
 
   const balance = hiveAccount?.balance ? String(extractNumber(String(hiveAccount.balance))) : '0.000';

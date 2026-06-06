@@ -13,6 +13,7 @@ export default function useHiveAccount(username: string) {
     const [hiveAccount, setHiveAccount] = useState<HiveAccount | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [refreshKey, setRefreshKey] = useState(0)
 
     useEffect(() => {
         const handleGetHiveAccount = async () => {
@@ -28,7 +29,7 @@ export default function useHiveAccount(username: string) {
                 } else if (userAccount.json_metadata) {
                     userAccount.metadata = JSON.parse(userAccount.json_metadata)
                 } else {
-                    userAccount.metadata = {} 
+                    userAccount.metadata = {}
                 }
                 setHiveAccount(userAccount)
             } catch {
@@ -38,6 +39,9 @@ export default function useHiveAccount(username: string) {
             }
         }
         handleGetHiveAccount()
-    }, [username]);
-    return { hiveAccount, isLoading, error }
+    }, [username, refreshKey]);
+
+    const refetch = () => setRefreshKey(k => k + 1)
+
+    return { hiveAccount, isLoading, error, refetch }
 }
