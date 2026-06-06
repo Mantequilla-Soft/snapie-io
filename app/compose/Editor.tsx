@@ -551,7 +551,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 <Button
                     leftIcon={<FaCode />}
                     size="sm"
-                    variant={viewMode === 'editor' ? 'solid' : 'outline'}
+                    variant="ghost"
+                    bg={viewMode === 'editor' ? 'muted' : 'transparent'}
+                    color="text"
+                    _hover={{ bg: 'muted' }}
                     onClick={() => setViewMode('editor')}
                 >
                     Editor
@@ -560,7 +563,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     <Button
                         leftIcon={<FaEye />}
                         size="sm"
-                        variant={viewMode === 'split' ? 'solid' : 'outline'}
+                        variant="ghost"
+                        bg={viewMode === 'split' ? 'muted' : 'transparent'}
+                        color="text"
+                        _hover={{ bg: 'muted' }}
                         onClick={() => setViewMode('split')}
                     >
                         Split
@@ -569,7 +575,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 <Button
                     leftIcon={<FaEye />}
                     size="sm"
-                    variant={viewMode === 'preview' ? 'solid' : 'outline'}
+                    variant="ghost"
+                    bg={viewMode === 'preview' ? 'muted' : 'transparent'}
+                    color="text"
+                    _hover={{ bg: 'muted' }}
                     onClick={() => setViewMode('preview')}
                 >
                     Preview
@@ -650,7 +659,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             bg="background"
                     >
                         <Box 
-                            bg="secondary" 
+                            bg="muted" 
                             px={3} 
                             py={2} 
                             borderBottom="1px solid" 
@@ -675,23 +684,23 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 >
                                     H
                                 </MenuButton>
-                                <MenuList bg="secondary" borderColor="border">
-                                    <MenuItem onClick={handleHeader1} fontSize="xl" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                <MenuList bg="muted" borderColor="border">
+                                    <MenuItem onClick={handleHeader1} fontSize="xl" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H1 - Large Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader2} fontSize="lg" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader2} fontSize="lg" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H2 - Medium Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader3} fontSize="md" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader3} fontSize="md" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H3 - Small Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader4} fontSize="sm" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader4} fontSize="sm" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H4 - Extra Small
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader5} fontSize="xs" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader5} fontSize="xs" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H5 - Tiny
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader6} fontSize="xs" fontWeight="normal" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader6} fontSize="xs" fontWeight="normal" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H6 - Minimal
                                     </MenuItem>
                                 </MenuList>
@@ -795,7 +804,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     variant="ghost"
                                     color="text"
                                 />
-                                <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="secondary" borderColor="border">
+                                <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="muted" borderColor="border">
                                     {ALL_COMMON_EMOJIS.map((emoji, index) => (
                                         <MenuItem
                                             key={index}
@@ -1048,7 +1057,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Flex justify="flex-end">
                             <Button
                                 size="sm"
-                                variant="solid"
+                                variant="outline"
+                                borderColor="primary"
+                                color="primary"
+                                _hover={{ bg: 'muted' }}
                                 onClick={onSubmit}
                                 isLoading={isSubmitting}
                                 loadingText="Publishing..."
@@ -1073,7 +1085,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         bg="background"
                     >
                         <Box 
-                            bg="secondary" 
+                            bg="muted" 
                             px={3} 
                             py={2} 
                             borderBottom="1px solid" 

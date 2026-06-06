@@ -228,7 +228,10 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
                   aria-label="Add beneficiary"
                   icon={<FaPlus />}
                   size="sm"
-                  variant="solid"
+                  variant="outline"
+                  borderColor="primary"
+                  color="primary"
+                  _hover={{ bg: 'muted' }}
                   onClick={handleAddBeneficiary}
                   isDisabled={totalPercentage + lockedPercentage >= 100}
                 />
