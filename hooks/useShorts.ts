@@ -14,6 +14,14 @@ function parseEmbedUrl(embedUrl: string): { author: string; permlink: string } {
   return { author: cleaned.slice(0, slashIdx), permlink: cleaned.slice(slashIdx + 1) };
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function timeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   if (!dateStr || !isFinite(date.getTime())) return '';
@@ -53,7 +61,7 @@ async function fetchPage(page: number, limit: number): Promise<{ shorts: ShortIt
     };
   });
 
-  return { shorts, hasMore: (data.page ?? 1) < (data.totalPages ?? 1) };
+  return { shorts: shuffle(shorts), hasMore: (data.page ?? 1) < (data.totalPages ?? 1) };
 }
 
 export function useShorts() {
