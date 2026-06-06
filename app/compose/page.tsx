@@ -87,13 +87,17 @@ export default function Home() {
     if (!user) return
     const username = typeof user === 'string' ? user : (user as any)?.username || ''
     if (!username) return
-    getUserSubscribedCommunities(username).then((subs) => {
-      const snapieId = communityTag
-      const snapieOption = { id: snapieId, title: 'Snapie' }
-      const others = subs.filter((s) => s.id !== snapieId)
-      setCommunityOptions([snapieOption, ...others])
-    }).catch(() => {})
-  }, [user, communityTag])
+    ;(async () => {
+      try {
+        const subs = await getUserSubscribedCommunities(username)
+        const snapieOption = { id: communityTag, title: 'Snapie' }
+        const others = subs.filter((s) => s.id !== communityTag)
+        setCommunityOptions([snapieOption, ...others])
+      } catch {
+        // keep default Snapie option
+      }
+    })()
+  }, [user])
 
   const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const { key } = e

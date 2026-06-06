@@ -819,8 +819,15 @@ export async function getCommunityInfo(username: string) {
 }
 
 export async function getUserSubscribedCommunities(username: string): Promise<{ id: string; title: string }[]> {
-  const subs = await HiveClient.call('bridge', 'list_all_subscriptions', { account: username });
-  return (subs as any[]).map((s: any[]) => ({ id: s[0], title: s[1] }));
+  try {
+    const subs = await HiveClient.call('bridge', 'list_all_subscriptions', { account: username });
+    if (!Array.isArray(subs)) return [];
+    return subs
+      .map((s: any[]) => ({ id: String(s[0] ?? ''), title: String(s[1] ?? s[0] ?? '') }))
+      .filter((s) => s.id);
+  } catch {
+    return [];
+  }
 }
 
 export async function findPosts(query: string, params: any) {
