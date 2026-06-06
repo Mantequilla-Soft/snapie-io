@@ -125,10 +125,10 @@ const PreviewContent: FC<{ markdown: string; emojiOwner?: string }> = ({ markdow
                 },
                 // Links
                 'a': {
-                    color: '#3182ce',
+                    color: 'var(--chakra-colors-primary)',
                     textDecoration: 'underline',
                     '&:hover': {
-                        color: '#2c5aa0'
+                        color: 'var(--chakra-colors-accent)'
                     }
                 },
                 // Code blocks
@@ -879,9 +879,9 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     left="0"
                                     right="0"
                                     bottom="0"
-                                    bg="rgba(0, 123, 255, 0.1)"
+                                    bg="rgba(0, 168, 255, 0.08)"
                                     border="2px dashed"
-                                    borderColor="blue.400"
+                                    borderColor="primary"
                                     borderRadius="md"
                                     align="center"
                                     justify="center"
@@ -889,8 +889,8 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     zIndex="10"
                                 >
                                     <Box textAlign="center">
-                                        <FaCloudUploadAlt size={48} color="#3182CE" />
-                                        <Text mt={2} fontSize="lg" fontWeight="bold" color="blue.400">
+                                        <FaCloudUploadAlt size={48} color="var(--chakra-colors-primary)" />
+                                        <Text mt={2} fontSize="lg" fontWeight="bold" color="primary">
                                             Drop images here
                                         </Text>
                                     </Box>
@@ -939,7 +939,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                         </HStack>
                                         {videoUploadProgress > 0 && !videoEmbedUrl && (
                                             <Box>
-                                                <Progress value={videoUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                                                <Progress value={videoUploadProgress} size="xs" borderRadius="full" sx={{ '& > div': { background: 'var(--chakra-colors-primary)' } }} />
                                                 <Text fontSize="xs" mt={1} color="gray.500">
                                                     {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
                                                 </Text>
@@ -1024,8 +1024,9 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                             <Tag
                                                 size="sm"
                                                 borderRadius="base"
-                                                variant="solid"
-                                                colorScheme="blue"
+                                                variant="subtle"
+                                                bg="muted"
+                                                color="text"
                                             >
                                                 <TagLabel>{tag}</TagLabel>
                                                 <TagCloseButton onClick={() => removeHashtag(index)} />
@@ -1047,7 +1048,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Flex justify="flex-end">
                             <Button
                                 size="sm"
-                                colorScheme="blue"
+                                variant="solid"
                                 onClick={onSubmit}
                                 isLoading={isSubmitting}
                                 loadingText="Publishing..."
