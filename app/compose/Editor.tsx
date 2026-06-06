@@ -630,6 +630,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 borderColor="border"
                                 borderRadius="md"
                                 bg="background"
+                                overflow="hidden"
                             >
                                 <Select
                                     value={selectedCommunity}
