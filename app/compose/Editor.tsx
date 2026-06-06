@@ -666,6 +666,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             display="flex"
                             flexDirection="column"
                             bg="background"
+                            overflow="hidden"
                     >
                         <Box 
                             bg="muted" 
@@ -1083,7 +1084,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
 
                 {/* Preview Panel */}
                 {(viewMode === 'preview' || viewMode === 'split') && (
-                    <Box 
+                    <Box
                         flex={viewMode === 'split' ? 1 : 'auto'}
                         h="100%"
                         border="1px solid"
@@ -1092,6 +1093,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         display="flex"
                         flexDirection="column"
                         bg="background"
+                        overflow="hidden"
                     >
                         <Box 
                             bg="muted" 
