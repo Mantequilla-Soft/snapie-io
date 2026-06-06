@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm tsc *)",
+      "Bash(pnpm install *)",
+      "Bash(npm view *)",
+      "Bash(sudo pnpm *)",
+      "Bash(git checkout *)",
+      "Bash(pnpm update *)",
+      "Bash(node *)",
+      "Read(//home/meno/.pm2/logs/**)"
+    ]
+  }
+}

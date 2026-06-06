@@ -19,7 +19,7 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift } from 'react-icons/fa';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -33,6 +33,7 @@ import {
   getHiveHbdTicker,
   getHiveHbdMarketQuote,
   swapHiveHbdWithSlippage,
+  claimRewardsWithKeychain,
   type SwapDirection,
 } from '@/lib/hive/client-functions';
 import { extractNumber } from '@/lib/utils/extractNumber';
@@ -71,6 +72,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [hivePower, setHivePower] = useState<string | undefined>(undefined);
   const [swapPrice, setSwapPrice] = useState<number | null>(null);
   const [swapQuote, setSwapQuote] = useState<{ highestBid: number; lowestAsk: number; latest: number } | null>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   const textMuted = 'gray.400';
   const successColor = 'success';
@@ -237,6 +239,27 @@ export default function WalletPage({ username }: WalletPageProps) {
         </Alert>
       </Box>
     );
+  }
+
+  const rewardHive = String(hiveAccount?.reward_hive_balance ?? '0.000 HIVE');
+  const rewardHbd = String(hiveAccount?.reward_hbd_balance ?? '0.000 HBD');
+  const rewardVests = String(hiveAccount?.reward_vesting_balance ?? '0.000000 VESTS');
+  const rewardHiveNum = extractNumber(rewardHive);
+  const rewardHbdNum = extractNumber(rewardHbd);
+  const rewardVestsNum = extractNumber(rewardVests);
+  const rewardVestingHiveNum = extractNumber(String(hiveAccount?.reward_vesting_hive ?? '0.000 HIVE'));
+  const hasPendingRewards = rewardHiveNum > 0 || rewardHbdNum > 0 || rewardVestsNum > 0;
+
+  async function handleClaimRewards() {
+    if (!user || !hasPendingRewards) return;
+    setIsClaiming(true);
+    try {
+      await claimRewardsWithKeychain(user, rewardHive, rewardHbd, rewardVests);
+    } catch (err) {
+      console.error('Claim rewards failed:', err);
+    } finally {
+      setIsClaiming(false);
+    }
   }
 
   const balance = hiveAccount?.balance ? String(extractNumber(String(hiveAccount.balance))) : '0.000';
@@ -538,6 +561,71 @@ export default function WalletPage({ username }: WalletPageProps) {
               </Flex>
             )}
           </Box>
+
+          {/* Pending Rewards */}
+          {(hasPendingRewards || isOwnWallet) && (
+            <Box
+              bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
+              sx={{ border: '1px solid rgba(255, 200, 80, 0.25)', borderLeft: '3px solid #f6c90e' }}
+            >
+              <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
+                <Flex alignItems="center" gap={3}>
+                  <Flex w={10} h={10} borderRadius="full" bg="rgba(246, 201, 14, 0.12)" border="1px solid" borderColor="rgba(246, 201, 14, 0.3)" alignItems="center" justifyContent="center">
+                    <Icon as={FaGift} color="yellow.400" boxSize={4} />
+                  </Flex>
+                  <Box>
+                    <Heading size="md">Pending Rewards</Heading>
+                    <Text fontSize="xs" color={textMuted}>Unclaimed author &amp; curation rewards</Text>
+                  </Box>
+                </Flex>
+                {!hasPendingRewards && (
+                  <Text fontSize="sm" color={textMuted}>No pending rewards</Text>
+                )}
+              </Flex>
+
+              {hasPendingRewards && (
+                <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={3} px={5} pb={isOwnWallet ? 3 : 5}>
+                  {rewardHiveNum > 0 && (
+                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE</Text>
+                      <Text fontSize="lg" fontWeight="bold">{rewardHiveNum.toFixed(3)}</Text>
+                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHiveNum * prices.hive).toFixed(2)}</Text>}
+                    </Box>
+                  )}
+                  {rewardHbdNum > 0 && (
+                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD</Text>
+                      <Text fontSize="lg" fontWeight="bold">{rewardHbdNum.toFixed(3)}</Text>
+                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHbdNum * prices.hbd).toFixed(2)}</Text>}
+                    </Box>
+                  )}
+                  {rewardVestsNum > 0 && (
+                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HP</Text>
+                      <Text fontSize="lg" fontWeight="bold">{rewardVestingHiveNum.toFixed(3)}</Text>
+                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardVestingHiveNum * prices.hive).toFixed(2)}</Text>}
+                    </Box>
+                  )}
+                </Grid>
+              )}
+
+              {isOwnWallet && hasPendingRewards && (
+                <Flex px={5} pb={4}>
+                  <Button
+                    size="sm"
+                    leftIcon={<FaGift />}
+                    colorScheme="yellow"
+                    variant="outline"
+                    isLoading={isClaiming}
+                    loadingText="Claiming..."
+                    onClick={handleClaimRewards}
+                  >
+                    Claim Rewards
+                  </Button>
+                </Flex>
+              )}
+            </Box>
+          )}
 
           {/* Savings */}
           <Box

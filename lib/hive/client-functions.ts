@@ -194,6 +194,26 @@ export async function delegateWithKeychain(username: string, delegatee: string, 
   }
 }
 
+export async function claimRewardsWithKeychain(
+  username: string,
+  rewardHive: string,
+  rewardHbd: string,
+  rewardVests: string,
+) {
+  const op = [
+    'claim_reward_balance',
+    {
+      account: username,
+      reward_hive: rewardHive,
+      reward_hbd: rewardHbd,
+      reward_vests: rewardVests,
+    },
+  ];
+  const result = await aiohaBroadcast([op], KeyTypes.Posting, 'Claim pending rewards');
+  console.log({ claimRewards: result });
+  return result;
+}
+
 export async function broadcastWithKeychain(
   username: string,
   operations: any[],
