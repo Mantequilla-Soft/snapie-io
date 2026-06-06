@@ -602,7 +602,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Box
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             bg="background"
                         >
                             <Input
@@ -611,7 +611,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 onChange={(e) => setTitle(e.target.value)}
                                 size="md"
                                 border="none"
-                                borderRadius="md"
+                                borderRadius="10px"
                                 fontWeight="semibold"
                                 fontSize="lg"
                                 px={3}
@@ -625,28 +625,36 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         
                         {/* Community Selector — only shown in compose (not edit) */}
                         {communityOptions && communityOptions.length > 0 && (
-                            <Box
+                            <Flex
                                 border="1px solid"
                                 borderColor="border"
-                                borderRadius="md"
+                                borderRadius="10px"
                                 bg="background"
                                 overflow="hidden"
+                                align="center"
+                                px={3}
+                                gap={2}
                             >
+                                <Text fontSize="xs" color="gray.500" whiteSpace="nowrap" flexShrink={0}>
+                                    Post to
+                                </Text>
                                 <Select
                                     value={selectedCommunity}
                                     onChange={(e) => onCommunityChange?.(e.target.value)}
                                     size="sm"
                                     border="none"
-                                    borderRadius="md"
-                                    bg="background"
+                                    bg="transparent"
                                     color="text"
-                                    _focus={{ boxShadow: 'none', borderColor: 'primary' }}
+                                    flex={1}
+                                    minW={0}
+                                    _focus={{ boxShadow: 'none' }}
+                                    sx={{ paddingInlineStart: '4px' }}
                                 >
                                     {communityOptions.map((c) => (
                                         <option key={c.id} value={c.id}>{c.title}</option>
                                     ))}
                                 </Select>
-                            </Box>
+                            </Flex>
                         )}
 
                         {/* Markdown Editor Panel */}
@@ -654,7 +662,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             h="100%"
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             display="flex"
                             flexDirection="column"
                             bg="background"
@@ -892,7 +900,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     bg="rgba(0, 168, 255, 0.08)"
                                     border="2px dashed"
                                     borderColor="primary"
-                                    borderRadius="md"
+                                    borderRadius="10px"
                                     align="center"
                                     justify="center"
                                     pointerEvents="none"
@@ -916,7 +924,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     color="text"
                                     px={6}
                                     py={3}
-                                    borderRadius="md"
+                                    borderRadius="10px"
                                     zIndex="20"
                                 >
                                     <Text>Uploading...</Text>
@@ -929,7 +937,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         {(selectedVideo || audioEmbedUrl) && (
                             <VStack spacing={2} align="stretch">
                                 {selectedVideo && (
-                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                    <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
                                         <HStack justify="space-between" mb={2}>
                                             <HStack spacing={2}>
                                                 <FaVideo />
@@ -963,7 +971,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                                         alt="Video thumbnail"
                                                         boxSize="64px"
                                                         objectFit="cover"
-                                                        borderRadius="md"
+                                                        borderRadius="10px"
                                                         flexShrink={0}
                                                     />
                                                 )}
@@ -982,7 +990,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     </Box>
                                 )}
                                 {audioEmbedUrl && (
-                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                    <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
                                         <HStack justify="space-between">
                                             <HStack spacing={2}>
                                                 <FaMicrophone />
@@ -1006,7 +1014,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Box
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             bg="background"
                         >
                             {/* Hashtag Input */}
@@ -1017,7 +1025,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 onKeyDown={handleHashtagKeyDown}
                                 size="sm"
                                 border="none"
-                                borderRadius="md"
+                                borderRadius="10px"
                                 px={4}
                                 py={2}
                                 bg="background"
@@ -1033,7 +1041,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                         <WrapItem key={index}>
                                             <Tag
                                                 size="sm"
-                                                borderRadius="base"
+                                                borderRadius="10px"
                                                 variant="subtle"
                                                 bg="muted"
                                                 color="text"
@@ -1080,7 +1088,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         h="100%"
                         border="1px solid"
                         borderColor="border"
-                        borderRadius="md"
+                        borderRadius="10px"
                         display="flex"
                         flexDirection="column"
                         bg="background"

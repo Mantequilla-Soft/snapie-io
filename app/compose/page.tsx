@@ -291,7 +291,7 @@ export default function Home() {
         flex="1"
         border="1px solid"
         borderColor="border"
-        borderRadius="base"
+        borderRadius="10px"
         justify="center"
         p="1"
         overflow="hidden" // Prevent internal scrolling
