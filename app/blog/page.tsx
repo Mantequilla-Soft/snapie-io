@@ -181,6 +181,7 @@ export default function Blog() {
             <TopBar
                 viewMode={viewMode}
                 setViewMode={setViewMode}
+                activeQuery={query}
                 setQuery={setQuery}
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}

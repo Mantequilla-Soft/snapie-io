@@ -1,11 +1,25 @@
 'use client';
-import { Flex, IconButton, Menu, MenuButton, MenuList, MenuItem, Button, Input, InputGroup, InputRightElement, CloseButton } from '@chakra-ui/react';
-import { FaTh, FaBars, FaPen, FaSort } from 'react-icons/fa'; 
+import { Flex, IconButton, Button, Input, InputGroup, InputRightElement, CloseButton, Text } from '@chakra-ui/react';
+import { FaTh, FaBars, FaPen } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+
+interface SortOption {
+    label: string;
+    value: string;
+    icon: string;
+}
+
+const SORT_OPTIONS: SortOption[] = [
+    { label: 'New',      value: 'created',  icon: '✨' },
+    { label: 'Hot',      value: 'hot',      icon: '🔥' },
+    { label: 'Trending', value: 'trending', icon: '📈' },
+    { label: 'Top',      value: 'payout',   icon: '💰' },
+];
 
 interface TopBarProps {
     viewMode: 'grid' | 'list';
     setViewMode: (mode: 'grid' | 'list') => void;
+    activeQuery: string;
     setQuery: (query: string) => void;
     searchTerm: string;
     setSearchTerm: (value: string) => void;
@@ -16,79 +30,105 @@ interface TopBarProps {
 export default function TopBar({
     viewMode,
     setViewMode,
+    activeQuery,
     setQuery,
     searchTerm,
     setSearchTerm,
     onSearchSubmit,
     onSearchClear,
 }: TopBarProps) {
-    const router = useRouter(); 
+    const router = useRouter();
 
     return (
-        <Flex justifyContent="space-between" mb={4} gap={4} align="center" flexWrap="wrap">
-            <Flex gap={3} align="center" flex="1" minW={{ base: '100%', md: '360px' }}>
+        <Flex direction="column" gap={3} mb={4}>
+            {/* Row 1 — search + view toggle */}
+            <Flex gap={3} align="center" flexWrap="wrap">
                 <IconButton
                     aria-label="Compose"
                     icon={<FaPen />}
                     onClick={() => router.push('/compose')}
                     variant="outline"
+                    borderRadius="10px"
+                    color="text"
+                    borderColor="border"
+                    _hover={{ bg: 'muted' }}
                 />
-                <InputGroup maxW={{ base: 'full', md: '480px' }}>
+                <InputGroup flex="1" maxW={{ base: 'full', md: '480px' }}>
                     <Input
                         placeholder="Search posts, titles, authors..."
                         value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') onSearchSubmit();
-                        }}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') onSearchSubmit(); }}
                         bg="muted"
+                        borderColor="border"
+                        borderRadius="10px"
+                        color="text"
+                        _placeholder={{ color: 'gray.500' }}
+                        _focus={{ boxShadow: 'none', borderColor: 'primary' }}
                     />
                     {searchTerm && (
                         <InputRightElement>
-                            <CloseButton
-                                size="sm"
-                                onClick={onSearchClear}
-                                aria-label="Clear search"
-                            />
+                            <CloseButton size="sm" onClick={onSearchClear} aria-label="Clear search" />
                         </InputRightElement>
                     )}
                 </InputGroup>
-                <Button onClick={onSearchSubmit} size="sm" colorScheme="blue">
+                <Button
+                    onClick={onSearchSubmit}
+                    size="sm"
+                    variant="outline"
+                    borderColor="primary"
+                    color="primary"
+                    borderRadius="10px"
+                    _hover={{ bg: 'muted' }}
+                >
                     Go
                 </Button>
+                <Flex gap={2} ml="auto">
+                    <IconButton
+                        aria-label="Grid View"
+                        icon={<FaTh />}
+                        onClick={() => setViewMode('grid')}
+                        variant="ghost"
+                        bg={viewMode === 'grid' ? 'muted' : 'transparent'}
+                        color="text"
+                        borderRadius="10px"
+                        _hover={{ bg: 'muted' }}
+                    />
+                    <IconButton
+                        aria-label="List View"
+                        icon={<FaBars />}
+                        onClick={() => setViewMode('list')}
+                        variant="ghost"
+                        bg={viewMode === 'list' ? 'muted' : 'transparent'}
+                        color="text"
+                        borderRadius="10px"
+                        _hover={{ bg: 'muted' }}
+                    />
+                </Flex>
             </Flex>
-            <Flex justifyContent="flex-end">
-                <IconButton
-                    aria-label="Grid View"
-                    icon={<FaTh />} 
-                    onClick={() => setViewMode('grid')}
-                    isActive={viewMode === 'grid'}
-                    variant={viewMode === 'grid' ? 'solid' : 'outline'}  
-                />
-                <IconButton
-                    aria-label="List View"
-                    icon={<FaBars />}  
-                    onClick={() => setViewMode('list')}
-                    isActive={viewMode === 'list'}
-                    variant={viewMode === 'list' ? 'solid' : 'outline'}
-                    ml={4}
-                />
-                <Menu>
-                    <MenuButton
-                        as={Button}
-                        aria-label="Sort Options"
-                        leftIcon={<FaSort />} 
-                        variant="outline"
-                        ml={4}
-                    >
-                        Sort
-                    </MenuButton>
-                    <MenuList zIndex="popover">
-                        <MenuItem onClick={() => setQuery('created')}>Recent</MenuItem>
-                        <MenuItem onClick={() => setQuery('trending')}>Trending</MenuItem>
-                        <MenuItem onClick={() => setQuery('hot')}>Hot</MenuItem>
-                    </MenuList>
-                </Menu>
+
+            {/* Row 2 — sort pills */}
+            <Flex gap={2} flexWrap="wrap">
+                {SORT_OPTIONS.map((opt) => {
+                    const isActive = activeQuery === opt.value;
+                    return (
+                        <Button
+                            key={opt.value}
+                            size="sm"
+                            variant="ghost"
+                            borderRadius="full"
+                            bg={isActive ? 'muted' : 'transparent'}
+                            color={isActive ? 'text' : 'gray.500'}
+                            borderWidth="1px"
+                            borderColor={isActive ? 'primary' : 'border'}
+                            _hover={{ bg: 'muted', color: 'text' }}
+                            onClick={() => setQuery(opt.value)}
+                            leftIcon={<Text as="span" fontSize="sm">{opt.icon}</Text>}
+                        >
+                            {opt.label}
+                        </Button>
+                    );
+                })}
             </Flex>
         </Flex>
     );
