@@ -3,7 +3,7 @@ import { useAioha } from '@aioha/react-ui';
 import { signAndBroadcastWithKeychain, getUserSubscribedCommunities } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
@@ -12,6 +12,7 @@ import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/B
 const Editor = dynamic(() => import('./Editor'), { ssr: false })
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || 'hive-blog'
+const DRAFT_KEY = 'snapie_compose_draft'
 
 // Create a configured composer for blog posts
 const blogComposer = createComposer({
@@ -60,6 +61,8 @@ export default function Home() {
   const [communityOptions, setCommunityOptions] = useState<{ id: string; title: string }[]>([
     { id: communityTag, title: 'Snapie' },
   ])
+  const [draftRestored, setDraftRestored] = useState(false)
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Sync state when search params change (e.g., same-route navigation from recording upload)
   useEffect(() => {
@@ -78,6 +81,37 @@ export default function Home() {
         : buildHangoutBodyAwaitingAudio(hangoutThumbnail)
     )
   }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutThumbnail])
+
+  // Restore draft on mount (skip hangout posts — they're pre-filled from URL)
+  useEffect(() => {
+    if (isHangout) return
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const draft = JSON.parse(raw)
+      if (draft.title) setTitle(draft.title)
+      if (draft.markdown) setMarkdown(draft.markdown)
+      if (Array.isArray(draft.hashtags) && draft.hashtags.length) setHashtags(draft.hashtags)
+      if (draft.selectedCommunity) setSelectedCommunity(draft.selectedCommunity)
+      setDraftRestored(true)
+    } catch {
+      // corrupt draft — ignore
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save draft to localStorage (debounced 1s, skipped for hangout posts)
+  useEffect(() => {
+    if (isHangout) return
+    if (draftTimer.current) clearTimeout(draftTimer.current)
+    draftTimer.current = setTimeout(() => {
+      if (!title && !markdown && hashtags.length === 0) {
+        localStorage.removeItem(DRAFT_KEY)
+        return
+      }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, markdown, hashtags, selectedCommunity }))
+    }, 1000)
+    return () => { if (draftTimer.current) clearTimeout(draftTimer.current) }
+  }, [title, markdown, hashtags, selectedCommunity, isHangout])
 
   const { user } = useAioha()
   const toast = useToast()
@@ -112,6 +146,16 @@ export default function Home() {
 
   const removeHashtag = (index: number) => {
     setHashtags(hashtags.filter((_, i) => i !== index))
+  }
+
+  function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY)
+    setDraftRestored(false)
+    setTitle('')
+    setMarkdown('')
+    setHashtags([])
+    setHashtagInput('')
+    setSelectedCommunity(communityTag)
   }
 
   function handleVideoEmbedUrlChange(url: string | null) {
@@ -233,12 +277,14 @@ export default function Home() {
           isClosable: true,
         })
 
-        // Clear form
+        // Clear form and saved draft
+        localStorage.removeItem(DRAFT_KEY)
+        setDraftRestored(false)
         setMarkdown('')
         setTitle('')
         setHashtags([])
         setHashtagInput('')
-        setBeneficiaries([{ account: 'snapie', weight: 300 }]) // Reset to default
+        setBeneficiaries([{ account: 'snapie', weight: 300 }])
         setVideoEmbedUrl(null)
         setAudioEmbedUrl(null)
         setVideoThumbnailUrl(null)
@@ -322,6 +368,8 @@ export default function Home() {
           selectedCommunity={selectedCommunity}
           onCommunityChange={setSelectedCommunity}
           communityOptions={communityOptions}
+          draftRestored={draftRestored}
+          onDiscardDraft={clearDraft}
         />
       </Flex>
     </Flex>
