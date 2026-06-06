@@ -1,5 +1,7 @@
-import { Box, Image, Link, Text } from "@chakra-ui/react";
+import { Box, Image, Link, Text, IconButton } from "@chakra-ui/react";
 import { useEffect, useMemo, useRef, useState, memo } from "react";
+import { createPortal } from "react-dom";
+import { FiX } from "react-icons/fi";
 import ImageCarousel from "@/components/shared/ImageCarousel";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import {
@@ -268,7 +270,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
 
   return (
     <Box mb={4} ref={wrapperRef} data-snapie-media-layout>
-      {lightboxUrl && (
+      {lightboxUrl && typeof document !== 'undefined' && createPortal(
         <Box
           position="fixed"
           inset={0}
@@ -280,6 +282,20 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
           onClick={() => setLightboxUrl(null)}
           cursor="zoom-out"
         >
+          <IconButton
+            aria-label="Close image"
+            icon={<FiX />}
+            position="fixed"
+            top={4}
+            right={4}
+            zIndex={10000}
+            size="md"
+            borderRadius="full"
+            bg="blackAlpha.700"
+            color="white"
+            _hover={{ bg: 'blackAlpha.900' }}
+            onClick={() => setLightboxUrl(null)}
+          />
           <Image
             src={lightboxUrl}
             alt="Full size image"
@@ -290,7 +306,8 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
             cursor="default"
             onClick={(e) => e.stopPropagation()}
           />
-        </Box>
+        </Box>,
+        document.body
       )}
       {groupedItems.map((group, index) => {
         if (group.kind === 'single-image') {
