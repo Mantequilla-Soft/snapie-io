@@ -132,6 +132,7 @@ export function useHiveNotifications(
 
       setLastRead(readThroughDate);
       setUnreadCount(0);
+      window.dispatchEvent(new CustomEvent('hive:notifications-read'));
     } catch (err) {
       console.error('[notifications] mark all as read failed:', err);
       throw err;
@@ -191,6 +192,12 @@ export function useHiveNotifications(
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [account, poll, refetch]);
+
+  useEffect(() => {
+    const onRead = () => setUnreadCount(0);
+    window.addEventListener('hive:notifications-read', onRead);
+    return () => window.removeEventListener('hive:notifications-read', onRead);
+  }, []);
 
   return {
     notifications,
