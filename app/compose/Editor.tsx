@@ -215,9 +215,11 @@ interface EditorProps {
   selectedCommunity?: string;
   onCommunityChange?: (id: string) => void;
   communityOptions?: { id: string; title: string }[];
+  draftRestored?: boolean;
+  onDiscardDraft?: () => void;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, selectedCommunity, onCommunityChange, communityOptions }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, selectedCommunity, onCommunityChange, communityOptions, draftRestored, onDiscardDraft }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -598,6 +600,31 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         overflowY="auto"
                         pr={2}
                     >
+                        {/* Draft restored banner */}
+                        {draftRestored && (
+                            <Flex
+                                px={3}
+                                py={2}
+                                bg="muted"
+                                borderRadius="10px"
+                                align="center"
+                                justify="space-between"
+                                fontSize="xs"
+                                color="gray.400"
+                            >
+                                <Text>Draft restored — your previous work is back.</Text>
+                                <Button
+                                    size="xs"
+                                    variant="ghost"
+                                    color="gray.400"
+                                    _hover={{ color: 'text', bg: 'background' }}
+                                    onClick={onDiscardDraft}
+                                >
+                                    Discard
+                                </Button>
+                            </Flex>
+                        )}
+
                         {/* Title Input */}
                         <Box
                             border="1px solid"
