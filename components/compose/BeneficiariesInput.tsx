@@ -146,7 +146,7 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
           <Text fontWeight="bold" color="text">
             Reward Beneficiaries
           </Text>
-          <Tag size="sm" colorScheme="blue">
+          <Tag size="sm" variant="subtle" bg="muted" color="text">
             {(totalPercentage + lockedPercentage).toFixed(1)}% allocated
           </Tag>
         </HStack>
@@ -155,7 +155,7 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
           icon={isExpanded ? <FaChevronUp /> : <FaChevronDown />}
           size="xs"
           variant="ghost"
-          color="white"
+          color="text"
         />
       </Flex>
 
@@ -175,8 +175,9 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
                       key={b.account}
                       size="md"
                       borderRadius="base"
-                      variant="solid"
-                      colorScheme={lockedAccounts.includes(b.account) ? 'green' : 'blue'}
+                      variant="subtle"
+                      bg={lockedAccounts.includes(b.account) ? 'green.900' : 'muted'}
+                      color="text"
                     >
                       <TagLabel>
                         @{b.account} ({(b.weight / 100).toFixed(1)}%)
@@ -227,7 +228,10 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
                   aria-label="Add beneficiary"
                   icon={<FaPlus />}
                   size="sm"
-                  colorScheme="blue"
+                  variant="outline"
+                  borderColor="primary"
+                  color="primary"
+                  _hover={{ bg: 'muted' }}
                   onClick={handleAddBeneficiary}
                   isDisabled={totalPercentage + lockedPercentage >= 100}
                 />

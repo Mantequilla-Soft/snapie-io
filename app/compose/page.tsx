@@ -1,6 +1,6 @@
 'use client'
 import { useAioha } from '@aioha/react-ui';
-import { signAndBroadcastWithKeychain } from '@/lib/hive/client-functions'
+import { signAndBroadcastWithKeychain, getUserSubscribedCommunities } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
@@ -10,6 +10,8 @@ import { createComposer, type Beneficiary } from '@snapie/operations'
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput'
 
 const Editor = dynamic(() => import('./Editor'), { ssr: false })
+
+const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || 'hive-blog'
 
 // Create a configured composer for blog posts
 const blogComposer = createComposer({
@@ -54,6 +56,10 @@ export default function Home() {
   const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null)
   const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null)
   const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null)
+  const [selectedCommunity, setSelectedCommunity] = useState(communityTag)
+  const [communityOptions, setCommunityOptions] = useState<{ id: string; title: string }[]>([
+    { id: communityTag, title: 'Snapie' },
+  ])
 
   // Sync state when search params change (e.g., same-route navigation from recording upload)
   useEffect(() => {
@@ -76,7 +82,22 @@ export default function Home() {
   const { user } = useAioha()
   const toast = useToast()
   const router = useRouter()
-  const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || 'blog'
+
+  useEffect(() => {
+    if (!user) return
+    const username = typeof user === 'string' ? user : (user as any)?.username || ''
+    if (!username) return
+    ;(async () => {
+      try {
+        const subs = await getUserSubscribedCommunities(username)
+        const snapieOption = { id: communityTag, title: 'Snapie' }
+        const others = subs.filter((s) => s.id !== communityTag)
+        setCommunityOptions([snapieOption, ...others])
+      } catch {
+        // keep default Snapie option
+      }
+    })()
+  }, [user])
 
   const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const { key } = e
@@ -182,7 +203,7 @@ export default function Home() {
         body: postBody,
         title: title,
         parentAuthor: '',
-        parentPermlink: communityTag,
+        parentPermlink: selectedCommunity,
         tags: hashtags,
         beneficiaries: beneficiaries.map(b => ({ account: b.account, weight: b.weight })),
         metadata: {
@@ -270,7 +291,7 @@ export default function Home() {
         flex="1"
         border="1px solid"
         borderColor="border"
-        borderRadius="base"
+        borderRadius="10px"
         justify="center"
         p="1"
         overflow="hidden" // Prevent internal scrolling
@@ -298,6 +319,9 @@ export default function Home() {
           onVideoEmbedUrlChange={handleVideoEmbedUrlChange}
           onAudioEmbedUrlChange={setAudioEmbedUrl}
           onVideoThumbnailChange={setVideoThumbnailUrl}
+          selectedCommunity={selectedCommunity}
+          onCommunityChange={setSelectedCommunity}
+          communityOptions={communityOptions}
         />
       </Flex>
     </Flex>

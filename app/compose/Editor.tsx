@@ -1,7 +1,7 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
+import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image, Select } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
@@ -125,10 +125,10 @@ const PreviewContent: FC<{ markdown: string; emojiOwner?: string }> = ({ markdow
                 },
                 // Links
                 'a': {
-                    color: '#3182ce',
+                    color: 'var(--chakra-colors-primary)',
                     textDecoration: 'underline',
                     '&:hover': {
-                        color: '#2c5aa0'
+                        color: 'var(--chakra-colors-accent)'
                     }
                 },
                 // Code blocks
@@ -212,9 +212,12 @@ interface EditorProps {
   onVideoEmbedUrlChange?: (url: string | null) => void;
   onAudioEmbedUrlChange?: (url: string | null) => void;
   onVideoThumbnailChange?: (url: string | null) => void;
+  selectedCommunity?: string;
+  onCommunityChange?: (id: string) => void;
+  communityOptions?: { id: string; title: string }[];
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, selectedCommunity, onCommunityChange, communityOptions }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -548,7 +551,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 <Button
                     leftIcon={<FaCode />}
                     size="sm"
-                    variant={viewMode === 'editor' ? 'solid' : 'outline'}
+                    variant="ghost"
+                    bg={viewMode === 'editor' ? 'muted' : 'transparent'}
+                    color="text"
+                    _hover={{ bg: 'muted' }}
                     onClick={() => setViewMode('editor')}
                 >
                     Editor
@@ -557,7 +563,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     <Button
                         leftIcon={<FaEye />}
                         size="sm"
-                        variant={viewMode === 'split' ? 'solid' : 'outline'}
+                        variant="ghost"
+                        bg={viewMode === 'split' ? 'muted' : 'transparent'}
+                        color="text"
+                        _hover={{ bg: 'muted' }}
                         onClick={() => setViewMode('split')}
                     >
                         Split
@@ -566,7 +575,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                 <Button
                     leftIcon={<FaEye />}
                     size="sm"
-                    variant={viewMode === 'preview' ? 'solid' : 'outline'}
+                    variant="ghost"
+                    bg={viewMode === 'preview' ? 'muted' : 'transparent'}
+                    color="text"
+                    _hover={{ bg: 'muted' }}
                     onClick={() => setViewMode('preview')}
                 >
                     Preview
@@ -590,7 +602,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Box
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             bg="background"
                         >
                             <Input
@@ -599,7 +611,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 onChange={(e) => setTitle(e.target.value)}
                                 size="md"
                                 border="none"
-                                borderRadius="md"
+                                borderRadius="10px"
                                 fontWeight="semibold"
                                 fontSize="lg"
                                 px={3}
@@ -611,18 +623,53 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             />
                         </Box>
                         
+                        {/* Community Selector — only shown in compose (not edit) */}
+                        {communityOptions && communityOptions.length > 0 && (
+                            <Flex
+                                border="1px solid"
+                                borderColor="border"
+                                borderRadius="10px"
+                                bg="background"
+                                overflow="hidden"
+                                align="center"
+                                px={3}
+                                gap={2}
+                            >
+                                <Text fontSize="xs" color="gray.500" whiteSpace="nowrap" flexShrink={0}>
+                                    Post to
+                                </Text>
+                                <Select
+                                    value={selectedCommunity}
+                                    onChange={(e) => onCommunityChange?.(e.target.value)}
+                                    size="sm"
+                                    border="none"
+                                    bg="transparent"
+                                    color="text"
+                                    flex={1}
+                                    minW={0}
+                                    _focus={{ boxShadow: 'none' }}
+                                    sx={{ paddingInlineStart: '4px' }}
+                                >
+                                    {communityOptions.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                    ))}
+                                </Select>
+                            </Flex>
+                        )}
+
                         {/* Markdown Editor Panel */}
-                        <Box 
+                        <Box
                             h="100%"
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             display="flex"
                             flexDirection="column"
                             bg="background"
+                            overflow="hidden"
                     >
                         <Box 
-                            bg="secondary" 
+                            bg="muted" 
                             px={3} 
                             py={2} 
                             borderBottom="1px solid" 
@@ -643,27 +690,27 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     px={2}
                                     fontSize="sm"
                                     fontWeight="bold"
-                                    color="white"
+                                    color="text"
                                 >
                                     H
                                 </MenuButton>
-                                <MenuList bg="secondary" borderColor="border">
-                                    <MenuItem onClick={handleHeader1} fontSize="xl" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                <MenuList bg="muted" borderColor="border">
+                                    <MenuItem onClick={handleHeader1} fontSize="xl" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H1 - Large Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader2} fontSize="lg" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader2} fontSize="lg" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H2 - Medium Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader3} fontSize="md" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader3} fontSize="md" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H3 - Small Heading
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader4} fontSize="sm" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader4} fontSize="sm" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H4 - Extra Small
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader5} fontSize="xs" fontWeight="bold" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader5} fontSize="xs" fontWeight="bold" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H5 - Tiny
                                     </MenuItem>
-                                    <MenuItem onClick={handleHeader6} fontSize="xs" fontWeight="normal" bg="secondary" color="text" _hover={{ bg: "muted" }}>
+                                    <MenuItem onClick={handleHeader6} fontSize="xs" fontWeight="normal" bg="muted" color="text" _hover={{ bg: "background" }}>
                                         H6 - Minimal
                                     </MenuItem>
                                 </MenuList>
@@ -675,7 +722,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleBold}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Italic"
@@ -683,7 +730,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleItalic}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Underline"
@@ -691,7 +738,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleUnderline}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Strikethrough"
@@ -699,7 +746,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleStrikethrough}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Link"
@@ -707,7 +754,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleLink}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Bullet List"
@@ -715,7 +762,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleBulletList}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Numbered List"
@@ -723,7 +770,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleNumberedList}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Quote"
@@ -731,7 +778,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleQuote}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Code Block"
@@ -739,7 +786,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleCodeBlock}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Table"
@@ -747,7 +794,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleTable}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Spoiler"
@@ -755,7 +802,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleSpoiler}
-                                color="white"
+                                color="text"
                             />
                             {/* Emoji Picker */}
                             <Menu>
@@ -765,9 +812,9 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     icon={<FaSmile />}
                                     size="xs"
                                     variant="ghost"
-                                    color="white"
+                                    color="text"
                                 />
-                                <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="secondary" borderColor="border">
+                                <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="muted" borderColor="border">
                                     {ALL_COMMON_EMOJIS.map((emoji, index) => (
                                         <MenuItem
                                             key={index}
@@ -792,7 +839,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={() => setGiphyModalOpen(!isGiphyModalOpen)}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Upload Image"
@@ -800,7 +847,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleImageClick}
-                                color="white"
+                                color="text"
                             />
                             <IconButton
                                 aria-label="Upload Video"
@@ -808,7 +855,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={handleVideoClick}
-                                color="white"
+                                color="text"
                                 isDisabled={!!selectedVideo || !!videoEmbedUrl}
                                 title="Upload video to 3Speak"
                             />
@@ -818,7 +865,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 size="xs"
                                 variant="ghost"
                                 onClick={() => setAudioRecorderOpen(true)}
-                                color="white"
+                                color="text"
                                 isDisabled={!!audioEmbedUrl}
                                 title="Record or upload audio"
                             />
@@ -851,18 +898,18 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     left="0"
                                     right="0"
                                     bottom="0"
-                                    bg="rgba(0, 123, 255, 0.1)"
+                                    bg="rgba(0, 168, 255, 0.08)"
                                     border="2px dashed"
-                                    borderColor="blue.400"
-                                    borderRadius="md"
+                                    borderColor="primary"
+                                    borderRadius="10px"
                                     align="center"
                                     justify="center"
                                     pointerEvents="none"
                                     zIndex="10"
                                 >
                                     <Box textAlign="center">
-                                        <FaCloudUploadAlt size={48} color="#3182CE" />
-                                        <Text mt={2} fontSize="lg" fontWeight="bold" color="blue.400">
+                                        <FaCloudUploadAlt size={48} color="var(--chakra-colors-primary)" />
+                                        <Text mt={2} fontSize="lg" fontWeight="bold" color="primary">
                                             Drop images here
                                         </Text>
                                     </Box>
@@ -875,10 +922,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     left="50%"
                                     transform="translate(-50%, -50%)"
                                     bg="blackAlpha.700"
-                                    color="white"
+                                    color="text"
                                     px={6}
                                     py={3}
-                                    borderRadius="md"
+                                    borderRadius="10px"
                                     zIndex="20"
                                 >
                                     <Text>Uploading...</Text>
@@ -891,7 +938,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         {(selectedVideo || audioEmbedUrl) && (
                             <VStack spacing={2} align="stretch">
                                 {selectedVideo && (
-                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                    <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
                                         <HStack justify="space-between" mb={2}>
                                             <HStack spacing={2}>
                                                 <FaVideo />
@@ -911,7 +958,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                         </HStack>
                                         {videoUploadProgress > 0 && !videoEmbedUrl && (
                                             <Box>
-                                                <Progress value={videoUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                                                <Progress value={videoUploadProgress} size="xs" borderRadius="full" sx={{ '& > div': { background: 'var(--chakra-colors-primary)' } }} />
                                                 <Text fontSize="xs" mt={1} color="gray.500">
                                                     {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
                                                 </Text>
@@ -925,7 +972,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                                         alt="Video thumbnail"
                                                         boxSize="64px"
                                                         objectFit="cover"
-                                                        borderRadius="md"
+                                                        borderRadius="10px"
                                                         flexShrink={0}
                                                     />
                                                 )}
@@ -944,7 +991,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                     </Box>
                                 )}
                                 {audioEmbedUrl && (
-                                    <Box border="1px solid" borderColor="border" borderRadius="md" bg="background" p={3}>
+                                    <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
                                         <HStack justify="space-between">
                                             <HStack spacing={2}>
                                                 <FaMicrophone />
@@ -968,7 +1015,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Box
                             border="1px solid"
                             borderColor="border"
-                            borderRadius="md"
+                            borderRadius="10px"
                             bg="background"
                         >
                             {/* Hashtag Input */}
@@ -979,7 +1026,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 onKeyDown={handleHashtagKeyDown}
                                 size="sm"
                                 border="none"
-                                borderRadius="md"
+                                borderRadius="10px"
                                 px={4}
                                 py={2}
                                 bg="background"
@@ -995,9 +1042,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                         <WrapItem key={index}>
                                             <Tag
                                                 size="sm"
-                                                borderRadius="base"
-                                                variant="solid"
-                                                colorScheme="blue"
+                                                borderRadius="10px"
+                                                variant="subtle"
+                                                bg="muted"
+                                                color="text"
                                             >
                                                 <TagLabel>{tag}</TagLabel>
                                                 <TagCloseButton onClick={() => removeHashtag(index)} />
@@ -1019,7 +1067,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         <Flex justify="flex-end">
                             <Button
                                 size="sm"
-                                colorScheme="blue"
+                                variant="outline"
+                                borderColor="primary"
+                                color="primary"
+                                _hover={{ bg: 'muted' }}
                                 onClick={onSubmit}
                                 isLoading={isSubmitting}
                                 loadingText="Publishing..."
@@ -1033,18 +1084,19 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
 
                 {/* Preview Panel */}
                 {(viewMode === 'preview' || viewMode === 'split') && (
-                    <Box 
+                    <Box
                         flex={viewMode === 'split' ? 1 : 'auto'}
                         h="100%"
                         border="1px solid"
                         borderColor="border"
-                        borderRadius="md"
+                        borderRadius="10px"
                         display="flex"
                         flexDirection="column"
                         bg="background"
+                        overflow="hidden"
                     >
                         <Box 
-                            bg="secondary" 
+                            bg="muted" 
                             px={3} 
                             py={2} 
                             borderBottom="1px solid" 
