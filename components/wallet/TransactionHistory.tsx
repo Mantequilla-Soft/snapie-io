@@ -15,8 +15,17 @@ import {
   useColorModeValue,
   Checkbox,
   Heading,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  useDisclosure,
+  Button,
+  IconButton,
 } from '@chakra-ui/react';
-import { FaArrowUp, FaArrowDown, FaPiggyBank, FaGift, FaExchangeAlt, FaShareAlt, FaRandom, FaBan } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaPiggyBank, FaGift, FaExchangeAlt, FaShareAlt, FaRandom, FaBan, FaSlidersH } from 'react-icons/fa';
 import { getTransactionHistory, Transaction } from '@/lib/hive/client-functions';
 import InfiniteScroll from 'react-infinite-scroll-component';
 
@@ -28,6 +37,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
   const cardBg = 'muted';
   const borderColor = 'border';
   const hoverBg = 'secondary';
+  const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [hasMore, setHasMore] = useState(true);
@@ -39,11 +49,13 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
   const [filters, setFilters] = useState({
     incoming: true,
     outgoing: true,
-    rewards: true,
+    claims: true,
+    claimableOps: false,
     powerUpDown: true,
     savings: true,
     conversions: true,
     delegations: true,
+    hideDust: true,
   });
 
   useEffect(() => {
@@ -197,11 +209,16 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
         if (isOutgoing && !filters.outgoing) return false;
         if (!isOutgoing && !filters.incoming) return false;
       }
-      if (['claim_rewards', 'author_reward', 'curation_reward', 'interest'].includes(tx.type) && !filters.rewards) return false;
+      if (['claim_rewards', 'interest'].includes(tx.type) && !filters.claims) return false;
+      if (['author_reward', 'curation_reward'].includes(tx.type) && !filters.claimableOps) return false;
       if (['power_up', 'power_down', 'power_down_payment'].includes(tx.type) && !filters.powerUpDown) return false;
       if (['to_savings', 'from_savings', 'savings_complete', 'savings_cancel'].includes(tx.type) && !filters.savings) return false;
       if (['conversion', 'market_swap_order', 'market_swap_fill', 'limit_order', 'limit_order_cancel'].includes(tx.type) && !filters.conversions) return false;
       if (tx.type === 'delegation' && !filters.delegations) return false;
+      if (filters.hideDust) {
+        const numeric = parseFloat(tx.amount);
+        if (!isNaN(numeric) && numeric > 0 && numeric < 0.001) return false;
+      }
       return true;
     });
   }, [transactions, filters, username]);
@@ -214,85 +231,132 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
     );
   }
 
-  return (
-    <Flex bg={cardBg} borderRadius="10px" border="1px" borderColor={borderColor} boxShadow="md" gap={0}>
-      {/* Filters Sidebar */}
-      <Box
-        w="200px"
-        p={4}
-        borderRight="1px"
-        borderColor={borderColor}
-        display={{ base: 'none', md: 'block' }}
-      >
-        <Heading size="sm" mb={4}>FILTERS</Heading>
-        
-        <VStack align="stretch" spacing={4}>
-          <Box>
-            <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={2}>
-              TRANSFERS
-            </Text>
-            <VStack align="stretch" spacing={2}>
-              <Checkbox
-                isChecked={filters.incoming}
-                onChange={(e) => setFilters({ ...filters, incoming: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Incoming</Text>
-              </Checkbox>
-              <Checkbox
-                isChecked={filters.outgoing}
-                onChange={(e) => setFilters({ ...filters, outgoing: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Outgoing</Text>
-              </Checkbox>
-            </VStack>
-          </Box>
-
-          <Box>
-            <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={2}>
-              OPERATIONS
-            </Text>
-            <VStack align="stretch" spacing={2}>
-              <Checkbox
-                isChecked={filters.rewards}
-                onChange={(e) => setFilters({ ...filters, rewards: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Rewards / Interest</Text>
-              </Checkbox>
-              <Checkbox
-                isChecked={filters.powerUpDown}
-                onChange={(e) => setFilters({ ...filters, powerUpDown: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Power Up / Power Down</Text>
-              </Checkbox>
-              <Checkbox
-                isChecked={filters.savings}
-                onChange={(e) => setFilters({ ...filters, savings: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">To / From Savings</Text>
-              </Checkbox>
-              <Checkbox
-                isChecked={filters.conversions}
-                onChange={(e) => setFilters({ ...filters, conversions: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Conversions / Swaps</Text>
-              </Checkbox>
-              <Checkbox
-                isChecked={filters.delegations}
-                onChange={(e) => setFilters({ ...filters, delegations: e.target.checked })}
-                size="sm"
-              >
-                <Text fontSize="sm">Delegations</Text>
-              </Checkbox>
-            </VStack>
-          </Box>
+  const filterPanelContent = (
+    <VStack align="stretch" spacing={4}>
+      <Box>
+        <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={2}>TRANSFERS</Text>
+        <VStack align="stretch" spacing={2}>
+          <Checkbox isChecked={filters.incoming} onChange={(e) => setFilters({ ...filters, incoming: e.target.checked })} size="sm">
+            <Text fontSize="sm">Incoming</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.outgoing} onChange={(e) => setFilters({ ...filters, outgoing: e.target.checked })} size="sm">
+            <Text fontSize="sm">Outgoing</Text>
+          </Checkbox>
         </VStack>
       </Box>
+
+      <Box>
+        <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={2}>OPERATIONS</Text>
+        <VStack align="stretch" spacing={2}>
+          <Checkbox isChecked={filters.claims} onChange={(e) => setFilters({ ...filters, claims: e.target.checked })} size="sm">
+            <Text fontSize="sm">Claims / Interest</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.claimableOps} onChange={(e) => setFilters({ ...filters, claimableOps: e.target.checked })} size="sm">
+            <Text fontSize="sm">Claimable Rewards</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.powerUpDown} onChange={(e) => setFilters({ ...filters, powerUpDown: e.target.checked })} size="sm">
+            <Text fontSize="sm">Power Up / Power Down</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.savings} onChange={(e) => setFilters({ ...filters, savings: e.target.checked })} size="sm">
+            <Text fontSize="sm">To / From Savings</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.conversions} onChange={(e) => setFilters({ ...filters, conversions: e.target.checked })} size="sm">
+            <Text fontSize="sm">Conversions / Swaps</Text>
+          </Checkbox>
+          <Checkbox isChecked={filters.delegations} onChange={(e) => setFilters({ ...filters, delegations: e.target.checked })} size="sm">
+            <Text fontSize="sm">Delegations</Text>
+          </Checkbox>
+        </VStack>
+      </Box>
+
+      <Box>
+        <Text fontSize="xs" color="gray.500" fontWeight="semibold" mb={2}>DISPLAY</Text>
+        <VStack align="stretch" spacing={2}>
+          <Checkbox isChecked={filters.hideDust} onChange={(e) => setFilters({ ...filters, hideDust: e.target.checked })} size="sm">
+            <Text fontSize="sm">Hide dust (&lt; 0.001)</Text>
+          </Checkbox>
+        </VStack>
+      </Box>
+    </VStack>
+  );
+
+  const activeFilterCount = [
+    !filters.incoming, !filters.outgoing, !filters.claims, filters.claimableOps,
+    !filters.powerUpDown, !filters.savings, !filters.conversions, !filters.delegations,
+    !filters.hideDust,
+  ].filter(Boolean).length;
+
+  return (
+    <>
+      {/* Mobile filter drawer */}
+      <Drawer isOpen={isDrawerOpen} placement="bottom" onClose={onDrawerClose}>
+        <DrawerOverlay />
+        <DrawerContent borderTopRadius="16px" bg={cardBg}>
+          <DrawerCloseButton />
+          <DrawerHeader borderBottomWidth="1px" borderColor={borderColor} fontSize="sm" fontWeight="bold">
+            FILTERS
+          </DrawerHeader>
+          <DrawerBody py={4}>
+            {filterPanelContent}
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+    <Flex bg={cardBg} borderRadius="10px" border="1px" borderColor={borderColor} boxShadow="md" gap={0} direction="column">
+      {/* Mobile filter bar */}
+      <Flex
+        display={{ base: 'flex', md: 'none' }}
+        px={4} py={2}
+        borderBottom="1px"
+        borderColor={borderColor}
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Text fontSize="xs" color="gray.500" fontWeight="semibold">
+          {filteredTransactions.length} transactions
+        </Text>
+        <Button
+          size="sm"
+          leftIcon={<Icon as={FaSlidersH} />}
+          variant="ghost"
+          onClick={onDrawerOpen}
+          position="relative"
+        >
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge
+              position="absolute"
+              top="-4px"
+              right="-4px"
+              borderRadius="full"
+              bg="primary"
+              color="background"
+              fontSize="2xs"
+              minW="16px"
+              h="16px"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
+      </Flex>
+
+      <Flex flex={1} gap={0}>
+        {/* Filters Sidebar — desktop only */}
+        <Box
+          w="200px"
+          p={4}
+          borderRight="1px"
+          borderColor={borderColor}
+          display={{ base: 'none', md: 'block' }}
+          flexShrink={0}
+        >
+          <Heading size="sm" mb={4}>FILTERS</Heading>
+          {filterPanelContent}
+        </Box>
 
       {/* Transaction List */}
       <Box flex={1} id="scrollableDiv" height="600px" overflowY="auto">
@@ -388,6 +452,8 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
         </VStack>
       </InfiniteScroll>
       </Box>
+      </Flex>
     </Flex>
+    </>
   );
 }
