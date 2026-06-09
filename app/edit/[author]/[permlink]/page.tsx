@@ -69,13 +69,16 @@ export default function EditPostPage() {
             }
         }
         load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [author, permlink]);
+    }, [author, permlink, user, router, toast]);
 
     async function handleSubmit() {
         const username = typeof user === 'string' ? user : (user as any)?.username || '';
         if (!username) {
             toast({ title: 'Not logged in', status: 'error', duration: 3000 });
+            return;
+        }
+        if (username !== author) {
+            toast({ title: 'Unauthorized', description: 'You can only edit your own posts.', status: 'error', duration: 4000 });
             return;
         }
 

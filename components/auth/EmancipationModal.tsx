@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Modal,
   ModalOverlay,
@@ -57,11 +57,14 @@ export default function EmancipationModal({ isOpen, onClose }: EmancipationModal
     }
   }
 
-  const handleOpen = () => {
-    setStep('info')
-    setKeys(null)
-    fetchStatus()
-  }
+  useEffect(() => {
+    if (isOpen) {
+      setStep('info')
+      setKeys(null)
+      fetchStatus()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   const handleExport = async () => {
     setStep('loading')
@@ -93,7 +96,6 @@ export default function EmancipationModal({ isOpen, onClose }: EmancipationModal
       onClose={onClose}
       size="lg"
       closeOnOverlayClick={step !== 'loading'}
-      onCloseComplete={handleOpen}
     >
       <ModalOverlay />
       <ModalContent>

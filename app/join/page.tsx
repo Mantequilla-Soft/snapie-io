@@ -79,7 +79,7 @@ function JoinPageInner() {
                 try {
                   const url = new URL(link)
                   const c = url.searchParams.get('code')
-                  if (c) window.location.href = `/join?code=${c}`
+                  if (c) window.location.href = `/join?code=${encodeURIComponent(c)}`
                   else alert('That link does not look like a valid sponsor link.')
                 } catch {
                   alert('Invalid URL. Please paste the full link.')

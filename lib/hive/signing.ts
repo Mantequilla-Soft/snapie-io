@@ -14,7 +14,11 @@ let _snapieUsername: string | null = null
 
 export function setSigningAuthMode(mode: AuthMode, username?: string | null) {
   _mode = mode
-  if (username !== undefined) _snapieUsername = username ?? null
+  if (mode === 'snapie') {
+    if (username !== undefined) _snapieUsername = username ?? null
+  } else {
+    _snapieUsername = null
+  }
 }
 
 export function getSnapieUsername(): string | null {

@@ -166,7 +166,7 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                     </Box>
                 </Tooltip>
 
-                {isLoggedIn ? (
+                {user ? (
                     <>
                         <Tooltip label="Notifications" aria-label="Notifications tooltip">
                             <Box position="relative">

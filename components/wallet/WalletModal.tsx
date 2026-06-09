@@ -74,11 +74,16 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose}>
+        <Modal
+            isOpen={isOpen}
+            onClose={isLoading ? () => {} : onClose}
+            closeOnOverlayClick={!isLoading}
+            closeOnEsc={!isLoading}
+        >
             <ModalOverlay />
             <ModalContent>
                 <ModalHeader>{title}</ModalHeader>
-                <ModalCloseButton />
+                <ModalCloseButton isDisabled={isLoading} />
                 <ModalBody>
                     {description && <Text fontSize={'small'} mb={4}>{description}</Text>}
                     <Box mb={4}>

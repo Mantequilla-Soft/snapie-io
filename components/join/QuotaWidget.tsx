@@ -14,7 +14,7 @@ export default function QuotaWidget() {
     async function fetch() {
       try {
         const q = await getQuota()
-        if (!cancelled) setQuota(q)
+        if (!cancelled) { setQuota(q); setError(false) }
       } catch {
         if (!cancelled) setError(true)
       }
@@ -30,7 +30,7 @@ export default function QuotaWidget() {
   }
 
   const resetsAt = new Date(quota.resetsAt)
-  const resetStr = resetsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  const resetStr = resetsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
 
   return (
     <Tooltip

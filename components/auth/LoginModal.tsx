@@ -104,7 +104,7 @@ export default function LoginModal({
   )
 
   const handleEmailSubmit = useCallback(async () => {
-    if (!email || !password) return
+    if (!email || !password || loading) return
     setLoading(true)
     setError('')
     try {
@@ -242,7 +242,6 @@ export default function LoginModal({
                           size="sm"
                           variant="ghost"
                           onClick={() => setShowPassword((p) => !p)}
-                          tabIndex={-1}
                         />
                       </InputRightElement>
                     </InputGroup>

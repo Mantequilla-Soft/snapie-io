@@ -109,7 +109,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
     if (!data || !hiveUser?.name) return;
     setMode('broadcasting');
     setError(null);
-    const postingDelegate = process.env.NEXT_PUBLIC_POSTING_AUTHORITY_ACCOUNT ?? 'snapie';
+    const postingDelegate = process.env.NEXT_PUBLIC_POSTING_AUTHORITY_ACCOUNT?.trim() || 'snapie';
     try {
       let op: [string, Record<string, unknown>];
       let title: string;

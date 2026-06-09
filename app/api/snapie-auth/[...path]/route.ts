@@ -19,21 +19,36 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
   const qs = req.nextUrl.searchParams.toString()
   const url = qs ? `${upstream}?${qs}` : upstream
 
-  const cookieHeader = req.headers.get('cookie') ?? ''
+  const rawCookies = req.headers.get('cookie') ?? ''
   const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
 
+  // Only forward Snapie Auth cookies — never leak unrelated session cookies.
+  const SNAPIE_COOKIE_NAMES = ['snapieauth_session', 'snapieauth_csrf']
+  const filteredCookies = rawCookies
+    .split(';')
+    .map((c) => c.trim())
+    .filter((c) => SNAPIE_COOKIE_NAMES.some((n) => c.startsWith(n + '=')))
+    .join('; ')
+
   const fwdHeaders: Record<string, string> = {}
-  if (cookieHeader) fwdHeaders['Cookie'] = cookieHeader
+  if (filteredCookies) fwdHeaders['Cookie'] = filteredCookies
   if (isMutating) {
     const ct = req.headers.get('content-type')
     if (ct) fwdHeaders['Content-Type'] = ct
-    // Proxy extracts CSRF from cookies and injects it as a header so the client
-    // doesn't need to manage it manually.
-    const m = cookieHeader.match(/snapieauth_csrf=([^;]+)/)
-    if (m) fwdHeaders['x-csrf-token'] = decodeURIComponent(m[1])
+    const m = rawCookies.match(/snapieauth_csrf=([^;]+)/)
+    if (m) {
+      try {
+        fwdHeaders['x-csrf-token'] = decodeURIComponent(m[1])
+      } catch {
+        // Malformed percent-encoding — skip injecting the token
+      }
+    }
   }
 
   const body = isMutating ? await req.text() : undefined
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10_000)
 
   let res: Response
   try {
@@ -41,10 +56,13 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
       method: req.method,
       headers: fwdHeaders,
       body: body || undefined,
+      signal: controller.signal,
     })
   } catch (err) {
     console.error('[snapie-auth proxy] upstream error:', err)
     return NextResponse.json({ error: 'proxy_upstream_error' }, { status: 502 })
+  } finally {
+    clearTimeout(timeout)
   }
 
   const resBody = await res.arrayBuffer()

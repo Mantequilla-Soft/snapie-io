@@ -14,10 +14,10 @@ export function useCurrentUser() {
   const isLoggedIn = !!username
 
   const logout = () => {
-    if (isSnapieLoggedIn) {
-      logoutFromSnapie()
-    } else {
+    if (aiohaUser) {
       aioha.logout()
+    } else if (isSnapieLoggedIn) {
+      logoutFromSnapie()
     }
   }
 

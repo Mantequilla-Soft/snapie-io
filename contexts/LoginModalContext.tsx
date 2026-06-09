@@ -84,8 +84,6 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
   // Clear session on Aioha logout (only when not in Snapie mode).
   useEffect(() => {
     if (aiohaUser || isSnapieLoggedIn) return
-    const existingCookie = document.cookie.match(/(?:^|; )hive_username=([^;]+)/)
-    if (!existingCookie) return
     setSigningAuthMode(null)
     deleteCookie('hive_username')
     localStorage.removeItem('hiveuser')

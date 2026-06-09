@@ -24,7 +24,11 @@ function loadGIS(): Promise<void> {
       gisReady = true
       resolve()
     }
-    script.onerror = reject
+    script.onerror = (err) => {
+      gisLoading = null
+      gisReady = false
+      reject(err)
+    }
     document.head.appendChild(script)
   })
   return gisLoading

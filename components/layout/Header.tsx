@@ -81,7 +81,7 @@ export default function Header() {
                 </Flex>
                 {isLoggedIn ? (
                     <Button onClick={logout}>
-                        Logout ({user})
+                        Logout ({user ?? 'account'})
                     </Button>
                 ) : (
                     <Button onClick={openLoginModal}>

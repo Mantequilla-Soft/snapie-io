@@ -101,6 +101,10 @@ export function SnapieAuthProvider({ children }: { children: ReactNode }) {
           .catch(() => {})
       } else {
         setSnapieUserState(null)
+        setSigningAuthMode(null, null)
+        deleteCookie('hive_username')
+        localStorage.removeItem('hiveuser')
+        setHiveUser(null)
       }
     },
     [applySnapieSession],

@@ -65,6 +65,7 @@ export default function AccountSetupPanel({ onComplete }: Props) {
   const [jobStatus, setJobStatus] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const checkReqIdRef = useRef(0)
 
   useEffect(() => {
     getEligibility()
@@ -91,16 +92,19 @@ export default function AccountSetupPanel({ onComplete }: Props) {
     setUsernameError('')
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
+    const reqId = ++checkReqIdRef.current
     debounceRef.current = setTimeout(async () => {
       setChecking(true)
       try {
         const res = await checkUsername(lower)
+        if (reqId !== checkReqIdRef.current) return
         setAvailable(res.available)
         if (!res.available) setUsernameError(res.reason ?? 'Username not available.')
       } catch {
+        if (reqId !== checkReqIdRef.current) return
         setUsernameError('Could not check availability.')
       } finally {
-        setChecking(false)
+        if (reqId === checkReqIdRef.current) setChecking(false)
       }
     }, 500)
   }, [])
@@ -115,7 +119,14 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       setJobStatus('pending')
 
       let status = 'pending'
+      const deadline = Date.now() + 120_000 // 2 min max
       while (!['confirmed', 'failed', 'expired'].includes(status)) {
+        if (Date.now() > deadline) {
+          setSubmitError('Account creation timed out. Please try again.')
+          setSubmitting(false)
+          setJobStatus(null)
+          return
+        }
         await new Promise((r) => setTimeout(r, 3000))
         const job = await pollJob(jobId)
         status = job.status

@@ -26,22 +26,26 @@ export default function EmancipationBanner() {
   const [totalUsd, setTotalUsd] = useState<number | null>(null)
   const [thresholdUsd, setThresholdUsd] = useState<number | null>(null)
 
-  // Show banner when emancipation is required, unless dismissed this session
+  // Sync banner visibility with current requirement state
   useEffect(() => {
-    if (!isSnapieLoggedIn || !emancipationRequired) return
-    const dismissed = sessionStorage.getItem(DISMISS_KEY)
-    if (!dismissed) openBanner()
-  }, [isSnapieLoggedIn, emancipationRequired, openBanner])
+    if (isSnapieLoggedIn && emancipationRequired) {
+      const dismissed = sessionStorage.getItem(DISMISS_KEY)
+      if (!dismissed) openBanner()
+    } else {
+      closeBanner()
+    }
+  }, [isSnapieLoggedIn, emancipationRequired, openBanner, closeBanner])
 
-  // Re-open on post-transaction signal (dispatched by Snapie active-key interceptors)
+  // Re-open after a transaction signals the account is over threshold
   useEffect(() => {
     const handler = () => {
+      if (!isSnapieLoggedIn) return
       sessionStorage.removeItem(DISMISS_KEY)
       openBanner()
     }
     window.addEventListener('snapie:emancipation-required', handler)
     return () => window.removeEventListener('snapie:emancipation-required', handler)
-  }, [openBanner])
+  }, [isSnapieLoggedIn, openBanner])
 
   // Fetch detailed status when banner is visible
   useEffect(() => {

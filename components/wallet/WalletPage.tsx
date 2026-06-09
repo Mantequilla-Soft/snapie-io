@@ -83,20 +83,22 @@ export default function WalletPage({ username }: WalletPageProps) {
   const accentColor = 'accent';
 
   useEffect(() => {
-    if (hiveAccount?.posting_json_metadata) {
-      try {
-        const parsedMetadata = JSON.parse(hiveAccount.posting_json_metadata);
-        const profile = parsedMetadata?.profile || {};
-        setProfileMetadata({
-          profileImage: profile.profile_image || '',
-          coverImage: profile.cover_image || '',
-          website: profile.website || '',
-        });
-      } catch (err) {
-        console.error('Failed to parse profile metadata', err);
-      }
+    const empty = { profileImage: '', coverImage: '', website: '' };
+    const raw = hiveAccount?.posting_json_metadata;
+    if (!raw) { setProfileMetadata(empty); return; }
+    try {
+      const parsedMetadata = JSON.parse(raw);
+      const profile = parsedMetadata?.profile || {};
+      setProfileMetadata({
+        profileImage: profile.profile_image || '',
+        coverImage: profile.cover_image || '',
+        website: profile.website || '',
+      });
+    } catch (err) {
+      console.error('Failed to parse profile metadata', err);
+      setProfileMetadata(empty);
     }
-  }, [hiveAccount]);
+  }, [hiveAccount?.posting_json_metadata]);
 
   useEffect(() => {
     const fetchProfileInfo = async () => {
