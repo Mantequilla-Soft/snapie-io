@@ -333,6 +333,7 @@ export async function updateProfile(
     'account_update2',
     {
       account: username,
+      json_metadata: '',
       posting_json_metadata: JSON.stringify(profileMetadata),
       extensions: [],
     },
