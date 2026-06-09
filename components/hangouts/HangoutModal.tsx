@@ -6,6 +6,7 @@ import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
@@ -135,7 +136,8 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
   useWakeLock(isOpen);
   const { aioha } = useAioha();
-  const { username: user } = useCurrentUser();
+  const { username: user, isSnapie } = useCurrentUser();
+  const aiohaAdapter = useHangoutsAiohaAdapter();
   const { sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
   useEffect(() => {
@@ -146,7 +148,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
 
   const needsTokenWait = !!user && !sessionToken && !error;
   const currentProvider = aioha?.getCurrentProvider?.() ?? null;
-  const signPrompt = providerSignPrompt(currentProvider);
+  const signPrompt = isSnapie ? 'Signing in with Snapie…' : providerSignPrompt(currentProvider);
 
   if (!isOpen) return null;
 
@@ -256,6 +258,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
                 sessionToken={sessionToken ?? undefined}
                 username={user ?? undefined}
                 imageServerApiKey={IMAGE_SERVER_API_KEY}
+                aioha={aiohaAdapter}
               >
                 <RoomBody roomName={roomName} onClose={onClose} />
               </HangoutsProvider>

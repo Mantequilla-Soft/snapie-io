@@ -6,6 +6,7 @@ import '@/app/hangouts/overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useAioha } from '@aioha/react-ui';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
@@ -106,7 +107,8 @@ function GuestLobby() {
 
 export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) {
   const { aioha } = useAioha();
-  const { username: user } = useCurrentUser();
+  const { username: user, isSnapie } = useCurrentUser();
+  const aiohaAdapter = useHangoutsAiohaAdapter();
   const { openRoom, sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
   // Lazy-sign on landing — the context no longer auto-signs on user change.
@@ -136,6 +138,7 @@ export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) 
           apiBaseUrl={API_URL}
           livekitServerUrl={LK_URL}
           imageServerApiKey={IMAGE_SERVER_API_KEY}
+          aioha={aiohaAdapter}
         >
           <GuestLobby />
         </HangoutsProvider>
@@ -164,7 +167,7 @@ export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) 
   // HiveAuth in particular silently waits on a phone push otherwise.
   if (sessionLoading || !sessionToken) {
     const currentProvider = aioha?.getCurrentProvider?.() ?? null;
-    const signPrompt = providerSignPrompt(currentProvider);
+    const signPrompt = isSnapie ? 'Signing in with Snapie…' : providerSignPrompt(currentProvider);
     return (
       <Center p={12}>
         <VStack spacing={3}>
@@ -183,6 +186,7 @@ export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) 
         sessionToken={sessionToken}
         username={user}
         imageServerApiKey={IMAGE_SERVER_API_KEY}
+        aioha={aiohaAdapter}
       >
         <AuthLobby user={user} />
       </HangoutsProvider>
