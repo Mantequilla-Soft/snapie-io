@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -19,9 +19,12 @@ import {
   Box,
   Image,
   Text,
+  IconButton,
+  Progress,
   useToast,
 } from '@chakra-ui/react';
-import { updateProfile } from '@/lib/hive/client-functions';
+import { FaCamera } from 'react-icons/fa';
+import { updateProfile, uploadImageWithKeychain } from '@/lib/hive/client-functions';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -47,6 +50,8 @@ export default function EditProfileModal({
 }: EditProfileModalProps) {
   const toast = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarUploadProgress, setAvatarUploadProgress] = useState<number | null>(null);
+  const [coverUploadProgress, setCoverUploadProgress] = useState<number | null>(null);
 
   const [name, setName] = useState('');
   const [about, setAbout] = useState('');
@@ -54,6 +59,9 @@ export default function EditProfileModal({
   const [website, setWebsite] = useState('');
   const [profileImage, setProfileImage] = useState('');
   const [coverImage, setCoverImage] = useState('');
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -63,8 +71,34 @@ export default function EditProfileModal({
       setWebsite(initialData.website);
       setProfileImage(initialData.profileImage);
       setCoverImage(initialData.coverImage);
+      setAvatarUploadProgress(null);
+      setCoverUploadProgress(null);
     }
   }, [isOpen, initialData]);
+
+  async function handleImageFile(
+    file: File,
+    setter: (url: string) => void,
+    setProgress: (p: number | null) => void,
+  ) {
+    setProgress(0);
+    try {
+      const url = await uploadImageWithKeychain(file, username, {
+        onProgress: (p) => setProgress(p),
+      });
+      setter(url);
+    } catch (err: unknown) {
+      toast({
+        title: 'Upload failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setProgress(null);
+    }
+  }
 
   async function handleSave() {
     setIsSaving(true);
@@ -79,6 +113,8 @@ export default function EditProfileModal({
     }
   }
 
+  const isUploading = avatarUploadProgress !== null || coverUploadProgress !== null;
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(6px)" />
@@ -91,48 +127,113 @@ export default function EditProfileModal({
         <ModalBody py={6}>
           <VStack spacing={5} align="stretch">
 
-            {/* Avatar preview + URL */}
+            {/* Avatar */}
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Profile Image URL</FormLabel>
+              <FormLabel fontSize="sm" color="gray.400">Profile Photo</FormLabel>
               <HStack spacing={3} align="center">
-                <Avatar
-                  src={profileImage || undefined}
-                  name={username}
-                  boxSize="56px"
-                  borderRadius="full"
-                  border="2px solid"
-                  borderColor="primary"
-                  flexShrink={0}
-                />
-                <Input
-                  value={profileImage}
-                  onChange={(e) => setProfileImage(e.target.value)}
-                  placeholder="https://…"
-                  size="sm"
-                  bg="muted"
-                  border="none"
-                  _focus={{ boxShadow: '0 0 0 1px var(--chakra-colors-primary)' }}
-                />
+                <Box position="relative" flexShrink={0}>
+                  <Avatar
+                    src={profileImage || undefined}
+                    name={username}
+                    boxSize="64px"
+                    borderRadius="full"
+                    border="2px solid"
+                    borderColor="primary"
+                  />
+                  <IconButton
+                    aria-label="Upload avatar"
+                    icon={<FaCamera />}
+                    size="xs"
+                    borderRadius="full"
+                    position="absolute"
+                    bottom="-2px"
+                    right="-2px"
+                    colorScheme="blue"
+                    onClick={() => avatarInputRef.current?.click()}
+                    isLoading={avatarUploadProgress !== null}
+                  />
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageFile(file, setProfileImage, setAvatarUploadProgress);
+                      e.target.value = '';
+                    }}
+                  />
+                </Box>
+                <VStack spacing={1} align="stretch" flex={1}>
+                  {avatarUploadProgress !== null ? (
+                    <Progress value={avatarUploadProgress} size="xs" colorScheme="blue" borderRadius="full" />
+                  ) : null}
+                  <Input
+                    value={profileImage}
+                    onChange={(e) => setProfileImage(e.target.value)}
+                    placeholder="Or paste an image URL…"
+                    size="sm"
+                    bg="muted"
+                    border="none"
+                    _focus={{ boxShadow: '0 0 0 1px var(--chakra-colors-primary)' }}
+                  />
+                </VStack>
               </HStack>
             </FormControl>
 
-            {/* Cover preview + URL */}
+            {/* Cover image */}
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Cover Image URL</FormLabel>
+              <FormLabel fontSize="sm" color="gray.400">Cover Photo</FormLabel>
               <VStack spacing={2} align="stretch">
-                {coverImage ? (
-                  <Box borderRadius="md" overflow="hidden" height="80px">
-                    <Image src={coverImage} alt="cover preview" width="100%" height="100%" objectFit="cover" fallback={<Box bg="muted" height="80px" />} />
+                <Box
+                  position="relative"
+                  borderRadius="md"
+                  overflow="hidden"
+                  height="90px"
+                  bg="muted"
+                  cursor="pointer"
+                  onClick={() => coverInputRef.current?.click()}
+                  _hover={{ opacity: 0.85 }}
+                >
+                  {coverImage ? (
+                    <Image src={coverImage} alt="cover preview" width="100%" height="100%" objectFit="cover" fallback={<Box bg="muted" height="90px" />} />
+                  ) : (
+                    <Box display="flex" alignItems="center" justifyContent="center" height="90px" gap={2}>
+                      <FaCamera color="gray" />
+                      <Text fontSize="xs" color="gray.500">Click to upload cover photo</Text>
+                    </Box>
+                  )}
+                  <Box
+                    position="absolute" inset={0}
+                    display="flex" alignItems="center" justifyContent="center"
+                    bg="blackAlpha.500"
+                    opacity={0}
+                    _groupHover={{ opacity: 1 }}
+                    transition="opacity 0.15s"
+                  >
+                    <FaCamera color="white" size={20} />
                   </Box>
-                ) : (
-                  <Box bg="muted" borderRadius="md" height="80px" display="flex" alignItems="center" justifyContent="center">
-                    <Text fontSize="xs" color="gray.500">No cover image</Text>
-                  </Box>
-                )}
+                  {coverUploadProgress !== null && (
+                    <Box position="absolute" bottom={0} left={0} right={0}>
+                      <Progress value={coverUploadProgress} size="xs" colorScheme="blue" borderRadius={0} />
+                    </Box>
+                  )}
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageFile(file, setCoverImage, setCoverUploadProgress);
+                      e.target.value = '';
+                    }}
+                  />
+                </Box>
                 <Input
                   value={coverImage}
                   onChange={(e) => setCoverImage(e.target.value)}
-                  placeholder="https://…"
+                  placeholder="Or paste an image URL…"
                   size="sm"
                   bg="muted"
                   border="none"
@@ -195,8 +296,14 @@ export default function EditProfileModal({
         </ModalBody>
 
         <ModalFooter borderTopWidth="1px" borderColor="rgba(255,255,255,0.08)" gap={2}>
-          <Button variant="ghost" onClick={onClose} isDisabled={isSaving}>Cancel</Button>
-          <Button colorScheme="blue" onClick={handleSave} isLoading={isSaving} loadingText="Saving…">
+          <Button variant="ghost" onClick={onClose} isDisabled={isSaving || isUploading}>Cancel</Button>
+          <Button
+            colorScheme="blue"
+            onClick={handleSave}
+            isLoading={isSaving}
+            isDisabled={isUploading}
+            loadingText="Saving…"
+          >
             Save Profile
           </Button>
         </ModalFooter>
