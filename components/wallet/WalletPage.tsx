@@ -19,7 +19,7 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit } from 'react-icons/fa';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -37,6 +37,7 @@ import {
   claimHbdSavingsInterest,
   type SwapDirection,
 } from '@/lib/hive/client-functions';
+import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
@@ -62,12 +63,16 @@ export default function WalletPage({ username }: WalletPageProps) {
   const { username: user } = useCurrentUser();
   const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
 
   const [prices, setPrices] = useState<{ hive: number; hbd: number } | null>(null);
-  const [profileMetadata, setProfileMetadata] = useState<{ profileImage: string; coverImage: string; website: string }>({
+  const [profileMetadata, setProfileMetadata] = useState<{ profileImage: string; coverImage: string; website: string; name: string; about: string; location: string }>({
     profileImage: '',
     coverImage: '',
     website: '',
+    name: '',
+    about: '',
+    location: '',
   });
   const [profileInfo, setProfileInfo] = useState<any>(null);
   const [modalContent, setModalContent] = useState<WalletModalContent | null>(null);
@@ -83,7 +88,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   const accentColor = 'accent';
 
   useEffect(() => {
-    const empty = { profileImage: '', coverImage: '', website: '' };
+    const empty = { profileImage: '', coverImage: '', website: '', name: '', about: '', location: '' };
     const raw = hiveAccount?.posting_json_metadata;
     if (!raw) { setProfileMetadata(empty); return; }
     try {
@@ -93,6 +98,9 @@ export default function WalletPage({ username }: WalletPageProps) {
         profileImage: profile.profile_image || '',
         coverImage: profile.cover_image || '',
         website: profile.website || '',
+        name: profile.name || '',
+        about: profile.about || '',
+        location: profile.location || '',
       });
     } catch (err) {
       console.error('Failed to parse profile metadata', err);
@@ -341,16 +349,31 @@ export default function WalletPage({ username }: WalletPageProps) {
           </Box>
         </Flex>
 
-        <Flex
-          zIndex={2} position="relative"
-          alignItems="center" gap={2}
-          bg="rgba(24, 168, 255, 0.1)"
-          border="1px solid" borderColor="rgba(24, 168, 255, 0.3)"
-          borderRadius="full" px={4} py={2}
-        >
-          <Icon as={FaCoins} color="primary" boxSize={4} />
-          <Text fontSize="sm" fontWeight="bold" color="primary">Wallet</Text>
-        </Flex>
+        <HStack zIndex={2} position="relative" spacing={2}>
+          {isOwnWallet && (
+            <Button
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={FaEdit} boxSize={3} />}
+              onClick={onEditOpen}
+              color="gray.400"
+              _hover={{ color: 'primary', bg: 'rgba(24,168,255,0.08)' }}
+              borderRadius="full"
+              px={3}
+            >
+              Edit Profile
+            </Button>
+          )}
+          <Flex
+            alignItems="center" gap={2}
+            bg="rgba(24, 168, 255, 0.1)"
+            border="1px solid" borderColor="rgba(24, 168, 255, 0.3)"
+            borderRadius="full" px={4} py={2}
+          >
+            <Icon as={FaCoins} color="primary" boxSize={4} />
+            <Text fontSize="sm" fontWeight="bold" color="primary">Wallet</Text>
+          </Flex>
+        </HStack>
       </Flex>
 
       {/* Wallet Content */}
@@ -735,6 +758,14 @@ export default function WalletPage({ username }: WalletPageProps) {
           slippagePercent: 0.5,
         }}
         onConfirm={handleConfirm}
+      />
+
+      <EditProfileModal
+        isOpen={isEditOpen}
+        onClose={onEditClose}
+        username={username}
+        initialData={profileMetadata}
+        onSaved={refetch}
       />
     </Box>
   );

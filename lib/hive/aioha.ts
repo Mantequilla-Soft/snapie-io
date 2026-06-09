@@ -127,7 +127,7 @@ export async function broadcastOps(
     if (isSnapieMode()) {
       const { broadcastOp } = await import('@/lib/snapie-auth/client');
       // Filter to allowed ops (server only accepts posting-key ops via broadcast).
-      const allowed = new Set(['vote', 'comment', 'delete_comment', 'custom_json', 'claim_reward_balance']);
+      const allowed = new Set(['vote', 'comment', 'delete_comment', 'custom_json', 'claim_reward_balance', 'account_update2']);
       for (const op of operations) {
         const [opName, opBody] = op as [string, Record<string, unknown>];
         if (!allowed.has(opName)) continue; // skip comment_options etc.

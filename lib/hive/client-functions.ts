@@ -317,31 +317,33 @@ export async function updateProfile(
   coverImageUrl: string,
   avatarUrl: string,
   website: string,
-) {
+): Promise<{ success: boolean; error?: string }> {
+  const profileMetadata = {
+    profile: {
+      name,
+      about,
+      location,
+      cover_image: coverImageUrl,
+      profile_image: avatarUrl,
+      website,
+      version: 2,
+    },
+  };
+  const op = [
+    'account_update2',
+    {
+      account: username,
+      json_metadata: '',
+      posting_json_metadata: JSON.stringify(profileMetadata),
+      extensions: [],
+    },
+  ];
   try {
-    const profileMetadata = {
-      profile: {
-        name,
-        about,
-        location,
-        cover_image: coverImageUrl,
-        profile_image: avatarUrl,
-        website,
-        version: 2,
-      },
-    };
-    const op = [
-      'account_update2',
-      {
-        account: username,
-        posting_json_metadata: JSON.stringify(profileMetadata),
-        extensions: [],
-      },
-    ];
-    const result = await aiohaBroadcast([op], KeyTypes.Active, 'Approve profile update');
-    console.log('Broadcast success:', result);
-  } catch (error) {
-    console.error('Profile update failed:', error);
+    await broadcastOps([op], KeyTypes.Posting, 'Approve profile update');
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { success: false, error: message };
   }
 }
 
