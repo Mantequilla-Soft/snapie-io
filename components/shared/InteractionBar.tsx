@@ -2,7 +2,7 @@ import { Box, Flex, Icon, Button, Text, Slider, SliderTrack, SliderFilledTrack, 
 import React, { useState, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/fa';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
@@ -20,7 +20,7 @@ export default function InteractionBar({
     onCommentClick,
     isEmbedMode = false 
 }: InteractionBarProps) {
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
     const [sliderValue, setSliderValue] = useState(100);
     const [showSlider, setShowSlider] = useState(false);
     const [voted, setVoted] = useState(false);

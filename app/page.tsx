@@ -10,7 +10,7 @@ import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 
 interface CommunityInfo {
@@ -31,7 +31,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<SnapFilterType>('community');
   const [communityName, setCommunityName] = useState<string>('Community');
 
-  const { user } = useAioha();
+  const { username: user, isLoggedIn } = useCurrentUser();
 
   useEffect(() => {
     const loadCommunityInfo = async () => {
@@ -99,7 +99,7 @@ export default function Home() {
           activeFilter={activeFilter}
           onFilterChange={handleFilterChange}
           communityName={communityName}
-          isLoggedIn={!!user}
+          isLoggedIn={isLoggedIn}
         />
         {!conversation ? (
 

@@ -5,7 +5,7 @@ import {
   Image, Icon,
 } from '@chakra-ui/react';
 import { FaGlobe, FaMapMarkerAlt } from 'react-icons/fa';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProfile, getAccountPosts, getSimilarPosts } from '@/lib/hive/client-functions';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import UserActionButtons from '@/components/profile/UserActionButtons';
@@ -64,7 +64,7 @@ function SidebarBlock({ title, children }: { title: string; children: React.Reac
 }
 
 export default function PostSidebar({ author, permlink }: PostSidebarProps) {
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const [profile, setProfile] = useState<any>(null);
   const [recentPosts, setRecentPosts] = useState<any[]>([]);
   const [similarPosts, setSimilarPosts] = useState<any[]>([]);

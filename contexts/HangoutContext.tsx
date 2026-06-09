@@ -3,6 +3,8 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback, ty
 import { HangoutsApiClient, loginWithSignFn } from '@snapie/hangouts-core';
 import { KeyTypes } from '@aioha/aioha';
 import { useAioha } from '@aioha/react-ui';
+import { signMessageWithAioha } from '@/lib/hive/aioha';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const HANGOUTS_API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL || '';
 const OPENPODS_ENABLED = !!HANGOUTS_API_URL;
@@ -82,7 +84,8 @@ export function HangoutContextProvider({ children }: { children: ReactNode }) {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, aioha } = useAioha();
+  const { aioha } = useAioha();
+  const { username: user } = useCurrentUser();
   const storageRef = useRef(buildTokenStorage(TOKEN_STORAGE_MODE));
 
   const loginToHangouts = useCallback(async (requestedUser?: string): Promise<string | null> => {
@@ -133,9 +136,7 @@ export function HangoutContextProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     const signFn = async (message: string): Promise<string> => {
-      const res = await aioha.signMessage(message, KeyTypes.Posting);
-      if (!res.success) throw new Error(res.error || 'Failed to sign hangouts challenge');
-      if (!res.result) throw new Error('Sign returned empty result');
+      const res = await signMessageWithAioha(message, KeyTypes.Posting);
       return res.result;
     };
 

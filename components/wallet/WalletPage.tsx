@@ -34,13 +34,15 @@ import {
   getHiveHbdMarketQuote,
   swapHiveHbdWithSlippage,
   claimRewardsWithKeychain,
+  claimHbdSavingsInterest,
   type SwapDirection,
 } from '@/lib/hive/client-functions';
+import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter } from 'next/navigation';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface WalletPageProps {
@@ -57,7 +59,7 @@ interface WalletModalContent {
 
 export default function WalletPage({ username }: WalletPageProps) {
   const router = useRouter();
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -73,13 +75,15 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [swapPrice, setSwapPrice] = useState<number | null>(null);
   const [swapQuote, setSwapQuote] = useState<{ highestBid: number; lowestAsk: number; latest: number } | null>(null);
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isClaimingInterest, setIsClaimingInterest] = useState(false);
+  const { pendingInterest, annualRatePct, isLoading: isInterestLoading } = useHbdSavingsInterest(hiveAccount);
 
   const textMuted = 'gray.400';
   const successColor = 'success';
   const accentColor = 'accent';
 
   useEffect(() => {
-    if (hiveAccount?.json_metadata) {
+    if (hiveAccount?.posting_json_metadata) {
       try {
         const parsedMetadata = JSON.parse(hiveAccount.posting_json_metadata);
         const profile = parsedMetadata?.profile || {};
@@ -173,7 +177,7 @@ export default function WalletPage({ username }: WalletPageProps) {
         case 'Power Up':
           await powerUpWithKeychain(user, amount);
           break;
-        case 'Convert HIVE':
+        case 'Convert HBD → HIVE':
           await broadcastWithKeychain(user, [["convert", { "owner": user, "requestid": Math.floor(1000000000 + Math.random() * 9000000000), "amount": { "amount": amount.toFixed(3), "precision": 3, "nai": "@@000000013" } }]], 'active');
           break;
         case 'Swap HIVE':
@@ -490,7 +494,7 @@ export default function WalletPage({ username }: WalletPageProps) {
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
                 <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HIVE', description: 'Send Hive to another account', showMemoField: true, showUsernameField: true })} variant="outline" colorScheme="blue">Send</Button>
                 <Button size="sm" leftIcon={<FaArrowUp />} onClick={() => handleModalOpen({ title: 'Power Up', description: 'Power Up your HIVE to HP' })} variant="outline" colorScheme="purple">Power Up</Button>
-                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HIVE', description: 'Convert HIVE to HBD (3.5 day settlement)' })} variant="outline" colorScheme="orange">Convert</Button>
+                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HBD → HIVE', description: 'Burn HBD to receive HIVE at a 3.5-day average price' })} variant="outline" colorScheme="orange">Convert</Button>
                 <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HIVE', description: 'Fast market swap HIVE -> HBD (immediate-or-cancel)', swapDirection: 'HIVE_TO_HBD' })} variant="outline" colorScheme="yellow">Swap</Button>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HIVE Savings', description: 'Transfer to HIVE savings' })} variant="outline" colorScheme="teal">To Savings</Button>
                 <Button
@@ -657,7 +661,41 @@ export default function WalletPage({ username }: WalletPageProps) {
                 </Box>
                 <Box p={4} bg="rgba(66, 231, 162, 0.04)" borderRadius="10px" border="tb1">
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD Savings</Text>
-                  <Text fontSize="xl" fontWeight="bold" mb={2}>{hbdSavingsBalance}</Text>
+                  <Text fontSize="xl" fontWeight="bold" mb={1}>{hbdSavingsBalance}</Text>
+                  {annualRatePct > 0 && (
+                    <Text fontSize="xs" color="green.400" mb={2}>{annualRatePct.toFixed(0)}% APR</Text>
+                  )}
+                  {isOwnWallet && pendingInterest >= 0.001 && (
+                    <Box mb={2} p={2} bg="rgba(66, 231, 162, 0.08)" borderRadius="8px" border="1px solid" borderColor="rgba(66, 231, 162, 0.2)">
+                      <Text fontSize="xs" color={textMuted} mb={1}>Pending interest</Text>
+                      <Text fontSize="sm" fontWeight="bold" color="green.300" mb={2}>
+                        {isInterestLoading ? '…' : `~${pendingInterest.toFixed(3)} HBD`}
+                      </Text>
+                      <Button
+                        size="xs"
+                        colorScheme="green"
+                        variant="solid"
+                        isLoading={isClaimingInterest}
+                        loadingText="Claiming…"
+                        isDisabled={parseFloat(String(hiveAccount?.hbd_balance ?? '0')) < 0.001}
+                        title={parseFloat(String(hiveAccount?.hbd_balance ?? '0')) < 0.001 ? 'You need at least 0.001 liquid HBD to trigger interest' : ''}
+                        onClick={async () => {
+                          if (!user) return;
+                          setIsClaimingInterest(true);
+                          try {
+                            await claimHbdSavingsInterest(user);
+                            setTimeout(refetch, 3500);
+                          } catch (e) {
+                            console.error('Failed to claim HBD interest:', e);
+                          } finally {
+                            setIsClaimingInterest(false);
+                          }
+                        }}
+                      >
+                        Claim Interest
+                      </Button>
+                    </Box>
+                  )}
                   {isOwnWallet && (
                     <Button size="xs" leftIcon={<FaDollarSign />} onClick={() => handleModalOpen({ title: 'Withdraw HBD Savings', description: 'Withdraw HBD from Savings' })} variant="ghost" colorScheme="teal">
                       Withdraw

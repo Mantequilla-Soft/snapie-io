@@ -1,0 +1,30 @@
+'use client'
+
+/**
+ * Signing router — dispatches Hive operations to either the Snapie Auth proxy
+ * (custodial users) or the local Aioha provider (wallet users).
+ *
+ * Auth mode is set by SnapieAuthContext on mount/login/logout.
+ */
+
+type AuthMode = 'snapie' | 'aioha' | null
+
+let _mode: AuthMode = null
+let _snapieUsername: string | null = null
+
+export function setSigningAuthMode(mode: AuthMode, username?: string | null) {
+  _mode = mode
+  if (username !== undefined) _snapieUsername = username ?? null
+}
+
+export function getSnapieUsername(): string | null {
+  return _snapieUsername
+}
+
+export function getSigningAuthMode(): AuthMode {
+  return _mode
+}
+
+export function isSnapieMode(): boolean {
+  return _mode === 'snapie'
+}

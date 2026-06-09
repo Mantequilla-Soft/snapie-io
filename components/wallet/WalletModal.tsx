@@ -17,7 +17,7 @@ interface WalletModalProps {
     showMemoField?: boolean;
     showUsernameField?: boolean; // New prop to show the username field
     swapConfig?: WalletModalSwapConfig;
-    onConfirm: (amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) => void; // Include username in the onConfirm callback
+    onConfirm: (amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) => Promise<void>;
 }
 
 const SLIPPAGE_PRESETS = [0.1, 0.5, 1.0];
@@ -26,6 +26,7 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
     const [amount, setAmount] = useState<number>(0);
     const [memo, setMemo] = useState<string>('');
     const [username, setUsername] = useState<string>(''); // State to hold username
+    const [isLoading, setIsLoading] = useState(false);
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
 
@@ -57,14 +58,19 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
         ? expectedReceive * (1 - effectiveSlippage / 100)
         : 0;
 
-    const handleConfirm = () => {
-        onConfirm(
-            amount,
-            showUsernameField ? username : undefined,
-            showMemoField ? memo : undefined,
-            swapConfig?.direction,
-            effectiveSlippage,
-        );
+    const handleConfirm = async () => {
+        setIsLoading(true);
+        try {
+            await onConfirm(
+                amount,
+                showUsernameField ? username : undefined,
+                showMemoField ? memo : undefined,
+                swapConfig?.direction,
+                effectiveSlippage,
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -161,11 +167,13 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                     )}
                 </ModalBody>
                 <ModalFooter>
-                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                    <Button variant="ghost" onClick={onClose} isDisabled={isLoading}>Cancel</Button>
                     <Button
                         ml={3}
                         onClick={handleConfirm}
-                        isDisabled={isSwapMode && (effectiveSlippage === undefined || Number.isNaN(effectiveSlippage) || effectiveSlippage < 0 || effectiveSlippage > 20)}
+                        isLoading={isLoading}
+                        loadingText="Processing…"
+                        isDisabled={isLoading || (isSwapMode && (effectiveSlippage === undefined || Number.isNaN(effectiveSlippage) || effectiveSlippage < 0 || effectiveSlippage > 20))}
                     >
                         Confirm
                     </Button>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Box, Flex, Spinner, useToast } from '@chakra-ui/react';
 import dynamic from 'next/dynamic';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getPost, commentWithKeychain } from '@/lib/hive/client-functions';
 import { prepareImageArray } from '@/lib/utils/composeUtils';
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput';
@@ -16,7 +16,7 @@ export default function EditPostPage() {
     const author = decodeURIComponent(params.author);
     const permlink = decodeURIComponent(params.permlink);
 
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
     const router = useRouter();
     const toast = useToast();
 

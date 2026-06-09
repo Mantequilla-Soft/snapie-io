@@ -138,6 +138,15 @@ export async function transferWithKeychain(username: string, destination: string
 
 export async function powerUpWithKeychain(username: string, amount: number) {
   try {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { powerUp } = await import('@/lib/snapie-auth/client');
+      const res = await powerUp(amount);
+      if (!('needsClientSigning' in res) && res.emancipationRequired && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+      }
+      return res;
+    }
     const op = [
       'transfer_to_vesting',
       {
@@ -157,7 +166,16 @@ export async function powerUpWithKeychain(username: string, amount: number) {
 
 export async function powerDownWithKeychain(username: string, hivePower: number) {
   try {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
     const vests = await convertHiveToVests(hivePower);
+    if (isSnapieMode()) {
+      const { powerDown } = await import('@/lib/snapie-auth/client');
+      const res = await powerDown(`${vests.toFixed(6)} VESTS`);
+      if (!('needsClientSigning' in res) && res.emancipationRequired && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+      }
+      return res;
+    }
     const op = [
       'withdraw_vesting',
       {
@@ -176,7 +194,16 @@ export async function powerDownWithKeychain(username: string, hivePower: number)
 
 export async function delegateWithKeychain(username: string, delegatee: string, amount: number) {
   try {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
     const vests = await convertHiveToVests(amount);
+    if (isSnapieMode()) {
+      const { delegate } = await import('@/lib/snapie-auth/client');
+      const res = await delegate(delegatee, `${vests.toFixed(6)} VESTS`);
+      if (!('needsClientSigning' in res) && res.emancipationRequired && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+      }
+      return res;
+    }
     const op = [
       'delegate_vesting_shares',
       {
@@ -192,6 +219,14 @@ export async function delegateWithKeychain(username: string, delegatee: string, 
     console.log({ error });
     throw error;
   }
+}
+
+export async function claimHbdSavingsInterest(username: string) {
+  return broadcastWithKeychain(
+    username,
+    [['transfer_to_savings', { from: username, to: username, amount: '0.001 HBD', memo: '' }]],
+    'active',
+  );
 }
 
 export async function claimRewardsWithKeychain(
@@ -220,6 +255,45 @@ export async function broadcastWithKeychain(
   method: 'posting' | 'active' = 'active',
 ) {
   try {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const snapie = await import('@/lib/snapie-auth/client');
+      for (const op of operations) {
+        const [opName, body] = op as [string, Record<string, unknown>];
+        let res: any;
+        switch (opName) {
+          case 'transfer_to_savings':
+            res = await snapie.transferToSavings(body.amount as string, body.to as string | undefined, (body.memo as string) || '');
+            break;
+          case 'transfer_from_savings':
+            res = await snapie.transferFromSavings(body.amount as string, body.to as string | undefined, (body.memo as string) || '', (body.request_id ?? body.requestId) as number | undefined);
+            break;
+          case 'convert': {
+            const amt = body.amount as any;
+            const amountStr = typeof amt === 'string' ? amt : `${parseFloat(amt.amount).toFixed(3)} HBD`;
+            res = await snapie.convertHbd(amountStr, body.requestid as number | undefined);
+            break;
+          }
+          case 'collateralized_convert':
+            res = await snapie.collateralizedConvert(body.amount as string, body.requestid as number | undefined);
+            break;
+          case 'limit_order_create':
+            res = await snapie.limitOrderCreate(body.amount_to_sell as string, body.min_to_receive as string, body.fill_or_kill as boolean, 300, body.orderid as number | undefined);
+            break;
+          case 'limit_order_cancel':
+            res = await snapie.limitOrderCancel((body.orderid ?? body.orderId) as number);
+            break;
+          default:
+            res = await snapie.broadcastOp(opName, body);
+        }
+        if (res && !('needsClientSigning' in res)) {
+          if (res.emancipationRequired && typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+          }
+          return { success: true, result: res.txId };
+        }
+      }
+    }
     const keyType = typeof method === 'string' ? keyTypeFromString(method) : method;
     const result = await aiohaBroadcast(operations, keyType, 'Approve transaction');
     console.log({ broadcast: result });
@@ -606,31 +680,29 @@ export async function uploadImageWithKeychain(
     onProgress?: (progress: number) => void;
   }
 ): Promise<string> {
-  console.log('🔐 uploadImageWithKeychain called for:', file.name, 'user:', username);
-
   const aioha = getAioha();
-  if (!aioha.isLoggedIn()) {
+  const { isSnapieMode } = await import('@/lib/hive/signing');
+  if (!isSnapieMode() && !aioha.isLoggedIn()) {
     throw new Error('Not logged in');
   }
 
-  console.log('📖 Reading file...');
+  // Snapie Auth users can't sign the Hive image challenge — route to 3speak instead.
+  if (isSnapieMode()) {
+    return uploadTo3Speak(file, options);
+  }
+
   const fileContent = await readFileAsBuffer(file);
-  console.log('📖 File read, size:', fileContent.length, 'bytes');
 
   const prefix = Buffer.from('ImageSigningChallenge');
   const challengeBuffer = Buffer.concat([prefix, fileContent]);
   const challengeString = JSON.stringify(challengeBuffer);
 
-  console.log('✍️ Requesting signature via aioha...');
   const signResult = await signMessageWithAioha(
     challengeString,
     KeyTypes.Posting,
     'Approve image upload signature',
   );
   const signature = signResult.result;
-  console.log('✍️ Signature received:', signature.substring(0, 20) + '...');
-
-  console.log('📤 Uploading via API route with automatic fallback...');
 
   const formData = new FormData();
   formData.append("file", file);

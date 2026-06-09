@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
@@ -58,7 +59,7 @@ interface RoomBodyProps {
 
 function RoomBody({ roomName, onClose }: RoomBodyProps) {
   const router = useRouter();
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const { roomMeta } = useHangoutsRoom();
   const [roomData, setRoomData] = useState<any | null>(null);
 
@@ -133,7 +134,8 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
 
 export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModalProps) {
   useWakeLock(isOpen);
-  const { user, aioha } = useAioha();
+  const { aioha } = useAioha();
+  const { username: user } = useCurrentUser();
   const { sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
   useEffect(() => {

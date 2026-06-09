@@ -4,7 +4,7 @@ import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, tr
 import { CountBadge } from '@/components/ui/CountBadge';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay } from 'react-icons/fi';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
@@ -36,10 +36,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
-    const { user, aioha } = useAioha();
+    const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { openLoginModal } = useLoginModal();
-    const isLoggedIn = !!user;
-    const logout = () => aioha.logout();
     const pathname = usePathname();
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null); // State to hold community info
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null); // State to hold profile info

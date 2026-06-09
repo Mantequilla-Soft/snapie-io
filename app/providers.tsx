@@ -18,6 +18,7 @@ import { HangoutContextProvider } from '@/contexts/HangoutContext'
 import { AiohaProvider } from '@aioha/react-ui'
 import { HiveAuthProvider } from '@/contexts/HiveAuthContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
+import { SnapieAuthProvider } from '@/contexts/SnapieAuthContext'
 import { getAioha } from '@/lib/hive/aioha'
 
 const themeMap = {
@@ -165,13 +166,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <AiohaProvider aioha={aioha}>
       <ChakraProvider theme={selectedTheme}>
         <UserProvider>
-          <HiveAuthProvider>
-            <LoginModalProvider>
-              <HangoutContextProvider>
-                {children}
-              </HangoutContextProvider>
-            </LoginModalProvider>
-          </HiveAuthProvider>
+          <SnapieAuthProvider>
+            <HiveAuthProvider>
+              <LoginModalProvider>
+                <HangoutContextProvider>
+                  {children}
+                </HangoutContextProvider>
+              </LoginModalProvider>
+            </HiveAuthProvider>
+          </SnapieAuthProvider>
         </UserProvider>
       </ChakraProvider>
     </AiohaProvider>

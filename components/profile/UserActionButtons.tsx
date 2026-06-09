@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { HStack, Button, useToast, Spinner } from '@chakra-ui/react';
 import { getRelationshipBetweenAccounts, setUserRelationship } from '@/lib/hive/client-functions';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface UserActionButtonsProps {
   targetUsername: string;
@@ -11,7 +11,7 @@ interface UserActionButtonsProps {
 }
 
 export default function UserActionButtons({ targetUsername, currentUsername, showBlacklist = true }: UserActionButtonsProps) {
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const toast = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

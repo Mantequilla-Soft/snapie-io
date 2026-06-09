@@ -122,6 +122,21 @@ export async function broadcastOps(
   keyType: KeyTypes = KeyTypes.Posting,
   title = 'Approve transaction',
 ) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { broadcastOp } = await import('@/lib/snapie-auth/client');
+      // Filter to allowed ops (server only accepts posting-key ops via broadcast).
+      const allowed = new Set(['vote', 'comment', 'delete_comment', 'custom_json', 'claim_reward_balance']);
+      for (const op of operations) {
+        const [opName, opBody] = op as [string, Record<string, unknown>];
+        if (!allowed.has(opName)) continue; // skip comment_options etc.
+        const res = await broadcastOp(opName, opBody);
+        if ('needsClientSigning' in res) break; // emancipated: fall through to Aioha
+        return { success: true as const, result: (res as any).txId };
+      }
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().signAndBroadcastTx(operations, keyType);
     if (!result.success) throw new Error(result.error || 'Broadcast failed');
@@ -134,6 +149,15 @@ export async function voteWithAioha(
   permlink: string,
   weight = 10000,
 ) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode, getSnapieUsername } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { broadcastOp } = await import('@/lib/snapie-auth/client');
+      const voter = getSnapieUsername() ?? '';
+      const res = await broadcastOp('vote', { voter, author, permlink, weight });
+      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId };
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().vote(author, permlink, weight);
     if (!result.success) throw new Error(result.error || 'Vote failed');
@@ -147,6 +171,19 @@ export async function transferWithAioha(
   currency: string,
   memo = '',
 ) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { transfer } = await import('@/lib/snapie-auth/client');
+      const res = await transfer(to, amount, currency, memo);
+      if (!('needsClientSigning' in res)) {
+        if ((res as any).emancipationRequired) {
+          window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+        }
+        return { success: true as const, result: (res as any).txId };
+      }
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().transfer(to, amount, currency as any, memo);
     if (!result.success) throw new Error(result.error || 'Transfer failed');
@@ -175,6 +212,17 @@ export async function customJsonWithAioha(
   displayTitle = '',
   overlayTitle = 'Approve action',
 ) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode, getSnapieUsername } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { broadcastOp } = await import('@/lib/snapie-auth/client');
+      const username = getSnapieUsername() ?? '';
+      const required_auths = keyType === KeyTypes.Active ? [username] : [];
+      const required_posting_auths = keyType === KeyTypes.Posting ? [username] : [];
+      const res = await broadcastOp('custom_json', { required_auths, required_posting_auths, id, json });
+      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId };
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().customJSON(keyType, id, json, displayTitle);
     if (!result.success) throw new Error(result.error || 'Custom JSON failed');
@@ -192,6 +240,23 @@ export async function commentWithAioha(
   options?: any,
   overlayTitle = 'Approve post',
 ) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode, getSnapieUsername } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { broadcastOp } = await import('@/lib/snapie-auth/client');
+      const author = getSnapieUsername() ?? '';
+      const res = await broadcastOp('comment', {
+        parent_author: parentAuthor,
+        parent_permlink: parentPermlink,
+        author,
+        permlink,
+        title,
+        body,
+        json_metadata: jsonMetadata,
+      });
+      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId, publicKey: undefined };
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().comment(
       parentAuthor,
@@ -212,6 +277,19 @@ export async function signMessageWithAioha(
   keyType: KeyTypes = KeyTypes.Posting,
   overlayTitle = 'Approve signature request',
 ) {
+  // Custodial Snapie Auth users: sign server-side via the proxy.
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      const { signMessage } = await import('@/lib/snapie-auth/client');
+      const res = await signMessage(message);
+      if ('needsClientSigning' in res) {
+        // Emancipated: fall through to Aioha below
+      } else {
+        return { success: true as const, result: res.signature };
+      }
+    }
+  }
   return withTxApproval(async () => {
     const result = await getAioha().signMessage(message, keyType);
     if (!result.success) {
