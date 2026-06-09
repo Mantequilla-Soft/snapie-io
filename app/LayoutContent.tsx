@@ -11,6 +11,7 @@ import { useHangout } from '@/contexts/HangoutContext';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
+const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHandler'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -98,6 +99,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           >
             <EmancipationBanner />
             {!isChatPopoutMode && children}
+            <NeedsWalletHandler />
           </Box>
         </Flex>
       </Box>

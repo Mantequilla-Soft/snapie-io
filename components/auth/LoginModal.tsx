@@ -48,6 +48,7 @@ const EMAIL_ERRORS: Record<string, string> = {
 
 interface Props {
   displayed: boolean
+  initialView?: 'providers' | 'hive-wallet'
   onSnapieLoginSuccess: (user: SnapieUser) => void
   onAiohaLogin: (result: any) => void
   onClose: () => void
@@ -57,6 +58,7 @@ interface Props {
 
 export default function LoginModal({
   displayed,
+  initialView = 'providers',
   onSnapieLoginSuccess,
   onAiohaLogin,
   onClose,
@@ -74,15 +76,15 @@ export default function LoginModal({
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
 
-  // Reset to default view whenever the modal reopens.
+  // Reset to requested view whenever the modal reopens.
   useEffect(() => {
     if (displayed) {
-      setView('providers')
+      setView(initialView)
       setError('')
       setEmail('')
       setPassword('')
     }
-  }, [displayed])
+  }, [displayed, initialView])
 
   const clearError = useCallback(() => setError(''), [])
 

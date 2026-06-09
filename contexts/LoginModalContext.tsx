@@ -22,6 +22,7 @@ import { getLoginProviders } from '@/lib/hive/aioha'
 interface LoginModalContextValue {
   isOpen: boolean
   openLoginModal: () => void
+  openLoginModalToWallets: () => void
   closeLoginModal: () => void
 }
 
@@ -60,6 +61,7 @@ export async function fetchAndStoreAccount(username: string): Promise<HiveAccoun
 
 export function LoginModalProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [initialView, setInitialView] = useState<'providers' | 'hive-wallet'>('providers')
   const [mounted, setMounted] = useState(false)
   const [loginProof] = useState(() => Math.floor(Date.now() / 1000).toString())
   const { user: aiohaUser } = useAioha()
@@ -68,7 +70,8 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const openLoginModal = useCallback(() => setIsOpen(true), [])
+  const openLoginModal = useCallback(() => { setInitialView('providers'); setIsOpen(true) }, [])
+  const openLoginModalToWallets = useCallback(() => { setInitialView('hive-wallet'); setIsOpen(true) }, [])
   const closeLoginModal = useCallback(() => setIsOpen(false), [])
 
   // Sync Aioha session into app-wide storage (only when not in Snapie mode).
@@ -123,8 +126,8 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo<LoginModalContextValue>(
-    () => ({ isOpen, openLoginModal, closeLoginModal }),
-    [isOpen, openLoginModal, closeLoginModal],
+    () => ({ isOpen, openLoginModal, openLoginModalToWallets, closeLoginModal }),
+    [isOpen, openLoginModal, openLoginModalToWallets, closeLoginModal],
   )
 
   return (
@@ -133,6 +136,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
       {mounted && (
         <LoginModal
           displayed={isOpen}
+          initialView={initialView}
           onSnapieLoginSuccess={handleSnapieLoginSuccess}
           onAiohaLogin={handleAiohaLogin}
           onClose={closeLoginModal}
