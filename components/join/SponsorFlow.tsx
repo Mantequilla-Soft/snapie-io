@@ -40,6 +40,14 @@ function buildAuth(pub: string) {
   };
 }
 
+function buildPostingAuth(pub: string, delegate: string) {
+  return {
+    weight_threshold: 1,
+    account_auths: [[delegate, 1]] as Array<[string, number]>,
+    key_auths: [[pub, 1]] as Array<[string, number]>,
+  };
+}
+
 export default function SponsorFlow({ code }: SponsorFlowProps) {
   const { hiveUser } = useHiveUser();
   const { openLoginModal } = useLoginModal();
@@ -101,6 +109,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
     if (!data || !hiveUser?.name) return;
     setMode('broadcasting');
     setError(null);
+    const postingDelegate = process.env.NEXT_PUBLIC_POSTING_AUTHORITY_ACCOUNT?.trim() || 'snapie';
     try {
       let op: [string, Record<string, unknown>];
       let title: string;
@@ -118,7 +127,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
           new_account_name: data.username,
           owner: buildAuth(data.ownerPubkey),
           active: buildAuth(data.activePubkey),
-          posting: buildAuth(data.postingPubkey),
+          posting: buildPostingAuth(data.postingPubkey, postingDelegate),
           memo_key: data.memoPubkey,
           json_metadata: '',
           extensions: [],
@@ -131,7 +140,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
           new_account_name: data.username,
           owner: buildAuth(data.ownerPubkey),
           active: buildAuth(data.activePubkey),
-          posting: buildAuth(data.postingPubkey),
+          posting: buildPostingAuth(data.postingPubkey, postingDelegate),
           memo_key: data.memoPubkey,
           json_metadata: '',
         }];

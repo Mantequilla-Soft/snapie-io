@@ -10,6 +10,7 @@ import { chatService } from '@/lib/chat/ChatService';
 import { useHangout } from '@/contexts/HangoutContext';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
+const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -92,7 +93,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             flex="1"
             h="100vh"
             overflowY="auto"
+            display="flex"
+            flexDirection="column"
           >
+            <EmancipationBanner />
             {!isChatPopoutMode && children}
           </Box>
         </Flex>

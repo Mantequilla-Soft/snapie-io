@@ -5,6 +5,7 @@ import '@snapie/hangouts-react/src/styles/hangouts.css';
 import '@/app/hangouts/overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
@@ -104,7 +105,8 @@ function GuestLobby() {
 }
 
 export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) {
-  const { user, aioha } = useAioha();
+  const { aioha } = useAioha();
+  const { username: user } = useCurrentUser();
   const { openRoom, sessionToken, sessionLoading, error, retryLogin } = useHangout();
 
   // Lazy-sign on landing — the context no longer auto-signs on user change.

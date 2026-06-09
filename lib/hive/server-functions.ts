@@ -63,8 +63,8 @@ export async function createAccount(username: string, password: string) {
             },
             posting: {
                 weight_threshold: 1,
-                account_auths: [],
-                key_auths: [[postingPubkey, 1]], // Posting public key
+                account_auths: [[process.env.NEXT_PUBLIC_POSTING_AUTHORITY_ACCOUNT?.trim() || 'snapie', 1]],
+                key_auths: [[postingPubkey, 1]],
             },
             memo_key: memoPubkey, // Memo public key (no object here, just the public key string)
             json_metadata: '', // Optional metadata

@@ -27,7 +27,8 @@ import {
 import { keyframes } from '@emotion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { signMessageWithAioha } from '@/lib/hive/aioha';
 import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
@@ -493,7 +494,7 @@ export default function ChatPanel({
   onPopout,
   isPopoutWindow,
 }: ChatPanelProps) {
-  const { user, aioha } = useAioha();
+  const { username: user } = useCurrentUser();
   const isMobile = useBreakpointValue({ base: true, md: false });
   const isTablet = useBreakpointValue({ base: false, md: true, lg: false }) ?? false;
 
@@ -1032,7 +1033,7 @@ export default function ChatPanel({
     setUploadingImage(true);
     setPanelError('');
     try {
-      const signatureRes = await aioha.signMessage(file.name, KeyTypes.Posting);
+      const signatureRes = await signMessageWithAioha(file.name, KeyTypes.Posting);
       if (!signatureRes.success || !signatureRes.result) {
         throw new Error('Could not sign image upload request');
       }
@@ -1206,7 +1207,7 @@ export default function ChatPanel({
     setAuthState('connecting');
     try {
       await chatService.authenticate(user, async (challenge) => {
-        const res = await aioha.signMessage(challenge, KeyTypes.Posting);
+        const res = await signMessageWithAioha(challenge, KeyTypes.Posting);
         if (!res.success || !res.result) throw new Error('Sign failed');
         return res.result as string;
       });

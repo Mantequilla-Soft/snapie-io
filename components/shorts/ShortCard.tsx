@@ -6,7 +6,7 @@ import { usePlayer } from '@mantequilla-soft/3speak-player/react';
 import { FaHeart, FaRegHeart, FaComment, FaShare, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import { ShortItem } from '@/lib/shorts/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote } from '@/lib/hive/client-functions';
 import ShortsCommentSheet from './ShortsCommentSheet';
 
@@ -98,7 +98,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const toast = useToast();
 
   async function handleLike() {

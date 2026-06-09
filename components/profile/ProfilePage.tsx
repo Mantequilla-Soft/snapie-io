@@ -15,7 +15,7 @@ import FollowersModal from './FollowersModal';
 import SnapList from '@/components/homepage/SnapList';
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
@@ -25,7 +25,7 @@ interface ProfilePageProps {
 }
 
 export default function ProfilePage({ username }: ProfilePageProps) {
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const { hiveAccount, isLoading, error } = useHiveAccount(username);
   const [profileInfo, setProfileInfo] = useState<any>(null);
 

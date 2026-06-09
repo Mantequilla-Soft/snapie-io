@@ -13,7 +13,7 @@ import { IGif } from '@giphy/js-types';
 import { useDropzone } from 'react-dropzone';
 import { compressImage } from '@/lib/utils/composeUtils';
 import BeneficiariesInput, { Beneficiary } from '@/components/compose/BeneficiariesInput';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 // SDK import for markdown editing utilities
 import { useEditorToolbar, ALL_COMMON_EMOJIS } from '@snapie/composer/react';
@@ -238,8 +238,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
-    // Aioha for image signing
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
 
     // Use SDK toolbar hook for markdown editing
     const toolbar = useEditorToolbar(textareaRef, markdown, setMarkdown);

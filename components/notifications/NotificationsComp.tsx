@@ -17,7 +17,7 @@ import {
   useToast,
   VStack,
 } from '@chakra-ui/react';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Notifications } from '@hiveio/dhive';
 import { useRouter } from 'next/navigation';
 import {
@@ -199,7 +199,7 @@ function getSummaryItems(summary: ActivitySummary) {
 }
 
 export default function NotificationsComp({ username }: NotificationCompProps) {
-  const { user } = useAioha();
+  const { username: user } = useCurrentUser();
   const router = useRouter();
   const toast = useToast();
   const [filter, setFilter] = useState<NotificationFilter>('all');

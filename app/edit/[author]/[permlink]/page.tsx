@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Box, Flex, Spinner, useToast } from '@chakra-ui/react';
 import dynamic from 'next/dynamic';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getPost, commentWithKeychain } from '@/lib/hive/client-functions';
 import { prepareImageArray } from '@/lib/utils/composeUtils';
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput';
@@ -16,7 +16,7 @@ export default function EditPostPage() {
     const author = decodeURIComponent(params.author);
     const permlink = decodeURIComponent(params.permlink);
 
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
     const router = useRouter();
     const toast = useToast();
 
@@ -69,13 +69,16 @@ export default function EditPostPage() {
             }
         }
         load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [author, permlink]);
+    }, [author, permlink, user, router, toast]);
 
     async function handleSubmit() {
         const username = typeof user === 'string' ? user : (user as any)?.username || '';
         if (!username) {
             toast({ title: 'Not logged in', status: 'error', duration: 3000 });
+            return;
+        }
+        if (username !== author) {
+            toast({ title: 'Unauthorized', description: 'You can only edit your own posts.', status: 'error', duration: 4000 });
             return;
         }
 

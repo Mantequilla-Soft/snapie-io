@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Box, Textarea, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
 import ImageUploader from './ImageUploader';
 import VideoUploader from './VideoUploader';
@@ -40,7 +40,7 @@ interface SnapComposerProps {
 }
 
 export default function SnapComposer ({ pa, pp, onNewComment, post = false, onClose }: SnapComposerProps) {
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
 
     const postBodyRef = useRef<HTMLTextAreaElement>(null);
     const [uploadingImages, setUploadingImages] = useState<UploadingImage[]>([]);

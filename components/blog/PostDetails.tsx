@@ -7,7 +7,7 @@ import { getPostDate } from '@/lib/utils/GetPostDate';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { FaEdit } from 'react-icons/fa';
 import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
@@ -48,7 +48,7 @@ const bodySx = {
 export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
-    const { user } = useAioha();
+    const { username: user } = useCurrentUser();
     const router = useRouter();
     const canEdit = !isEmbedMode && user === author;
     // Suppress the parent link for "top snaps" (direct replies to the snap container):

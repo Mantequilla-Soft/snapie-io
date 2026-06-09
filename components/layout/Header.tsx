@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Flex, Text, Button, Image, useColorMode, useToast } from '@chakra-ui/react';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
@@ -10,9 +10,8 @@ export default function Header() {
     const { colorMode } = useColorMode();
     const [profileInfo, setProfileInfo] = useState<any>();
     const [communityInfo, setCommunityInfo] = useState<any>();
-    const { user, aioha } = useAioha();
+    const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { openLoginModal } = useLoginModal();
-    const isLoggedIn = !!user;
     const toast = useToast();
 
     const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
@@ -81,8 +80,8 @@ export default function Header() {
                     </Flex>
                 </Flex>
                 {isLoggedIn ? (
-                    <Button onClick={() => aioha.logout()}>
-                        Logout ({user})
+                    <Button onClick={logout}>
+                        Logout ({user ?? 'account'})
                     </Button>
                 ) : (
                     <Button onClick={openLoginModal}>

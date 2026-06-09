@@ -1,5 +1,5 @@
 'use client'
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signAndBroadcastWithKeychain, getUserSubscribedCommunities } from '@/lib/hive/client-functions'
 import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, useToast } from '@chakra-ui/react'
 import dynamic from 'next/dynamic'
@@ -113,7 +113,7 @@ export default function Home() {
     return () => { if (draftTimer.current) clearTimeout(draftTimer.current) }
   }, [title, markdown, hashtags, selectedCommunity, isHangout])
 
-  const { user } = useAioha()
+  const { username: user } = useCurrentUser()
   const toast = useToast()
   const router = useRouter()
 

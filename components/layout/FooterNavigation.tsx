@@ -1,4 +1,4 @@
-import { useAioha } from '@aioha/react-ui';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
@@ -16,9 +16,8 @@ interface FooterNavigationProps {
 
 export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: FooterNavigationProps) {
 
-    const { user, aioha } = useAioha();
+    const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { openLoginModal } = useLoginModal();
-    const logout = () => aioha.logout();
     const { colorMode } = useColorMode();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showLeftFade, setShowLeftFade] = useState(false);
