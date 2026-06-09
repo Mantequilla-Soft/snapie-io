@@ -175,13 +175,14 @@ export async function transferWithAioha(
     const { isSnapieMode } = await import('@/lib/hive/signing');
     if (isSnapieMode()) {
       const { transfer } = await import('@/lib/snapie-auth/client');
+      const { emitNeedsWallet } = await import('@/lib/hive/signing');
       const res = await transfer(to, amount, currency, memo);
-      if (!('needsClientSigning' in res)) {
-        if ((res as any).emancipationRequired) {
-          window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
-        }
-        return { success: true as const, result: (res as any).txId };
+      if ('needsClientSigning' in res) {
+        emitNeedsWallet();
+        throw Object.assign(new Error('Connect your Hive wallet to complete this transfer'), { code: 'needs_client_signing' });
       }
+      if ((res as any).emancipationRequired) window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
+      return { success: true as const, result: (res as any).txId };
     }
   }
   return withTxApproval(async () => {

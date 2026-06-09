@@ -32,3 +32,14 @@ export function getSigningAuthMode(): AuthMode {
 export function isSnapieMode(): boolean {
   return _mode === 'snapie'
 }
+
+/**
+ * Fired when an emancipated Snapie user attempts an active-key operation.
+ * The server responds with needsClientSigning: true — we surface this to the UI
+ * instead of silently failing so the user knows to connect their Hive wallet.
+ */
+export function emitNeedsWallet(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('snapie:needs-wallet'))
+  }
+}
