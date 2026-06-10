@@ -19,7 +19,7 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt } from 'react-icons/fa';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -45,6 +45,7 @@ import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
 
 interface WalletPageProps {
   username: string;
@@ -61,6 +62,7 @@ interface WalletModalContent {
 export default function WalletPage({ username }: WalletPageProps) {
   const router = useRouter();
   const { username: user } = useCurrentUser();
+  const { snapieUser } = useSnapieAuth();
   const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
@@ -494,6 +496,52 @@ export default function WalletPage({ username }: WalletPageProps) {
 
         {/* Detailed Wallet Sections */}
         <VStack spacing={4} align="stretch">
+
+          {/* Custodial Account Notice */}
+          {isOwnWallet && snapieUser?.custodyMode === 'custodial' && (
+            <Box
+              bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
+              sx={{ border: '1px solid rgba(167, 139, 250, 0.25)', borderLeft: '3px solid #a78bfa' }}
+            >
+              <Box p={5}>
+                <Flex alignItems="flex-start" gap={4}>
+                  <Flex
+                    w={10} h={10} borderRadius="full" flexShrink={0}
+                    bg="rgba(167, 139, 250, 0.12)" border="1px solid" borderColor="rgba(167, 139, 250, 0.25)"
+                    alignItems="center" justifyContent="center"
+                  >
+                    <Icon as={FaShieldAlt} color="purple.300" boxSize={4} />
+                  </Flex>
+                  <Box flex={1}>
+                    <Flex alignItems="center" gap={2} mb={2}>
+                      <Heading size="sm" color="purple.300">Custodial Account</Heading>
+                      <Badge colorScheme="purple" fontSize="xs" borderRadius="full" px={2} variant="subtle">
+                        Snapie Managed
+                      </Badge>
+                    </Flex>
+                    <Text fontSize="sm" color={textMuted} mb={2}>
+                      Snapie securely holds your account keys on your behalf, so you can use Hive without managing a wallet yourself. Your HIVE is always yours — Snapie simply signs transactions when you take action.
+                    </Text>
+                    <Text fontSize="sm" color={textMuted} mb={4}>
+                      You can take full ownership of your keys at any time by <Text as="span" color="purple.300" fontWeight="semibold">emancipating</Text> your account. Once emancipated, you manage your own wallet and Snapie no longer has access to your keys.
+                    </Text>
+                    <Button
+                      as="a"
+                      href="https://auth.snapie.io"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="sm"
+                      variant="outline"
+                      colorScheme="purple"
+                      rightIcon={<Icon as={FaExternalLinkAlt} boxSize={3} />}
+                    >
+                      Emancipate at auth.snapie.io
+                    </Button>
+                  </Box>
+                </Flex>
+              </Box>
+            </Box>
+          )}
 
           {/* HIVE */}
           <Box
