@@ -284,6 +284,16 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
         }
     }
 
+    function handlePaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+        const files = Array.from(event.clipboardData?.items ?? [])
+            .filter(item => item.type.startsWith('image/'))
+            .map(item => item.getAsFile())
+            .filter((f): f is File => f !== null);
+        if (files.length === 0) return;
+        event.preventDefault();
+        handleImageSelection(files);
+    }
+
     return (
         <Box
             bg="rgba(8, 24, 40, 0.76)"
@@ -306,7 +316,8 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 _placeholder={{ color: 'rgba(232, 244, 255, 0.68)' }}
                 _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(24, 168, 255, 0.42), 0 0 34px rgba(24, 168, 255, 0.16)' }}
                 isDisabled={!user || isLoading}
-                onKeyDown={handleKeyDown} // Attach the keydown handler
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
             />
             <HStack justify="space-between" mb={3} flexWrap="wrap" gap={2}>
                 <HStack flexShrink={1} minW={0}>
