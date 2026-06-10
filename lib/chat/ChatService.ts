@@ -59,19 +59,26 @@ export interface ChatPreferences {
 }
 
 const TOKEN_KEY = 'hive-chat-token';
+const TOKEN_USER_KEY = 'hive-chat-token-user';
 const BASE = '/api/chat';
 
 class ChatService {
   private token: string | null = null;
+  private tokenUsername: string | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem(TOKEN_KEY);
+      this.tokenUsername = localStorage.getItem(TOKEN_USER_KEY);
     }
   }
 
   isAuthenticated(): boolean {
     return !!this.token;
+  }
+
+  getTokenUsername(): string | null {
+    return this.tokenUsername;
   }
 
   async authenticate(
@@ -90,12 +97,16 @@ class ChatService {
       false
     );
     this.token = token;
+    this.tokenUsername = username;
     localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_USER_KEY, username);
   }
 
   logout(): void {
     this.token = null;
+    this.tokenUsername = null;
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_USER_KEY);
   }
 
   async getChannels(): Promise<Channel[]> {

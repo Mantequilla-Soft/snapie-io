@@ -657,22 +657,20 @@ export default function ChatPanel({
     if (!exists) setActiveConversationId(conversations[0]._id);
   }, [conversations, activeConversationId]);
 
-  // Reset chat session on logout or account switch. The JWT is issued per-username
-  // so an old token must never carry over to a different account.
-  // Only fires when the previous value was a real username — null→username is a
-  // normal page-load/initial-login transition and must not clear the token.
-  const prevUserRef = useRef<string | null | undefined>(undefined);
+  // If the current user differs from whoever the stored chat token was issued
+  // for, clear it so the new account authenticates fresh. Intentionally skipped
+  // when user is null (logout) — the same user logging back in should reuse
+  // their existing valid token without triggering a re-authenticate.
   useEffect(() => {
-    const prev = prevUserRef.current;
-    prevUserRef.current = user;
-    if (prev === undefined || prev === null) return; // mount or initial login
-    if (prev === user) return;
-    // prev was a real username and it changed — logout or account switch
-    chatService.logout();
-    setAuthState('idle');
-    setAuthError('');
-    setMessages([]);
-    setConversations([]);
+    if (!user) return;
+    const tokenOwner = chatService.getTokenUsername();
+    if (tokenOwner && tokenOwner !== user) {
+      chatService.logout();
+      setAuthState('idle');
+      setAuthError('');
+      setMessages([]);
+      setConversations([]);
+    }
   }, [user]);
 
   useEffect(() => {
