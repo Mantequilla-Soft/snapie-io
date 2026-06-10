@@ -322,6 +322,16 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
         }
     }, [toast, toolbar, user]); // markdown and setMarkdown excluded - using functional update pattern
 
+    const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        const files = Array.from(e.clipboardData?.items ?? [])
+            .filter(item => item.type.startsWith('image/'))
+            .map(item => item.getAsFile())
+            .filter((f): f is File => f !== null);
+        if (files.length === 0) return;
+        e.preventDefault();
+        onDrop(files);
+    }, [onDrop]);
+
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
         accept: {
@@ -902,6 +912,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 ref={textareaRef}
                                 value={markdown}
                                 onChange={(e) => setMarkdown(e.target.value)}
+                                onPaste={handlePaste}
                                 placeholder="Write your markdown here... (or drag & drop images)"
                                 className="markdown-editor"
                                 border="none"
