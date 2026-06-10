@@ -32,6 +32,8 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
 
   const fwdHeaders: Record<string, string> = {}
   if (filteredCookies) fwdHeaders['Cookie'] = filteredCookies
+  const clientIp = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip')
+  if (clientIp) fwdHeaders['X-Forwarded-For'] = clientIp
   if (isMutating) {
     const ct = req.headers.get('content-type')
     if (ct) fwdHeaders['Content-Type'] = ct
