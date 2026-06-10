@@ -1,28 +1,30 @@
 /**
  * @snapie/operations/video - Video Upload Module
- * 
+ *
  * Optional module for 3Speak video upload integration.
  * Only import this if you need video upload functionality.
- * 
+ *
  * @example
  * ```typescript
  * import { uploadVideoTo3Speak } from '@snapie/operations/video';
- * 
+ *
  * const result = await uploadVideoTo3Speak(file, {
  *   apiKey: '...',
  *   owner: 'username',
  *   onProgress: (progress, status) => console.log(progress, status)
  * });
- * 
+ *
  * console.log(result.embedUrl);
  * ```
  */
+
+const SERVICE_BASE = 'https://embed.3speak.tv';
 
 /**
  * Video upload progress callback
  */
 export type VideoProgressCallback = (
-    progress: number, 
+    progress: number,
     status: 'uploading' | 'processing' | 'complete' | 'error'
 ) => void;
 
@@ -52,9 +54,38 @@ export interface VideoUploadOptions {
     isShort?: boolean;
 }
 
+interface UploadTokenResponse {
+    token: string;
+    upload_url: string;
+    permlink: string;
+    embed_url: string;
+    expires_at: string;
+}
+
+async function issueUploadToken(options: VideoUploadOptions): Promise<UploadTokenResponse> {
+    const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': options.apiKey,
+        },
+        body: JSON.stringify({
+            owner: options.owner,
+            app: options.appName ?? 'snapie',
+            short: options.isShort !== false,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Failed to issue upload token: ${response.status} ${response.statusText}`);
+    }
+
+    return response.json();
+}
+
 /**
  * Upload a video to 3Speak using TUS protocol
- * 
+ *
  * @param file - Video file to upload
  * @param options - Upload options
  * @returns Promise resolving to embed URL and video ID
@@ -63,12 +94,15 @@ export async function uploadVideoTo3Speak(
     file: File,
     options: VideoUploadOptions
 ): Promise<VideoUploadResult> {
+    // Get a token upfront — this binds the permlink and gives us embed_url
+    // before a single byte is transferred, eliminating the X-Embed-URL header
+    // race that caused duplicate uploads under parallel TUS Concatenation.
+    const { token, upload_url, embed_url } = await issueUploadToken(options);
+
     // Dynamic import to avoid bundling tus-js-client when not needed
     const tus = await import('tus-js-client');
-    
+
     return new Promise((resolve, reject) => {
-        let embedUrl: string | null = null;
-        
         const MB = 1024 * 1024;
         const fileSize = file.size;
         const chunkSize  = fileSize < 50  * MB ? 5  * MB
@@ -77,19 +111,17 @@ export async function uploadVideoTo3Speak(
         const parallelUploads = fileSize < 50 * MB ? 2 : 3;
 
         const upload = new tus.Upload(file, {
-            endpoint: 'https://embed.3speak.tv/uploads',
+            endpoint: upload_url,
             chunkSize,
             parallelUploads,
             retryDelays: [0, 3000, 5000, 10000, 20000],
             metadata: {
                 filename: file.name,
                 filetype: file.type,
-                owner: options.owner,
-                frontend_app: options.appName ?? 'snapie',
-                ...(options.isShort !== false && { short: 'true' })
+                // owner, app, short are bound in the token — no need to repeat them
             },
             headers: {
-                'X-API-Key': options.apiKey
+                'Authorization': `Bearer ${token}`,
             },
             onError: (error) => {
                 options.onProgress?.(0, 'error');
@@ -99,27 +131,15 @@ export async function uploadVideoTo3Speak(
                 const percentage = (bytesUploaded / bytesTotal) * 100;
                 options.onProgress?.(Math.round(percentage), 'uploading');
             },
-            onAfterResponse: (req, res) => {
-                const url = res.getHeader('X-Embed-URL');
-                if (url) {
-                    embedUrl = url;
-                }
-            },
             onSuccess: () => {
-                if (embedUrl) {
-                    options.onProgress?.(100, 'complete');
-                    const videoId = extractVideoIdFromEmbedUrl(embedUrl);
-                    resolve({
-                        embedUrl,
-                        videoId: videoId ?? ''
-                    });
-                } else {
-                    options.onProgress?.(0, 'error');
-                    reject(new Error('Failed to get embed URL from server'));
-                }
-            }
+                options.onProgress?.(100, 'complete');
+                resolve({
+                    embedUrl: embed_url,
+                    videoId: extractVideoIdFromEmbedUrl(embed_url) ?? '',
+                });
+            },
         });
-        
+
         upload.start();
     });
 }

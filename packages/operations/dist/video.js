@@ -38,28 +38,45 @@ __export(video_exports, {
   uploadVideoWithThumbnail: () => uploadVideoWithThumbnail
 });
 module.exports = __toCommonJS(video_exports);
+var SERVICE_BASE = "https://embed.3speak.tv";
+async function issueUploadToken(options) {
+  const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-API-Key": options.apiKey
+    },
+    body: JSON.stringify({
+      owner: options.owner,
+      app: options.appName ?? "snapie",
+      short: options.isShort !== false
+    })
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to issue upload token: ${response.status} ${response.statusText}`);
+  }
+  return response.json();
+}
 async function uploadVideoTo3Speak(file, options) {
+  const { token, upload_url, embed_url } = await issueUploadToken(options);
   const tus = await import("tus-js-client");
   return new Promise((resolve, reject) => {
-    let embedUrl = null;
     const MB = 1024 * 1024;
     const fileSize = file.size;
     const chunkSize = fileSize < 50 * MB ? 5 * MB : fileSize < 500 * MB ? 10 * MB : 20 * MB;
     const parallelUploads = fileSize < 50 * MB ? 2 : 3;
     const upload = new tus.Upload(file, {
-      endpoint: "https://embed.3speak.tv/uploads",
+      endpoint: upload_url,
       chunkSize,
       parallelUploads,
       retryDelays: [0, 3e3, 5e3, 1e4, 2e4],
       metadata: {
         filename: file.name,
-        filetype: file.type,
-        owner: options.owner,
-        frontend_app: options.appName ?? "snapie",
-        ...options.isShort !== false && { short: "true" }
+        filetype: file.type
+        // owner, app, short are bound in the token — no need to repeat them
       },
       headers: {
-        "X-API-Key": options.apiKey
+        "Authorization": `Bearer ${token}`
       },
       onError: (error) => {
         options.onProgress?.(0, "error");
@@ -69,24 +86,12 @@ async function uploadVideoTo3Speak(file, options) {
         const percentage = bytesUploaded / bytesTotal * 100;
         options.onProgress?.(Math.round(percentage), "uploading");
       },
-      onAfterResponse: (req, res) => {
-        const url = res.getHeader("X-Embed-URL");
-        if (url) {
-          embedUrl = url;
-        }
-      },
       onSuccess: () => {
-        if (embedUrl) {
-          options.onProgress?.(100, "complete");
-          const videoId = extractVideoIdFromEmbedUrl(embedUrl);
-          resolve({
-            embedUrl,
-            videoId: videoId ?? ""
-          });
-        } else {
-          options.onProgress?.(0, "error");
-          reject(new Error("Failed to get embed URL from server"));
-        }
+        options.onProgress?.(100, "complete");
+        resolve({
+          embedUrl: embed_url,
+          videoId: extractVideoIdFromEmbedUrl(embed_url) ?? ""
+        });
       }
     });
     upload.start();
