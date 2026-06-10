@@ -657,6 +657,25 @@ export default function ChatPanel({
     if (!exists) setActiveConversationId(conversations[0]._id);
   }, [conversations, activeConversationId]);
 
+  // Reset chat session whenever the logged-in user changes (logout or account
+  // switch). The JWT is issued per-username, so an old token must never carry
+  // over to a new account.
+  const prevUserRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (prevUserRef.current === undefined) {
+      prevUserRef.current = user;
+      return;
+    }
+    if (prevUserRef.current !== user) {
+      prevUserRef.current = user;
+      chatService.logout();
+      setAuthState('idle');
+      setAuthError('');
+      setMessages([]);
+      setConversations([]);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (isMobile || isPopoutWindow) return;
     try {
