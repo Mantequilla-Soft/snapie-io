@@ -47,14 +47,21 @@ export function useHiveNotifications(
   const accountRef = useRef(account);
   accountRef.current = account;
 
+  const lastReadRef = useRef(lastRead);
+  lastReadRef.current = lastRead;
+
   const fetchUnread = useCallback(async () => {
     if (!account) return;
 
     try {
       const state = await fetchUnreadState(account);
       if (accountRef.current === account) {
-        setLastRead(state.lastread || '1970-01-01T00:00:00');
-        setUnreadCount(state.unread || 0);
+        const newLastRead = parseHiveDate(state.lastread || '1970-01-01T00:00:00');
+        // Never regress lastRead — guards against stale responses arriving after markAllAsRead
+        if (newLastRead >= parseHiveDate(lastReadRef.current)) {
+          setLastRead(state.lastread || '1970-01-01T00:00:00');
+          setUnreadCount(state.unread || 0);
+        }
       }
     } catch {
       // Notification unread state is nice-to-have; the list can still render.
@@ -86,7 +93,7 @@ export function useHiveNotifications(
       if (accountRef.current === account) setLoading(false);
     }
 
-    fetchUnread();
+    await fetchUnread();
   }, [account, fetchUnread, limit]);
 
   const loadMore = useCallback(async () => {
