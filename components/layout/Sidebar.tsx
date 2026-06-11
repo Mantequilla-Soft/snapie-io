@@ -142,6 +142,34 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         </>
                     )}
 
+                    {/* Desktop user identity card */}
+                    {user && (
+                        <Box
+                            display={fullBreakpoint}
+                            w="full"
+                            mb={2}
+                            p={3}
+                            bg="rgba(24, 168, 255, 0.06)"
+                            borderRadius="10px"
+                            border="1px solid rgba(102, 228, 255, 0.12)"
+                        >
+                            <Flex align="center" gap={2} overflow="hidden">
+                                <Image
+                                    src={getHiveAvatarUrl(user, 'small')}
+                                    alt={user}
+                                    boxSize="32px"
+                                    borderRadius="full"
+                                    flexShrink={0}
+                                    border="1px solid rgba(102, 228, 255, 0.3)"
+                                />
+                                <Box overflow="hidden">
+                                    <Text fontSize="10px" color="whiteAlpha.500" lineHeight={1} mb="2px">Logged in as</Text>
+                                    <Text fontSize="sm" fontWeight="semibold" color="white" noOfLines={1}>@{user}</Text>
+                                </Box>
+                            </Flex>
+                        </Box>
+                    )}
+
                     <Tooltip label="Home" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button

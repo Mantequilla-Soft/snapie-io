@@ -4,7 +4,9 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/layout/Sidebar';
-import FooterNavigation from '@/components/layout/FooterNavigation';
+import MobileHeader from '@/components/layout/MobileHeader';
+import BottomTabBar from '@/components/layout/BottomTabBar';
+import MeSheet from '@/components/layout/MeSheet';
 import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -17,6 +19,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isComposePage = pathname === '/compose';
+  const isShortsPage = pathname === '/shorts';
   const isEmbedMode = searchParams.get('embed') === 'true';
   const isChatPopoutMode = searchParams.get('chat_popout') === '1';
   const { activeRoom, closeRoom } = useHangout();
@@ -24,6 +27,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [isMeSheetOpen, setIsMeSheetOpen] = useState(false);
   const popoutRef = useRef<Window | null>(null);
 
   useEffect(() => {
@@ -35,7 +39,6 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return () => { document.body.classList.remove('embed-mode'); };
   }, [isEmbedMode]);
 
-  // Poll unread count when chat is closed
   useEffect(() => {
     if (isEmbedMode || isChatOpen) return;
     const poll = async () => { setChatUnreadCount(await chatService.getUnreadCount()); };
@@ -51,6 +54,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     setIsChatOpen(true);
     setIsChatMinimized(false);
   }, [isChatPopoutMode]);
+
+  // Close MeSheet when navigating
+  useEffect(() => { setIsMeSheetOpen(false); }, [pathname]);
 
   const handlePopoutChat = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -78,6 +84,11 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  // On mobile, pad content away from the fixed header and tab bar.
+  // Skip padding on shorts (full-screen immersive) and embed/popout modes.
+  const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: '56px', sm: '0' } : undefined;
+  const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: '64px', sm: '0' } : undefined;
+
   return (
     <Box
       bg="background"
@@ -96,6 +107,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             overflowY="auto"
             display="flex"
             flexDirection="column"
+            pt={mobilePaddingTop}
+            pb={mobilePaddingBottom}
           >
             <EmancipationBanner />
             {!isChatPopoutMode && children}
@@ -103,9 +116,20 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           </Box>
         </Flex>
       </Box>
+
       {!isEmbedMode && !isChatPopoutMode && (
         <>
-          <FooterNavigation isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+          {/* Mobile chrome */}
+          <MobileHeader onMePress={() => setIsMeSheetOpen(true)} />
+          <BottomTabBar onMePress={() => setIsMeSheetOpen(true)} />
+          <MeSheet
+            isOpen={isMeSheetOpen}
+            onClose={() => setIsMeSheetOpen(false)}
+            onToggleChat={() => setIsChatOpen(c => !c)}
+            chatUnreadCount={chatUnreadCount}
+          />
+
+          {/* Chat panel (all screen sizes) */}
           <ChatPanel
             isOpen={isChatOpen}
             onClose={() => setIsChatOpen(false)}
