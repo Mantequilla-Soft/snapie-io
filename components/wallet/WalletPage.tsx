@@ -308,7 +308,17 @@ export default function WalletPage({ username }: WalletPageProps) {
         />
       </Box>
 
-      <Flex position="relative" mt={-16} p={4} alignItems="center" boxShadow="lg" justifyContent="space-between" borderBottomRadius="xl">
+      <Flex
+        position="relative"
+        mt={-16}
+        p={4}
+        boxShadow="lg"
+        borderBottomRadius="xl"
+        direction={{ base: 'column', md: 'row' }}
+        alignItems={{ base: 'flex-start', md: 'center' }}
+        justifyContent={{ base: 'flex-start', md: 'space-between' }}
+        gap={3}
+      >
         <Box
           position="absolute"
           top={0} left={0} right={0} bottom={0}
@@ -319,39 +329,42 @@ export default function WalletPage({ username }: WalletPageProps) {
           borderBottomRadius="xl"
         />
 
-        <Flex alignItems="center" zIndex={2} position="relative">
+        {/* Avatar + info */}
+        <Flex alignItems="center" zIndex={2} position="relative" overflow="hidden">
           <Avatar
             src={getHiveAvatarUrl(username, 'large')}
             name={hiveAccount?.name}
             borderRadius="full"
-            boxSize="100px"
+            boxSize={{ base: '72px', md: '100px' }}
             mr={4}
             border="2px solid"
             borderColor="primary"
             boxShadow="0 0 18px rgba(24, 168, 255, 0.25)"
+            flexShrink={0}
           />
-          <Box>
-            <Flex alignItems="center" gap={2}>
-              <Heading as="h2" size="lg" color="primary">
+          <Box overflow="hidden">
+            <Flex alignItems="center" gap={2} flexWrap="wrap">
+              <Heading as="h2" size={{ base: 'md', md: 'lg' }} color="primary" noOfLines={1}>
                 {profileInfo?.metadata?.profile?.name || username}
               </Heading>
-              <Badge colorScheme="purple" fontSize="xs" borderRadius="full" px={2}>
+              <Badge colorScheme="purple" fontSize="xs" borderRadius="full" px={2} flexShrink={0}>
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
               </Badge>
             </Flex>
-            <Text fontSize="xs" color="text" mt={1} opacity={0.7}>
+            <Text fontSize="xs" color="text" mt={1} opacity={0.7} noOfLines={1}>
               {following} following · {followers} followers {location && `· ${location}`}
             </Text>
             {profileMetadata.website && (
               <Flex alignItems="center" mt={1} gap={1}>
                 <Icon as={FaGlobe} w={3} h={3} color="primary" onClick={() => window.open(profileMetadata.website, '_blank')} style={{ cursor: 'pointer' }} />
-                <Text fontSize="xs" color="primary">{profileMetadata.website}</Text>
+                <Text fontSize="xs" color="primary" noOfLines={1}>{profileMetadata.website}</Text>
               </Flex>
             )}
           </Box>
         </Flex>
 
-        <HStack zIndex={2} position="relative" spacing={2}>
+        {/* Actions */}
+        <HStack zIndex={2} position="relative" spacing={2} flexShrink={0} flexWrap="wrap">
           {isOwnWallet && (
             <Button
               size="sm"
@@ -406,13 +419,13 @@ export default function WalletPage({ username }: WalletPageProps) {
               pointerEvents="none"
             />
 
-            <Flex justifyContent="space-between" alignItems="center" position="relative">
+            <Flex justifyContent="space-between" alignItems="center" position="relative" flexWrap="wrap" gap={4}>
               <Box>
                 <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="widest" mb={2}>
                   Estimated Account Value
                 </Text>
                 <Heading
-                  fontSize={{ base: '4xl', md: '5xl' }}
+                  fontSize={{ base: '3xl', md: '5xl' }}
                   color={successColor}
                   letterSpacing="-0.02em"
                   lineHeight={1}
