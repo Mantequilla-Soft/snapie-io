@@ -1,6 +1,7 @@
 export function getPostDate(date: string | Date): string {
     const today = new Date();
     const created = new Date(date);
+    if (isNaN(created.getTime())) return 'just now';
 
     const offset = today.getTimezoneOffset();
     const adjustedToday = new Date(today.getTime() + offset * 60000);

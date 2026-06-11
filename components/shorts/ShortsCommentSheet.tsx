@@ -26,7 +26,7 @@ export default function ShortsCommentSheet({
   commentCount,
 }: ShortsCommentSheetProps) {
   const { hiveUser } = useHiveUser();
-  const { comments, isLoading, addComment } = useComments(author, permlink, false, hiveUser?.name);
+  const { comments, isLoading, addComment } = useComments(author, permlink, true, hiveUser?.name);
   const [reply, setReply] = useState<Comment | null>(null);
   const { isOpen: replyOpen, onOpen: openReply, onClose: closeReply } = useDisclosure();
 
@@ -72,17 +72,16 @@ export default function ShortsCommentSheet({
               </VStack>
             )}
           </DrawerBody>
+          {reply && (
+            <SnapReplyModal
+              isOpen={replyOpen}
+              onClose={closeReply}
+              comment={reply}
+              onNewReply={(newComment) => addComment(newComment as Comment)}
+            />
+          )}
         </DrawerContent>
       </Drawer>
-
-      {reply && (
-        <SnapReplyModal
-          isOpen={replyOpen}
-          onClose={closeReply}
-          comment={reply}
-          onNewReply={(newComment) => addComment(newComment as Comment)}
-        />
-      )}
     </>
   );
 }

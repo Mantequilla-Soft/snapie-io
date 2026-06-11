@@ -258,7 +258,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
                         onVoteRollback={() => setOptimisticDeltaHBD(0)}
                     />
-                    <HStack spacing={4}>
+                    <HStack spacing={{ base: 2, md: 4 }}>
                         {/* Reply button - opens reply modal */}
                         <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
                             <FaRegComment />
@@ -271,12 +271,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         )}
                         <HStack spacing={1} cursor="pointer" onClick={handleReSnap}>
                             <FaRetweet />
-                            <Text fontSize="sm">Re-Snap/Share</Text>
+                            <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Re-Snap/Share</Text>
                         </HStack>
                         {canEdit && (
                             <HStack spacing={1} cursor="pointer" onClick={() => setIsEditModalOpen(true)}>
                                 <FaEdit />
-                                <Text fontSize="sm">Edit</Text>
+                                <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Edit</Text>
                             </HStack>
                         )}
                     </HStack>

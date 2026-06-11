@@ -260,9 +260,10 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 setAudioEmbedUrl(null);
 
                 const newComment: Partial<Comment> = {
-                    author: user, 
+                    author: user,
                     permlink: result.permlink,
                     body: result.body,
+                    created: new Date().toISOString() as any,
                 };
 
                 onNewComment(newComment); 

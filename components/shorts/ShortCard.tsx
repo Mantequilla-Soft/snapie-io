@@ -1,7 +1,9 @@
 'use client';
 import {
-  Box, Flex, Text, Image, VStack, IconButton, useDisclosure, useToast,
+  Box, Flex, Text, Image, VStack, HStack, IconButton, useDisclosure, useToast,
+  Slider, SliderTrack, SliderFilledTrack, SliderThumb,
 } from '@chakra-ui/react';
+import { CloseIcon } from '@chakra-ui/icons';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
 import { FaHeart, FaRegHeart, FaComment, FaShare, FaVolumeUp, FaVolumeMute } from 'react-icons/fa';
 import { ShortItem } from '@/lib/shorts/types';
@@ -98,6 +100,9 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
+  const [showVoteSlider, setShowVoteSlider] = useState(false);
+  const [voteWeight, setVoteWeight] = useState(100);
+  const [isVoting, setIsVoting] = useState(false);
   const { username: user } = useCurrentUser();
   const toast = useToast();
 
@@ -107,11 +112,13 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
       return;
     }
     if (liked) return;
+    setShowVoteSlider(false);
     const prev = likeCount;
     setLiked(true);
     setLikeCount(p => p + 1);
+    setIsVoting(true);
     try {
-      const result = await vote({ username: user, author: short.author, permlink: short.hivePermlink, weight: 10000 });
+      const result = await vote({ username: user, author: short.author, permlink: short.hivePermlink, weight: voteWeight * 100 });
       if (!result.success) {
         setLiked(false);
         setLikeCount(prev);
@@ -120,6 +127,8 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
     } catch {
       setLiked(false);
       setLikeCount(prev);
+    } finally {
+      setIsVoting(false);
     }
   }
 
@@ -216,7 +225,48 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
           />
         )}
 
-        <VStack spacing={0}>
+        <VStack spacing={0} position="relative">
+          {showVoteSlider && (
+            <Box
+              position="absolute"
+              right="52px"
+              bottom="4px"
+              bg="rgba(0, 0, 0, 0.88)"
+              borderRadius="12px"
+              border="1px solid rgba(255,255,255,0.15)"
+              p={3}
+              w="160px"
+              zIndex={3}
+            >
+              <Slider min={1} max={100} value={voteWeight} onChange={setVoteWeight}>
+                <SliderTrack bg="whiteAlpha.300">
+                  <SliderFilledTrack bg="red.400" />
+                </SliderTrack>
+                <SliderThumb />
+              </Slider>
+              <HStack mt={2} justify="space-between">
+                <Text color="white" fontSize="xs">{voteWeight}%</Text>
+                <HStack spacing={1}>
+                  <IconButton
+                    aria-label="Confirm vote"
+                    icon={<FaHeart />}
+                    size="xs"
+                    colorScheme="red"
+                    isLoading={isVoting}
+                    onClick={handleLike}
+                  />
+                  <IconButton
+                    aria-label="Cancel vote"
+                    icon={<CloseIcon boxSize="8px" />}
+                    size="xs"
+                    variant="ghost"
+                    color="white"
+                    onClick={() => setShowVoteSlider(false)}
+                  />
+                </HStack>
+              </HStack>
+            </Box>
+          )}
           <IconButton
             aria-label="Like"
             icon={liked ? <FaHeart /> : <FaRegHeart />}
@@ -224,7 +274,14 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
             color={liked ? 'red.400' : 'white'}
             fontSize="24px"
             size="lg"
-            onClick={handleLike}
+            onClick={() => {
+              if (liked) return;
+              if (!user) {
+                toast({ title: 'Login to like', status: 'info', duration: 2000, isClosable: true });
+                return;
+              }
+              setShowVoteSlider(v => !v);
+            }}
             _hover={{ bg: 'whiteAlpha.200' }}
           />
           <Text color="white" fontSize="xs" fontWeight="bold">{likeCount}</Text>
