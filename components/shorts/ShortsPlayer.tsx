@@ -46,7 +46,8 @@ export default function ShortsPlayer() {
   }
 
   return (
-    <Box h="100dvh" overflow="hidden" bg="black">
+    <Box h="100dvh" overflow="hidden" bg="black" display="flex" justifyContent="center">
+      <Box w={{ base: '100%', md: '420px' }} h="100dvh" position="relative" overflow="hidden">
       <Swiper
         direction="vertical"
         slidesPerView={1}
@@ -76,6 +77,7 @@ export default function ShortsPlayer() {
           </SwiperSlide>
         )}
       </Swiper>
+      </Box>
     </Box>
   );
 }
