@@ -1,6 +1,6 @@
 'use client';
 import {
-  Box, Flex, Text, Image, VStack, HStack, IconButton, useDisclosure, useToast,
+  Box, Flex, Text, Image, VStack, HStack, IconButton, useToast,
   Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Menu, MenuButton, MenuList, MenuItem, Spinner,
 } from '@chakra-ui/react';
@@ -17,7 +17,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote, getPost } from '@/lib/hive/client-functions';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { useRouter } from 'next/navigation';
-import ShortsCommentSheet from './ShortsCommentSheet';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -154,10 +153,10 @@ interface ShortCardProps {
   isPreload: boolean;
   muted: boolean;
   onToggleMute: () => void;
+  onOpenComments: () => void;
 }
 
-export default function ShortCard({ short, isActive, isPreload, muted, onToggleMute }: ShortCardProps) {
-  const { isOpen: commentsOpen, onOpen: openComments, onClose: closeComments } = useDisclosure();
+export default function ShortCard({ short, isActive, isPreload, muted, onToggleMute, onOpenComments }: ShortCardProps) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -447,7 +446,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
           icon={<FaComment />}
           label="Comments"
           count={short.stats.comments}
-          onClick={openComments}
+          onClick={onOpenComments}
         />
 
         {/* Share */}
@@ -516,14 +515,6 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         )}
       </VStack>
 
-      {/* Comments sheet */}
-      <ShortsCommentSheet
-        isOpen={commentsOpen}
-        onClose={closeComments}
-        author={short.author}
-        permlink={short.hivePermlink}
-        commentCount={short.stats.comments}
-      />
     </Box>
   );
 }
