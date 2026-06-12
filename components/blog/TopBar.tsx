@@ -56,7 +56,7 @@ export default function TopBar({
                     _hover={{ opacity: 0.88, boxShadow: '0 4px 20px rgba(24, 168, 255, 0.5)' }}
                     _active={{ transform: 'scale(0.97)' }}
                 >
-                    Write<Box as="span" display={{ base: 'none', md: 'inline' }}> a blog</Box>
+                    Write<Box as="span" display={{ base: 'none', md: 'inline' }}>&nbsp;a blog</Box>
                 </Button>
                 <InputGroup flex="1" maxW={{ base: 'full', md: '480px' }}>
                     <Input

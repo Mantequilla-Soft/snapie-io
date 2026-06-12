@@ -12,6 +12,7 @@ import { animate, color, motion, px } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
 
 interface ProfileInfo {
     metadata: {
@@ -46,6 +47,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
+    const hasUnclaimed = useUnclaimedRewards();
 
     // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';
@@ -302,7 +304,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 </Box>
                             </Tooltip>
                             <Tooltip label="Wallet" placement="right" hasArrow isDisabled={!isCompactMode}>
-                                <Box w="full">
+                                <Box w="full" position="relative">
                                     <Button
                                         as={NextLink}
                                         href={`/@${user}/wallet`}
@@ -316,6 +318,20 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     >
                                         <Text display={textDisplay}>Wallet</Text>
                                     </Button>
+                                    {hasUnclaimed && (
+                                        <Box
+                                            position="absolute"
+                                            top="6px"
+                                            right="6px"
+                                            w="8px"
+                                            h="8px"
+                                            borderRadius="full"
+                                            bg="orange.400"
+                                            boxShadow="0 0 6px rgba(251, 146, 60, 0.9)"
+                                            border="1px solid rgba(8, 24, 40, 0.8)"
+                                            pointerEvents="none"
+                                        />
+                                    )}
                                 </Box>
                             </Tooltip>
                             <Tooltip label="Chat" placement="right" hasArrow isDisabled={!isCompactMode}>

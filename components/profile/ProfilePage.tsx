@@ -3,7 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Heading, Text, Spinner, Alert, AlertIcon, Image, Container,
   Flex, Icon, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel,
+  Button, useDisclosure,
 } from '@chakra-ui/react';
+import { FiEdit2 } from 'react-icons/fi';
+import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { Comment } from '@hiveio/dhive';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import { FaGlobe } from 'react-icons/fa';
@@ -112,6 +115,9 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     };
     if (username) fetchProfileInfo();
   }, [username, user]);
+
+  const isOwner = !!user && user === username;
+  const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
 
   const profileMeta = profileInfo?.metadata?.profile || {};
   const followers = profileInfo?.stats?.followers || 0;
@@ -229,7 +235,22 @@ export default function ProfilePage({ username }: ProfilePageProps) {
         </Flex>
 
         <Box zIndex={2} position="relative">
-          <UserActionButtons targetUsername={username} currentUsername={user || null} />
+          {isOwner ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              leftIcon={<Icon as={FiEdit2} boxSize={3.5} />}
+              onClick={onEditOpen}
+              color="gray.400"
+              borderRadius="full"
+              px={3}
+              _hover={{ color: 'primary', bg: 'rgba(24,168,255,0.08)' }}
+            >
+              Edit Profile
+            </Button>
+          ) : (
+            <UserActionButtons targetUsername={username} currentUsername={user || null} />
+          )}
         </Box>
       </Flex>
 
@@ -307,6 +328,27 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           onClose={() => setIsReplyOpen(false)}
           comment={reply}
           onNewReply={handleSnapReply}
+        />
+      )}
+
+      {isOwner && (
+        <EditProfileModal
+          isOpen={isEditOpen}
+          onClose={onEditClose}
+          username={username}
+          initialData={{
+            name: profileMeta.name || '',
+            about: profileMeta.about || '',
+            location: profileMeta.location || '',
+            website: profileMeta.website || '',
+            profileImage: profileMeta.profile_image || '',
+            coverImage: profileMeta.cover_image || '',
+          }}
+          onSaved={() => {
+            onEditClose();
+            // Re-fetch profile to reflect the changes
+            getProfile(username, user || '').then(setProfileInfo).catch(() => {});
+          }}
         />
       )}
     </Box>

@@ -1,19 +1,17 @@
 'use client';
-import { Box, Flex, Text, Image, Icon } from '@chakra-ui/react';
-import { FiHome, FiBook, FiPlay, FiUser, FiPlus } from 'react-icons/fi';
+import { Box, Flex, Text, Icon } from '@chakra-ui/react';
+import { FiHome, FiBook, FiPlay, FiPlus, FiCreditCard } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
 
-interface BottomTabBarProps {
-  onMePress: () => void;
-}
-
-export default function BottomTabBar({ onMePress }: BottomTabBarProps) {
+export default function BottomTabBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { username: user } = useCurrentUser();
+  const { username } = useCurrentUser();
+  const hasUnclaimed = useUnclaimedRewards();
+  const walletHref = username ? `/@${username}/wallet` : '/wallet';
 
   function handleComposeTap() {
     if (pathname.startsWith('/blog')) {
@@ -84,34 +82,8 @@ export default function BottomTabBar({ onMePress }: BottomTabBarProps) {
         {/* Shorts */}
         <Tab href="/shorts" icon={FiPlay} label="Shorts" active={isActive('/shorts')} />
 
-        {/* Me — opens MeSheet, not a page link */}
-        <Flex
-          flex={1}
-          direction="column"
-          align="center"
-          justify="center"
-          h="full"
-          cursor="pointer"
-          onClick={onMePress}
-          color="white"
-          opacity={0.65}
-          transition="opacity 0.15s"
-          _hover={{ opacity: 1 }}
-          gap="2px"
-        >
-          {user ? (
-            <Image
-              src={getHiveAvatarUrl(user, 'small')}
-              alt={user}
-              boxSize="26px"
-              borderRadius="full"
-              border="2px solid rgba(102, 228, 255, 0.45)"
-            />
-          ) : (
-            <Icon as={FiUser} boxSize={5} />
-          )}
-          <Text fontSize="9px" letterSpacing="0.02em">Me</Text>
-        </Flex>
+        {/* Wallet */}
+        <Tab href={walletHref} icon={FiCreditCard} label="Wallet" active={isActive('/wallet')} dot={hasUnclaimed} />
       </Flex>
     </Box>
   );
@@ -124,9 +96,10 @@ interface TabProps {
   icon: React.ElementType;
   label: string;
   active: boolean;
+  dot?: boolean;
 }
 
-function Tab({ href, icon, label, active }: TabProps) {
+function Tab({ href, icon, label, active, dot }: TabProps) {
   return (
     <Flex
       as={NextLink}
@@ -142,7 +115,22 @@ function Tab({ href, icon, label, active }: TabProps) {
       _hover={{ opacity: 1 }}
       gap="2px"
     >
-      <Icon as={icon} boxSize={5} />
+      <Box position="relative" display="inline-flex">
+        <Icon as={icon} boxSize={5} />
+        {dot && (
+          <Box
+            position="absolute"
+            top="-2px"
+            right="-3px"
+            w="7px"
+            h="7px"
+            borderRadius="full"
+            bg="orange.400"
+            boxShadow="0 0 6px rgba(251, 146, 60, 0.9)"
+            border="1px solid rgba(8, 24, 40, 0.8)"
+          />
+        )}
+      </Box>
       <Text fontSize="9px" letterSpacing="0.02em">{label}</Text>
     </Flex>
   );

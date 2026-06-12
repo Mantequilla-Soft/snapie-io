@@ -121,7 +121,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <>
           {/* Mobile chrome */}
           <MobileHeader onMePress={() => setIsMeSheetOpen(true)} />
-          <BottomTabBar onMePress={() => setIsMeSheetOpen(true)} />
+          <BottomTabBar />
           <MeSheet
             isOpen={isMeSheetOpen}
             onClose={() => setIsMeSheetOpen(false)}

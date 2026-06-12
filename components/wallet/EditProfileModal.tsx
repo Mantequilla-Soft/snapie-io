@@ -68,7 +68,7 @@ export default function EditProfileModal({
       setName(initialData.name);
       setAbout(initialData.about);
       setLocation(initialData.location);
-      setWebsite(initialData.website);
+      setWebsite(initialData.website || 'https://snapie.io');
       setProfileImage(initialData.profileImage);
       setCoverImage(initialData.coverImage);
       setAvatarUploadProgress(null);

@@ -1,6 +1,8 @@
 'use client';
 import { Box, Flex, Text, Image, Icon, IconButton, Button } from '@chakra-ui/react';
 import { FiBell } from 'react-icons/fi';
+import { FaMicrophone } from 'react-icons/fa';
+import { keyframes } from '@emotion/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
@@ -8,6 +10,12 @@ import { usePathname } from 'next/navigation';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import NextLink from 'next/link';
 import { CountBadge } from '@/components/ui/CountBadge';
+import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
+
+const micPulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+`;
 
 interface MobileHeaderProps {
   onMePress: () => void;
@@ -18,6 +26,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
   const { openLoginModal } = useLoginModal();
   const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
   const pathname = usePathname();
+  const openPodsCount = useOpenPodsCount();
 
   // Immersive pages manage their own chrome
   if (pathname === '/shorts') return null;
@@ -71,6 +80,24 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               />
               <CountBadge count={unreadCount} colorScheme="red" top="-2px" right="-2px" />
             </Box>
+
+            {/* OpenPods live indicator */}
+            {openPodsCount > 0 && (
+              <Box position="relative">
+                <IconButton
+                  as={NextLink}
+                  href="/hangouts"
+                  aria-label={`${openPodsCount} OpenPod${openPodsCount !== 1 ? 's' : ''} live`}
+                  icon={<Icon as={FaMicrophone} boxSize={4} animation={`${micPulse} 2s ease-in-out infinite`} />}
+                  variant="ghost"
+                  color="red.300"
+                  size="sm"
+                  borderRadius="full"
+                  _hover={{ bg: 'whiteAlpha.100' }}
+                />
+                <CountBadge count={openPodsCount} colorScheme="red" top="-2px" right="-2px" />
+              </Box>
+            )}
 
             {/* Avatar → opens MeSheet */}
             <Box
