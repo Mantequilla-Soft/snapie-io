@@ -2,7 +2,7 @@
 import { Box, Flex, Text, Image, Icon } from '@chakra-ui/react';
 import { FiHome, FiBook, FiPlay, FiUser, FiPlus } from 'react-icons/fi';
 import NextLink from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
@@ -12,7 +12,20 @@ interface BottomTabBarProps {
 
 export default function BottomTabBar({ onMePress }: BottomTabBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { username: user } = useCurrentUser();
+
+  function handleComposeTap() {
+    if (pathname === '/') {
+      document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => {
+        const ta = document.querySelector<HTMLTextAreaElement>('#snap-composer textarea');
+        ta?.focus();
+      }, 300);
+    } else {
+      router.push('/?focus=composer');
+    }
+  }
 
   // Hide on immersive pages
   if (pathname === '/shorts') return null;
@@ -46,8 +59,8 @@ export default function BottomTabBar({ onMePress }: BottomTabBarProps) {
         {/* Compose — elevated center CTA */}
         <Flex flex={1} justify="center" align="center">
           <Box
-            as={NextLink}
-            href="/compose"
+            as="button"
+            onClick={handleComposeTap}
             display="flex"
             alignItems="center"
             justifyContent="center"

@@ -90,6 +90,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             p={3}
             w={forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' }}
             h={{ base: "100vh", sm: "calc(100vh - 24px)" }}
+            overflowY="auto"
             position={{ base: 'relative', sm: 'sticky' }}
             top={{ base: 'auto', sm: '12px' }}
             mt={{ base: 0, sm: '12px' }}

@@ -295,7 +295,7 @@ export default function WalletPage({ username }: WalletPageProps) {
     : 0;
 
   return (
-    <Box color="text" maxW="container.lg" mx="auto">
+    <Box color="text" maxW="container.lg" mx="auto" w="100%" overflowX="hidden">
       {/* Profile Header */}
       <Box position="relative" height="200px" borderTopRadius="xl" overflow="hidden">
         <Image
@@ -571,8 +571,8 @@ export default function WalletPage({ username }: WalletPageProps) {
                   <Text fontSize="xs" color={textMuted}>Liquid balance</Text>
                 </Box>
               </Flex>
-              <Box textAlign="right">
-                <Text fontSize="2xl" fontWeight="bold">{balance}</Text>
+              <Box textAlign="right" flexShrink={0}>
+                <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold">{balance}</Text>
                 {prices && <Text fontSize="xs" color={textMuted}>≈ ${(parseFloat(balance) * prices.hive).toFixed(2)}</Text>}
               </Box>
             </Flex>
@@ -612,8 +612,8 @@ export default function WalletPage({ username }: WalletPageProps) {
                   <Text fontSize="xs" color={textMuted}>Staked HIVE for voting power</Text>
                 </Box>
               </Flex>
-              <Box textAlign="right">
-                <Text fontSize="2xl" fontWeight="bold">{hivePower || 'Loading...'}</Text>
+              <Box textAlign="right" flexShrink={0}>
+                <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold">{hivePower || 'Loading...'}</Text>
                 {prices && hivePower && <Text fontSize="xs" color={textMuted}>≈ ${(parseFloat(hivePower) * prices.hive).toFixed(2)}</Text>}
               </Box>
             </Flex>
@@ -640,8 +640,8 @@ export default function WalletPage({ username }: WalletPageProps) {
                   <Text fontSize="xs" color={textMuted}>Stable coin pegged to USD</Text>
                 </Box>
               </Flex>
-              <Box textAlign="right">
-                <Text fontSize="2xl" fontWeight="bold">{hbdBalance}</Text>
+              <Box textAlign="right" flexShrink={0}>
+                <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold">{hbdBalance}</Text>
                 {prices && <Text fontSize="xs" color={textMuted}>≈ ${(parseFloat(hbdBalance) * prices.hbd).toFixed(2)}</Text>}
               </Box>
             </Flex>
