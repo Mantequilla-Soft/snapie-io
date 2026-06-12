@@ -150,7 +150,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   }
 
   return (
-    <Box color="text" maxW="container.lg" mx="auto">
+    <Box color="text" maxW="container.lg" mx="auto" w="100%" overflowX="hidden">
       {/* Cover image */}
       <Box position="relative" height="200px">
         <Container id="cover" maxW="container.lg" p={0} overflow="hidden" position="relative" height="100%">

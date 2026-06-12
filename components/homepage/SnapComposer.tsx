@@ -409,7 +409,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                     </Box>
                 )}
                 {selectedVideo && (
-                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="gray.600" minW="250px">
+                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="gray.600" w="100%">
                         <VStack align="start" spacing={2}>
                             <HStack justify="space-between" w="100%">
                                 <Text fontSize="sm" fontWeight="bold" color="text">📹 {selectedVideo.name}</Text>
@@ -441,7 +441,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                     </Box>
                 )}
                 {audioEmbedUrl && (
-                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="gray.600" minW="250px">
+                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="gray.600" w="100%">
                         <VStack align="start" spacing={2}>
                             <HStack justify="space-between" w="100%">
                                 <Text fontSize="sm" fontWeight="bold" color="text">🎤 Audio Snap</Text>
