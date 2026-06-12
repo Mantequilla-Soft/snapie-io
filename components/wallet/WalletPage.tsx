@@ -19,7 +19,7 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera } from 'react-icons/fa';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -46,6 +46,11 @@ import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
+import dynamic from 'next/dynamic';
+import { currencyFromAmount, valueFromAmount, type HiveTransferQRData } from '@/lib/hive/qr-utils';
+
+const QRRequestSheet = dynamic(() => import('@/components/wallet/QRRequestSheet'), { ssr: false });
+const QRScanSheet = dynamic(() => import('@/components/wallet/QRScanSheet'), { ssr: false });
 
 interface WalletPageProps {
   username: string;
@@ -57,6 +62,9 @@ interface WalletModalContent {
   showMemoField?: boolean;
   showUsernameField?: boolean;
   swapDirection?: SwapDirection;
+  initialTo?: string;
+  initialAmount?: number;
+  initialMemo?: string;
 }
 
 export default function WalletPage({ username }: WalletPageProps) {
@@ -66,6 +74,8 @@ export default function WalletPage({ username }: WalletPageProps) {
   const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const { isOpen: isQRRequestOpen, onOpen: onQRRequestOpen, onClose: onQRRequestClose } = useDisclosure();
+  const { isOpen: isQRScanOpen, onOpen: onQRScanOpen, onClose: onQRScanClose } = useDisclosure();
 
   const [prices, setPrices] = useState<{ hive: number; hbd: number } | null>(null);
   const [profileMetadata, setProfileMetadata] = useState<{ profileImage: string; coverImage: string; website: string; name: string; about: string; location: string }>({
@@ -172,6 +182,19 @@ export default function WalletPage({ username }: WalletPageProps) {
     setModalContent(content);
     onOpen();
   };
+
+  function handleQRScan(data: HiveTransferQRData) {
+    const currency = currencyFromAmount(data.amount);
+    handleModalOpen({
+      title: `Send ${currency}`,
+      description: `Scanned from QR — review and confirm before sending.`,
+      showMemoField: true,
+      showUsernameField: true,
+      initialTo: data.to,
+      initialAmount: valueFromAmount(data.amount),
+      initialMemo: data.memo,
+    });
+  }
 
   const executableSwapPrice = modalContent?.swapDirection
     ? (modalContent.swapDirection === 'HIVE_TO_HBD'
@@ -378,6 +401,39 @@ export default function WalletPage({ username }: WalletPageProps) {
             >
               Edit Profile
             </Button>
+          )}
+          {/* Mobile-only QR actions */}
+          {isOwnWallet && (
+            <HStack display={{ base: 'flex', md: 'none' }} spacing={2}>
+              <Button
+                size="sm"
+                leftIcon={<Icon as={FaQrcode} boxSize={3} />}
+                onClick={onQRRequestOpen}
+                bgGradient="linear(135deg, #18a8ff, #66e4ff)"
+                color="white"
+                borderRadius="full"
+                px={3}
+                boxShadow="0 2px 12px rgba(24,168,255,0.35)"
+                _hover={{ opacity: 0.88 }}
+                _active={{ transform: 'scale(0.96)' }}
+              >
+                Request
+              </Button>
+              <Button
+                size="sm"
+                leftIcon={<Icon as={FaCamera} boxSize={3} />}
+                onClick={onQRScanOpen}
+                variant="outline"
+                borderColor="cyan.400"
+                color="cyan.300"
+                borderRadius="full"
+                px={3}
+                _hover={{ bg: 'rgba(102,228,255,0.08)' }}
+                _active={{ transform: 'scale(0.96)' }}
+              >
+                Scan &amp; Pay
+              </Button>
+            </HStack>
           )}
           <Flex
             alignItems="center" gap={2}
@@ -818,8 +874,26 @@ export default function WalletPage({ username }: WalletPageProps) {
           price: executableSwapPrice || undefined,
           slippagePercent: 0.5,
         }}
+        initialTo={modalContent?.initialTo}
+        initialAmount={modalContent?.initialAmount}
+        initialMemo={modalContent?.initialMemo}
         onConfirm={handleConfirm}
       />
+
+      {user && (
+        <>
+          <QRRequestSheet
+            isOpen={isQRRequestOpen}
+            onClose={onQRRequestClose}
+            username={user}
+          />
+          <QRScanSheet
+            isOpen={isQRScanOpen}
+            onClose={onQRScanClose}
+            onScan={handleQRScan}
+          />
+        </>
+      )}
 
       <EditProfileModal
         isOpen={isEditOpen}

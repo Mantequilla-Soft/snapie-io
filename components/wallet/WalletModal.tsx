@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState, useEffect, type ChangeEvent } from 'react';
 import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select } from '@chakra-ui/react';
 import type { SwapDirection } from '@/lib/hive/client-functions';
 
@@ -15,20 +15,37 @@ interface WalletModalProps {
     title: string;
     description?: string;
     showMemoField?: boolean;
-    showUsernameField?: boolean; // New prop to show the username field
+    showUsernameField?: boolean;
     swapConfig?: WalletModalSwapConfig;
+    /** Pre-filled values from a QR scan */
+    initialTo?: string;
+    initialAmount?: number;
+    initialMemo?: string;
     onConfirm: (amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) => Promise<void>;
 }
 
 const SLIPPAGE_PRESETS = [0.1, 0.5, 1.0];
 
-export default function WalletModal ({ isOpen, onClose, title, description, showMemoField = false, showUsernameField = false, swapConfig, onConfirm }: WalletModalProps) {
-    const [amount, setAmount] = useState<number>(0);
-    const [memo, setMemo] = useState<string>('');
-    const [username, setUsername] = useState<string>(''); // State to hold username
+export default function WalletModal ({ isOpen, onClose, title, description, showMemoField = false, showUsernameField = false, swapConfig, initialTo, initialAmount, initialMemo, onConfirm }: WalletModalProps) {
+    const [amount, setAmount] = useState<number>(initialAmount ?? 0);
+    const [memo, setMemo] = useState<string>(initialMemo ?? '');
+    const [username, setUsername] = useState<string>(initialTo ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
+
+    // Reset form fields each time the modal opens (picks up any new initial values from QR)
+    useEffect(() => {
+        if (isOpen) {
+            setAmount(initialAmount ?? 0);
+            setMemo(initialMemo ?? '');
+            setUsername(initialTo ?? '');
+            setIsLoading(false);
+            setCustomSlippage('');
+            setSelectedSlippage('');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
         setAmount(parseFloat(e.target.value) || 0);
