@@ -49,7 +49,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
         bgClip="text"
         userSelect="none"
       >
-        snapie
+        snapie.io
       </Text>
 
       {/* Right: actions */}

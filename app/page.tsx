@@ -12,6 +12,7 @@ import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface CommunityInfo {
   title: string;
@@ -23,6 +24,8 @@ export default function Home() {
   const thread_author = 'peak.snaps';
   const thread_permlink = 'snaps';
   const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
@@ -56,6 +59,15 @@ export default function Home() {
 
     loadCommunityInfo();
   }, [communityTag]);
+
+  useEffect(() => {
+    if (searchParams.get('focus') !== 'composer') return;
+    router.replace('/');
+    document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      document.querySelector<HTMLTextAreaElement>('#snap-composer textarea')?.focus();
+    }, 400);
+  }, [searchParams, router]);
 
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
