@@ -42,15 +42,17 @@ import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
+import { useLoginModal } from '@/contexts/LoginModalContext';
 import dynamic from 'next/dynamic';
 import { currencyFromAmount, valueFromAmount, type HiveTransferQRData } from '@/lib/hive/qr-utils';
 
 const QRRequestSheet = dynamic(() => import('@/components/wallet/QRRequestSheet'), { ssr: false });
 const QRScanSheet = dynamic(() => import('@/components/wallet/QRScanSheet'), { ssr: false });
+const PaymentRequestBanner = dynamic(() => import('@/components/wallet/PaymentRequestBanner'), { ssr: false });
 
 interface WalletPageProps {
   username: string;
@@ -69,8 +71,14 @@ interface WalletModalContent {
 
 export default function WalletPage({ username }: WalletPageProps) {
   const router = useRouter();
-  const { username: user } = useCurrentUser();
+  const searchParams = useSearchParams();
+  const { username: user, isLoggedIn } = useCurrentUser();
+  const { openLoginModal } = useLoginModal();
   const { snapieUser } = useSnapieAuth();
+
+  // Payment request from shared link (?pay=1&amount=X&memo=Y)
+  const [payRequest, setPayRequest] = useState<{ amount: string; memo: string } | null>(null);
+  const [pendingLoginThenPay, setPendingLoginThenPay] = useState(false);
   const { hiveAccount, isLoading, error, refetch } = useHiveAccount(username);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
@@ -196,6 +204,45 @@ export default function WalletPage({ username }: WalletPageProps) {
     });
   }
 
+  function openPayModal(amount: string, memo: string) {
+    const currency = currencyFromAmount(amount);
+    handleModalOpen({
+      title: `Send ${currency}`,
+      description: 'Payment request — review and confirm before sending.',
+      showMemoField: true,
+      showUsernameField: true,
+      initialTo: username,
+      initialAmount: valueFromAmount(amount),
+      initialMemo: memo,
+    });
+  }
+
+  // On mount: detect ?pay=1 link, store request, clean URL, fire modal or queue login
+  useEffect(() => {
+    if (searchParams.get('pay') !== '1') return;
+    const amount = searchParams.get('amount') ?? '';
+    const memo = searchParams.get('memo') ?? '';
+    if (!amount) return;
+
+    setPayRequest({ amount, memo });
+    router.replace(`/@${username}/wallet`);
+
+    if (isLoggedIn) {
+      setTimeout(() => openPayModal(amount, memo), 400);
+    } else {
+      setPendingLoginThenPay(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // After login: fire the queued payment modal
+  useEffect(() => {
+    if (!isLoggedIn || !pendingLoginThenPay || !payRequest) return;
+    setPendingLoginThenPay(false);
+    openPayModal(payRequest.amount, payRequest.memo);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
+
   const executableSwapPrice = modalContent?.swapDirection
     ? (modalContent.swapDirection === 'HIVE_TO_HBD'
       ? (swapQuote?.highestBid || swapQuote?.latest || swapPrice || 0)
@@ -319,6 +366,22 @@ export default function WalletPage({ username }: WalletPageProps) {
 
   return (
     <Box color="text" maxW="container.lg" mx="auto" w="100%" overflowX="hidden">
+      {/* Payment request banner — shown when page is opened via a payment link */}
+      {payRequest && (
+        <PaymentRequestBanner
+          to={username}
+          amount={payRequest.amount}
+          memo={payRequest.memo}
+          isLoggedIn={isLoggedIn}
+          onPay={() => openPayModal(payRequest.amount, payRequest.memo)}
+          onLoginToPay={() => {
+            setPendingLoginThenPay(true);
+            openLoginModal();
+          }}
+          onDismiss={() => setPayRequest(null)}
+        />
+      )}
+
       {/* Profile Header */}
       <Box position="relative" height="200px" borderTopRadius="xl" overflow="hidden">
         <Image

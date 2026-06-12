@@ -28,12 +28,20 @@ export default function QRRequestSheet({ isOpen, onClose, username }: QRRequestS
 
   const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
+  function buildPaymentLink() {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://snapie.io';
+    const params = new URLSearchParams({ pay: '1', amount: formattedAmount });
+    if (memo) params.set('memo', memo);
+    return `${origin}/@${username}/wallet?${params.toString()}`;
+  }
+
   async function handleShare() {
+    const url = buildPaymentLink();
     try {
       await navigator.share({
         title: `Pay @${username}`,
         text: `Send ${formattedAmount} to @${username}${memo ? ` · "${memo}"` : ''}`,
-        url: qrValue,
+        url,
       });
     } catch { /* user dismissed */ }
   }
