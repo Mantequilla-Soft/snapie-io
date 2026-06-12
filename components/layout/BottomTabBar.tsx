@@ -16,7 +16,9 @@ export default function BottomTabBar({ onMePress }: BottomTabBarProps) {
   const { username: user } = useCurrentUser();
 
   function handleComposeTap() {
-    if (pathname === '/') {
+    if (pathname.startsWith('/blog')) {
+      router.push('/compose');
+    } else if (pathname === '/') {
       document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => {
         const ta = document.querySelector<HTMLTextAreaElement>('#snap-composer textarea');

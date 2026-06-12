@@ -1,5 +1,5 @@
 'use client';
-import { Flex, IconButton, Button, Input, InputGroup, InputRightElement, CloseButton, Text } from '@chakra-ui/react';
+import { Flex, Button, IconButton, Box, Icon, Input, InputGroup, InputRightElement, CloseButton, Text } from '@chakra-ui/react';
 import { FaTh, FaBars, FaPen } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 
@@ -43,16 +43,21 @@ export default function TopBar({
         <Flex direction="column" gap={3} mb={4}>
             {/* Row 1 — search + view toggle */}
             <Flex gap={3} align="center" flexWrap="wrap">
-                <IconButton
-                    aria-label="Compose"
-                    icon={<FaPen />}
+                <Button
+                    leftIcon={<Icon as={FaPen} boxSize={3} />}
                     onClick={() => router.push('/compose')}
-                    variant="outline"
+                    bgGradient="linear(135deg, #18a8ff, #66e4ff)"
+                    color="white"
                     borderRadius="10px"
-                    color="text"
-                    borderColor="border"
-                    _hover={{ bg: 'muted' }}
-                />
+                    size="sm"
+                    fontWeight="semibold"
+                    flexShrink={0}
+                    boxShadow="0 2px 14px rgba(24, 168, 255, 0.32)"
+                    _hover={{ opacity: 0.88, boxShadow: '0 4px 20px rgba(24, 168, 255, 0.5)' }}
+                    _active={{ transform: 'scale(0.97)' }}
+                >
+                    Write<Box as="span" display={{ base: 'none', md: 'inline' }}> a blog</Box>
+                </Button>
                 <InputGroup flex="1" maxW={{ base: 'full', md: '480px' }}>
                     <Input
                         placeholder="Search posts, titles, authors..."
