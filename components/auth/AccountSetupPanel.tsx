@@ -26,8 +26,9 @@ import { validateAccountName } from '@/lib/hive/account-create-client'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
 import PaidAccountFlow from '@/components/join/PaidAccountFlow'
 
-// Quota errors where paying bypasses the restriction
-const PAYABLE_REASONS = new Set(['global_daily_limit', 'ip_daily_limit', 'previously_had_account'])
+// Quota errors where paying bypasses the restriction.
+// previously_had_account is intentionally excluded — one email, one account, no exceptions.
+const PAYABLE_REASONS = new Set(['global_daily_limit', 'ip_daily_limit'])
 
 const JOB_STATUS_LABEL: Record<string, string> = {
   pending: 'Queued…',
