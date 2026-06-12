@@ -24,6 +24,10 @@ import {
 import { SnapieAuthError } from '@/lib/snapie-auth/types'
 import { validateAccountName } from '@/lib/hive/account-create-client'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
+import PaidAccountFlow from '@/components/join/PaidAccountFlow'
+
+// Quota errors where paying bypasses the restriction
+const PAYABLE_REASONS = new Set(['global_daily_limit', 'ip_daily_limit', 'previously_had_account'])
 
 const JOB_STATUS_LABEL: Record<string, string> = {
   pending: 'Queued…',
@@ -61,6 +65,9 @@ export default function AccountSetupPanel({ onComplete }: Props) {
     sponsored?: boolean
   } | null>(null)
   const [eligibilityError, setEligibilityError] = useState('')
+  const [paymentRequired, setPaymentRequired] = useState(false)
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [jobStatus, setJobStatus] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState('')
@@ -69,7 +76,12 @@ export default function AccountSetupPanel({ onComplete }: Props) {
 
   useEffect(() => {
     getEligibility()
-      .then((r) => setEligibility(r))
+      .then((r) => {
+        setEligibility(r)
+        if (!r.canCreate && r.reason && PAYABLE_REASONS.has(r.reason)) {
+          setPaymentRequired(true)
+        }
+      })
       .catch((e: SnapieAuthError) => {
         setEligibilityError(ERROR_MESSAGES[e.code] ?? 'Could not check eligibility.')
       })
@@ -147,6 +159,13 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       }
     } catch (e: any) {
       const code = e?.code ?? ''
+      if (PAYABLE_REASONS.has(code)) {
+        // Quota block — offer paid path instead of showing an error
+        setPaymentRequired(true)
+        setSubmitting(false)
+        setJobStatus(null)
+        return
+      }
       setSubmitError(ERROR_MESSAGES[code] ?? 'Something went wrong. Please try again.')
       setSubmitting(false)
       setJobStatus(null)
@@ -168,6 +187,8 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       </Alert>
     )
   }
+
+  const canSubmit = available === true && !usernameError && !checking && !!username
 
   return (
     <VStack spacing={4} align="stretch">
@@ -192,7 +213,7 @@ export default function AccountSetupPanel({ onComplete }: Props) {
           placeholder="e.g. alice"
           value={username}
           onChange={(e) => handleUsernameChange(e.target.value)}
-          isDisabled={submitting}
+          isDisabled={submitting || showPaymentFlow}
           autoComplete="off"
           autoCapitalize="none"
         />
@@ -232,16 +253,51 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       )}
 
       {!jobStatus && (
-        <Button
-          colorScheme="blue"
-          onClick={handleSubmit}
-          isLoading={submitting}
-          isDisabled={!available || !!usernameError || checking || !username}
-          size="lg"
-          width="full"
-        >
-          Create My Account
-        </Button>
+        <>
+          {paymentRequired && !paymentConfirmed ? (
+            showPaymentFlow ? (
+              <>
+                <Divider />
+                <PaidAccountFlow
+                  onConfirmed={() => {
+                    setPaymentConfirmed(true)
+                    setShowPaymentFlow(false)
+                  }}
+                  onCancel={() => setShowPaymentFlow(false)}
+                />
+              </>
+            ) : (
+              <VStack spacing={2} align="stretch">
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  <Text fontSize="sm">
+                    No free slots available today. You can pay to create your account instantly.
+                  </Text>
+                </Alert>
+                <Button
+                  colorScheme="orange"
+                  onClick={() => setShowPaymentFlow(true)}
+                  isDisabled={!canSubmit}
+                  size="lg"
+                  width="full"
+                >
+                  Pay for my account →
+                </Button>
+              </VStack>
+            )
+          ) : (
+            <Button
+              colorScheme={paymentConfirmed ? 'green' : 'blue'}
+              onClick={handleSubmit}
+              isLoading={submitting}
+              isDisabled={!canSubmit}
+              size="lg"
+              width="full"
+            >
+              {paymentConfirmed ? 'Create my account (paid) →' : 'Create My Account'}
+            </Button>
+          )}
+        </>
       )}
     </VStack>
   )

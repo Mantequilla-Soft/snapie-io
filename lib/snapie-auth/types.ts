@@ -65,6 +65,36 @@ export interface NeedsClientBroadcastResponse {
 
 export type BroadcastResult = BroadcastResponse | NeedsClientBroadcastResponse
 
+export interface PaymentFeeResponse {
+  amountHive: string
+  amountUsd: number
+}
+
+export interface HiveIntentResponse {
+  memo: string
+  receivingAccount: string
+  amount: string
+  amountUsd: number
+  expiresAt: string
+}
+
+export interface LightningIntentResponse {
+  memo: string
+  invoice: string
+  amountUsd: number
+  expiresAt: string
+}
+
+export interface PaymentIntentStatus {
+  memo: string
+  type: 'hive' | 'lightning'
+  status: 'pending' | 'confirmed' | 'expired'
+  txId?: string
+  amountHive?: string
+  amountUsd?: number
+  expiresAt: string
+}
+
 export class SnapieAuthError extends Error {
   constructor(
     public readonly code: string,
