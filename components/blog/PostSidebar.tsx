@@ -9,6 +9,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProfile, getAccountPosts, getSimilarPosts } from '@/lib/hive/client-functions';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import UserActionButtons from '@/components/profile/UserActionButtons';
+import CurationQualityCard from '@/components/profile/CurationQualityCard';
 
 interface PostSidebarProps {
   author: string;
@@ -204,6 +205,9 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
           showBlacklist={false}
         />
       </SidebarBlock>
+
+      {/* Curation score */}
+      <CurationQualityCard username={author} />
 
       {/* Block 2 — Recent Posts */}
       {recentPosts.length > 0 && (

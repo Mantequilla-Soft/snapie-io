@@ -19,6 +19,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
+import CurationQualityCard from './CurationQualityCard';
 
 interface ProfilePageProps {
   username: string;
@@ -232,8 +233,13 @@ export default function ProfilePage({ username }: ProfilePageProps) {
         </Box>
       </Flex>
 
+      {/* Curation score */}
+      <Container maxW="container.lg" mt={4} px={4}>
+        <CurationQualityCard username={username} />
+      </Container>
+
       {/* Tabs */}
-      <Container maxW="container.lg" mt={4} px={0}>
+      <Container maxW="container.lg" mt={3} px={0}>
         <Tabs defaultIndex={0} colorScheme="blue" isLazy>
           <TabList px={4}>
             <Tab>Snaps</Tab>
