@@ -211,19 +211,21 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 {renderedText && (
                     <Box
                         px={3}
+                        overflowX="hidden"
+                        wordBreak="break-word"
                         dangerouslySetInnerHTML={{ __html: renderedText }}
                         onClick={setConversation ? handleConversation : undefined}
                         cursor={setConversation ? "pointer" : "default"}
                         sx={{
                             "& p": { marginBottom: 2 },
-                            "& a": { 
-                                color: "primary", 
+                            "& a": {
+                                color: "primary",
                                 textDecoration: "underline",
                                 cursor: "pointer",
-                                _hover: {
-                                    color: "accent"
-                                }
-                            }
+                                _hover: { color: "accent" }
+                            },
+                            "& pre, & table": { overflowX: "auto", maxWidth: "100%" },
+                            "& img": { maxWidth: "100%", height: "auto" },
                         }}
                     />
                 )}
