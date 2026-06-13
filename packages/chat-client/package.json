@@ -1,0 +1,64 @@
+{
+  "name": "@snapie/chat-client",
+  "version": "0.1.0",
+  "description": "Hive-authenticated chat client SDK for Snapie — DMs, channels, groups, and real-time subscriptions",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.mjs",
+      "require": "./dist/react.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "hive",
+    "blockchain",
+    "chat",
+    "sdk",
+    "snapie",
+    "messaging",
+    "dm",
+    "channels"
+  ],
+  "author": "Mantequilla-Soft",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mantequilla-Soft/snapie-io"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "tsup": "^8.5.1",
+    "typescript": "^5"
+  }
+}
