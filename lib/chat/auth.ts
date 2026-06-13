@@ -1,4 +1,5 @@
 import { Signature } from '@hiveio/dhive';
+import type { ExtendedAccount } from '@hiveio/dhive';
 import { createHash } from 'crypto';
 import jwt from 'jsonwebtoken';
 import { NextRequest, NextResponse } from 'next/server';
@@ -45,6 +46,49 @@ function parseSignature(rawSignature: string): Signature {
   return Signature.fromString(candidate);
 }
 
+/** True when `key` is one of the account's on-chain posting key_auths. */
+function hasPostingKey(account: ExtendedAccount, key: string): boolean {
+  return account.posting.key_auths.some(([k]) => String(k) === key);
+}
+
+/**
+ * True when `recoveredKey` belongs to an account that `account` has delegated
+ * sufficient posting authority to via `posting.account_auths`.
+ *
+ * Only one signature accompanies a challenge, so that single signer must meet
+ * the account's posting `weight_threshold` on its own — hence we only consider
+ * delegates whose granted weight clears the threshold. We check each delegate's
+ * own posting `key_auths`; service accounts (e.g. @threespeak) sign with their
+ * own key and Hive caps authority nesting in practice, so we deliberately do
+ * not recurse into a delegate's own delegates.
+ */
+async function verifyDelegatedPostingSignature(
+  account: ExtendedAccount,
+  recoveredKey: string
+): Promise<boolean> {
+  const threshold = account.posting.weight_threshold;
+  const delegateNames = account.posting.account_auths
+    .filter(([, weight]) => weight >= threshold)
+    .map(([name]) => String(name));
+  if (delegateNames.length === 0) return false;
+
+  const delegates = await HiveClient.database.getAccounts(delegateNames);
+  return delegates.some((delegate) => hasPostingKey(delegate, recoveredKey));
+}
+
+/**
+ * Verify that `challenge` was signed by an authority allowed to act with the
+ * posting permission of `username`. Two cases are accepted:
+ *
+ *  1. **Direct** — the signer is one of the account's own posting `key_auths`.
+ *  2. **Delegated** — the signer is the posting key of another account that
+ *     `username` granted posting authority to via `posting.account_auths`
+ *     (e.g. a signature produced by @threespeak on the user's behalf).
+ *
+ * Case 2 lets HiveSigner / ManteAuth users — who can't sign a challenge
+ * client-side — authenticate: their delegated service account signs the
+ * challenge for them, the same trust they already extend for posting ops.
+ */
 export async function verifyHiveSignature(
   username: string,
   challenge: string,
@@ -55,14 +99,15 @@ export async function verifyHiveSignature(
     const [account] = await HiveClient.database.getAccounts([normalizedUser]);
     if (!account) return false;
 
-    const postingKeys: string[] = account.posting.key_auths.map(([key]) => String(key));
-    if (postingKeys.length === 0) return false;
-
-    // Recover public key from signature and compare to on-chain posting key
+    // Recover the public key that produced the signature.
     const msgHash = createHash('sha256').update(challenge, 'utf8').digest();
-    const sig = parseSignature(signature);
-    const recovered = sig.recover(msgHash);
-    return postingKeys.includes(recovered.toString());
+    const recovered = parseSignature(signature).recover(msgHash).toString();
+
+    // 1. Direct: signed by one of the account's own posting keys.
+    if (hasPostingKey(account, recovered)) return true;
+
+    // 2. Delegated: signed by an account this user granted posting authority to.
+    return await verifyDelegatedPostingSignature(account, recovered);
   } catch {
     return false;
   }
