@@ -2,7 +2,11 @@ import type {
   AccountJob,
   BroadcastResult,
   EligibilityResponse,
+  HiveIntentResponse,
+  LightningIntentResponse,
   NeedsClientSigningResponse,
+  PaymentFeeResponse,
+  PaymentIntentStatus,
   PublicConfig,
   QuotaResponse,
   SignMessageResult,
@@ -110,6 +114,24 @@ export function createAccount(username: string) {
 
 export function pollJob(jobId: string) {
   return req<AccountJob>('GET', `/account/job/${encodeURIComponent(jobId)}`)
+}
+
+// ── Payments ──────────────────────────────────────────────────────────────────
+
+export function getPaymentFee() {
+  return req<PaymentFeeResponse>('GET', '/payment/fee')
+}
+
+export function createHiveIntent() {
+  return req<HiveIntentResponse>('POST', '/payment/hive-intent')
+}
+
+export function createLightningIntent() {
+  return req<LightningIntentResponse>('POST', '/payment/lightning-intent')
+}
+
+export function pollPaymentIntent(memo: string) {
+  return req<PaymentIntentStatus>('GET', `/payment/intent/${encodeURIComponent(memo)}`)
 }
 
 // ── Hive operations ───────────────────────────────────────────────────────────

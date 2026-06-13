@@ -34,7 +34,10 @@ export default function QuotaWidget() {
 
   return (
     <Tooltip
-      label={`Resets at ${resetStr} UTC. Use a sponsor link to bypass this limit.`}
+      label={quota.remaining === 0
+        ? `Resets at ${resetStr} UTC. Use a sponsor link or pay to create your account.`
+        : `Resets at ${resetStr} UTC. Use a sponsor link to bypass this limit.`
+      }
       placement="bottom"
     >
       <Box display="inline-flex" alignItems="center" gap={2} cursor="default">
