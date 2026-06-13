@@ -79,7 +79,7 @@ export default function AccountSetupPanel({ onComplete }: Props) {
     getEligibility()
       .then((r) => {
         setEligibility(r)
-        if (!r.canCreate && r.reason && PAYABLE_REASONS.has(r.reason)) {
+        if (!r.canCreate && r.reason && PAYABLE_REASONS.has(r.reason) && !r.sponsored) {
           setPaymentRequired(true)
         }
       })
@@ -160,9 +160,11 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       }
     } catch (e: any) {
       const code = e?.code ?? ''
-      if (PAYABLE_REASONS.has(code)) {
+      if (PAYABLE_REASONS.has(code) && !eligibility?.sponsored) {
         // Quota block — offer paid path instead of showing an error
         setPaymentRequired(true)
+        setPaymentConfirmed(false)
+        setShowPaymentFlow(true)
         setSubmitting(false)
         setJobStatus(null)
         return
@@ -171,7 +173,7 @@ export default function AccountSetupPanel({ onComplete }: Props) {
       setSubmitting(false)
       setJobStatus(null)
     }
-  }, [available, usernameError, submitting, username, onComplete])
+  }, [available, usernameError, submitting, username, onComplete, eligibility])
 
   const jobProgress: Record<string, number> = {
     pending: 20,

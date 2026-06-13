@@ -45,6 +45,7 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollInFlightRef = useRef(false)
 
   useEffect(() => {
     getPaymentFee().then(setFee).catch(() => setFeeError(true))
@@ -67,6 +68,8 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
   useEffect(() => {
     if (!memo) return
     pollRef.current = setInterval(async () => {
+      if (pollInFlightRef.current) return
+      pollInFlightRef.current = true
       try {
         const result = await pollPaymentIntent(memo)
         if (result.status === 'confirmed') {
@@ -78,6 +81,8 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
         }
       } catch {
         // ignore transient errors
+      } finally {
+        pollInFlightRef.current = false
       }
     }, 4000)
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -113,8 +118,13 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
 
   const copy = useCallback((text: string, field: string) => {
     navigator.clipboard.writeText(text)
-    setCopiedField(field)
-    setTimeout(() => setCopiedField(null), 2000)
+      .then(() => {
+        setCopiedField(field)
+        setTimeout(() => setCopiedField(null), 2000)
+      })
+      .catch(() => {
+        setCreateError('Clipboard access failed. Please copy manually.')
+      })
   }, [])
 
   const reset = useCallback(() => {
