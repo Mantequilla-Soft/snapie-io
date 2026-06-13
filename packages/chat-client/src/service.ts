@@ -16,10 +16,12 @@ export class ChatService {
   private token: string | null = null;
   private tokenUsername: string | null = null;
   private base: string;
+  private rootUrl: string;
   private storage: StorageAdapter;
 
   constructor(baseUrl: string, storage: StorageAdapter) {
-    this.base = `${baseUrl.replace(/\/$/, '')}/api/chat`;
+    this.rootUrl = baseUrl.replace(/\/$/, '');
+    this.base = `${this.rootUrl}/api/chat`;
     this.storage = storage;
     this.token = storage.getItem(TOKEN_KEY);
     this.tokenUsername = storage.getItem(TOKEN_USER_KEY);
@@ -229,6 +231,38 @@ export class ChatService {
 
   async markDmMemoFallbackSent(conversationId: string): Promise<void> {
     await this.post(`${this.base}/dm/${conversationId}/memo-fallback`, { success: true }, true);
+  }
+
+  /**
+   * Upload an image to the Snapie image server.
+   * `signMessage` should sign the filename string with the user's posting key
+   * (same signing function used for authentication).
+   * Returns the public URL of the uploaded image.
+   */
+  async uploadImage(
+    file: File,
+    username: string,
+    signMessage: (message: string) => Promise<string>
+  ): Promise<string> {
+    const signature = await signMessage(file.name);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('username', username);
+    form.append('signature', signature);
+
+    const res = await fetch(`${this.rootUrl}/api/upload-image`, {
+      method: 'POST',
+      body: form,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`);
+    }
+
+    const data = await res.json() as { url?: string; error?: string };
+    if (!data.url) throw new Error('Upload failed: no URL returned');
+    return data.url;
   }
 
   private buildQS(opts: { before?: string; after?: string; limit?: number }): string {

@@ -1,6 +1,6 @@
 {
   "name": "@snapie/chat-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Hive-authenticated chat client SDK for Snapie — DMs, channels, groups, and real-time subscriptions",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

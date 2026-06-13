@@ -300,6 +300,24 @@ export class ChatClient {
     return this.service.markDmMemoFallbackSent(conversationId);
   }
 
+  // ── Image uploads ─────────────────────────────────────────────────────────
+
+  /**
+   * Upload an image and get back a public URL to embed in a message.
+   * After uploading, pass the URL as the message content (or append it to text).
+   *
+   * @example
+   * const url = await client.uploadImage(file, username, challenge => keychain.sign(challenge));
+   * await client.sendMessage(convId, 'dm', url);
+   */
+  uploadImage(
+    file: File,
+    username: string,
+    signMessage: (message: string) => Promise<string>
+  ): Promise<string> {
+    return this.service.uploadImage(file, username, signMessage);
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
 
   destroy(): void {

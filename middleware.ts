@@ -49,5 +49,5 @@ function corsHeaders(origin: string, allowed: boolean): Record<string, string> {
 }
 
 export const config = {
-  matcher: '/api/chat/:path*',
+  matcher: ['/api/chat/:path*', '/api/upload-image'],
 };

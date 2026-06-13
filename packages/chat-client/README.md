@@ -220,6 +220,44 @@ const prefs = await client.getPreferences();
 
 ---
 
+## Image uploads & rendering
+
+### Uploading an image
+
+```typescript
+// Upload a File and get back the public URL
+const url = await client.uploadImage(file, username, async (challenge) => {
+  return await keychain.signBuffer(username, challenge, 'Posting');
+});
+
+// Embed the URL in a message
+await client.sendMessage(conversationId, 'dm', url);
+// or append to text:
+await client.sendMessage(conversationId, 'dm', `Check this out\n${url}`);
+```
+
+### Rendering image messages
+
+Snapie embeds image URLs as plain text inside `message.content`. Use `extractImageUrls` to detect and render them:
+
+```typescript
+import { extractImageUrls } from '@snapie/chat-client';
+
+function MessageBubble({ message }) {
+  const images = extractImageUrls(message.content);
+  return (
+    <div>
+      <p>{message.content}</p>
+      {images.map(url => <img key={url} src={url} alt="" />)}
+    </div>
+  );
+}
+```
+
+`isImageUrl(url)` is also exported if you need to check a single URL.
+
+---
+
 ## Push notifications (FCM)
 
 ```typescript
