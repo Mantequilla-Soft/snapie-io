@@ -1,0 +1,202 @@
+'use client';
+import { useEffect, useState } from 'react';
+import {
+  Box, Text, SimpleGrid, Flex, Input, InputGroup, InputRightElement,
+  CloseButton, Button, Icon, Wrap, WrapItem, Tag, TagLabel, Spinner,
+} from '@chakra-ui/react';
+import { FiSearch, FiCompass } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import { getCommunityInfo } from '@/lib/hive/client-functions';
+import CommunityCard from '@/components/explore/CommunityCard';
+
+interface TrendingTag {
+  name: string;
+  comments: number;
+  top_posts: number;
+  total_payouts: string;
+}
+
+interface ResolvedCommunity extends TrendingTag {
+  title: string;
+  about: string;
+  subscribers: number;
+}
+
+export default function ExplorePage() {
+  const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [communities, setCommunities] = useState<ResolvedCommunity[]>([]);
+  const [tags, setTags] = useState<TrendingTag[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/trending-tags');
+        const data: TrendingTag[] = await res.json();
+
+        const communityEntries = data.filter(t => /^hive-\d+$/.test(t.name));
+        const plainEntries = data.filter(t => !/^hive-\d+$/.test(t.name));
+        setTags(plainEntries);
+
+        const resolved = await Promise.allSettled(
+          communityEntries.map(async (t) => {
+            const info = await getCommunityInfo(t.name);
+            return {
+              ...t,
+              title: info?.title || t.name,
+              about: info?.about || '',
+              subscribers: info?.subscribers || 0,
+            } as ResolvedCommunity;
+          })
+        );
+
+        const successful = resolved
+          .filter((r): r is PromiseFulfilledResult<ResolvedCommunity> => r.status === 'fulfilled')
+          .map(r => r.value);
+
+        setCommunities(successful);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleSearch = () => {
+    const term = searchTerm.trim();
+    if (term) router.push(`/explore/${encodeURIComponent(term)}`);
+  };
+
+  return (
+    <Box
+      id="scrollableDiv"
+      mt="3"
+      px={4}
+      h="100vh"
+      overflowY="auto"
+      sx={{
+        '&::-webkit-scrollbar': { display: 'none' },
+        scrollbarWidth: 'none',
+      }}
+    >
+      {/* Header */}
+      <Flex align="center" gap={2} mb={5}>
+        <Icon as={FiCompass} boxSize={5} color="primary" />
+        <Text fontSize="xl" fontWeight="bold" color="text" letterSpacing="-0.02em">
+          Explore Hive
+        </Text>
+      </Flex>
+
+      {/* Search */}
+      <Flex gap={2} mb={8}>
+        <InputGroup flex={1}>
+          <Input
+            placeholder="Search any tag or community..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            bg="muted"
+            borderColor="border"
+            borderRadius="10px"
+            color="text"
+            _placeholder={{ color: 'gray.500' }}
+            _focus={{ boxShadow: 'none', borderColor: 'primary' }}
+          />
+          {searchTerm && (
+            <InputRightElement>
+              <CloseButton size="sm" onClick={() => setSearchTerm('')} />
+            </InputRightElement>
+          )}
+        </InputGroup>
+        <Button
+          onClick={handleSearch}
+          leftIcon={<Icon as={FiSearch} />}
+          colorScheme="blue"
+          borderRadius="10px"
+          flexShrink={0}
+        >
+          Go
+        </Button>
+      </Flex>
+
+      {loading ? (
+        <Flex justify="center" py={20}>
+          <Spinner size="lg" color="primary" />
+        </Flex>
+      ) : (
+        <>
+          {/* Trending Communities */}
+          {communities.length > 0 && (
+            <Box mb={8}>
+              <Text
+                fontSize="xs"
+                fontWeight="bold"
+                color="whiteAlpha.500"
+                letterSpacing="widest"
+                textTransform="uppercase"
+                mb={3}
+              >
+                Trending Communities
+              </Text>
+              <SimpleGrid columns={{ base: 1, md: 2 }} spacing={3}>
+                {communities.map((c) => (
+                  <CommunityCard
+                    key={c.name}
+                    tag={c.name}
+                    title={c.title}
+                    about={c.about}
+                    subscribers={c.subscribers}
+                    topPosts={c.top_posts}
+                    totalPayouts={c.total_payouts}
+                  />
+                ))}
+              </SimpleGrid>
+            </Box>
+          )}
+
+          {/* Trending Tags */}
+          {tags.length > 0 && (
+            <Box mb={8}>
+              <Text
+                fontSize="xs"
+                fontWeight="bold"
+                color="whiteAlpha.500"
+                letterSpacing="widest"
+                textTransform="uppercase"
+                mb={3}
+              >
+                Trending Tags
+              </Text>
+              <Wrap spacing={2}>
+                {tags.map((t) => (
+                  <WrapItem key={t.name}>
+                    <Tag
+                      as="button"
+                      size="md"
+                      borderRadius="full"
+                      bg="rgba(28, 161, 241, 0.08)"
+                      border="1px solid rgba(28, 161, 241, 0.15)"
+                      color="whiteAlpha.800"
+                      cursor="pointer"
+                      _hover={{ bg: 'rgba(28, 161, 241, 0.18)', borderColor: 'rgba(28, 161, 241, 0.35)' }}
+                      transition="all 0.15s"
+                      onClick={() => router.push(`/explore/${encodeURIComponent(t.name)}`)}
+                      px={3}
+                      py={2}
+                    >
+                      <TagLabel>#{t.name}</TagLabel>
+                    </Tag>
+                  </WrapItem>
+                ))}
+              </Wrap>
+            </Box>
+          )}
+        </>
+      )}
+    </Box>
+  );
+}

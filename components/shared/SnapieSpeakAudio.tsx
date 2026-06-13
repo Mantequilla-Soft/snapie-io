@@ -248,7 +248,7 @@ export default function SnapieSpeakAudio({ playUrl }: Props) {
               borderRadius: 9999,
               appearance: "none",
               WebkitAppearance: "none",
-              background: "rgba(102, 228, 255, 0.18)",
+              background: "rgba(28, 161, 241, 0.18)",
               outline: "none",
               cursor: "pointer",
             }}

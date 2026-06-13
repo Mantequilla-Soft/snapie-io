@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass,
 } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -35,7 +35,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
         bg="rgba(7, 20, 36, 0.98)"
         borderTopRadius="24px"
         backdropFilter="blur(24px)"
-        border="1px solid rgba(102, 228, 255, 0.12)"
+        border="1px solid rgba(28, 161, 241, 0.12)"
         maxH="82dvh"
       >
         <DrawerBody p={0} overflowY="auto">
@@ -53,8 +53,8 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                   alt={user}
                   boxSize="60px"
                   borderRadius="full"
-                  border="2px solid rgba(102, 228, 255, 0.4)"
-                  boxShadow="0 0 20px rgba(24, 168, 255, 0.22)"
+                  border="2px solid rgba(28, 161, 241, 0.4)"
+                  boxShadow="0 0 20px rgba(28, 161, 241, 0.22)"
                   flexShrink={0}
                 />
                 <Box overflow="hidden">
@@ -65,10 +65,11 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                 </Box>
               </Flex>
 
-              <Divider borderColor="rgba(102, 228, 255, 0.08)" />
+              <Divider borderColor="rgba(28, 161, 241, 0.08)" />
 
               {/* Navigation links */}
               <VStack spacing={0} py={2}>
+                <SheetLink href="/explore"              icon={FiCompass}      label="Explore"        onClose={onClose} />
                 <SheetLink href={`/@${user}`}           icon={FiUser}         label="My Profile"     onClose={onClose} />
                 <SheetLink href={`/@${user}/wallet`}    icon={FiCreditCard}   label="Wallet"         onClose={onClose} />
                 <SheetLink href={`/@${user}/notifications`} icon={FiBell}     label="Notifications"  badge={unreadCount} onClose={onClose} />
@@ -82,7 +83,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                 <SheetLink href="https://about.snapie.io" icon={FiInfo} label="About Snapie" external onClose={onClose} />
               </VStack>
 
-              <Divider borderColor="rgba(102, 228, 255, 0.08)" />
+              <Divider borderColor="rgba(28, 161, 241, 0.08)" />
 
               {/* Hive activity indicator */}
               <Box px={2} pb={1}>
@@ -127,7 +128,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                   w="full"
                   variant="outline"
                   color="white"
-                  borderColor="rgba(102, 228, 255, 0.25)"
+                  borderColor="rgba(28, 161, 241, 0.25)"
                   borderRadius="12px"
                   leftIcon={<Icon as={FiUserPlus} />}
                   as={NextLink}

@@ -52,8 +52,8 @@ export default function TopBar({
                     size="sm"
                     fontWeight="semibold"
                     flexShrink={0}
-                    boxShadow="0 2px 14px rgba(24, 168, 255, 0.32)"
-                    _hover={{ opacity: 0.88, boxShadow: '0 4px 20px rgba(24, 168, 255, 0.5)' }}
+                    boxShadow="0 2px 14px rgba(28, 161, 241, 0.32)"
+                    _hover={{ opacity: 0.88, boxShadow: '0 4px 20px rgba(28, 161, 241, 0.5)' }}
                     _active={{ transform: 'scale(0.97)' }}
                 >
                     Write<Box as="span" display={{ base: 'none', md: 'inline' }}>&nbsp;a blog</Box>

@@ -1,24 +1,23 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, transition, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
+import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiUser, FiShoppingCart, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass } from 'react-icons/fi';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
-import { animate, color, motion, px } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
-import HiveActivityWidget from './HiveActivityWidget';
 
 interface ProfileInfo {
     metadata: {
         profile: {
-            profile_image: string; // Profile-specific image
+            profile_image: string;
         };
     };
 }
@@ -26,7 +25,6 @@ interface ProfileInfo {
 interface CommunityInfo {
     title: string;
     about: string;
-    // No avatar_url since it's not used
 }
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
@@ -41,24 +39,21 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { openLoginModal } = useLoginModal();
     const pathname = usePathname();
-    const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null); // State to hold community info
-    const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null); // State to hold profile info
-    const [loading, setLoading] = useState(true); // Loading state
+    const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
+    const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
+    const [loading, setLoading] = useState(true);
     const { colorMode } = useColorMode();
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
     const hasUnclaimed = useUnclaimedRewards();
 
-    // Check if we should force compact mode (compose page)
     const forceCompact = pathname === '/compose';
-    // Determine display values based on whether we're forcing compact or using responsive
     const compactBreakpoint = forceCompact ? 'block' : { sm: 'block', md: 'none' };
     const fullBreakpoint = forceCompact ? 'none' : { sm: 'none', md: 'flex' };
     const textDisplay = forceCompact ? 'none' : { sm: 'none', md: 'block' };
     const iconJustify = forceCompact ? 'center' : { sm: 'center', md: 'flex-start' };
-    
-    // Detect if we're in compact mode for tooltip logic
+
     const isCompactMode = useBreakpointValue({ base: false, sm: true, md: false }) || forceCompact;
 
     useEffect(() => {
@@ -66,12 +61,10 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             setLoading(true);
             if (communityTag) {
                 try {
-                    // Fetching community data
                     const communityData = await getCommunityInfo(communityTag);
                     sessionStorage.setItem('communityData', JSON.stringify(communityData));
                     setCommunityInfo(communityData);
 
-                    // Fetching profile data
                     const profileData = await getProfile(communityTag);
                     sessionStorage.setItem('profileData', JSON.stringify(profileData));
                     setProfileInfo(profileData);
@@ -92,17 +85,16 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             bg="rgba(8, 24, 40, 0.78)"
             p={3}
             w={forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' }}
-            h={{ base: "100vh", sm: "calc(100vh - 24px)" }}
+            h="100vh"
             overflowY="auto"
             position={{ base: 'relative', sm: 'sticky' }}
-            top={{ base: 'auto', sm: '12px' }}
-            mt={{ base: 0, sm: '12px' }}
+            top={0}
+            mt={0}
             alignSelf={{ base: 'auto', sm: 'flex-start' }}
             display={{ base: 'none', sm: 'block' }}
             transition="width 0.3s ease"
-            border="tb1"
-            borderRadius="10px"
-            boxShadow="xl"
+            borderRight="1px solid rgba(28, 161, 241, 0.1)"
+            borderRadius={0}
             backdropFilter="blur(18px)"
             sx={{
                 '&::-webkit-scrollbar': {
@@ -111,7 +103,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                 scrollbarWidth: 'none',
             }}
         >
-            <Flex direction="column" justify="space-between" height="100%" px={forceCompact ? 1 : { sm: 1, md: 2 }}>
+            <Flex direction="column" height="100%" px={forceCompact ? 1 : { sm: 1, md: 2 }}>
                 <VStack spacing={4} align={forceCompact ? 'center' : { sm: 'center', md: 'start' }} w="full">
                     {loading ? (
                         <Spinner size="sm" />
@@ -129,7 +121,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 )}
                                 <Text fontSize="lg" fontWeight="bold" letterSpacing="-0.03em">{communityInfo?.title}</Text>
                             </Flex>
-                            {/* Icon only for compact view */}
                             <Box display={compactBreakpoint} mb={4} w="40px" h="40px">
                                 {communityTag && (
                                     <Image
@@ -146,34 +137,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         </>
                     )}
 
-                    {/* Desktop user identity card */}
-                    {user && (
-                        <Box
-                            display={fullBreakpoint}
-                            w="full"
-                            mb={2}
-                            p={3}
-                            bg="rgba(24, 168, 255, 0.06)"
-                            borderRadius="10px"
-                            border="1px solid rgba(102, 228, 255, 0.12)"
-                        >
-                            <Flex align="center" gap={2} overflow="hidden">
-                                <Image
-                                    src={getHiveAvatarUrl(user, 'small')}
-                                    alt={user}
-                                    boxSize="32px"
-                                    borderRadius="full"
-                                    flexShrink={0}
-                                    border="1px solid rgba(102, 228, 255, 0.3)"
-                                />
-                                <Box overflow="hidden">
-                                    <Text fontSize="10px" color="whiteAlpha.500" lineHeight={1} mb="2px">Logged in as</Text>
-                                    <Text fontSize="sm" fontWeight="semibold" color="white" noOfLines={1}>@{user}</Text>
-                                </Box>
-                            </Flex>
-                        </Box>
-                    )}
-
                     <Tooltip label="Home" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
@@ -186,9 +149,26 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 px={3}
                                 mt={4}
                                 borderRadius="10px"
-                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Home</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+                    <Tooltip label="Explore" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                as={NextLink}
+                                href="/explore"
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiCompass} boxSize={4} />}
+                                px={3}
+                                borderRadius="10px"
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                            >
+                                <Text display={textDisplay}>Explore</Text>
                             </Button>
                         </Box>
                     </Tooltip>
@@ -203,7 +183,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 leftIcon={<Icon as={FiBook} boxSize={4} />}
                                 px={3}
                                 borderRadius="10px"
-                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Blog</Text>
                             </Button>
@@ -221,7 +201,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 leftIcon={<Icon as={FiPlay} boxSize={4} />}
                                 px={3}
                                 borderRadius="10px"
-                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>Shorts</Text>
                             </Button>
@@ -238,7 +218,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 leftIcon={<Icon as={FiRadio} boxSize={4} />}
                                 px={3}
                                 borderRadius="10px"
-                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>OpenPods</Text>
                             </Button>
@@ -269,39 +249,11 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         }
                                         px={3}
                                         borderRadius="10px"
-                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                        _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Notifications</Text>
                                     </Button>
                                     <CountBadge count={unreadCount} colorScheme="red" />
-                                </Box>
-                            </Tooltip>
-                            <Tooltip label="Profile" placement="right" hasArrow isDisabled={!isCompactMode}>
-                                <Box w="full">
-                                    <Button
-                                        as={NextLink}
-                                        href={`/@${user}`}
-                                        variant="ghost"
-                                        w="full"
-                                        justifyContent={iconJustify}
-                                        leftIcon={
-                                            user ? (
-                                                <Image
-                                                    src={getHiveAvatarUrl(user, 'small')}
-                                                    alt="Profile Image"
-                                                    boxSize={4}
-                                                    borderRadius="full"
-                                                />
-                                            ) : (
-                                                <Icon as={FiUser} boxSize={4} />
-                                            )
-                                        }
-                                        px={3}
-                                        borderRadius="10px"
-                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
-                                    >
-                                        <Text display={textDisplay}>Profile</Text>
-                                    </Button>
                                 </Box>
                             </Tooltip>
                             <Tooltip label="Wallet" placement="right" hasArrow isDisabled={!isCompactMode}>
@@ -315,7 +267,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         leftIcon={<Icon as={FiCreditCard} boxSize={4} />}
                                         px={3}
                                         borderRadius="10px"
-                                        _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                        _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Wallet</Text>
                                     </Button>
@@ -347,7 +299,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         borderRadius="10px"
                                         bg={isChatOpen ? 'blue.500' : 'transparent'}
                                         color={isChatOpen ? 'white' : 'inherit'}
-                                        _hover={{ bg: isChatOpen ? 'blue.600' : 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                        _hover={{ bg: isChatOpen ? 'blue.600' : 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                                     >
                                         <Text display={textDisplay}>Chat</Text>
                                     </Button>
@@ -357,47 +309,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         </>
                     )}
 
-                    {/* Hive activity indicator — desktop only */}
-                    <Box display={fullBreakpoint} w="full">
-                        <HiveActivityWidget />
-                    </Box>
-
-                    {/* Login/Logout Button */}
-                    <Tooltip label={isLoggedIn ? 'Logout' : 'Login'} placement="right" hasArrow isDisabled={!isCompactMode}>
-                        <Box w="full" mt="auto">
-                            <Button
-                                onClick={() => isLoggedIn ? logout() : openLoginModal()}
-                                variant="solid"
-                                colorScheme="teal"
-                                w="full"
-                                justifyContent={iconJustify}
-                                leftIcon={<Icon as={isLoggedIn ? FiLogOut : FiLogIn} boxSize={4} />}
-                                px={3}
-                                borderRadius="10px"
-                            >
-                                <Text display={textDisplay}>{isLoggedIn ? 'Logout' : 'Login'}</Text>
-                            </Button>
-                        </Box>
-                    </Tooltip>
-                    {!isLoggedIn && (
-                        <Tooltip label="Create account" placement="right" hasArrow isDisabled={!isCompactMode}>
-                            <Box w="full">
-                                <Button
-                                    as={NextLink}
-                                    href="/join"
-                                    variant="ghost"
-                                    w="full"
-                                    justifyContent={iconJustify}
-                                    leftIcon={<Icon as={FiUserPlus} boxSize={4} />}
-                                    px={3}
-                                    borderRadius="10px"
-                                    _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
-                                >
-                                    <Text display={textDisplay}>Create account</Text>
-                                </Button>
-                            </Box>
-                        </Tooltip>
-                    )}
                     <Tooltip label="About Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
@@ -411,16 +322,130 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 leftIcon={<Icon as={FiInfo} boxSize={4} />}
                                 px={3}
                                 borderRadius="10px"
-                                _hover={{ bg: 'rgba(24, 168, 255, 0.14)', color: 'accent' }}
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
                                 <Text display={textDisplay}>About</Text>
                             </Button>
                         </Box>
                     </Tooltip>
+
+                    {/* Bottom user slot — pinned to bottom of sidebar */}
+                    <Box w="full" mt="auto" pt={3}>
+                        <Box w="full" h="1px" bg="rgba(28, 161, 241, 0.08)" mb={3} />
+                        {isLoggedIn ? (
+                            <>
+                                {/* Full sidebar: avatar + username + logout icon */}
+                                <Flex
+                                    display={fullBreakpoint}
+                                    align="center"
+                                    gap={2}
+                                    px={2}
+                                    py={2}
+                                    borderRadius="10px"
+                                    _hover={{ bg: 'rgba(28, 161, 241, 0.06)' }}
+                                >
+                                    <Flex
+                                        as={NextLink}
+                                        href={`/@${user}`}
+                                        align="center"
+                                        gap={2}
+                                        flex={1}
+                                        overflow="hidden"
+                                        _hover={{ textDecoration: 'none' }}
+                                    >
+                                        <Image
+                                            src={getHiveAvatarUrl(user!, 'small')}
+                                            alt={user!}
+                                            boxSize="32px"
+                                            borderRadius="full"
+                                            flexShrink={0}
+                                            border="1px solid rgba(28, 161, 241, 0.3)"
+                                        />
+                                        <Box overflow="hidden">
+                                            <Text fontSize="10px" color="whiteAlpha.500" lineHeight={1} mb="2px">Logged in as</Text>
+                                            <Text fontSize="sm" fontWeight="semibold" color="white" noOfLines={1}>@{user}</Text>
+                                        </Box>
+                                    </Flex>
+                                    <Button
+                                        variant="ghost"
+                                        size="xs"
+                                        onClick={logout}
+                                        p={1}
+                                        minW="auto"
+                                        h="auto"
+                                        borderRadius="md"
+                                        color="whiteAlpha.400"
+                                        flexShrink={0}
+                                        _hover={{ color: 'red.300', bg: 'rgba(255, 80, 80, 0.1)' }}
+                                        aria-label="Logout"
+                                    >
+                                        <Icon as={FiLogOut} boxSize={3.5} />
+                                    </Button>
+                                </Flex>
+                                {/* Compact sidebar: avatar only */}
+                                <Tooltip label={`@${user}`} placement="right" hasArrow isDisabled={!isCompactMode}>
+                                    <Box display={compactBreakpoint} w="full">
+                                        <Button
+                                            as={NextLink}
+                                            href={`/@${user}`}
+                                            variant="ghost"
+                                            w="full"
+                                            justifyContent="center"
+                                            px={3}
+                                            borderRadius="10px"
+                                            _hover={{ bg: 'rgba(28, 161, 241, 0.14)' }}
+                                        >
+                                            <Image
+                                                src={getHiveAvatarUrl(user!, 'small')}
+                                                alt={user!}
+                                                boxSize={6}
+                                                borderRadius="full"
+                                                border="1px solid rgba(28, 161, 241, 0.3)"
+                                            />
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
+                            </>
+                        ) : (
+                            <>
+                                <Tooltip label="Login" placement="right" hasArrow isDisabled={!isCompactMode}>
+                                    <Box w="full" mb={2}>
+                                        <Button
+                                            onClick={openLoginModal}
+                                            variant="solid"
+                                            colorScheme="teal"
+                                            w="full"
+                                            justifyContent={iconJustify}
+                                            leftIcon={<Icon as={FiLogIn} boxSize={4} />}
+                                            px={3}
+                                            borderRadius="10px"
+                                        >
+                                            <Text display={textDisplay}>Login</Text>
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
+                                <Tooltip label="Create account" placement="right" hasArrow isDisabled={!isCompactMode}>
+                                    <Box w="full">
+                                        <Button
+                                            as={NextLink}
+                                            href="/join"
+                                            variant="ghost"
+                                            w="full"
+                                            justifyContent={iconJustify}
+                                            leftIcon={<Icon as={FiUserPlus} boxSize={4} />}
+                                            px={3}
+                                            borderRadius="10px"
+                                            _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                                        >
+                                            <Text display={textDisplay}>Create account</Text>
+                                        </Button>
+                                    </Box>
+                                </Tooltip>
+                            </>
+                        )}
+                    </Box>
                 </VStack>
             </Flex>
-            
         </Box>
     );
-
 }

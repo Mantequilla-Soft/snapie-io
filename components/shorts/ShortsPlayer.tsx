@@ -103,7 +103,7 @@ export default function ShortsPlayer() {
           w="380px"
           h="100dvh"
           bg="rgba(8, 24, 40, 0.97)"
-          borderLeft="1px solid rgba(102, 228, 255, 0.12)"
+          borderLeft="1px solid rgba(28, 161, 241, 0.12)"
           backdropFilter="blur(18px)"
           flexShrink={0}
           overflow="hidden"

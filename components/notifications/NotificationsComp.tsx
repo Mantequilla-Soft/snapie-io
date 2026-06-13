@@ -272,9 +272,9 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
           <Flex
             w={12} h={12}
             borderRadius="full"
-            bg="rgba(24, 168, 255, 0.1)"
+            bg="rgba(28, 161, 241, 0.1)"
             border="1px solid"
-            borderColor="rgba(24, 168, 255, 0.2)"
+            borderColor="rgba(28, 161, 241, 0.2)"
             alignItems="center"
             justifyContent="center"
             flexShrink={0}
@@ -435,7 +435,7 @@ function ActivitySummaryCard({
     <Box bg="muted" border="tb1" borderRadius="10px" p={5} mb={5}>
       <Flex justify="space-between" align="center" gap={3} mb={5} flexWrap="wrap">
         <HStack spacing={2}>
-          <Flex w={7} h={7} borderRadius="full" bg="rgba(24, 168, 255, 0.12)" border="1px solid" borderColor="rgba(24, 168, 255, 0.2)" alignItems="center" justifyContent="center">
+          <Flex w={7} h={7} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.2)" alignItems="center" justifyContent="center">
             <Icon as={FiBell} color="primary" boxSize={3.5} />
           </Flex>
           <Text fontWeight="bold">Activity</Text>
@@ -664,13 +664,13 @@ function NotificationShell({
       transition="all 0.15s ease"
       onClick={onClick}
       sx={{
-        border: '1px solid rgba(102, 228, 255, 0.18)',
+        border: '1px solid rgba(28, 161, 241, 0.18)',
         ...(unread && {
           borderLeftWidth: '3px',
           borderLeftColor: 'var(--chakra-colors-primary)',
           backgroundColor: 'var(--chakra-colors-muted)',
           backgroundImage:
-            'linear-gradient(90deg, rgba(24, 168, 255, 0.12) 0%, rgba(24, 168, 255, 0.04) 42%, transparent 72%)',
+            'linear-gradient(90deg, rgba(28, 161, 241, 0.12) 0%, rgba(28, 161, 241, 0.04) 42%, transparent 72%)',
         }),
       }}
     >
@@ -719,9 +719,9 @@ function EmptyState({ title }: { title: string }) {
       <Flex
         w={16} h={16}
         borderRadius="full"
-        bg="rgba(24, 168, 255, 0.08)"
+        bg="rgba(28, 161, 241, 0.08)"
         border="1px solid"
-        borderColor="rgba(24, 168, 255, 0.15)"
+        borderColor="rgba(28, 161, 241, 0.15)"
         alignItems="center"
         justifyContent="center"
         mx="auto"

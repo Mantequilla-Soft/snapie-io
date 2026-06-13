@@ -22,14 +22,14 @@ export default function PaymentRequestBanner({
       mt={4}
       p={4}
       borderRadius="12px"
-      bg="rgba(24, 168, 255, 0.07)"
-      border="1px solid rgba(24, 168, 255, 0.28)"
-      boxShadow="0 2px 18px rgba(24, 168, 255, 0.12)"
+      bg="rgba(28, 161, 241, 0.07)"
+      border="1px solid rgba(28, 161, 241, 0.28)"
+      boxShadow="0 2px 18px rgba(28, 161, 241, 0.12)"
     >
       <Flex align="flex-start" gap={3}>
         <Flex
           w={9} h={9} borderRadius="full" flexShrink={0}
-          bg="rgba(24, 168, 255, 0.12)" border="1px solid rgba(24, 168, 255, 0.25)"
+          bg="rgba(28, 161, 241, 0.12)" border="1px solid rgba(28, 161, 241, 0.25)"
           align="center" justify="center"
         >
           <Icon as={FaQrcode} color="primary" boxSize={4} />

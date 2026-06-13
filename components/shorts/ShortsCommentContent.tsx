@@ -33,7 +33,7 @@ export default function ShortsCommentContent({ author, permlink, commentCount, o
         align="center"
         justify="space-between"
         borderBottom="1px solid"
-        borderColor="rgba(102, 228, 255, 0.12)"
+        borderColor="rgba(28, 161, 241, 0.12)"
         flexShrink={0}
       >
         <Text fontSize="md" fontWeight="semibold" color="white">
@@ -78,7 +78,7 @@ export default function ShortsCommentContent({ author, permlink, commentCount, o
       <Box
         flexShrink={0}
         borderTop="1px solid"
-        borderColor="rgba(102, 228, 255, 0.12)"
+        borderColor="rgba(28, 161, 241, 0.12)"
         px={3}
         py={3}
       >

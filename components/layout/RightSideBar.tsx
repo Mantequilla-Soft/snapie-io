@@ -1,110 +1,115 @@
 'use client';
-import { Box, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Text, Spinner, Divider } from '@chakra-ui/react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { findPosts } from '@/lib/hive/client-functions';
+import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 
+const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
+
+interface CommunityStats {
+  numPending: number;
+  sumPending: number;
+}
+
 export default function RightSideBar() {
   const { hiveUser } = useHiveUser();
-  const [query, setQuery] = useState('created');
+  const [query] = useState('created');
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mutedLoaded, setMutedLoaded] = useState(false);
+  const [communityStats, setCommunityStats] = useState<CommunityStats | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isFetching = useRef(false);
   const mutedSetRef = useRef<Set<string>>(new Set());
 
-  const tag = process.env.NEXT_PUBLIC_HIVE_SEARCH_TAG
+  const tag = process.env.NEXT_PUBLIC_HIVE_SEARCH_TAG;
 
   const params = useRef({
-    tag: tag,
+    tag,
     limit: 8,
     start_author: '',
     start_permlink: '',
   });
 
+  // Fetch community stats (live posts + pending payouts)
+  useEffect(() => {
+    if (!communityTag) return;
+    getCommunityInfo(communityTag)
+      .then(info => {
+        if (info) {
+          setCommunityStats({
+            numPending: info.num_pending ?? 0,
+            sumPending: typeof info.sum_pending === 'number' ? info.sum_pending : 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const fetchPosts = useCallback(async () => {
-    if (isFetching.current) return; // Prevent multiple fetches
+    if (isFetching.current) return;
     isFetching.current = true;
-    setIsLoading(true); // Set loading state
-    
+    setIsLoading(true);
+
     try {
       const MIN_POSTS_TO_SHOW = 8;
       let allFetchedPosts: Discussion[] = [];
       let attempts = 0;
-      const MAX_ATTEMPTS = 5; // Prevent infinite loops
-      
-      // Keep fetching until we have enough valid posts or hit max attempts
+      const MAX_ATTEMPTS = 5;
+
       while (allFetchedPosts.length < MIN_POSTS_TO_SHOW && attempts < MAX_ATTEMPTS) {
         const posts = await findPosts(query, params.current);
-        
-        if (posts.length === 0) break; // No more posts available
-        
-        // Filter out comments and muted accounts
+        if (posts.length === 0) break;
+
         const topLevelPosts = posts.filter((post: Discussion) => {
           const isTopLevel = !post.parent_author;
           const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
           return isTopLevel && !isMuted;
         });
-        
+
         allFetchedPosts = [...allFetchedPosts, ...topLevelPosts];
-        
-        // Update params to fetch next batch using the last post from API (not filtered)
+
         const lastPost = posts[posts.length - 1];
         params.current = {
-          tag: tag,
+          tag,
           limit: 8,
           start_author: lastPost?.author || '',
           start_permlink: lastPost?.permlink || '',
         };
-        
         attempts++;
       }
-      
+
       setAllPosts((prevPosts) => [...prevPosts, ...allFetchedPosts]);
     } catch (error) {
       console.log(error);
     } finally {
       isFetching.current = false;
-      setIsLoading(false); // Reset loading state
+      setIsLoading(false);
     }
   }, [query, tag]);
 
-  // Load muted accounts on mount and when user changes (login/logout)
   useEffect(() => {
     setMutedLoaded(false);
     setAllPosts([]);
-    params.current = {
-      tag: tag,
-      limit: 8,
-      start_author: '',
-      start_permlink: '',
-    };
-    const loadMutedAccounts = async () => {
-      const mutedSet = await mutedAccountsManager.getMutedList(hiveUser?.name);
+    params.current = { tag, limit: 8, start_author: '', start_permlink: '' };
+    mutedAccountsManager.getMutedList(hiveUser?.name).then(mutedSet => {
       mutedSetRef.current = mutedSet;
       setMutedLoaded(true);
-    };
-    loadMutedAccounts();
+    });
   }, [hiveUser?.name, tag]);
 
-  // Only fetch posts after muted accounts are loaded
   useEffect(() => {
-    if (mutedLoaded) {
-      fetchPosts();
-    }
+    if (mutedLoaded) fetchPosts();
   }, [mutedLoaded, fetchPosts]);
 
-  // Scroll event handler
   const handleScroll = useCallback(() => {
     const sidebar = sidebarRef.current;
     if (sidebar) {
       const { scrollTop, scrollHeight, clientHeight } = sidebar;
-      const threshold = 400;
-      if (scrollTop + clientHeight >= scrollHeight - threshold && !isLoading) {
+      if (scrollTop + clientHeight >= scrollHeight - 400 && !isLoading) {
         fetchPosts();
       }
     }
@@ -122,31 +127,59 @@ export default function RightSideBar() {
     <Box
       as="aside"
       display={{ base: 'none', md: 'block' }}
-      w={{ base: '100%', md: '350px' }}
-      h="calc(100vh - 24px)"
+      w={{ base: '100%', md: '300px' }}
+      h="100vh"
       overflowY="auto"
-      p={3}
-      mt={3}
-      mr={3}
-      position={"sticky"}
-      top={3}
+      position="sticky"
+      top={0}
       bg="rgba(8, 24, 40, 0.62)"
-      border="tb1"
-      borderRadius="10px"
-      boxShadow="xl"
+      borderLeft="1px solid rgba(28, 161, 241, 0.1)"
+      borderRadius={0}
       backdropFilter="blur(18px)"
       ref={sidebarRef}
       id="scrollableDiv"
-      sx={
-        {
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-          scrollbarWidth: 'none',
-        }
-      }
+      sx={{
+        '&::-webkit-scrollbar': { display: 'none' },
+        scrollbarWidth: 'none',
+      }}
     >
-      <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" />
+      {/* Community stats bar */}
+      {communityStats !== null && (
+        <>
+          <Flex justify="space-around" px={3} pt={4} pb={3}>
+            <Box textAlign="center">
+              <Text fontSize="xl" fontWeight="bold" color="white" letterSpacing="-0.03em">
+                {communityStats.numPending}
+              </Text>
+              <Text fontSize="xs" color="whiteAlpha.500" mt="1px">live posts</Text>
+            </Box>
+            <Box w="1px" bg="rgba(28, 161, 241, 0.08)" alignSelf="stretch" />
+            <Box textAlign="center">
+              <Text fontSize="xl" fontWeight="bold" color="white" letterSpacing="-0.03em">
+                ${communityStats.sumPending.toFixed(2)}
+              </Text>
+              <Text fontSize="xs" color="whiteAlpha.500" mt="1px">pending HBD</Text>
+            </Box>
+          </Flex>
+          <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
+        </>
+      )}
+
+      <Box px={2}>
+        <Text
+          fontSize="xs"
+          fontWeight="bold"
+          color="whiteAlpha.400"
+          letterSpacing="widest"
+          textTransform="uppercase"
+          px={2}
+          pt={2}
+          pb={3}
+        >
+          Long Reads
+        </Text>
+        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" />
+      </Box>
     </Box>
   );
 }

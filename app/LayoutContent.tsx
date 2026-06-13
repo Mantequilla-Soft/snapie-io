@@ -94,7 +94,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       bg="background"
       color="text"
       minH="100vh"
-      bgGradient="radial(circle at 18% 8%, rgba(24, 168, 255, 0.16), transparent 34%), radial(circle at 78% 0%, rgba(102, 228, 255, 0.10), transparent 30%), linear(to-br, #06111f, #071827 48%, #04101d)"
+      bgGradient="radial(circle at 18% 8%, rgba(28, 161, 241, 0.12), transparent 34%), radial(circle at 78% 0%, rgba(28, 161, 241, 0.07), transparent 30%), linear(to-br, #080f1e, #0d1525 48%, #070d1a)"
     >
       <Box maxW="1320px" mx="auto" h="100vh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">

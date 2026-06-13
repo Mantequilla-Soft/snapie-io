@@ -5,13 +5,13 @@ export const hackerTheme = extendTheme({
     initialColorMode: 'dark', // set 'light' or 'dark' as the default color mode
     useSystemColorMode: false,
     colors: {
-        background: '#06111f',
+        background: '#080f1e',
         text: '#E8F4FF',
-        primary: '#18A8FF',
-        secondary: '#0D2238',
-        accent: '#66E4FF',
-        muted: '#0B1A2C',
-        border: '#173A5C',
+        primary: '#1ca1f1',
+        secondary: '#0d1a30',
+        accent: '#5bc7fa',
+        muted: '#0a1425',
+        border: '#152d50',
         error: '#FF5C7A',
         success: '#42E7A2',
         warning: '#FFC857',
@@ -48,7 +48,7 @@ export const hackerTheme = extendTheme({
         taller: '2',
     },
     borders: {
-        tb1: '1px solid rgba(102, 228, 255, 0.18)',
+        tb1: '1px solid rgba(28, 161, 241, 0.18)',
         borderRadius: '22px',
     },
     radii: {
@@ -108,14 +108,14 @@ export const hackerTheme = extendTheme({
         },
     },
     shadows: {
-        xs: '0 0 0 1px rgba(102, 228, 255, 0.12)',
+        xs: '0 0 0 1px rgba(28, 161, 241, 0.12)',
         sm: '0 10px 28px rgba(0, 0, 0, 0.22)',
         base: '0 18px 44px rgba(0, 0, 0, 0.28)',
-        md: '0 18px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(24, 168, 255, 0.08)',
-        lg: '0 24px 60px rgba(0, 0, 0, 0.38), 0 0 34px rgba(24, 168, 255, 0.12)',
-        xl: '0 30px 80px rgba(0, 0, 0, 0.42), 0 0 50px rgba(24, 168, 255, 0.16)',
-        '2xl': '0 36px 100px rgba(0, 0, 0, 0.48), 0 0 70px rgba(24, 168, 255, 0.18)',
-        outline: '0 0 0 3px rgba(24, 168, 255, 0.34)',
+        md: '0 18px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(28, 161, 241, 0.08)',
+        lg: '0 24px 60px rgba(0, 0, 0, 0.38), 0 0 34px rgba(28, 161, 241, 0.12)',
+        xl: '0 30px 80px rgba(0, 0, 0, 0.42), 0 0 50px rgba(28, 161, 241, 0.16)',
+        '2xl': '0 36px 100px rgba(0, 0, 0, 0.48), 0 0 70px rgba(28, 161, 241, 0.18)',
+        outline: '0 0 0 3px rgba(28, 161, 241, 0.34)',
         inner: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
         none: 'none',
         'dark-lg': '0 24px 60px rgba(0, 0, 0, 0.42)',
@@ -149,9 +149,9 @@ export const hackerTheme = extendTheme({
             },
             variants: {
                 solid: {
-                    bg: 'linear-gradient(135deg, #18A8FF 0%, #0D7CFF 100%)',
+                    bg: 'linear-gradient(135deg, #1ca1f1 0%, #0f87d4 100%)',
                     color: 'white',
-                    boxShadow: '0 12px 28px rgba(24, 168, 255, 0.28)',
+                    boxShadow: '0 12px 28px rgba(28, 161, 241, 0.28)',
                     _hover: {
                         filter: 'brightness(1.08)',
                         transform: 'translateY(-1px)',
@@ -161,13 +161,13 @@ export const hackerTheme = extendTheme({
                     borderColor: 'primary',
                     color: 'primary',
                     _hover: {
-                        bg: 'rgba(24, 168, 255, 0.10)',
+                        bg: 'rgba(28, 161, 241, 0.10)',
                     },
                 },
                 ghost: {
                     color: 'text',
                     _hover: {
-                        bg: 'rgba(24, 168, 255, 0.10)',
+                        bg: 'rgba(28, 161, 241, 0.10)',
                     },
                 },
             },

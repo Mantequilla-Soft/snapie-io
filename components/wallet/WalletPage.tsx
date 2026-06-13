@@ -425,7 +425,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             mr={4}
             border="2px solid"
             borderColor="primary"
-            boxShadow="0 0 18px rgba(24, 168, 255, 0.25)"
+            boxShadow="0 0 18px rgba(28, 161, 241, 0.25)"
             flexShrink={0}
           />
           <Box overflow="hidden">
@@ -500,8 +500,8 @@ export default function WalletPage({ username }: WalletPageProps) {
           )}
           <Flex
             alignItems="center" gap={2}
-            bg="rgba(24, 168, 255, 0.1)"
-            border="1px solid" borderColor="rgba(24, 168, 255, 0.3)"
+            bg="rgba(28, 161, 241, 0.1)"
+            border="1px solid" borderColor="rgba(28, 161, 241, 0.3)"
             borderRadius="full" px={4} py={2}
           >
             <Icon as={FaCoins} color="primary" boxSize={4} />
@@ -528,7 +528,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             <Box
               position="absolute" top="-50px" right="-50px"
               w="180px" h="180px" borderRadius="full"
-              bg="rgba(24, 168, 255, 0.07)" filter="blur(50px)"
+              bg="rgba(28, 161, 241, 0.07)" filter="blur(50px)"
               pointerEvents="none"
             />
             <Box
@@ -557,7 +557,7 @@ export default function WalletPage({ username }: WalletPageProps) {
 
               <VStack align="flex-end" spacing={3}>
                 <HStack spacing={2}>
-                  <Box w="8px" h="8px" borderRadius="full" bg="primary" boxShadow="0 0 8px rgba(24, 168, 255, 0.7)" />
+                  <Box w="8px" h="8px" borderRadius="full" bg="primary" boxShadow="0 0 8px rgba(28, 161, 241, 0.7)" />
                   <VStack spacing={0} align="flex-end">
                     <Text fontSize="xs" color={textMuted}>HIVE</Text>
                     <Text fontSize="sm" fontWeight="bold">${prices.hive.toFixed(3)}</Text>
@@ -581,7 +581,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             <Box h="3px" bgGradient="linear(90deg, primary, accent)" />
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={3}>
-                <Flex w={9} h={9} borderRadius="full" bg="rgba(24, 168, 255, 0.12)" border="1px solid" borderColor="rgba(24, 168, 255, 0.25)" alignItems="center" justifyContent="center">
+                <Flex w={9} h={9} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaCoins} color="primary" boxSize={4} />
                 </Flex>
                 <Text fontSize="sm" color={textMuted} fontWeight="semibold">Total HIVE</Text>
@@ -597,7 +597,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             <Box h="3px" bgGradient="linear(90deg, accent, primary)" />
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={3}>
-                <Flex w={9} h={9} borderRadius="full" bg="rgba(102, 228, 255, 0.12)" border="1px solid" borderColor="rgba(102, 228, 255, 0.25)" alignItems="center" justifyContent="center">
+                <Flex w={9} h={9} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaChartLine} color={accentColor} boxSize={4} />
                 </Flex>
                 <Text fontSize="sm" color={textMuted} fontWeight="semibold">Hive Power</Text>
@@ -678,11 +678,11 @@ export default function WalletPage({ username }: WalletPageProps) {
           {/* HIVE */}
           <Box
             bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
-            sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-primary)' }}
+            sx={{ border: '1px solid rgba(28, 161, 241, 0.18)', borderLeft: '3px solid var(--chakra-colors-primary)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
               <Flex alignItems="center" gap={3}>
-                <Flex w={10} h={10} borderRadius="full" bg="rgba(24, 168, 255, 0.12)" border="1px solid" borderColor="rgba(24, 168, 255, 0.25)" alignItems="center" justifyContent="center">
+                <Flex w={10} h={10} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaCoins} color="primary" boxSize={4} />
                 </Flex>
                 <Box>
@@ -719,11 +719,11 @@ export default function WalletPage({ username }: WalletPageProps) {
           {/* Hive Power */}
           <Box
             bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
-            sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
+            sx={{ border: '1px solid rgba(28, 161, 241, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
               <Flex alignItems="center" gap={3}>
-                <Flex w={10} h={10} borderRadius="full" bg="rgba(102, 228, 255, 0.12)" border="1px solid" borderColor="rgba(102, 228, 255, 0.25)" alignItems="center" justifyContent="center">
+                <Flex w={10} h={10} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaChartLine} color={accentColor} boxSize={4} />
                 </Flex>
                 <Box>
@@ -747,7 +747,7 @@ export default function WalletPage({ username }: WalletPageProps) {
           {/* HBD */}
           <Box
             bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
-            sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-success)' }}
+            sx={{ border: '1px solid rgba(28, 161, 241, 0.18)', borderLeft: '3px solid var(--chakra-colors-success)' }}
           >
             <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
               <Flex alignItems="center" gap={3}>
@@ -841,11 +841,11 @@ export default function WalletPage({ username }: WalletPageProps) {
           {/* Savings */}
           <Box
             bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
-            sx={{ border: '1px solid rgba(102, 228, 255, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
+            sx={{ border: '1px solid rgba(28, 161, 241, 0.18)', borderLeft: '3px solid var(--chakra-colors-accent)' }}
           >
             <Box p={5}>
               <Flex alignItems="center" gap={3} mb={5}>
-                <Flex w={10} h={10} borderRadius="full" bg="rgba(102, 228, 255, 0.12)" border="1px solid" borderColor="rgba(102, 228, 255, 0.25)" alignItems="center" justifyContent="center">
+                <Flex w={10} h={10} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaPiggyBank} color="accent" boxSize={4} />
                 </Flex>
                 <Box>
@@ -855,7 +855,7 @@ export default function WalletPage({ username }: WalletPageProps) {
               </Flex>
 
               <Grid templateColumns={{ base: '1fr', md: '1fr 1fr' }} gap={4}>
-                <Box p={4} bg="rgba(24, 168, 255, 0.04)" borderRadius="10px" border="tb1">
+                <Box p={4} bg="rgba(28, 161, 241, 0.04)" borderRadius="10px" border="tb1">
                   <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE Savings</Text>
                   <Text fontSize="xl" fontWeight="bold" mb={2}>{savingsBalance}</Text>
                   {isOwnWallet && (
@@ -915,7 +915,7 @@ export default function WalletPage({ username }: WalletPageProps) {
         {/* Transaction History */}
         <Box mt={8} mb={8}>
           <Flex alignItems="center" gap={3} mb={4}>
-            <Flex w={8} h={8} borderRadius="full" bg="rgba(24, 168, 255, 0.12)" border="1px solid" borderColor="rgba(24, 168, 255, 0.25)" alignItems="center" justifyContent="center">
+            <Flex w={8} h={8} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
               <Icon as={FaExchangeAlt} color="primary" boxSize={3.5} />
             </Flex>
             <Heading size="lg">Transaction History</Heading>

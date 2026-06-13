@@ -42,7 +42,7 @@ export default function BottomTabBar() {
       right={0}
       h="60px"
       bg="rgba(8, 24, 40, 0.95)"
-      borderTop="1px solid rgba(102, 228, 255, 0.14)"
+      borderTop="1px solid rgba(28, 161, 241, 0.14)"
       backdropFilter="blur(20px)"
       display={{ base: 'flex', sm: 'none' }}
       alignItems="center"
@@ -68,11 +68,11 @@ export default function BottomTabBar() {
             h="50px"
             borderRadius="full"
             bgGradient="linear(135deg, #18a8ff, #66e4ff)"
-            boxShadow="0 4px 22px rgba(24, 168, 255, 0.55)"
+            boxShadow="0 4px 22px rgba(28, 161, 241, 0.55)"
             color="white"
             mb="10px"
             transition="transform 0.15s, box-shadow 0.15s"
-            _hover={{ transform: 'scale(1.08)', boxShadow: '0 6px 28px rgba(24, 168, 255, 0.7)' }}
+            _hover={{ transform: 'scale(1.08)', boxShadow: '0 6px 28px rgba(28, 161, 241, 0.7)' }}
             _active={{ transform: 'scale(0.94)' }}
           >
             <Icon as={FiPlus} boxSize={6} strokeWidth={2.5} />

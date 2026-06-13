@@ -16,7 +16,11 @@ interface ActiveUsersData {
   updatedAt?: string;
 }
 
-export default function HiveActivityWidget() {
+interface HiveActivityWidgetProps {
+  compact?: boolean;
+}
+
+export default function HiveActivityWidget({ compact = false }: HiveActivityWidgetProps) {
   const [data, setData] = useState<ActiveUsersData | null>(null);
 
   useEffect(() => {
@@ -36,6 +40,28 @@ export default function HiveActivityWidget() {
 
   if (!data || data.warming || data.count === null || data.count < MIN_COUNT_TO_SHOW) {
     return null;
+  }
+
+  if (compact) {
+    return (
+      <Flex align="center" gap={1.5}>
+        <Box
+          w="7px"
+          h="7px"
+          borderRadius="full"
+          bg="green.400"
+          flexShrink={0}
+          boxShadow="0 0 5px rgba(72, 187, 120, 0.8)"
+          animation={`${pulse} 2s ease-in-out infinite`}
+        />
+        <Text fontSize="xs" color="whiteAlpha.700" fontWeight="500">
+          {data.count.toLocaleString()}{' '}
+          <Text as="span" color="whiteAlpha.400" fontWeight="400">
+            online
+          </Text>
+        </Text>
+      </Flex>
+    );
   }
 
   return (

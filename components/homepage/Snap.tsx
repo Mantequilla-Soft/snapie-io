@@ -109,12 +109,13 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     }
 
     function handleReSnap() {
-        // Copy snap URL to clipboard for easy sharing
         const snapUrl = `${window.location.origin}/@${comment.author}/${comment.permlink}`;
         navigator.clipboard.writeText(snapUrl);
+        document.dispatchEvent(new CustomEvent('resnap', { detail: { url: snapUrl } }));
+        document.getElementById('snap-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         toast({
-            title: 'Link Copied!',
-            description: 'Snap link copied to clipboard. Paste it in a new snap to re-snap!',
+            title: 'Re-Snap',
+            description: 'Link added to your composer — add a comment and hit Post!',
             status: 'success',
             duration: 3000,
         });
@@ -173,7 +174,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         <Box pl={level > 0 ? 1 : 0} ml={level > 0 ? 2 : 0}>
             <Box
                 bg="rgba(8, 24, 40, 0.72)"
-                p={4}
+                px={4}
+                pt={4}
+                pb={3}
                 mt={3}
                 mb={3}
                 border="tb1"
@@ -183,108 +186,132 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 backdropFilter="blur(16px)"
                 transition="all 0.18s ease"
                 _hover={{
-                    borderColor: 'rgba(102, 228, 255, 0.34)',
+                    borderColor: 'rgba(28, 161, 241, 0.34)',
                     boxShadow: 'lg',
                     transform: 'translateY(-1px)',
                 }}
             >
-                <HStack mb={2} px={3}>
+                <Flex gap={3} align="flex-start">
+                    {/* Left column: avatar */}
                     <Avatar
                         size="sm"
+                        w="36px"
+                        h="36px"
                         name={comment.author}
                         src={`https://images.hive.blog/u/${comment.author}/avatar/sm`}
+                        flexShrink={0}
+                        mt="-2px"
                     />
-                    <Box ml={3}>
-                        <Text fontWeight="medium" fontSize="sm">
-                            <Link as={NextLink} href={`/@${comment.author}`}>@{comment.author}</Link>
-                        </Text>
-                        <Text fontWeight="medium" fontSize="sm" color="primary">
-                            {commentDate}
-                        </Text>
-                    </Box>
-                </HStack>
-                
-                {/* Render media separately using MediaRenderer */}
-                {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
-                
-                {/* Render text content with proper markdown processing - clickable to open full post */}
-                {renderedText && (
-                    <Box
-                        px={3}
-                        overflowX="hidden"
-                        wordBreak="break-word"
-                        dangerouslySetInnerHTML={{ __html: renderedText }}
-                        onClick={setConversation ? handleConversation : undefined}
-                        cursor={setConversation ? "pointer" : "default"}
-                        sx={{
-                            "& p": { marginBottom: 2 },
-                            "& a": {
-                                color: "primary",
-                                textDecoration: "underline",
-                                cursor: "pointer",
-                                _hover: { color: "accent" }
-                            },
-                            "& pre, & table": { overflowX: "auto", maxWidth: "100%" },
-                            "& img": { maxWidth: "100%", height: "auto" },
-                        }}
-                    />
-                )}
 
-                {/* Render Hive post preview cards */}
-                {hivePostUrls.length > 0 && (
-                    <VStack spacing={2} align="stretch" mt={2}>
-                        {hivePostUrls.map(({ author, permlink }, index) => (
-                            <HivePostPreview
-                                key={`${author}-${permlink}-${index}`}
-                                author={author}
-                                permlink={permlink}
-                            />
-                        ))}
-                    </VStack>
-                )}
-
-                {/* Render hangout preview cards */}
-                {hangoutRoomNames.length > 0 && (
-                    <VStack spacing={2} align="stretch" mt={2}>
-                        {hangoutRoomNames.map((roomName, index) => (
-                            <HangoutPreviewCard key={`${roomName}-${index}`} roomName={roomName} />
-                        ))}
-                    </VStack>
-                )}
-                
-                <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2} px={3}>
-                    <VoteControls
-                        initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
-                        initialVoteCount={comment.active_votes?.length || 0}
-                        onVote={handleVote}
-                        onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
-                        onVoteRollback={() => setOptimisticDeltaHBD(0)}
-                    />
-                    <HStack spacing={{ base: 2, md: 4 }}>
-                        {/* Reply button - opens reply modal */}
-                        <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
-                            <FaRegComment />
-                        </HStack>
-                        {/* View conversation button - opens full post with all comments */}
-                        {setConversation && (
-                            <Text fontWeight="bold" cursor="pointer" onClick={handleConversation}>
-                                {comment.children}
-                            </Text>
-                        )}
-                        <HStack spacing={1} cursor="pointer" onClick={handleReSnap}>
-                            <FaRetweet />
-                            <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Re-Snap/Share</Text>
-                        </HStack>
-                        {canEdit && (
-                            <HStack spacing={1} cursor="pointer" onClick={() => setIsEditModalOpen(true)}>
-                                <FaEdit />
-                                <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Edit</Text>
+                    {/* Right column: header + content + actions */}
+                    <Box flex={1} minW={0} pt="4px">
+                        {/* Header row: name · date + edit icon */}
+                        <Flex align="center" justify="space-between" mb={1}>
+                            <HStack spacing={1} overflow="hidden" flex={1} minW={0}>
+                                <Link
+                                    as={NextLink}
+                                    href={`/@${comment.author}`}
+                                    fontWeight="semibold"
+                                    fontSize="sm"
+                                    noOfLines={1}
+                                    _hover={{ color: 'primary' }}
+                                >
+                                    @{comment.author}
+                                </Link>
+                                <Text fontSize="sm" color="whiteAlpha.400" flexShrink={0}>·</Text>
+                                <Text fontSize="sm" color="whiteAlpha.500" flexShrink={0}>{commentDate}</Text>
                             </HStack>
+                            {canEdit && (
+                                <Box
+                                    as="button"
+                                    onClick={() => setIsEditModalOpen(true)}
+                                    color="whiteAlpha.400"
+                                    _hover={{ color: 'white' }}
+                                    flexShrink={0}
+                                    ml={2}
+                                    aria-label="Edit post"
+                                >
+                                    <FaEdit size={12} />
+                                </Box>
+                            )}
+                        </Flex>
+
+                        {/* Media */}
+                        {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
+
+                        {/* Text content */}
+                        {renderedText && (
+                            <Box
+                                overflowX="hidden"
+                                wordBreak="break-word"
+                                dangerouslySetInnerHTML={{ __html: renderedText }}
+                                onClick={setConversation ? handleConversation : undefined}
+                                cursor={setConversation ? 'pointer' : 'default'}
+                                mb={2}
+                                sx={{
+                                    '& p': { marginBottom: 2 },
+                                    '& a': {
+                                        color: 'primary',
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer',
+                                        _hover: { color: 'accent' },
+                                    },
+                                    '& pre, & table': { overflowX: 'auto', maxWidth: '100%' },
+                                    '& img': { maxWidth: '100%', height: 'auto' },
+                                }}
+                            />
                         )}
-                    </HStack>
-                    <Text fontWeight="bold" fontSize="sm">
-                        {payoutDisplay}
-                    </Text>
+
+                        {/* Hive post preview cards */}
+                        {hivePostUrls.length > 0 && (
+                            <VStack spacing={2} align="stretch" mt={2}>
+                                {hivePostUrls.map(({ author, permlink }, index) => (
+                                    <HivePostPreview
+                                        key={`${author}-${permlink}-${index}`}
+                                        author={author}
+                                        permlink={permlink}
+                                    />
+                                ))}
+                            </VStack>
+                        )}
+
+                        {/* Hangout preview cards */}
+                        {hangoutRoomNames.length > 0 && (
+                            <VStack spacing={2} align="stretch" mt={2}>
+                                {hangoutRoomNames.map((roomName, index) => (
+                                    <HangoutPreviewCard key={`${roomName}-${index}`} roomName={roomName} />
+                                ))}
+                            </VStack>
+                        )}
+
+                        {/* Actions */}
+                        <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2} pr={2}>
+                            <VoteControls
+                                initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
+                                initialVoteCount={comment.active_votes?.length || 0}
+                                onVote={handleVote}
+                                onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
+                                onVoteRollback={() => setOptimisticDeltaHBD(0)}
+                            />
+                            <HStack spacing={{ base: 2, md: 4 }}>
+                                <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
+                                    <FaRegComment />
+                                </HStack>
+                                {setConversation && (
+                                    <Text fontWeight="bold" cursor="pointer" onClick={handleConversation}>
+                                        {comment.children}
+                                    </Text>
+                                )}
+                                <HStack spacing={1} cursor="pointer" onClick={handleReSnap}>
+                                    <FaRetweet />
+                                    <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Re-Snap/Share</Text>
+                                </HStack>
+                            </HStack>
+                            <Text fontWeight="bold" fontSize="sm">
+                                {payoutDisplay}
+                            </Text>
+                        </Flex>
+                    </Box>
                 </Flex>
             </Box>
             

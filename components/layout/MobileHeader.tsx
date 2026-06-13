@@ -40,7 +40,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
       right={0}
       h="56px"
       bg="rgba(8, 24, 40, 0.93)"
-      borderBottom="1px solid rgba(102, 228, 255, 0.10)"
+      borderBottom="1px solid rgba(28, 161, 241, 0.10)"
       backdropFilter="blur(20px)"
       display={{ base: 'flex', sm: 'none' }}
       alignItems="center"
@@ -106,11 +106,11 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               borderRadius="full"
               overflow="hidden"
               boxSize="34px"
-              border="2px solid rgba(102, 228, 255, 0.35)"
-              boxShadow="0 0 12px rgba(24, 168, 255, 0.2)"
+              border="2px solid rgba(28, 161, 241, 0.35)"
+              boxShadow="0 0 12px rgba(28, 161, 241, 0.2)"
               flexShrink={0}
               transition="box-shadow 0.15s"
-              _hover={{ boxShadow: '0 0 16px rgba(24, 168, 255, 0.4)' }}
+              _hover={{ boxShadow: '0 0 16px rgba(28, 161, 241, 0.4)' }}
             >
               <Image src={getHiveAvatarUrl(user, 'small')} alt={user} w="full" h="full" objectFit="cover" />
             </Box>

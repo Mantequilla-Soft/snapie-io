@@ -70,8 +70,8 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={4}>
-            <Alert status="info" bg="rgba(24, 168, 255, 0.08)" border="1px solid" borderColor="rgba(24, 168, 255, 0.3)" borderRadius="md" color="white">
-              <AlertIcon color="rgba(24, 168, 255, 1)" />
+            <Alert status="info" bg="rgba(28, 161, 241, 0.08)" border="1px solid" borderColor="rgba(28, 161, 241, 0.3)" borderRadius="md" color="white">
+              <AlertIcon color="rgba(28, 161, 241, 1)" />
               <Text fontSize="sm">
                 Send this link to a friend who already has a Hive account.
                 They&apos;ll be able to create <Text as="span" fontFamily="mono" fontWeight="bold">@{username}</Text> for you in one click.
@@ -125,7 +125,7 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
               <Button flex={1} leftIcon={<FaCopy />} onClick={copyLink} variant="outline">
                 Copy link
               </Button>
-              <Button flex={1} leftIcon={<FaShareAlt />} onClick={nativeShare} bg="rgba(24, 168, 255, 0.15)" _hover={{ bg: 'rgba(24, 168, 255, 0.25)' }}>
+              <Button flex={1} leftIcon={<FaShareAlt />} onClick={nativeShare} bg="rgba(28, 161, 241, 0.15)" _hover={{ bg: 'rgba(28, 161, 241, 0.25)' }}>
                 Share
               </Button>
             </HStack>

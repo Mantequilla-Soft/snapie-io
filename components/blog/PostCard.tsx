@@ -92,7 +92,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             flexDirection="column"
             backdropFilter="blur(16px)"
             transition="all 0.18s ease"
-            _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg', borderColor: 'rgba(102, 228, 255, 0.34)' }}
+            _hover={{ transform: 'translateY(-2px)', boxShadow: 'lg', borderColor: 'rgba(28, 161, 241, 0.34)' }}
             position="relative"
             opacity={isNavigating ? 0.7 : 1}
         >

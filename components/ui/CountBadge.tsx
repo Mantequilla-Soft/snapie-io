@@ -22,7 +22,7 @@ export function CountBadge({ count, colorScheme = 'green', top = '2px', right = 
             alignItems="center"
             justifyContent="center"
             fontSize="xs"
-            boxShadow="0 0 18px rgba(24, 168, 255, 0.45)"
+            boxShadow="0 0 18px rgba(28, 161, 241, 0.45)"
             border="1px solid"
             borderColor="rgba(255,255,255,0.45)"
         >

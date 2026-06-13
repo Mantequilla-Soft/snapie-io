@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Textarea, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
@@ -53,6 +53,18 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    // Listen for re-snap events from Snap cards and pre-fill the textarea
+    useEffect(() => {
+        function onReSnap(e: Event) {
+            const { url } = (e as CustomEvent<{ url: string }>).detail;
+            if (!postBodyRef.current) return;
+            postBodyRef.current.value = url;
+            postBodyRef.current.focus();
+        }
+        document.addEventListener('resnap', onReSnap);
+        return () => document.removeEventListener('resnap', onReSnap);
+    }, []);
 
     const buttonText = post ? "Reply" : "Post";
     const hasVideo = selectedVideo !== null;
@@ -309,13 +321,13 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 placeholder={!user ? "Please log in to post..." : "What's happening?"}
                 bg="rgba(4, 16, 29, 0.72)"
                 border="1px solid"
-                borderColor="rgba(102, 228, 255, 0.14)"
+                borderColor="rgba(28, 161, 241, 0.14)"
                 borderRadius="10px"
                 mb={3}
                 ref={postBodyRef}
                 minH="92px"
                 _placeholder={{ color: 'rgba(232, 244, 255, 0.68)' }}
-                _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(24, 168, 255, 0.42), 0 0 34px rgba(24, 168, 255, 0.16)' }}
+                _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(28, 161, 241, 0.42), 0 0 34px rgba(28, 161, 241, 0.16)' }}
                 isDisabled={!user || isLoading}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
@@ -324,7 +336,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                 <HStack flexShrink={1} minW={0}>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(24, 168, 255, 0.10)', color: 'whiteAlpha.900' }}
+                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
                         isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaImage size={20} />
@@ -332,14 +344,14 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(24, 168, 255, 0.10)', color: 'whiteAlpha.900' }}
+                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
                         onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
                         <MdGif size={44} />
                     </Button>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(24, 168, 255, 0.10)', color: 'whiteAlpha.900' }}
+                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
                         isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaVideo size={20} />
@@ -347,7 +359,7 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(24, 168, 255, 0.10)', color: 'whiteAlpha.900' }}
+                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
                         onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaMicrophone size={20} />
