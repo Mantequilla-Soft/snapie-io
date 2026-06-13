@@ -13,6 +13,7 @@ import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
+import HiveActivityWidget from './HiveActivityWidget';
 
 interface ProfileInfo {
     metadata: {
@@ -355,6 +356,11 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Tooltip>
                         </>
                     )}
+
+                    {/* Hive activity indicator — desktop only */}
+                    <Box display={fullBreakpoint} w="full">
+                        <HiveActivityWidget />
+                    </Box>
 
                     {/* Login/Logout Button */}
                     <Tooltip label={isLoggedIn ? 'Logout' : 'Login'} placement="right" hasArrow isDisabled={!isCompactMode}>

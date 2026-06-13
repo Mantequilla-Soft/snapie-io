@@ -13,6 +13,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import HiveActivityWidget from './HiveActivityWidget';
 
 interface MeSheetProps {
   isOpen: boolean;
@@ -82,6 +83,11 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
               </VStack>
 
               <Divider borderColor="rgba(102, 228, 255, 0.08)" />
+
+              {/* Hive activity indicator */}
+              <Box px={2} pb={1}>
+                <HiveActivityWidget />
+              </Box>
 
               {/* Logout */}
               <Box px={4} py={4}>
