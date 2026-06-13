@@ -180,6 +180,21 @@ function transform3SpeakContent(content) {
   content = fixMalformedCenterTags(content);
   const SPEAK_VIDEO_ALLOW = 'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"';
   content = content.replace(
+    /<iframe[^>]*\bsrc="(https?:\/\/(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([^"&]+)[^"]*)"[^>]*>(?:\s*<\/iframe>)?/gi,
+    (_match, _fullUrl, videoId) => {
+      let decoded;
+      try {
+        decoded = decodeURIComponent(videoId);
+      } catch {
+        decoded = videoId;
+      }
+      if (embeddedVideos.has(decoded)) return "";
+      embeddedVideos.add(decoded);
+      const embedUrl = `https://play.3speak.tv/watch?v=${decoded}&mode=iframe&captions=0&layout=desktop`;
+      return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
+    }
+  );
+  content = content.replace(
     /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
     (match, fullUrl, videoId) => {
       if (embeddedVideos.has(videoId)) return match;
@@ -501,7 +516,9 @@ function createHiveRenderer(options = {}) {
   const renderer = new import_content_renderer.DefaultRenderer({
     baseUrl,
     breaks: true,
-    skipSanitization: false,
+    // DefaultRenderer has no iframe whitelist option — it blocks all raw iframes.
+    // We skip its sanitization and rely on DOMPurify (below) for XSS protection.
+    skipSanitization: true,
     allowInsecureScriptTags: false,
     addNofollowToLinks: true,
     doNotShowImages: false,
@@ -526,7 +543,7 @@ function createHiveRenderer(options = {}) {
     }
     if (enableHivemoji) {
       const defaultEmojiOwner = context.defaultEmojiOwner || hivemojiDefaultOwner;
-      return transformHivemojiContent(html, {
+      html = transformHivemojiContent(html, {
         baseUrl: hivemojiBaseUrl,
         defaultOwner: defaultEmojiOwner
       });

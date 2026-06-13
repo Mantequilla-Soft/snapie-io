@@ -12,7 +12,7 @@
     "packages:publish": "pnpm packages:build && pnpm --filter '@snapie/*' publish --access public"
   },
   "dependencies": {
-    "@aioha/aioha": "^1.8.2",
+    "@aioha/aioha": "^1.8.5",
     "@aioha/react-provider": "1.4.1",
     "@aioha/react-ui": "^1.8.2",
     "@chakra-ui/icons": "^2.1.1",

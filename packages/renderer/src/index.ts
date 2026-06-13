@@ -173,6 +173,21 @@ function transform3SpeakContent(content: string): string {
     // Permissions required by the 3Speak player; Brave enforces these strictly without explicit allow=.
     const SPEAK_VIDEO_ALLOW = 'allow="autoplay; encrypted-media; fullscreen; picture-in-picture"';
 
+    // Normalize raw <iframe> tags pointing at 3Speak (old post format, or passed through
+    // with skipSanitization:true). Convert them to the video-container wrapper that
+    // PostDetails.tsx extracts into ThreeSpeakVideoPlayer components.
+    content = content.replace(
+        /<iframe[^>]*\bsrc="(https?:\/\/(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([^"&]+)[^"]*)"[^>]*>(?:\s*<\/iframe>)?/gi,
+        (_match, _fullUrl, videoId) => {
+            let decoded: string;
+            try { decoded = decodeURIComponent(videoId); } catch { decoded = videoId; }
+            if (embeddedVideos.has(decoded)) return '';
+            embeddedVideos.add(decoded);
+            const embedUrl = `https://play.3speak.tv/watch?v=${decoded}&mode=iframe&captions=0&layout=desktop`;
+            return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
+        }
+    );
+
     // Handle LEGACY 3speak.tv URLs (without play. subdomain)
     content = content.replace(
         /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
@@ -617,7 +632,9 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
     const renderer = new DefaultRenderer({
         baseUrl,
         breaks: true,
-        skipSanitization: false,
+        // DefaultRenderer has no iframe whitelist option — it blocks all raw iframes.
+        // We skip its sanitization and rely on DOMPurify (below) for XSS protection.
+        skipSanitization: true,
         allowInsecureScriptTags: false,
         addNofollowToLinks: true,
         doNotShowImages: false,
@@ -656,7 +673,7 @@ export function createHiveRenderer(options: HiveRendererOptions = {}) {
 
         if (enableHivemoji) {
             const defaultEmojiOwner = context.defaultEmojiOwner || hivemojiDefaultOwner;
-            return transformHivemojiContent(html, {
+            html = transformHivemojiContent(html, {
                 baseUrl: hivemojiBaseUrl,
                 defaultOwner: defaultEmojiOwner
             });
