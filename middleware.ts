@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const ALLOWED_ORIGINS = [
-  'https://3speak.tv',
-  'https://www.3speak.tv',
+const ALLOWED_EXACT = [
   'https://snapie.io',
   'https://www.snapie.io',
 ];
 
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_EXACT.includes(origin)) return true;
+  // Allow any subdomain of 3speak.tv (covers dev branches, staging, etc.)
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === '3speak.tv' || hostname.endsWith('.3speak.tv');
+  } catch {
+    return false;
+  }
+}
+
 export function middleware(req: NextRequest) {
   const origin = req.headers.get('origin') ?? '';
-  const allowed = ALLOWED_ORIGINS.includes(origin);
+  const allowed = isAllowedOrigin(origin);
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
