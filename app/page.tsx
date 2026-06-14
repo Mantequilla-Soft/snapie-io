@@ -10,6 +10,7 @@ import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
+import UpcomingEventsStrip from '@/components/hangouts/UpcomingEventsStrip';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -107,6 +108,7 @@ export default function Home() {
         }
         id='scrollableDiv'>
         <OpenPodsLiveStrip />
+        <UpcomingEventsStrip />
         <FeedTabFilter
           activeFilter={activeFilter}
           onFilterChange={handleFilterChange}
