@@ -55,6 +55,13 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                             __html: markdownRenderer(comment.body, { defaultEmojiOwner: comment.author })
                         }}
                         pb={6}
+                        sx={{
+                            '& p': { marginBottom: '0.75em', lineHeight: '1.6' },
+                            '& a': { color: 'var(--chakra-colors-primary)', textDecoration: 'underline' },
+                            '& ul': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'disc' },
+                            '& ol': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'decimal' },
+                            '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
+                        }}
                     />
                     <SnapComposer pa={comment.author} pp={comment.permlink} onNewComment={onNewReply} post={true} onClose={onClose} />
                 </ModalBody>

@@ -77,14 +77,17 @@ export default function ReSnap({ comment }: ReSnapProps) {
                     dangerouslySetInnerHTML={{ __html: renderedText }}
                     sx={{
                         "& p": { marginBottom: 2 },
-                        "& a": { 
-                            color: "primary", 
+                        "& a": {
+                            color: "primary",
                             textDecoration: "underline",
                             cursor: "pointer",
                             _hover: {
                                 color: "accent"
                             }
-                        }
+                        },
+                        "& ul": { paddingLeft: "1.5em", marginBottom: 2, listStyleType: "disc" },
+                        "& ol": { paddingLeft: "1.5em", marginBottom: 2, listStyleType: "decimal" },
+                        "& li": { marginBottom: "0.15em", lineHeight: "1.6" },
                     }}
                 />
             )}

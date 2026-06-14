@@ -258,6 +258,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                     },
                                     '& pre, & table': { overflowX: 'auto', maxWidth: '100%' },
                                     '& img': { maxWidth: '100%', height: 'auto' },
+                                    '& ul': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'disc' },
+                                    '& ol': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'decimal' },
+                                    '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
                                 }}
                             />
                         )}
