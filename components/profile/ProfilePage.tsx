@@ -23,6 +23,8 @@ import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
 import CurationQualityCard from './CurationQualityCard';
+import { useUserPresence } from '@/hooks/useUserPresence';
+import { useHangout } from '@/contexts/HangoutContext';
 
 interface ProfilePageProps {
   username: string;
@@ -118,6 +120,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
   const isOwner = !!user && user === username;
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
+  const presence = useUserPresence(username);
+  const { openRoom } = useHangout();
 
   const profileMeta = profileInfo?.metadata?.profile || {};
   const followers = profileInfo?.stats?.followers || 0;
@@ -190,13 +194,35 @@ export default function ProfilePage({ username }: ProfilePageProps) {
             mr={4}
           />
           <Box>
-            <Flex alignItems="center">
+            <Flex alignItems="center" gap={2} flexWrap="wrap">
               <Heading as="h2" size="lg" color="primary" mr={2}>
                 {profileMeta.name || username}
               </Heading>
               <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
               </Box>
+              {presence?.online && (
+                <Box
+                  as="button"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={1}
+                  px={2}
+                  py={0.5}
+                  borderRadius="full"
+                  bg="rgba(229, 57, 53, 0.15)"
+                  border="1px solid rgba(229, 57, 53, 0.4)"
+                  onClick={() => presence.roomName && openRoom(presence.roomName)}
+                  cursor={presence.roomName ? 'pointer' : 'default'}
+                  _hover={presence.roomName ? { bg: 'rgba(229, 57, 53, 0.25)' } : {}}
+                  transition="background 0.15s"
+                >
+                  <Box w="6px" h="6px" borderRadius="full" bg="red.500" flexShrink={0} />
+                  <Text fontSize="xs" fontWeight={600} color="red.400" lineHeight={1}>
+                    {presence.roomTitle ? `Live: ${presence.roomTitle}` : 'Live now'}
+                  </Text>
+                </Box>
+              )}
             </Flex>
 
             <Text fontSize="xs" color="text">

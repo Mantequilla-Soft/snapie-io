@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import '@/app/hangouts/overrides.css';
@@ -10,7 +10,10 @@ import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
-import { useToast, Center, VStack, Text, Spinner, Button } from '@chakra-ui/react';
+import { useToast, Center, VStack, Text, Spinner, Button, Flex, useDisclosure } from '@chakra-ui/react';
+import ScheduleEventModal from './ScheduleEventModal';
+import MyEventsPanel from './MyEventsPanel';
+import type { HangoutsEvent } from '@snapie/hangouts-core';
 
 import { IMAGE_SERVER_API_KEY } from '@/lib/env';
 
@@ -26,6 +29,8 @@ function AuthLobby({ user }: { user: string }) {
   const { openRoom } = useHangout();
   const toast = useToast();
   const isCreating = useRef(false);
+  const { isOpen: isScheduleOpen, onOpen: onScheduleOpen, onClose: onScheduleClose } = useDisclosure();
+  const [eventsRefreshKey, setEventsRefreshKey] = useState(0);
 
   const handleRoomCreated = async (room: Room, options?: { notifyOnHive: boolean }) => {
     isCreating.current = true;
@@ -87,11 +92,34 @@ function AuthLobby({ user }: { user: string }) {
     openRoom(name);
   };
 
+  const handleEventCreated = (_event: HangoutsEvent) => {
+    setEventsRefreshKey(k => k + 1);
+  };
+
   return (
-    <RoomLobby
-      onJoinRoom={handleJoinRoom}
-      onRoomCreated={handleRoomCreated}
-    />
+    <>
+      <RoomLobby
+        onJoinRoom={handleJoinRoom}
+        onRoomCreated={handleRoomCreated}
+      />
+      <Flex justify="center" mt={3} mb={1}>
+        <Button
+          size="sm"
+          variant="ghost"
+          colorScheme="blue"
+          fontSize="xs"
+          onClick={onScheduleOpen}
+        >
+          + Schedule a future OpenPod
+        </Button>
+      </Flex>
+      <MyEventsPanel username={user} refreshKey={eventsRefreshKey} />
+      <ScheduleEventModal
+        isOpen={isScheduleOpen}
+        onClose={onScheduleClose}
+        onCreated={handleEventCreated}
+      />
+    </>
   );
 }
 

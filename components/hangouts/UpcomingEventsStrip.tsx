@@ -1,9 +1,11 @@
 'use client';
-import { Box, Flex, Text, HStack, Image, Link as ChakraLink, Icon, Badge } from '@chakra-ui/react';
-import { FaCalendarAlt } from 'react-icons/fa';
+import { Box, Flex, Text, HStack, Image, Link as ChakraLink, Icon, Badge, IconButton, Tooltip } from '@chakra-ui/react';
+import { FaCalendarAlt, FaCheck, FaPlus } from 'react-icons/fa';
 import NextLink from 'next/link';
+import { useState } from 'react';
 import { useUpcomingEvents } from '@/hooks/useUpcomingEvents';
 import { useHangout } from '@/contexts/HangoutContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { HangoutsEvent } from '@snapie/hangouts-core';
 
 function formatEventDate(iso: string): string {
@@ -19,17 +21,42 @@ function formatEventDate(iso: string): string {
 }
 
 function EventCard({ event }: { event: HangoutsEvent }) {
-  const { openRoom } = useHangout();
+  const { openRoom, attendEvent, unattendEvent } = useHangout();
+  const { username: user } = useCurrentUser();
   const isLive = event.status === 'live';
 
+  const [attending, setAttending] = useState(() => !!user && event.attendees.includes(user));
+  const [count, setCount] = useState(event.attendeeCount);
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+
   const handleClick = () => {
-    if (isLive && event.roomName) {
-      openRoom(event.roomName);
-    }
+    if (isLive && event.roomName) openRoom(event.roomName);
   };
 
-  const inner = (
+  const handleRsvp = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || rsvpLoading) return;
+    setRsvpLoading(true);
+    const prev = attending;
+    setAttending(!prev);
+    setCount(c => prev ? c - 1 : c + 1);
+    const res = prev
+      ? await unattendEvent(event.id)
+      : await attendEvent(event.id);
+    if (res) {
+      setCount(res.attendeeCount);
+    } else {
+      setAttending(prev);
+      setCount(event.attendeeCount);
+    }
+    setRsvpLoading(false);
+  };
+
+  return (
     <Box
+      as={isLive ? 'button' : 'div'}
+      onClick={isLive ? handleClick : undefined}
+      aria-label={isLive ? `Join live: ${event.title}` : undefined}
       display="flex"
       alignItems="center"
       gap={2.5}
@@ -40,14 +67,11 @@ function EventCard({ event }: { event: HangoutsEvent }) {
       px={3}
       py={2}
       flexShrink={0}
-      maxW="230px"
+      maxW="250px"
       textAlign="left"
       transition="border-color 0.15s, background 0.15s"
-      _hover={{
-        borderColor: 'primary',
-        bg: 'rgba(229, 57, 53, 0.06)',
-        cursor: isLive ? 'pointer' : 'default',
-      }}
+      cursor={isLive ? 'pointer' : 'default'}
+      _hover={isLive ? { borderColor: 'primary', bg: 'rgba(229, 57, 53, 0.06)' } : {}}
     >
       <Image
         src={event.coverImage || `https://images.hive.blog/u/${event.hostUsername}/avatar/sm`}
@@ -59,14 +83,14 @@ function EventCard({ event }: { event: HangoutsEvent }) {
         flexShrink={0}
         fallback={<Box boxSize="34px" borderRadius="full" bg="rgba(255, 255, 255, 0.1)" flexShrink={0} />}
       />
-      <Flex direction="column" minW={0}>
+      <Flex direction="column" minW={0} flex={1}>
         <HStack spacing={1} mb="1px">
           {isLive && (
             <Badge colorScheme="red" fontSize="9px" px={1} py={0} lineHeight="1.4" borderRadius="3px">
               LIVE
             </Badge>
           )}
-          <Text fontSize="13px" fontWeight={600} color="text" noOfLines={1} maxW="130px">
+          <Text fontSize="13px" fontWeight={600} color="text" noOfLines={1}>
             {event.title}
           </Text>
         </HStack>
@@ -77,19 +101,29 @@ function EventCard({ event }: { event: HangoutsEvent }) {
           )}
         </Text>
       </Flex>
-      {event.attendeeCount > 0 && (
-        <Text fontSize="11px" color="rgba(255,255,255,0.55)" ml="auto" flexShrink={0} pl={2}>
-          {event.attendeeCount}
-        </Text>
-      )}
+
+      <Flex direction="column" alignItems="center" flexShrink={0} pl={1} gap={0.5}>
+        {user && !isLive && (
+          <Tooltip label={attending ? 'Remove RSVP' : 'RSVP'} placement="top" hasArrow>
+            <IconButton
+              aria-label={attending ? 'Remove RSVP' : 'RSVP'}
+              icon={attending ? <FaCheck /> : <FaPlus />}
+              size="xs"
+              variant="ghost"
+              colorScheme={attending ? 'green' : 'whiteAlpha'}
+              color={attending ? 'green.400' : 'rgba(255,255,255,0.4)'}
+              isLoading={rsvpLoading}
+              onClick={handleRsvp}
+              _hover={{ color: attending ? 'green.300' : 'white' }}
+            />
+          </Tooltip>
+        )}
+        {count > 0 && (
+          <Text fontSize="10px" color="rgba(255,255,255,0.45)">{count}</Text>
+        )}
+      </Flex>
     </Box>
   );
-
-  if (isLive) {
-    return <Box as="button" onClick={handleClick} aria-label={`Join live: ${event.title}`}>{inner}</Box>;
-  }
-
-  return inner;
 }
 
 export default function UpcomingEventsStrip() {

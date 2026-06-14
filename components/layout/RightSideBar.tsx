@@ -6,6 +6,8 @@ import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
+import SidebarEventsWidget from '@/components/hangouts/SidebarEventsWidget';
+import { Divider as ChakraDivider } from '@chakra-ui/react';
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
@@ -164,6 +166,8 @@ export default function RightSideBar() {
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
         </>
       )}
+
+      <SidebarEventsWidget />
 
       <Box px={2}>
         <Text

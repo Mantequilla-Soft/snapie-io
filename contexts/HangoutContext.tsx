@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
-import { HangoutsApiClient, loginWithSignFn } from '@snapie/hangouts-core';
+import { HangoutsApiClient, loginWithSignFn, type CreateEventInput, type HangoutsEvent, type StartEventResponse } from '@snapie/hangouts-core';
 import { KeyTypes } from '@aioha/aioha';
 import { useAioha } from '@aioha/react-ui';
 import { signMessageWithAioha } from '@/lib/hive/aioha';
@@ -74,6 +74,11 @@ interface HangoutContextType {
   sessionLoading: boolean;
   error: string | null;
   retryLogin: (requestedUser?: string) => Promise<string | null>;
+  attendEvent: (id: string) => Promise<{ attendees: string[]; attendeeCount: number } | null>;
+  unattendEvent: (id: string) => Promise<{ attendees: string[]; attendeeCount: number } | null>;
+  createEvent: (input: CreateEventInput) => Promise<HangoutsEvent | null>;
+  startEvent: (id: string) => Promise<StartEventResponse | null>;
+  cancelEvent: (id: string) => Promise<void>;
 }
 
 const HangoutContext = createContext<HangoutContextType | undefined>(undefined);
@@ -244,6 +249,31 @@ export function HangoutContextProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const attendEvent = useCallback(async (id: string) => {
+    if (!hangoutsClient) return null;
+    try { return await hangoutsClient.attendEvent(id); } catch { return null; }
+  }, []);
+
+  const unattendEvent = useCallback(async (id: string) => {
+    if (!hangoutsClient) return null;
+    try { return await hangoutsClient.unattendEvent(id); } catch { return null; }
+  }, []);
+
+  const createEvent = useCallback(async (input: CreateEventInput) => {
+    if (!hangoutsClient) return null;
+    try { return await hangoutsClient.createEvent(input); } catch { return null; }
+  }, []);
+
+  const startEvent = useCallback(async (id: string) => {
+    if (!hangoutsClient) return null;
+    try { return await hangoutsClient.startEvent(id); } catch { return null; }
+  }, []);
+
+  const cancelEvent = useCallback(async (id: string) => {
+    if (!hangoutsClient) return;
+    try { await hangoutsClient.cancelEvent(id); } catch { /* ignore */ }
+  }, []);
+
   return (
     <HangoutContext.Provider value={{
       activeRoom,
@@ -253,6 +283,11 @@ export function HangoutContextProvider({ children }: { children: ReactNode }) {
       sessionLoading,
       error,
       retryLogin: loginToHangouts,
+      attendEvent,
+      unattendEvent,
+      createEvent,
+      startEvent,
+      cancelEvent,
     }}>
       {children}
     </HangoutContext.Provider>
