@@ -41,5 +41,12 @@ next-env.d.ts
 SKATEHIVE_COMPOSER_REFERENCE.md
 ECENCY_CHAT_IMPLEMENTATION.md
 
-# internatl Documents
+# internal Documents
 /internal-docs/
+
+# Scratch / temp files
+/tmp/
+
+# Package build artifacts (tracked in source, not dist)
+packages/*/dist/*.d.mts
+packages/*/dist/*.d.ts
