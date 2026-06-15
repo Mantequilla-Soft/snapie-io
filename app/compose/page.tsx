@@ -36,6 +36,7 @@ export default function Home() {
   const isHangout = searchParams.get('hangout') === 'true'
   const hangoutTitle = searchParams.get('title') || ''
   const hangoutAudioUrl = searchParams.get('audioUrl') || ''
+  const hangoutVideoUrl = searchParams.get('videoUrl') || ''
   const hangoutThumbnail = searchParams.get('thumbnail') || HANGOUT_THUMBNAIL
 
   const [markdown, setMarkdown] = useState(
@@ -47,14 +48,20 @@ export default function Home() {
   )
   const [title, setTitle] = useState(isHangout ? hangoutTitle : "")
   const [hashtagInput, setHashtagInput] = useState("")
-  const [hashtags, setHashtags] = useState<string[]>(isHangout ? ['openpod', 'hangout', 'podcast'] : [])
+  const [hashtags, setHashtags] = useState<string[]>(
+    isHangout
+      ? hangoutVideoUrl
+        ? ['openpod', 'hangout', 'video']
+        : ['openpod', 'hangout', 'podcast']
+      : []
+  )
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryInputType[]>(
     isHangout
-      ? [{ account: 'snapie', weight: 300 }, { account: 'threespeakfund', weight: 700 }]
+      ? [{ account: 'snapie', weight: 300 }, { account: 'threespeakfund', weight: hangoutVideoUrl ? 800 : 700 }]
       : [{ account: 'snapie', weight: 300 }]
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null)
+  const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(hangoutVideoUrl || null)
   const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null)
   const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null)
   const [selectedCommunity, setSelectedCommunity] = useState(communityTag)
@@ -69,18 +76,18 @@ export default function Home() {
     if (!isHangout) return
 
     setTitle(hangoutTitle)
-    setHashtags(['openpod', 'hangout', 'podcast'])
+    setHashtags(hangoutVideoUrl ? ['openpod', 'hangout', 'video'] : ['openpod', 'hangout', 'podcast'])
     setBeneficiaries([
       { account: 'snapie', weight: 300 },
-      { account: 'threespeakfund', weight: 700 },
+      { account: 'threespeakfund', weight: hangoutVideoUrl ? 800 : 700 },
     ])
-
+    setVideoEmbedUrl(hangoutVideoUrl || null)
     setMarkdown(
       hangoutAudioUrl
         ? buildHangoutBody(hangoutAudioUrl, hangoutThumbnail)
         : buildHangoutBodyAwaitingAudio(hangoutThumbnail)
     )
-  }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutThumbnail])
+  }, [isHangout, hangoutTitle, hangoutAudioUrl, hangoutVideoUrl, hangoutThumbnail])
 
   // Restore draft on mount (skip hangout posts — they're pre-filled from URL)
   useEffect(() => {

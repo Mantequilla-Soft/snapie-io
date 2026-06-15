@@ -236,6 +236,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [videoThumbnailUrl, setVideoThumbnailUrl] = useState<string | null>(null);
     const [isUpdatingThumbnail, setIsUpdatingThumbnail] = useState(false);
     const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
+    const [audioType, setAudioType] = useState<string | null>(null);
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
     const { username: user } = useCurrentUser();
@@ -486,14 +487,32 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
         input.click();
     };
 
+    const AUDIO_TYPE_TAGS = ['podcast', 'music', 'voice-note', 'audio'];
+
+    const AUDIO_TYPES = [
+        { id: 'podcast',    label: 'Podcast',    icon: '🎙️' },
+        { id: 'music',      label: 'Music',      icon: '🎵' },
+        { id: 'voice-note', label: 'Voice Note', icon: '🎤' },
+        { id: 'other',      label: 'Other',      icon: '🔊' },
+    ] as const;
+
     const handleAudioRecorded = (playUrl: string) => {
         setAudioEmbedUrl(playUrl);
+        setAudioType(null);
         onAudioEmbedUrlChange?.(playUrl);
     };
 
     const handleRemoveAudio = () => {
         setAudioEmbedUrl(null);
+        setAudioType(null);
         onAudioEmbedUrlChange?.(null);
+        setHashtags(hashtags.filter(t => !AUDIO_TYPE_TAGS.includes(t)));
+    };
+
+    const handleSelectAudioType = (type: string) => {
+        setAudioType(type);
+        const tag = type === 'other' ? 'audio' : type;
+        setHashtags([...hashtags.filter(t => !AUDIO_TYPE_TAGS.includes(t)), tag]);
     };
 
     // Handle image upload
@@ -1029,7 +1048,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 )}
                                 {audioEmbedUrl && (
                                     <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
-                                        <HStack justify="space-between">
+                                        <HStack justify="space-between" mb={2}>
                                             <HStack spacing={2}>
                                                 <FaMicrophone />
                                                 <Text fontSize="sm" fontWeight="medium">Audio Recording</Text>
@@ -1043,6 +1062,23 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                                 onClick={handleRemoveAudio}
                                             />
                                         </HStack>
+                                        <Box>
+                                            <Text fontSize="xs" color="gray.500" mb={1}>What type of audio is this?</Text>
+                                            <HStack spacing={2} flexWrap="wrap">
+                                                {AUDIO_TYPES.map(({ id, label, icon }) => (
+                                                    <Button
+                                                        key={id}
+                                                        size="xs"
+                                                        variant={audioType === id ? 'solid' : 'outline'}
+                                                        colorScheme={audioType === id ? 'blue' : 'gray'}
+                                                        onClick={() => handleSelectAudioType(id)}
+                                                        borderRadius="full"
+                                                    >
+                                                        {icon} {label}
+                                                    </Button>
+                                                ))}
+                                            </HStack>
+                                        </Box>
                                     </Box>
                                 )}
                             </VStack>

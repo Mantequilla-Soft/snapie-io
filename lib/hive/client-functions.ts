@@ -451,7 +451,7 @@ export async function uploadAudioTo3Speak(
       throw new Error('3Speak API key not configured');
     }
 
-    const format = audioBlob.type.includes('webm') ? 'webm' : 'mp3';
+    const format = audioBlob.type.includes('webm') ? 'webm' : 'mp4';
 
     const formData = new FormData();
     formData.append('audio', audioBlob, `recording.${format}`);

@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
-import { Center, Spinner, Text, VStack, Button, Box } from '@chakra-ui/react';
+import { Center, Spinner, Text, VStack, Button, Box, useToast } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
+import type { GameResultPayload, ChessGameResult, FastDrawGameResult } from '@snapie/hangouts-react';
 import { useAioha } from '@aioha/react-ui';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
@@ -11,6 +12,7 @@ import { useHangout } from '@/contexts/HangoutContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
+import GameResultSnapModal from './GameResultSnapModal';
 
 import { IMAGE_SERVER_API_KEY } from '@/lib/env';
 
@@ -58,11 +60,35 @@ interface RoomBodyProps {
   onClose: () => void;
 }
 
+function isWinnerOrDraw(result: GameResultPayload, user: string): boolean {
+  if (!result.players.includes(user)) return false;
+  if (result.gameId === 'chess') {
+    const chess = result.result as ChessGameResult;
+    return chess.winner === user || chess.winner === null;
+  }
+  if (result.gameId === 'fast-draw') {
+    return (result.result as FastDrawGameResult).winners.includes(user);
+  }
+  // word-guess: fall back to checking a winners array if present
+  const wg = result.result as any;
+  if (Array.isArray(wg?.winners)) return wg.winners.includes(user);
+  return true;
+}
+
+function audioExtension(blob: Blob): string {
+  if (blob.type.includes('webm')) return 'webm';
+  if (blob.type.includes('mp4')) return 'm4a';
+  if (blob.type.includes('ogg')) return 'ogg';
+  return 'webm';
+}
+
 function RoomBody({ roomName, onClose }: RoomBodyProps) {
   const router = useRouter();
+  const toast = useToast();
   const { username: user } = useCurrentUser();
   const { roomMeta } = useHangoutsRoom();
   const [roomData, setRoomData] = useState<any | null>(null);
+  const [gameResult, setGameResult] = useState<GameResultPayload | null>(null);
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -80,7 +106,7 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
     fetchRoom();
   }, [roomName]);
 
-  const buildComposeUrl = useCallback((audioUrl?: string) => {
+  const buildComposeUrl = useCallback((audioUrl?: string, videoUrl?: string) => {
     const params = new URLSearchParams({
       hangout: 'true',
       title: prettifyRoomName(roomName),
@@ -88,11 +114,13 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
     const thumbnail = roomData?.backgroundImage || roomMeta?.backgroundImage || FALLBACK_HANGOUT_THUMBNAIL;
     params.set('thumbnail', thumbnail);
     if (audioUrl) params.set('audioUrl', audioUrl);
+    if (videoUrl) params.set('videoUrl', videoUrl);
     return `/compose?${params.toString()}`;
   }, [roomName, roomData?.backgroundImage, roomMeta?.backgroundImage]);
 
   const handleAudioHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
-    const filename = file.filename.replace(/\.(mp4|m4a|mov)$/i, '.mp3');
+    const ext = audioExtension(file.blob);
+    const filename = file.filename.replace(/\.\w+$/, `.${ext}`);
     triggerBlobDownload(file.blob, filename);
 
     if (user) {
@@ -115,21 +143,83 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
 
   const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
     triggerBlobDownload(file.blob, file.filename);
-    router.push(buildComposeUrl());
+
+    const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
+    if (!user || !apiKey) {
+      router.push(buildComposeUrl());
+      onClose();
+      return;
+    }
+
+    const toastId = toast({
+      title: 'Uploading video…',
+      description: '0%',
+      status: 'loading',
+      duration: null,
+      isClosable: false,
+    });
+
+    try {
+      const { uploadVideoTo3Speak } = await import('@snapie/operations/video');
+      const videoFile = new File([file.blob], file.filename, { type: file.blob.type });
+      const result = await uploadVideoTo3Speak(videoFile, {
+        apiKey,
+        owner: user,
+        appName: 'snapie',
+        onProgress: (pct: number) => {
+          toast.update(toastId, { description: `${pct}%` });
+        },
+      });
+      toast.update(toastId, {
+        title: 'Upload complete!',
+        description: 'Opening composer…',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      router.push(buildComposeUrl(undefined, result.embedUrl));
+    } catch {
+      toast.update(toastId, {
+        title: 'Upload failed',
+        description: 'Your recording was saved locally.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      router.push(buildComposeUrl());
+    }
     onClose();
-  }, [router, buildComposeUrl, onClose]);
+  }, [router, user, buildComposeUrl, onClose, toast]);
+
+  const handleGameEnd = useCallback((result: GameResultPayload) => {
+    if (user && isWinnerOrDraw(result, user)) {
+      setGameResult(result);
+    }
+  }, [user]);
 
   return (
-    <HangoutsRoom
-      roomName={roomName}
-      onLeave={onClose}
-      onAudioHandoff={handleAudioHandoff}
-      onVideoHandoff={handleVideoHandoff}
-      video
-      embedded
-      guestFallback
-      getShareUrl={buildSnapieShareUrl}
-    />
+    <>
+      <HangoutsRoom
+        roomName={roomName}
+        onLeave={onClose}
+        onAudioHandoff={handleAudioHandoff}
+        onVideoHandoff={handleVideoHandoff}
+        onGameEnd={handleGameEnd}
+        video
+        embedded
+        guestFallback
+        getShareUrl={buildSnapieShareUrl}
+      />
+      {gameResult && user && (
+        <GameResultSnapModal
+          isOpen
+          onClose={() => setGameResult(null)}
+          result={gameResult}
+          currentUser={user}
+          roomName={roomName}
+        />
+      )}
+    </>
   );
 }
 

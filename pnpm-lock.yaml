@@ -60,11 +60,11 @@ importers:
         specifier: workspace:*
         version: link:packages/composer
       '@snapie/hangouts-core':
-        specifier: ^0.8.3
-        version: 0.8.3
+        specifier: ^0.9.1
+        version: 0.9.1
       '@snapie/hangouts-react':
-        specifier: ^0.12.5
-        version: 0.12.5(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: ^0.14.2
+        version: 0.14.2(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@snapie/operations':
         specifier: workspace:*
         version: link:packages/operations
@@ -1382,11 +1382,11 @@ packages:
     resolution: {integrity: sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw==}
     engines: {node: '>=10'}
 
-  '@snapie/hangouts-core@0.8.3':
-    resolution: {integrity: sha512-fbydFRVG2NwzMVkzecUAIhG3c5wsbdzzhsbI+iYKQcP6LT8VcLYoqv/bhKTstZ5ZPGShlqt8yVZWag3Kb9KqfA==}
+  '@snapie/hangouts-core@0.9.1':
+    resolution: {integrity: sha512-D4HTJYiOv0tbefpvYIieYFP1egQSs5S1TkQ+ksvLfFEF9G18vhYY73mOS+D+J3tuWRZub/lUzsIRW5PLf0LrDQ==}
 
-  '@snapie/hangouts-react@0.12.5':
-    resolution: {integrity: sha512-E5bRKJ2Fx9jGw0IZQZcv4KPyfR+fdPEiiByKzw3z9yM9drOptxAg8L3+x9kXBPDHgaT2y8Q8CtKSjWUY+8+HCQ==}
+  '@snapie/hangouts-react@0.14.2':
+    resolution: {integrity: sha512-XL0txfyn4Ho0KKeKQdHPQN2v1IVFMA2Lv+TSOUkl70SEYK5tp6c+Ap/bJsA+9382Pc+/QoQ17gdL6hQqVDfXng==}
     peerDependencies:
       '@livekit/components-react': ^2.0.0
       livekit-client: ^2.0.0
@@ -3431,6 +3431,9 @@ packages:
 
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
+
+  perfect-freehand@1.2.3:
+    resolution: {integrity: sha512-bHZSfqDHGNlPpgH2yxXgPHlQSPpEbo+qg7li0M78J9vNAi2yjwLeA4x79BEQhX44lEWpCLSFCeRZwpw0niiXPA==}
 
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
@@ -5730,14 +5733,15 @@ snapshots:
 
   '@sindresorhus/is@4.6.0': {}
 
-  '@snapie/hangouts-core@0.8.3': {}
+  '@snapie/hangouts-core@0.9.1': {}
 
-  '@snapie/hangouts-react@0.12.5(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@snapie/hangouts-react@0.14.2(@livekit/components-react@2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1))(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@livekit/components-react': 2.9.20(livekit-client@2.18.0(@types/dom-mediacapture-record@1.0.22))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(tslib@2.8.1)
-      '@snapie/hangouts-core': 0.8.3
+      '@snapie/hangouts-core': 0.9.1
       chess.js: 1.4.0
       livekit-client: 2.18.0(@types/dom-mediacapture-record@1.0.22)
+      perfect-freehand: 1.2.3
       react: 18.3.1
       react-chessboard: 5.10.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     transitivePeerDependencies:
@@ -8122,6 +8126,8 @@ snapshots:
   path-type@4.0.0: {}
 
   pathe@2.0.3: {}
+
+  perfect-freehand@1.2.3: {}
 
   picocolors@1.1.1: {}
 
