@@ -17,15 +17,21 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverTrigger,
   Switch,
   Spinner,
   Text,
   Tooltip,
   VStack,
   useBreakpointValue,
+  useDisclosure,
 } from '@chakra-ui/react';
 import { keyframes } from '@emotion/react';
-import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, KeyboardEvent, MouseEvent as ReactMouseEvent, SyntheticEvent } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signMessageWithAioha } from '@/lib/hive/aioha';
@@ -35,6 +41,8 @@ import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { transferEncryptedMemoWithAioha } from '@/lib/hive/aioha';
+import GiphySelector from '@/components/homepage/GiphySelector';
+import type { IGif } from '@giphy/js-types';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -61,11 +69,14 @@ const INITIAL_MESSAGE_LIMIT = 50;
 const DELTA_MESSAGE_LIMIT = 50;
 const MAX_ACTIVE_MESSAGES = 600;
 
+const IMAGE_HOSTS = new Set(['images.hive.blog', 'images.3speak.tv', 'files.peakd.com']);
+
 function isImageUrl(url: string): boolean {
   const trimmed = url.trim();
   try {
     const parsed = new URL(trimmed);
     if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    if (IMAGE_HOSTS.has(parsed.hostname.replace(/^www\./, ''))) return true;
     const pathname = parsed.pathname.toLowerCase();
     return ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif'].some(ext => pathname.endsWith(ext));
   } catch {
@@ -77,6 +88,17 @@ function extractImageUrls(content: string): string[] {
   if (!content) return [];
   const urls = content.match(/https?:\/\/[^\s)]+/gi) || [];
   return urls.filter(isImageUrl);
+}
+
+function stripInlineImageUrls(content: string, imageUrls: string[]): string {
+  if (!content || imageUrls.length === 0) return content;
+  let out = content;
+  for (const url of imageUrls) out = out.split(url).join('');
+  return out
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
 
 function normalizeMentionToken(value: string): string {
@@ -235,6 +257,48 @@ function ConversationAvatar({ conv }: { conv: Conversation }) {
   return <Avatar size="xs" name={username} src={getHiveAvatarUrl(username, 'small')} />;
 }
 
+function ForwardButton({
+  msg,
+  targets,
+  onForwardSelect,
+}: {
+  msg: Message;
+  targets: Conversation[];
+  onForwardSelect: (message: Message, target: Conversation) => void;
+}) {
+  if (!targets.length) return null;
+  return (
+    <Menu placement="top">
+      <MenuButton
+        as={Button}
+        size="xs"
+        variant="link"
+        color="whiteAlpha.500"
+        fontSize="10px"
+        fontWeight="500"
+        minH="unset"
+        _hover={{ color: 'whiteAlpha.700' }}
+      >
+        Forward
+      </MenuButton>
+      <MenuList bg="gray.800" borderColor="whiteAlpha.200" maxH="240px" overflowY="auto">
+        {targets.map(target => (
+          <MenuItem
+            key={target._id}
+            bg="gray.800"
+            color="white"
+            fontSize="sm"
+            _hover={{ bg: 'whiteAlpha.100' }}
+            onClick={() => onForwardSelect(msg, target)}
+          >
+            {target.type === 'channel' ? `#${target.name}` : target.name}
+          </MenuItem>
+        ))}
+      </MenuList>
+    </Menu>
+  );
+}
+
 function MessageBubble({
   msg,
   isOwn,
@@ -243,6 +307,9 @@ function MessageBubble({
   onMentionSelect,
   replyPreview,
   onEditSelect,
+  onDeleteSelect,
+  forwardTargets,
+  onForwardSelect,
   activeUsername,
   highlightMention,
 }: {
@@ -253,10 +320,15 @@ function MessageBubble({
   onMentionSelect?: (username: string) => void;
   replyPreview?: Message | null;
   onEditSelect?: (message: Message) => void;
+  onDeleteSelect?: (message: Message) => void;
+  forwardTargets?: Conversation[];
+  onForwardSelect?: (message: Message, target: Conversation) => void;
   activeUsername?: string | null;
   highlightMention?: boolean;
 }) {
-  const imageUrls = extractImageUrls(msg.content);
+  const isDeleted = msg.content === '[deleted]';
+  const imageUrls = isDeleted ? [] : extractImageUrls(msg.content);
+  const textContent = stripInlineImageUrls(msg.content, imageUrls);
   const canOpenDm = !isOwn && !!onOpenDm;
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!onReplySelect) return;
@@ -300,59 +372,88 @@ function MessageBubble({
               </Text>
             </Box>
           )}
-          <Box
-            onClick={() => onReplySelect?.(msg)}
-            cursor={onReplySelect ? 'pointer' : 'default'}
-            role={onReplySelect ? 'button' : undefined}
-            tabIndex={onReplySelect ? 0 : undefined}
-            onKeyDown={handleReplyKeyDown}
-          >
-            <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-              <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+          {isDeleted ? (
+            <Text fontSize="sm" color="whiteAlpha.600" fontStyle="italic">
+              Message deleted
             </Text>
-          </Box>
-          {imageUrls.length > 0 && (
-            <VStack align="stretch" spacing={2} mt={2}>
-              {imageUrls.map(url => (
+          ) : (
+            <>
+              {textContent && (
                 <Box
-                  key={`${msg._id}-${url}`}
-                  borderRadius="10px"
-                  overflow="hidden"
-                  border="1px solid"
-                  borderColor="whiteAlpha.200"
-                  bg="blackAlpha.200"
+                  onClick={() => onReplySelect?.(msg)}
+                  cursor={onReplySelect ? 'pointer' : 'default'}
+                  role={onReplySelect ? 'button' : undefined}
+                  tabIndex={onReplySelect ? 0 : undefined}
+                  onKeyDown={handleReplyKeyDown}
                 >
-                  <Image
-                    src={url}
-                    alt="Shared image"
-                    maxH="280px"
-                    w="100%"
-                    objectFit="cover"
-                    loading="lazy"
-                  />
+                  <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                    <MentionAwareText content={textContent} activeUsername={activeUsername} />
+                  </Text>
                 </Box>
-              ))}
-            </VStack>
+              )}
+              {imageUrls.length > 0 && (
+                <VStack align="stretch" spacing={2} mt={2}>
+                  {imageUrls.map(url => (
+                    <Box
+                      key={`${msg._id}-${url}`}
+                      borderRadius="10px"
+                      overflow="hidden"
+                      border="1px solid"
+                      borderColor="whiteAlpha.200"
+                      bg="blackAlpha.200"
+                    >
+                      <Image
+                        src={url}
+                        alt="Shared image"
+                        maxH="280px"
+                        w="100%"
+                        objectFit="cover"
+                        loading="lazy"
+                      />
+                    </Box>
+                  ))}
+                </VStack>
+              )}
+            </>
           )}
           <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
             {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
           </Text>
         </Box>
-        {onEditSelect && (
-          <HStack justify="flex-end" mt={1}>
-            <Button
-              size="xs"
-              variant="link"
-              color="whiteAlpha.500"
-              fontSize="10px"
-              fontWeight="500"
-              minH="unset"
-              onClick={() => onEditSelect(msg)}
-              onKeyDown={handleEditKeyDown}
-              _hover={{ color: 'whiteAlpha.700' }}
-            >
-              Edit
-            </Button>
+        {!isDeleted && (onEditSelect || onDeleteSelect || forwardTargets?.length) && (
+          <HStack justify="flex-end" mt={1} spacing={3}>
+            {onEditSelect && (
+              <Button
+                size="xs"
+                variant="link"
+                color="whiteAlpha.500"
+                fontSize="10px"
+                fontWeight="500"
+                minH="unset"
+                onClick={() => onEditSelect(msg)}
+                onKeyDown={handleEditKeyDown}
+                _hover={{ color: 'whiteAlpha.700' }}
+              >
+                Edit
+              </Button>
+            )}
+            {forwardTargets && onForwardSelect && (
+              <ForwardButton msg={msg} targets={forwardTargets} onForwardSelect={onForwardSelect} />
+            )}
+            {onDeleteSelect && (
+              <Button
+                size="xs"
+                variant="link"
+                color="red.300"
+                fontSize="10px"
+                fontWeight="500"
+                minH="unset"
+                onClick={() => onDeleteSelect(msg)}
+                _hover={{ color: 'red.200' }}
+              >
+                Delete
+              </Button>
+            )}
           </HStack>
         )}
       </Box>
@@ -410,44 +511,59 @@ function MessageBubble({
                 </Text>
               </Box>
             )}
-            <Box
-              onClick={() => onReplySelect?.(msg)}
-              cursor={onReplySelect ? 'pointer' : 'default'}
-              role={onReplySelect ? 'button' : undefined}
-              tabIndex={onReplySelect ? 0 : undefined}
-              onKeyDown={handleReplyKeyDown}
-            >
-              <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
-                <MentionAwareText content={msg.content} activeUsername={activeUsername} />
+            {isDeleted ? (
+              <Text fontSize="sm" color="whiteAlpha.600" fontStyle="italic">
+                Message deleted
               </Text>
-            </Box>
-            {imageUrls.length > 0 && (
-              <VStack align="stretch" spacing={2} mt={2}>
-                {imageUrls.map(url => (
+            ) : (
+              <>
+                {textContent && (
                   <Box
-                    key={`${msg._id}-${url}`}
-                    borderRadius="10px"
-                    overflow="hidden"
-                    border="1px solid"
-                    borderColor="whiteAlpha.200"
-                    bg="blackAlpha.200"
+                    onClick={() => onReplySelect?.(msg)}
+                    cursor={onReplySelect ? 'pointer' : 'default'}
+                    role={onReplySelect ? 'button' : undefined}
+                    tabIndex={onReplySelect ? 0 : undefined}
+                    onKeyDown={handleReplyKeyDown}
                   >
-                    <Image
-                      src={url}
-                      alt="Shared image"
-                      maxH="280px"
-                      w="100%"
-                      objectFit="cover"
-                      loading="lazy"
-                    />
+                    <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                      <MentionAwareText content={textContent} activeUsername={activeUsername} />
+                    </Text>
                   </Box>
-                ))}
-              </VStack>
+                )}
+                {imageUrls.length > 0 && (
+                  <VStack align="stretch" spacing={2} mt={2}>
+                    {imageUrls.map(url => (
+                      <Box
+                        key={`${msg._id}-${url}`}
+                        borderRadius="10px"
+                        overflow="hidden"
+                        border="1px solid"
+                        borderColor="whiteAlpha.200"
+                        bg="blackAlpha.200"
+                      >
+                        <Image
+                          src={url}
+                          alt="Shared image"
+                          maxH="280px"
+                          w="100%"
+                          objectFit="cover"
+                          loading="lazy"
+                        />
+                      </Box>
+                    ))}
+                  </VStack>
+                )}
+              </>
             )}
             <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
               {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
             </Text>
           </Box>
+          {!isDeleted && forwardTargets && onForwardSelect && (
+            <HStack justify="flex-start" mt={1}>
+              <ForwardButton msg={msg} targets={forwardTargets} onForwardSelect={onForwardSelect} />
+            </HStack>
+          )}
         </Box>
       </HStack>
     </Box>
@@ -549,6 +665,7 @@ export default function ChatPanel({
   const loadingOlderRef = useRef(false);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const gifPopover = useDisclosure();
   const composerInputRef = useRef<HTMLInputElement>(null);
   const typingPingAtRef = useRef(0);
   const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1287,6 +1404,44 @@ export default function ChatPanel({
     setSending(false);
   }
 
+  async function handleDeleteMessage(target: Message) {
+    if (!activeConversation) return;
+    if (!window.confirm('Delete this message? It will be replaced with "Message deleted".')) return;
+    try {
+      let edited: Message;
+      if (activeConversation.type === 'dm') {
+        edited = await chatService.editDmMessage(activeConversation._id, target._id, '[deleted]');
+      } else {
+        edited = await chatService.editMessage(activeConversation._id, target._id, '[deleted]');
+      }
+      setMessages(prev => prev.map(m => (m._id === edited._id ? edited : m)));
+      setMessageCache(prev => ({ ...prev, [edited._id]: edited }));
+      if (editingMessage?._id === target._id) {
+        setEditingMessage(null);
+        setDraft('');
+      }
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not delete the message.');
+    }
+  }
+
+  async function handleForwardMessage(source: Message, target: Conversation) {
+    const quoted = `> Forwarded from @${source.sender}\n${source.content.split('\n').map(l => `> ${l}`).join('\n')}`;
+    try {
+      setPanelError('');
+      if (target.type === 'dm') {
+        await chatService.sendDmMessageWithDelivery(target._id, quoted);
+      } else {
+        await chatService.sendMessage(target._id, quoted);
+      }
+      await reloadConversations();
+      setActiveConversationId(target._id);
+      if (isMobile) setMobileView('thread');
+    } catch (err: any) {
+      setPanelError(err?.message || 'Could not forward the message.');
+    }
+  }
+
   function applyMentionSuggestion(username: string) {
     const input = composerInputRef.current;
     const cursorPos = input?.selectionStart ?? draft.length;
@@ -1840,6 +1995,9 @@ export default function ChatPanel({
                             setReplyingTo(null);
                             setDraft(m.content);
                           } : undefined}
+                          onDeleteSelect={msg.sender === user ? handleDeleteMessage : undefined}
+                          forwardTargets={conversations.filter(c => c._id !== activeConversationId)}
+                          onForwardSelect={handleForwardMessage}
                           activeUsername={user}
                           highlightMention={messageMentionsUser(msg.content, user)}
                         />
@@ -2139,11 +2297,62 @@ export default function ChatPanel({
                     isDisabled={sending || !isAuthed}
                     flexShrink={0}
                   />
+                  <Popover
+                    isOpen={gifPopover.isOpen}
+                    onOpen={gifPopover.onOpen}
+                    onClose={gifPopover.onClose}
+                    placement="top-start"
+                  >
+                    <PopoverTrigger>
+                      <Button
+                        aria-label="GIF"
+                        size="sm"
+                        variant="ghost"
+                        borderRadius="full"
+                        fontSize="11px"
+                        fontWeight="700"
+                        px={2}
+                        isDisabled={sending || !isAuthed}
+                        flexShrink={0}
+                      >
+                        GIF
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent bg="gray.800" borderColor="whiteAlpha.200" w="320px">
+                      <PopoverArrow bg="gray.800" />
+                      <PopoverBody maxH="360px" overflowY="auto">
+                        <GiphySelector
+                          apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || 'qXGQXTPKyNJByTFZpW7Kb0tEFeB90faV'}
+                          onSelect={(gif: IGif, e: SyntheticEvent<HTMLElement>) => {
+                            e.preventDefault();
+                            const url = gif.images.original.url.split('?')[0];
+                            setDraft(prev => `${prev}${prev.trim() ? '\n' : ''}${url}`);
+                            gifPopover.onClose();
+                          }}
+                        />
+                      </PopoverBody>
+                    </PopoverContent>
+                  </Popover>
                   <Input
                     ref={composerInputRef}
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onPaste={e => {
+                      const items = e.clipboardData?.items;
+                      if (!items) return;
+                      const files: File[] = [];
+                      for (const item of items) {
+                        if (item.type?.startsWith('image/')) {
+                          const file = item.getAsFile();
+                          if (file) files.push(file);
+                        }
+                      }
+                      if (files.length) {
+                        e.preventDefault();
+                        files.forEach(file => void handleImageUpload(file));
+                      }
+                    }}
                     placeholder="Message…"
                     size={isTabletLayout ? 'md' : 'sm'}
                     borderRadius={isTabletLayout ? '14px' : 'full'}
