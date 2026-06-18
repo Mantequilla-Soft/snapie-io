@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Box, Button, HStack, Text, Textarea, VStack } from '@chakra-ui/react';
-import type { GameResultPayload, ChessGameResult, FastDrawGameResult } from '@snapie/hangouts-react';
-import { buildLichessAnalysisUrl, formatWordGuessRecap, type WordGuessGameResult } from '@snapie/hangouts-core';
+import type { GameResultPayload, ChessGameResult } from '@snapie/hangouts-react';
+import { buildLichessAnalysisUrl, formatWordGuessRecap, formatFastDrawRecap, type WordGuessGameResult, type FastDrawGameResult } from '@snapie/hangouts-core';
 import { snapieComposer } from '@/lib/utils/composerSdk';
 import { getLastSnapsContainer, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 
@@ -39,15 +39,8 @@ function buildSnapBody(result: GameResultPayload, currentUser: string, roomName:
   }
 
   if (result.gameId === 'fast-draw') {
-    const fd = result.result as FastDrawGameResult;
-    const ranked = Object.entries(fd.scores).sort((a, b) => b[1] - a[1]);
-    const topScore = ranked[0]?.[1];
-    const tied = topScore !== undefined ? ranked.filter(([, score]) => score === topScore) : [];
-    const podium = ranked.slice(0, 3)
-      .map(([name, score], i) => `${['🥇', '🥈', '🥉'][i]} ${name} (${score})`)
-      .join('  ');
-    const tieNote = tied.length > 1 ? `\n\n🤝 Tied for the win: ${tied.map(([name]) => name).join(', ')}` : '';
-    return `🎨 Fast Draw on Snapie Hangouts — ${fd.roundNumber} rounds played!\n${podium}${tieNote}\n\n${duration}\n\n${roomUrl}\n\n#fastdraw #hangouts #snapie`;
+    const recap = formatFastDrawRecap(result.result as FastDrawGameResult);
+    return `${recap}\n\n${duration}\n\n${roomUrl}\n\n#fastdraw #hangouts #snapie`;
   }
 
   // word-guess
