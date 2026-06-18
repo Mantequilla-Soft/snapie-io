@@ -58,6 +58,7 @@ function prettifyRoomName(name: string): string {
 interface RoomBodyProps {
   roomName: string;
   onClose: () => void;
+  onGameActiveChange: (active: boolean) => void;
 }
 
 function isWinnerOrDraw(result: GameResultPayload, user: string): boolean {
@@ -82,7 +83,7 @@ function audioExtension(blob: Blob): string {
   return 'webm';
 }
 
-function RoomBody({ roomName, onClose }: RoomBodyProps) {
+function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
   const router = useRouter();
   const toast = useToast();
   const { username: user } = useCurrentUser();
@@ -205,6 +206,7 @@ function RoomBody({ roomName, onClose }: RoomBodyProps) {
         onAudioHandoff={handleAudioHandoff}
         onVideoHandoff={handleVideoHandoff}
         onGameEnd={handleGameEnd}
+        onActiveGameChange={gameId => onGameActiveChange(gameId !== null)}
         video
         embedded
         guestFallback
@@ -229,12 +231,22 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
   const { username: user, isSnapie } = useCurrentUser();
   const aiohaAdapter = useHangoutsAiohaAdapter();
   const { sessionToken, sessionLoading, error, retryLogin } = useHangout();
+  const [gameActive, setGameActive] = useState(false);
 
   useEffect(() => {
     if (isOpen && user && !sessionToken && !sessionLoading) {
       retryLogin(user).catch(() => {});
     }
   }, [isOpen, user, sessionToken, sessionLoading, retryLogin]);
+
+  useEffect(() => {
+    if (!isOpen) setGameActive(false);
+  }, [isOpen]);
+
+  const handleCloseClick = useCallback(() => {
+    if (gameActive && !window.confirm('A game is in progress — leave anyway?')) return;
+    onClose();
+  }, [gameActive, onClose]);
 
   const needsTokenWait = !!user && !sessionToken && !error;
   const currentProvider = aioha?.getCurrentProvider?.() ?? null;
@@ -283,18 +295,21 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          onClick={onClose}
+          onClick={handleCloseClick}
           style={{
             position: 'absolute',
-            top: '12px',
-            right: '12px',
+            top: '18px',
+            right: '18px',
             zIndex: 10,
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
+            width: '36px',
+            height: '36px',
+            background: 'rgba(0, 0, 0, 0.45)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            borderRadius: '50%',
+            fontSize: '18px',
             cursor: 'pointer',
             color: 'var(--chakra-colors-text)',
-            padding: '4px',
+            padding: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -350,7 +365,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
                 imageServerApiKey={IMAGE_SERVER_API_KEY}
                 aioha={aiohaAdapter}
               >
-                <RoomBody roomName={roomName} onClose={onClose} />
+                <RoomBody roomName={roomName} onClose={onClose} onGameActiveChange={setGameActive} />
               </HangoutsProvider>
             </Box>
           )}
