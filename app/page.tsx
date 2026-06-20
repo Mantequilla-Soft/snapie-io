@@ -3,7 +3,7 @@
 import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
 import RightSidebar from '@/components/layout/RightSideBar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
@@ -94,8 +94,30 @@ export default function Home() {
 
   const { newCount, acknowledge } = useNewSnapsAvailable();
 
+  // Measure the sticky tab strip so the banner can dock just below it
+  // (rather than overlapping) once both are pinned to the top while scrolling.
+  const tabFilterRef = useRef<HTMLDivElement>(null);
+  const [tabFilterHeight, setTabFilterHeight] = useState(0);
+
+  useEffect(() => {
+    const el = tabFilterRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => setTabFilterHeight(el.offsetHeight));
+    observer.observe(el);
+    setTabFilterHeight(el.offsetHeight);
+    return () => observer.disconnect();
+  }, []);
+
   const handleViewNewSnaps = () => {
-    snaps.refresh?.();
+    // A snap posted without the Snapie community tag never shows up under the
+    // "For You" filter — jump to "Latest" so the new snap is guaranteed to be
+    // visible. If already on "Latest", filterType won't change so it won't
+    // auto-refetch — refresh explicitly in that case.
+    if (activeFilter === 'all') {
+      snaps.refresh?.();
+    } else {
+      handleFilterChange('all');
+    }
     acknowledge();
     document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -119,15 +141,17 @@ export default function Home() {
         id='scrollableDiv'>
         <OpenPodsLiveStrip />
         <UpcomingEventsStrip />
-        <FeedTabFilter
-          activeFilter={activeFilter}
-          onFilterChange={handleFilterChange}
-          communityName={communityName}
-          isLoggedIn={isLoggedIn}
-        />
+        <Box ref={tabFilterRef}>
+          <FeedTabFilter
+            activeFilter={activeFilter}
+            onFilterChange={handleFilterChange}
+            communityName={communityName}
+            isLoggedIn={isLoggedIn}
+          />
+        </Box>
         {!conversation ? (
           <>
-            <NewSnapsBanner count={newCount} onClick={handleViewNewSnaps} />
+            <NewSnapsBanner count={newCount} onClick={handleViewNewSnaps} top={tabFilterHeight} />
             <SnapList
               author={thread_author}
               permlink={thread_permlink}
