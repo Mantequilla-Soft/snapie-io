@@ -9,6 +9,8 @@ import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
+import NewSnapsBanner from '@/components/homepage/NewSnapsBanner';
+import { useNewSnapsAvailable } from '@/hooks/useNewSnapsAvailable';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
 import UpcomingEventsStrip from '@/components/hangouts/UpcomingEventsStrip';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -85,10 +87,18 @@ export default function Home() {
     setConversation(undefined); // Close conversation view when changing filter
   };
 
-  const snaps = useSnaps({ 
-    filterType: activeFilter, 
+  const snaps = useSnaps({
+    filterType: activeFilter,
     username: user || undefined
   });
+
+  const { newCount, acknowledge } = useNewSnapsAvailable();
+
+  const handleViewNewSnaps = () => {
+    snaps.refresh?.();
+    acknowledge();
+    document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 4 }} px={{ base: 0, md: 4 }}>
@@ -116,16 +126,17 @@ export default function Home() {
           isLoggedIn={isLoggedIn}
         />
         {!conversation ? (
-
-
-          <SnapList
-            author={thread_author}
-            permlink={thread_permlink}
-            setConversation={setConversation}
-            onOpen={onOpen}
-            setReply={setReply}
-            data={{...snaps, refresh: snaps.refresh}}
-          />
+          <>
+            <NewSnapsBanner count={newCount} onClick={handleViewNewSnaps} />
+            <SnapList
+              author={thread_author}
+              permlink={thread_permlink}
+              setConversation={setConversation}
+              onOpen={onOpen}
+              setReply={setReply}
+              data={{...snaps, refresh: snaps.refresh}}
+            />
+          </>
         ) : (
           <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
         )}
