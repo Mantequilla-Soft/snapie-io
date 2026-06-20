@@ -7,6 +7,7 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 import SidebarEventsWidget from '@/components/hangouts/SidebarEventsWidget';
+import WhoToFollowWidget from '@/components/layout/WhoToFollowWidget';
 import { Divider as ChakraDivider } from '@chakra-ui/react';
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
@@ -16,7 +17,15 @@ interface CommunityStats {
   sumPending: number;
 }
 
-export default function RightSideBar() {
+interface RightSideBarProps {
+  /** Authors the current user has already engaged with in the currently
+   *  loaded feed — passed through to WhoToFollowWidget to bias its
+   *  suggestion ranking. Computed from data already in memory elsewhere;
+   *  no extra fetches happen because of this prop. */
+  engagedAuthors?: Set<string>;
+}
+
+export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {}) {
   const { hiveUser } = useHiveUser();
   const [query] = useState('created');
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
@@ -166,6 +175,8 @@ export default function RightSideBar() {
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
         </>
       )}
+
+      <WhoToFollowWidget engagedAuthors={engagedAuthors} />
 
       <SidebarEventsWidget />
 

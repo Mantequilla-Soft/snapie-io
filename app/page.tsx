@@ -3,7 +3,7 @@
 import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
 import RightSidebar from '@/components/layout/RightSideBar';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
@@ -94,6 +94,20 @@ export default function Home() {
 
   const { newCount, acknowledge } = useNewSnapsAvailable();
 
+  // Authors of snaps the current user has already upvoted in the currently
+  // loaded feed — read from data already in memory for the feed itself, no
+  // extra fetches. Passed down to bias the "Who to follow" widget's ranking.
+  const engagedAuthors = useMemo(() => {
+    const set = new Set<string>();
+    if (!user) return set;
+    for (const comment of snaps.comments) {
+      if (comment.active_votes?.some(vote => vote.voter === user)) {
+        set.add(comment.author);
+      }
+    }
+    return set;
+  }, [snaps.comments, user]);
+
   // Measure the sticky tab strip so the banner can dock just below it
   // (rather than overlapping) once both are pinned to the top while scrolling.
   const tabFilterRef = useRef<HTMLDivElement>(null);
@@ -165,7 +179,7 @@ export default function Home() {
           <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
         )}
       </Box>
-      <RightSidebar />
+      <RightSidebar engagedAuthors={engagedAuthors} />
       {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
     </Flex>
   );
