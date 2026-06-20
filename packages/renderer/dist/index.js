@@ -346,25 +346,18 @@ function transformInstagramContent(content) {
   return content;
 }
 function transformIPFSContent(content, ipfsGateway, fallbackGateways) {
-  const ipfsGatewayPatterns = [ipfsGateway, ...fallbackGateways, "https://ipfs.io", "https://gateway.pinata.cloud"];
-  for (const gateway of ipfsGatewayPatterns) {
-    const regex = new RegExp(
-      `<iframe src="${gateway.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/ipfs/([a-zA-Z0-9-?=&]+)"(?:(?!<\\/iframe>).)*\\sallowfullscreen><\\/iframe>`,
-      "g"
-    );
-    content = content.replace(regex, (match, videoID) => {
-      const sources = [ipfsGateway, ...fallbackGateways].map((gw) => `<source src="${gw}/ipfs/${videoID}" type="video/mp4">`).join("\n                    ");
-      return `<video controls muted preload="none" loading="lazy"> 
+  const genericIframeRegex = /<iframe[^>]*\ssrc="https?:\/\/[^"]+\/ipfs\/([a-zA-Z0-9\-_.?=&]+)"[^>]*>[\s\S]*?<\/iframe>/gi;
+  return content.replace(genericIframeRegex, (_match, videoID) => {
+    const sources = [ipfsGateway, ...fallbackGateways].map((gw) => `<source src="${gw}/ipfs/${videoID}" type="video/mp4">`).join("\n                    ");
+    return `<video controls muted preload="none" loading="lazy">
                     ${sources}
                 </video>`;
-    });
-  }
-  return content;
+  });
 }
 function preventIPFSDownloads(content) {
   return content.replace(
     /<a href="(https?:\/\/[^"]*(?:ipfs|bafy|Qm)[^"]*)"([^>]*)>/gi,
-    `<a href="$1" target="_blank" rel="noopener noreferrer"$2 onclick="event.preventDefault(); window.open(this.href, '_blank'); return false;">`
+    '<a href="$1" target="_blank" rel="noopener noreferrer"$2>'
   );
 }
 function normalizeHivemojiOwner(owner) {
