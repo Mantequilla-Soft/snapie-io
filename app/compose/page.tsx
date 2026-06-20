@@ -372,6 +372,8 @@ export default function Home() {
           onVideoEmbedUrlChange={handleVideoEmbedUrlChange}
           onAudioEmbedUrlChange={setAudioEmbedUrl}
           onVideoThumbnailChange={setVideoThumbnailUrl}
+          initialVideoEmbedUrl={hangoutVideoUrl || null}
+          initialVideoThumbnail={hangoutVideoUrl ? hangoutThumbnail : null}
           selectedCommunity={selectedCommunity}
           onCommunityChange={setSelectedCommunity}
           communityOptions={communityOptions}

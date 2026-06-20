@@ -212,6 +212,10 @@ interface EditorProps {
   onVideoEmbedUrlChange?: (url: string | null) => void;
   onAudioEmbedUrlChange?: (url: string | null) => void;
   onVideoThumbnailChange?: (url: string | null) => void;
+  /** Pre-attached video (e.g. a hangout recording handed off before the
+   *  editor mounted) — the editor doesn't own the upload, just reflects it. */
+  initialVideoEmbedUrl?: string | null;
+  initialVideoThumbnail?: string | null;
   selectedCommunity?: string;
   onCommunityChange?: (id: string) => void;
   communityOptions?: { id: string; title: string }[];
@@ -219,7 +223,7 @@ interface EditorProps {
   onDiscardDraft?: () => void;
 }
 
-const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, selectedCommunity, onCommunityChange, communityOptions, draftRestored, onDiscardDraft }) => {
+const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, initialVideoEmbedUrl, initialVideoThumbnail, selectedCommunity, onCommunityChange, communityOptions, draftRestored, onDiscardDraft }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
@@ -240,6 +244,16 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
 
     const { username: user } = useCurrentUser();
+
+    // Reflect a video attached upstream (e.g. a hangout recording handed
+    // off before this component mounted) — there's no File object for it,
+    // just the already-uploaded embed URL.
+    useEffect(() => {
+        if (initialVideoEmbedUrl) {
+            setVideoEmbedUrl(initialVideoEmbedUrl);
+            setVideoThumbnailUrl(initialVideoThumbnail ?? null);
+        }
+    }, [initialVideoEmbedUrl, initialVideoThumbnail]);
 
     // Use SDK toolbar hook for markdown editing
     const toolbar = useEditorToolbar(textareaRef, markdown, setMarkdown);
@@ -991,14 +1005,16 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         </Box>
                         
                         {/* Media Attachments */}
-                        {(selectedVideo || audioEmbedUrl) && (
+                        {(selectedVideo || videoEmbedUrl || audioEmbedUrl) && (
                             <VStack spacing={2} align="stretch">
-                                {selectedVideo && (
+                                {(selectedVideo || videoEmbedUrl) && (
                                     <Box border="1px solid" borderColor="border" borderRadius="10px" bg="background" p={3}>
                                         <HStack justify="space-between" mb={2}>
                                             <HStack spacing={2}>
                                                 <FaVideo />
-                                                <Text fontSize="sm" fontWeight="medium" isTruncated maxW="220px">{selectedVideo.name}</Text>
+                                                <Text fontSize="sm" fontWeight="medium" isTruncated maxW="220px">
+                                                    {selectedVideo ? selectedVideo.name : 'Attached video'}
+                                                </Text>
                                             </HStack>
                                             <HStack spacing={2}>
                                                 {videoEmbedUrl && <Text fontSize="xs" color="green.400">✓ Ready</Text>}
@@ -1032,16 +1048,18 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                                         flexShrink={0}
                                                     />
                                                 )}
-                                                <Button
-                                                    size="xs"
-                                                    variant="outline"
-                                                    leftIcon={<FaImage />}
-                                                    onClick={handleThumbnailChange}
-                                                    isLoading={isUpdatingThumbnail}
-                                                    loadingText="Updating..."
-                                                >
-                                                    {videoThumbnailUrl ? 'Change thumbnail' : 'Set thumbnail'}
-                                                </Button>
+                                                {videoId && (
+                                                    <Button
+                                                        size="xs"
+                                                        variant="outline"
+                                                        leftIcon={<FaImage />}
+                                                        onClick={handleThumbnailChange}
+                                                        isLoading={isUpdatingThumbnail}
+                                                        loadingText="Updating..."
+                                                    >
+                                                        {videoThumbnailUrl ? 'Change thumbnail' : 'Set thumbnail'}
+                                                    </Button>
+                                                )}
                                             </HStack>
                                         )}
                                     </Box>

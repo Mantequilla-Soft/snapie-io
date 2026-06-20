@@ -167,6 +167,7 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
         apiKey,
         owner: user,
         appName: 'snapie',
+        isShort: false,
         onProgress: (pct: number) => {
           toast.update(toastId, { description: `${pct}%` });
         },

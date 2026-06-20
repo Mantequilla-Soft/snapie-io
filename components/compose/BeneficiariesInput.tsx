@@ -1,5 +1,5 @@
 'use client';
-import { FC, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -33,6 +33,15 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
   const [newAccount, setNewAccount] = useState('');
   const [newPercentage, setNewPercentage] = useState('');
   const toast = useToast();
+
+  // Auto-expand once a beneficiary beyond the default "snapie" shows up
+  // (hangout post, attached video, etc.) — otherwise the allocation only
+  // shows as a small "X% allocated" tag in the collapsed header and looks
+  // like nothing was set.
+  const hasExtraLockedAccount = lockedAccounts.some(a => a !== 'snapie');
+  useEffect(() => {
+    if (hasExtraLockedAccount) setIsExpanded(true);
+  }, [hasExtraLockedAccount]);
 
   // Calculate total percentage (excluding locked accounts)
   const totalPercentage = beneficiaries
