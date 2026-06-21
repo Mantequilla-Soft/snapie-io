@@ -23,6 +23,16 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
   const followingListRef = useRef<string[]>([]);
   const isFetchingRef = useRef(false);
   const isThrottledRef = useRef(false);
+  // Bumped only when a fetch actually acquires isFetchingRef and starts real
+  // work — NOT every time the "fetch posts" effect merely re-runs. The reset
+  // effect below always bumps fetchTrigger on every mount/filter-switch as
+  // part of its own setup, which means the fetch effect routinely gets a
+  // harmless extra instance that immediately bails because the lock is still
+  // held by the real attempt. Tracking generations (instead of a per-instance
+  // "was I superseded at all" flag) means that harmless bail can't falsely
+  // mark the real attempt as cancelled — only an instance that itself reaches
+  // past the lock and claims a newer generation can do that.
+  const fetchGenerationRef = useRef(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [comments, setComments] = useState<ExtendedComment[]>([]);
@@ -45,6 +55,14 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
   // Patron accounts — no community-tag restriction on this filter, since the
   // whole point of the tab is maximizing visibility for supporters.
   const { byAccount: patronAccounts, isLoading: patronsLoading } = usePatronStatus();
+  // Only the 'patrons' filter actually depends on this. For every other
+  // filter this must stay a constant — otherwise the patrons fetch resolving
+  // (independent network call, usually faster than the snap RPC round-trips)
+  // re-runs the "fetch posts" effect below for filters that don't care about
+  // it at all, cancelling a real in-flight snap fetch and discarding its
+  // results with nothing left to retrigger a retry. Confirmed this actually
+  // happens (the feed gets stuck on "Loading posts..." indefinitely).
+  const patronsGate = filterType === 'patrons' ? patronsLoading : false;
 
   // Load following list once when needed
   useEffect(() => {
@@ -211,25 +229,28 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     }
     // Same idea for the patrons filter — don't filter against an empty map
     // while the patron list is still loading.
-    if (filterType === 'patrons' && patronsLoading) {
+    if (filterType === 'patrons' && patronsGate) {
       return;
     }
 
-    // Each run of this effect (one per filter switch / page / patrons-ready
-    // transition) owns its own cancellation flag. If the filter or page
-    // changes again before this fetch resolves, React calls this effect's
-    // cleanup first, flipping `cancelled` to true — the in-flight scan stops
-    // dispatching new requests within one loop iteration, and its results
-    // are discarded instead of bleeding into whatever is now on screen.
-    let cancelled = false;
-
     const fetchPosts = async () => {
+      // Someone else already holds the lock — most commonly the harmless
+      // extra effect-instance created by the reset effect's own fetchTrigger
+      // bump on the very same mount. Bail without touching the generation
+      // counter so the in-flight attempt that does hold the lock is never
+      // mistaken for stale.
       if (isFetchingRef.current) return;
       isFetchingRef.current = true;
+      const myGeneration = ++fetchGenerationRef.current;
       setIsLoading(true);
+      const isStale = () => fetchGenerationRef.current !== myGeneration;
       try {
-        const { comments: newSnaps, hasMoreData } = await getMoreSnaps(() => cancelled);
-        if (cancelled) return;
+        const { comments: newSnaps, hasMoreData } = await getMoreSnaps(isStale);
+        // A newer generation only exists if some other instance got past the
+        // lock above — which only happens after a real filter/page switch
+        // force-clears isFetchingRef. That instance's results are the ones
+        // that should win, so discard ours.
+        if (isStale()) return;
 
         setHasMore(hasMoreData);
 
@@ -239,12 +260,9 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
           return [...prevPosts, ...uniqueSnaps];
         });
       } catch (err) {
-        if (!cancelled) console.error('Error fetching posts:', err);
+        if (!isStale()) console.error('Error fetching posts:', err);
       } finally {
-        // A cancelled fetch doesn't own the lock anymore (the reset effect
-        // already force-cleared it for the fetch that superseded this one) —
-        // only the fetch that's still current is allowed to release it.
-        if (!cancelled) {
+        if (!isStale()) {
           setIsLoading(false);
           setHasFetchedOnce(true);
           isFetchingRef.current = false;
@@ -253,9 +271,8 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
     };
 
     fetchPosts();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, fetchTrigger, patronsLoading]);
+  }, [currentPage, fetchTrigger, patronsGate]);
 
   // Load the next page with throttling — ref-based so the flag survives re-renders
   const loadNextPage = useCallback(() => {
