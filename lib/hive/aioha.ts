@@ -192,6 +192,32 @@ export async function transferWithAioha(
   }, `Approve transfer of ${amount.toFixed(3)} ${currency}`);
 }
 
+// Recurring transfers have no custodial-mode equivalent yet (unlike transfer/
+// delegate, the snapie-auth server has no /hive/recurrent-transfer route) —
+// Snapie-mode users get a clear "connect a wallet" error instead of silently
+// hitting an unsupported path. Callers should check `isSnapieMode()` up front
+// to disable the action rather than relying on this throw as the only guard.
+export async function recurrentTransferWithAioha(
+  to: string,
+  amount: number,
+  currency: string,
+  recurrence: number,
+  executions: number,
+  memo = '',
+) {
+  if (typeof window !== 'undefined') {
+    const { isSnapieMode } = await import('@/lib/hive/signing');
+    if (isSnapieMode()) {
+      throw Object.assign(new Error('Connect your Hive wallet to set up a recurring transfer'), { code: 'needs_client_signing' });
+    }
+  }
+  return withTxApproval(async () => {
+    const result = await getAioha().recurrentTransfer(to, amount, currency as any, recurrence, executions, memo);
+    if (!result.success) throw new Error(result.error || 'Recurrent transfer failed');
+    return { success: true as const, result: result.result };
+  }, `Approve recurring transfer of ${amount.toFixed(3)} ${currency}`);
+}
+
 export async function transferEncryptedMemoWithAioha(
   to: string,
   amount: number,

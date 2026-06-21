@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Avatar, Button, HStack, Link, Text } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
+import { usePatronStatus } from '@/hooks/usePatronStatus';
+import PatronBadge from '@/components/shared/PatronBadge';
 
 interface WhoToFollowRowProps {
   account: string;
@@ -22,6 +24,7 @@ interface WhoToFollowRowProps {
 export default function WhoToFollowRow({ account, onResolved }: WhoToFollowRowProps) {
   const { isFollowing, isBlacklisted, isProcessing, fetchRelationship, handleFollow } =
     useUserRelationship(account);
+  const { getTier } = usePatronStatus();
   // useUserRelationship's own isLoading starts false until its effect runs,
   // so relying on it alone would flash a "Follow" button (default state)
   // for already-followed accounts for one frame. Track our own resolved
@@ -52,6 +55,7 @@ export default function WhoToFollowRow({ account, onResolved }: WhoToFollowRowPr
         <HStack spacing={2} minW={0}>
           <Avatar size="sm" name={account} src={`https://images.hive.blog/u/${account}/avatar/small`} />
           <Text fontSize="sm" color="text" isTruncated>@{account}</Text>
+          <PatronBadge tier={getTier(account)} />
         </HStack>
       </Link>
       <Button

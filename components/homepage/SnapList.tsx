@@ -14,6 +14,10 @@ interface SnapListProps {
   setReply: (reply: ExtendedComment) => void;
   post?: boolean;
   data: InfiniteScrollData
+  /** Shown when a completed fetch comes back with zero comments. Lets callers
+   *  give a filter-specific message (e.g. the Patrons tab) instead of the
+   *  generic default. */
+  emptyMessage?: React.ReactNode
 }
 
 interface InfiniteScrollData {
@@ -21,6 +25,11 @@ interface InfiniteScrollData {
   loadNextPage: () => void; // Default can be an empty function in usage
   isLoading: boolean;
   hasMore: boolean; // Default can be `false` in usage
+  /** True once at least one fetch attempt has completed (success or error).
+   *  Distinct from `hasMore` — a capped fetch can legitimately come back
+   *  empty while `hasMore` is still true (more unscanned history exists),
+   *  so the empty state can't rely on `!hasMore` alone anymore. */
+  hasFetchedOnce?: boolean;
   refresh?: () => void; // Function to refresh the feed
 }
 
@@ -32,9 +41,13 @@ export default function SnapList(
     onOpen,
     setReply,
     post,
-    data
+    data,
+    emptyMessage = 'No snaps yet.',
 }: SnapListProps) {
-  const { comments, loadNextPage, isLoading, hasMore, refresh } = data
+  const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh } = data
+  // Older data sources (useComments, useProfileSnaps) don't track this yet —
+  // fall back to the previous "!hasMore means done" inference for them.
+  const fetchComplete = hasFetchedOnce ?? !hasMore;
 
   const handleNewComment = () => {
     // Simple feed refresh after posting with delay for blockchain to catch up
@@ -58,10 +71,10 @@ export default function SnapList(
     );
   }
 
-  if (!isLoading && !hasMore && comments.length === 0) {
+  if (!isLoading && fetchComplete && comments.length === 0) {
     return (
       <Box textAlign="center" mt={8} color="gray.500">
-        <Text fontSize="lg">No snaps yet.</Text>
+        <Text fontSize="lg">{emptyMessage}</Text>
       </Box>
     );
   }

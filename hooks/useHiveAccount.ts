@@ -16,6 +16,10 @@ export default function useHiveAccount(username: string) {
     const [refreshKey, setRefreshKey] = useState(0)
 
     useEffect(() => {
+        if (!username) {
+            setHiveAccount(null)
+            return
+        }
         const handleGetHiveAccount = async () => {
             setIsLoading(true)
             setError(null)

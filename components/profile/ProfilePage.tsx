@@ -25,6 +25,9 @@ import { ExtendedComment } from '@/hooks/useComments';
 import CurationQualityCard from './CurationQualityCard';
 import { useUserPresence } from '@/hooks/useUserPresence';
 import { useHangout } from '@/contexts/HangoutContext';
+import { usePatronStatus } from '@/hooks/usePatronStatus';
+import PatronBadge from '@/components/shared/PatronBadge';
+import WitnessBadge from '@/components/shared/WitnessBadge';
 
 interface ProfilePageProps {
   username: string;
@@ -121,6 +124,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   const isOwner = !!user && user === username;
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const presence = useUserPresence(username);
+  const { getTier } = usePatronStatus();
   const { openRoom } = useHangout();
 
   const profileMeta = profileInfo?.metadata?.profile || {};
@@ -201,6 +205,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
               </Box>
+              <PatronBadge tier={getTier(username)} />
+              <WitnessBadge voted={hiveAccount?.witness_votes?.includes('snapie')} />
               {presence?.online && (
                 <Box
                   as="button"

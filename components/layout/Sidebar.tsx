@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart } from 'react-icons/fi';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
@@ -308,6 +308,24 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Tooltip>
                         </>
                     )}
+
+                    <Tooltip label="Support Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                as={NextLink}
+                                href="/support"
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiHeart} boxSize={4} />}
+                                px={3}
+                                borderRadius="10px"
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                            >
+                                <Text display={textDisplay}>Support Snapie</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
 
                     <Tooltip label="About Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">

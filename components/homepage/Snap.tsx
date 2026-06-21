@@ -15,6 +15,8 @@ import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
+import PatronBadge from '@/components/shared/PatronBadge';
+import { usePatronStatus } from '@/hooks/usePatronStatus';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -32,6 +34,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [isEditing, setIsEditing] = useState(false);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
     const { calculateDelta } = useVoteCalculator(user ?? null);
+    const { getTier } = usePatronStatus();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
     const toast = useToast();
     
@@ -218,6 +221,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 >
                                     @{comment.author}
                                 </Link>
+                                <PatronBadge tier={getTier(comment.author)} />
                                 <Text fontSize="sm" color="whiteAlpha.400" flexShrink={0}>·</Text>
                                 <Text fontSize="sm" color="whiteAlpha.500" flexShrink={0}>{commentDate}</Text>
                             </HStack>

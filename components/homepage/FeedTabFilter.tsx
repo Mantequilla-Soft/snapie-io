@@ -22,6 +22,7 @@ export default function FeedTabFilter({
     { label: 'For You', value: 'community' },
     { label: 'Latest', value: 'all' },
     { label: 'Following', value: 'following', requiresAuth: true },
+    { label: 'Patrons', value: 'patrons' },
   ];
 
   return (

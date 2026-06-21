@@ -420,20 +420,17 @@ export async function changeFollow(follower: string, following: string) {
 }
 
 export async function witnessVoteWithKeychain(username: string, witness: string) {
-  try {
-    const op = [
-      'account_witness_vote',
-      {
-        account: username,
-        witness: witness || 'skatehive',
-        approve: true,
-      },
-    ];
-    const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve witness vote for @${witness}`);
-    console.log({ witnessvote: result });
-  } catch (error) {
-    console.log({ error });
-  }
+  const op = [
+    'account_witness_vote',
+    {
+      account: username,
+      witness: witness || 'skatehive',
+      approve: true,
+    },
+  ];
+  const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve witness vote for @${witness}`);
+  console.log({ witnessvote: result });
+  return result;
 }
 
 /**

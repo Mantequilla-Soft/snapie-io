@@ -173,6 +173,7 @@ export default function Home() {
               onOpen={onOpen}
               setReply={setReply}
               data={{...snaps, refresh: snaps.refresh}}
+              emptyMessage={activeFilter === 'patrons' ? 'No patrons yet — be the first to support Snapie!' : undefined}
             />
           </>
         ) : (

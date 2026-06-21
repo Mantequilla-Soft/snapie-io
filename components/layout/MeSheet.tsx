@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart,
 } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -44,7 +44,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
             <Box w="36px" h="4px" borderRadius="full" bg="whiteAlpha.300" />
           </Flex>
 
-          {isLoggedIn && user ? (
+          {isLoggedIn && user && (
             <>
               {/* Identity card */}
               <Flex align="center" gap={3} px={5} pt={2} pb={4}>
@@ -66,25 +66,40 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
               </Flex>
 
               <Divider borderColor="rgba(28, 161, 241, 0.08)" />
+            </>
+          )}
 
-              {/* Navigation links */}
-              <VStack spacing={0} py={2}>
-                <SheetLink href="/explore"              icon={FiCompass}      label="Explore"        onClose={onClose} />
-                <SheetLink href={`/@${user}`}           icon={FiUser}         label="My Profile"     onClose={onClose} />
-                <SheetLink href={`/@${user}/wallet`}    icon={FiCreditCard}   label="Wallet"         onClose={onClose} />
-                <SheetLink href={`/@${user}/notifications`} icon={FiBell}     label="Notifications"  badge={unreadCount} onClose={onClose} />
-                <SheetLink href="/hangouts"              icon={FiRadio}        label="OpenPods"       badge={openPodsCount} onClose={onClose} />
-                <SheetButton
-                  icon={FiMessageSquare}
-                  label="Chat"
-                  badge={chatUnreadCount}
-                  onClick={() => { onClose(); onToggleChat(); }}
-                />
-                <SheetLink href="https://about.snapie.io" icon={FiInfo} label="About Snapie" external onClose={onClose} />
-              </VStack>
+          {/* Navigation links — the account-agnostic ones (Explore, OpenPods,
+              Support, About) are visible whether or not you're logged in,
+              mirroring the desktop Sidebar's "these aren't behind a login"
+              placement. Without this, a logged-out mobile visitor had no way
+              to reach any secondary page at all — only a Log in button. */}
+          <VStack spacing={0} py={2}>
+            <SheetLink href="/explore" icon={FiCompass} label="Explore" onClose={onClose} />
+            {isLoggedIn && user && (
+              <>
+                <SheetLink href={`/@${user}`} icon={FiUser} label="My Profile" onClose={onClose} />
+                <SheetLink href={`/@${user}/wallet`} icon={FiCreditCard} label="Wallet" onClose={onClose} />
+                <SheetLink href={`/@${user}/notifications`} icon={FiBell} label="Notifications" badge={unreadCount} onClose={onClose} />
+              </>
+            )}
+            <SheetLink href="/hangouts" icon={FiRadio} label="OpenPods" badge={openPodsCount} onClose={onClose} />
+            {isLoggedIn && user && (
+              <SheetButton
+                icon={FiMessageSquare}
+                label="Chat"
+                badge={chatUnreadCount}
+                onClick={() => { onClose(); onToggleChat(); }}
+              />
+            )}
+            <SheetLink href="/support" icon={FiHeart} label="Support Snapie" onClose={onClose} />
+            <SheetLink href="https://about.snapie.io" icon={FiInfo} label="About Snapie" external onClose={onClose} />
+          </VStack>
 
-              <Divider borderColor="rgba(28, 161, 241, 0.08)" />
+          <Divider borderColor="rgba(28, 161, 241, 0.08)" />
 
+          {isLoggedIn && user ? (
+            <>
               {/* Hive activity indicator */}
               <Box px={2} pb={1}>
                 <HiveActivityWidget />

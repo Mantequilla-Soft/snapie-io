@@ -1,6 +1,6 @@
 'use client';
 import { Box, Flex, Text, Image, Icon, IconButton, Button } from '@chakra-ui/react';
-import { FiBell } from 'react-icons/fi';
+import { FiBell, FiMenu } from 'react-icons/fi';
 import { FaMicrophone } from 'react-icons/fa';
 import { keyframes } from '@emotion/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -116,15 +116,29 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
             </Box>
           </>
         ) : (
-          <Button
-            size="sm"
-            colorScheme="blue"
-            borderRadius="full"
-            px={4}
-            onClick={openLoginModal}
-          >
-            Log in
-          </Button>
+          <>
+            {/* Without this, logged-out visitors had no way to open MeSheet
+                at all — Explore/Support/About were unreachable on mobile. */}
+            <IconButton
+              aria-label="Menu"
+              icon={<Icon as={FiMenu} boxSize={5} />}
+              variant="ghost"
+              color="whiteAlpha.700"
+              size="sm"
+              borderRadius="full"
+              _hover={{ bg: 'whiteAlpha.100' }}
+              onClick={onMePress}
+            />
+            <Button
+              size="sm"
+              colorScheme="blue"
+              borderRadius="full"
+              px={4}
+              onClick={openLoginModal}
+            >
+              Log in
+            </Button>
+          </>
         )}
       </Flex>
     </Box>
