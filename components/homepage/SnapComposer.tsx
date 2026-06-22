@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Box, Textarea, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
@@ -39,10 +39,11 @@ interface SnapComposerProps {
     onClose: () => void;
 }
 
-export default function SnapComposer ({ pa, pp, onNewComment, post = false, onClose }: SnapComposerProps) {
+const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function SnapComposer({ pa, pp, onNewComment, post = false, onClose }, forwardedRef) {
     const { username: user } = useCurrentUser();
 
     const postBodyRef = useRef<HTMLTextAreaElement>(null);
+    useImperativeHandle(forwardedRef, () => postBodyRef.current as HTMLTextAreaElement);
     const [uploadingImages, setUploadingImages] = useState<UploadingImage[]>([]);
     const [selectedGif, setSelectedGif] = useState<IGif | null>(null);
     const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
@@ -490,4 +491,8 @@ export default function SnapComposer ({ pa, pp, onNewComment, post = false, onCl
             )}
         </Box>
     );
-}
+});
+
+SnapComposer.displayName = 'SnapComposer';
+
+export default SnapComposer;

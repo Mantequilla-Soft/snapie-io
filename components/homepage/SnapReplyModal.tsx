@@ -1,5 +1,5 @@
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalOverlay, HStack, Avatar, Link, IconButton, Box, Text } from '@chakra-ui/react';
-import React from 'react';
+import React, { useRef } from 'react';
 import SnapComposer from './SnapComposer';
 import { Comment } from '@hiveio/dhive';
 import { CloseIcon } from '@chakra-ui/icons';
@@ -15,6 +15,7 @@ interface SnapReplyModalProps {
 }
 
 export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }: SnapReplyModalProps) {
+    const composerRef = useRef<HTMLTextAreaElement>(null);
 
     if (!comment) {
         return <div></div>;
@@ -23,7 +24,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
     const commentDate = getPostDate(comment.created)
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+        <Modal isOpen={isOpen} onClose={onClose} size="2xl" initialFocusRef={composerRef}>
             <ModalOverlay bg="rgba(0, 0, 0, 0.6)" backdropFilter="blur(10px)" />
             <ModalContent bg="background" color="text" position="relative">
                 <IconButton
@@ -63,7 +64,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                             '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
                         }}
                     />
-                    <SnapComposer pa={comment.author} pp={comment.permlink} onNewComment={onNewReply} post={true} onClose={onClose} />
+                    <SnapComposer ref={composerRef} pa={comment.author} pp={comment.permlink} onNewComment={onNewReply} post={true} onClose={onClose} />
                 </ModalBody>
             </ModalContent>
         </Modal>
