@@ -102,7 +102,9 @@ export default function EditProfileModal({
 
   async function handleSave() {
     setIsSaving(true);
-    const res = await updateProfile(username, name, about, location, coverImage, profileImage, website);
+    const trimmedWebsite = website.trim();
+    const hasWebsiteDomain = trimmedWebsite.replace(/^https?:\/\//i, '').trim().length > 0;
+    const res = await updateProfile(username, name, about, location, coverImage, profileImage, hasWebsiteDomain ? trimmedWebsite : '');
     setIsSaving(false);
     if (res.success) {
       toast({ title: 'Profile updated', status: 'success', duration: 3000 });

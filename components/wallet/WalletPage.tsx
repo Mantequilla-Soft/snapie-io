@@ -440,7 +440,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             <Text fontSize="xs" color="text" mt={1} opacity={0.7} noOfLines={1}>
               {following} following · {followers} followers {location && `· ${location}`}
             </Text>
-            {profileMetadata.website && (
+            {profileMetadata.website.trim().replace(/^https?:\/\//i, '').trim() && (
               <Flex alignItems="center" mt={1} gap={1}>
                 <Icon as={FaGlobe} w={3} h={3} color="primary" onClick={() => window.open(profileMetadata.website, '_blank')} style={{ cursor: 'pointer' }} />
                 <Text fontSize="xs" color="primary" noOfLines={1}>{profileMetadata.website}</Text>

@@ -135,7 +135,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   const location = profileMeta.location || '';
   const about = profileMeta.about || '';
   const coverImage = profileMeta.cover_image || '';
-  const website = profileMeta.website || '';
+  const website = profileMeta.website?.trim() || '';
+  const hasWebsite = website.replace(/^https?:\/\//i, '').trim().length > 0;
 
   const handleSnapReply = () => {
     setTimeout(() => {
@@ -202,7 +203,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               <Heading as="h2" size="lg" color="primary" mr={2}>
                 {profileMeta.name || username}
               </Heading>
-              <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" fontWeight="bold" fontSize="xs">
+              <Box display="flex" alignItems="center" justifyContent="center" width="15px" height="15px" bg="gray.200" color="gray.700" fontWeight="bold" fontSize="xs">
                 {profileInfo?.reputation ? Math.round(profileInfo.reputation) : 0}
               </Box>
               <PatronBadge tier={getTier(username)} />
@@ -257,7 +258,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               {about && <><br />{about}</>}
             </Text>
 
-            {website && (
+            {hasWebsite && (
               <Flex alignItems="center">
                 <Icon as={FaGlobe} w={2} h={2} onClick={() => window.open(website, '_blank')} style={{ cursor: 'pointer' }} />
                 <Text ml={2} fontSize="xs" color="primary">{website}</Text>

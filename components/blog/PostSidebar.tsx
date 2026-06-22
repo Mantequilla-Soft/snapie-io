@@ -102,6 +102,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
   }
 
   const meta = profile?.metadata?.profile || {};
+  const websiteDomain = (meta.website || '').trim().replace(/^https?:\/\//i, '').trim();
   const stats = profile?.stats || {};
   const memberYear = profile?.created ? new Date(profile.created).getFullYear() : null;
 
@@ -169,7 +170,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
           )}
         </HStack>
 
-        {(meta.location || meta.website || memberYear) && (
+        {(meta.location || websiteDomain || memberYear) && (
           <VStack align="flex-start" spacing={1} mb={3}>
             {meta.location && (
               <Flex align="center" gap={1}>
@@ -177,7 +178,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
                 <Text fontSize="xs" color="gray.500">{meta.location}</Text>
               </Flex>
             )}
-            {meta.website && (
+            {websiteDomain && (
               <Flex align="center" gap={1}>
                 <Icon as={FaGlobe} w={3} h={3} color="gray.500" />
                 <Text
@@ -189,7 +190,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
                   isTruncated
                   maxW="200px"
                 >
-                  {meta.website.replace(/^https?:\/\//, '')}
+                  {websiteDomain}
                 </Text>
               </Flex>
             )}
