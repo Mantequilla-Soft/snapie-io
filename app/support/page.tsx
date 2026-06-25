@@ -13,6 +13,7 @@ import useHiveAccount from '@/hooks/useHiveAccount'
 import PatronBadge from '@/components/shared/PatronBadge'
 import WitnessBadge from '@/components/shared/WitnessBadge'
 import type { PatronTier } from '@/hooks/usePatronStatus'
+import SupportersSection from '@/components/support/SupportersSection'
 
 // Must match PATRON_MEMO_TAG in the activitytracker sidecar (see PATRONS_SPEC.md)
 // — this is the substring the poller looks for to recognize a patron transfer.
@@ -293,6 +294,8 @@ export default function SupportPage() {
           Patron status is recognized within a few minutes of your transfer or delegation
           landing on-chain.
         </Text>
+
+        <SupportersSection />
       </VStack>
     </Box>
   )
