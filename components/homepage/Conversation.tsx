@@ -4,9 +4,12 @@ import { useComments } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
 import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isSnapContainer } from '@/lib/utils/snapUtils';
+import { getPayoutValue } from '@/lib/hive/client-functions';
+
+type SortOrder = 'new' | 'top';
 
 interface ConversationProps {
     comment: Comment;
@@ -23,11 +26,20 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
     // A "top snap" replies directly to the snap container; hide its parent link so users
     // can't open the container and load hundreds of snaps at once.
     const isTopLevel = !comment.parent_author || isSnapContainer(comment.parent_author, comment.parent_permlink);
+    const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) updateComments();
     }, [refreshTrigger]);
-    const replies = comments
+
+    const replies = useMemo(() => {
+        return [...comments].sort((a, b) => {
+            if (sortOrder === 'top') {
+                return parseFloat(getPayoutValue(b)) - parseFloat(getPayoutValue(a));
+            }
+            return new Date(b.created).getTime() - new Date(a.created).getTime();
+        });
+    }, [comments, sortOrder]);
 
     function handleReplyModal() {
         setReply(comment);
@@ -89,6 +101,26 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
                 </Button>
             </HStack>
             <Divider my={4} />
+            {replies.length > 1 && (
+                <HStack spacing={2} mb={3}>
+                    {(['new', 'top'] as const).map(opt => (
+                        <Button
+                            key={opt}
+                            size="sm"
+                            variant="ghost"
+                            borderRadius="full"
+                            bg={sortOrder === opt ? 'muted' : 'transparent'}
+                            color={sortOrder === opt ? 'text' : 'gray.500'}
+                            borderWidth="1px"
+                            borderColor={sortOrder === opt ? 'primary' : 'border'}
+                            _hover={{ bg: 'muted', color: 'text' }}
+                            onClick={() => setSortOrder(opt)}
+                        >
+                            {opt === 'new' ? '✨ New' : '💰 Top'}
+                        </Button>
+                    ))}
+                </HStack>
+            )}
             <VStack spacing={2} align="stretch">
                 {replies.map((reply: any) => (
                     <Snap key={reply.permlink} comment={reply} onOpen={onOpen} setReply={setReply} />

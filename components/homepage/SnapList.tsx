@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
-import { Box, Spinner, VStack, Text } from '@chakra-ui/react';
+import { Box, Button, HStack, Spinner, VStack, Text } from '@chakra-ui/react';
 import Snap from './Snap';
 import { ExtendedComment, useComments } from '@/hooks/useComments';
 import { useSnaps } from '@/hooks/useSnaps';
 import SnapComposer from './SnapComposer';
+import { getPayoutValue } from '@/lib/hive/client-functions';
+
+type SortOrder = 'new' | 'top';
 
 interface SnapListProps {
   author: string
@@ -48,6 +51,7 @@ export default function SnapList(
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
   // fall back to the previous "!hasMore means done" inference for them.
   const fetchComplete = hasFetchedOnce ?? !hasMore;
+  const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
   const handleNewComment = () => {
     // Simple feed refresh after posting with delay for blockchain to catch up
@@ -59,6 +63,9 @@ export default function SnapList(
   };
 
   comments.sort((a: ExtendedComment, b: ExtendedComment) => {
+    if (sortOrder === 'top') {
+      return parseFloat(getPayoutValue(b)) - parseFloat(getPayoutValue(a));
+    }
     return new Date(b.created).getTime() - new Date(a.created).getTime();
   });
 
@@ -93,6 +100,26 @@ export default function SnapList(
         >
           <VStack spacing={0} align="stretch" mx="auto" pt={0} px={{ base: 0, md: 2 }}>
           {!post && <Box id="snap-composer"><SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} onClose={() => null} /></Box>}
+          {post && comments.length > 1 && (
+              <HStack spacing={2} px={2} pt={3} pb={1}>
+                  {(['new', 'top'] as const).map(opt => (
+                      <Button
+                          key={opt}
+                          size="sm"
+                          variant="ghost"
+                          borderRadius="full"
+                          bg={sortOrder === opt ? 'muted' : 'transparent'}
+                          color={sortOrder === opt ? 'text' : 'gray.500'}
+                          borderWidth="1px"
+                          borderColor={sortOrder === opt ? 'primary' : 'border'}
+                          _hover={{ bg: 'muted', color: 'text' }}
+                          onClick={() => setSortOrder(opt)}
+                      >
+                          {opt === 'new' ? '✨ New' : '💰 Top'}
+                      </Button>
+                  ))}
+              </HStack>
+          )}
           {comments.map((comment: ExtendedComment) => (
             <Snap
               key={comment.permlink}
