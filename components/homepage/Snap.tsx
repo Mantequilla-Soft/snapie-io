@@ -300,7 +300,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
                                 onVoteRollback={() => setOptimisticDeltaHBD(0)}
                             />
-                            <HStack spacing={{ base: 2, md: 4 }}>
+                            <HStack spacing={{ base: 4, md: 6 }}>
                                 <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>
                                     <FaRegComment />
                                 </HStack>

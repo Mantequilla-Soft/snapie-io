@@ -85,6 +85,7 @@ export default function Home() {
   const handleFilterChange = (filter: SnapFilterType) => {
     setActiveFilter(filter);
     setConversation(undefined); // Close conversation view when changing filter
+    if (filter === 'all') acknowledge();
   };
 
   const snaps = useSnaps({

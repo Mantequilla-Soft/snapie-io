@@ -1,7 +1,7 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image, Select } from '@chakra-ui/react';
+import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
@@ -707,22 +707,29 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 <Text fontSize="xs" color="gray.500" whiteSpace="nowrap" flexShrink={0}>
                                     Post to
                                 </Text>
-                                <Select
-                                    value={selectedCommunity}
-                                    onChange={(e) => onCommunityChange?.(e.target.value)}
-                                    size="sm"
-                                    border="none"
-                                    bg="transparent"
-                                    color="text"
-                                    flex={1}
-                                    minW={0}
-                                    _focus={{ boxShadow: 'none' }}
-                                    sx={{ paddingInlineStart: '4px' }}
-                                >
-                                    {communityOptions.map((c) => (
-                                        <option key={c.id} value={c.id}>{c.title}</option>
-                                    ))}
-                                </Select>
+                                <Menu>
+                                    <MenuButton
+                                        as={Button}
+                                        rightIcon={<FaChevronDown size={10} />}
+                                        size="sm"
+                                        variant="ghost"
+                                        color="text"
+                                        fontWeight="normal"
+                                        flex={1}
+                                        textAlign="left"
+                                        px={1}
+                                        _focus={{ boxShadow: 'none' }}
+                                    >
+                                        {communityOptions.find(c => c.id === selectedCommunity)?.title ?? communityOptions[0]?.title}
+                                    </MenuButton>
+                                    <MenuList>
+                                        {communityOptions.map((c) => (
+                                            <MenuItem key={c.id} onClick={() => onCommunityChange?.(c.id)}>
+                                                {c.title}
+                                            </MenuItem>
+                                        ))}
+                                    </MenuList>
+                                </Menu>
                             </Flex>
                         )}
 
