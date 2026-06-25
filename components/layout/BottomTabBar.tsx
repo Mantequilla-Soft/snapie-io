@@ -13,6 +13,13 @@ export default function BottomTabBar() {
   const hasUnclaimed = useUnclaimedRewards();
   const walletHref = username ? `/@${username}/wallet` : '/wallet';
 
+  function handleHomeClick(e: React.MouseEvent) {
+    if (pathname === '/') {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent('snapie:go-home'));
+    }
+  }
+
   function handleComposeTap() {
     if (pathname.startsWith('/blog')) {
       router.push('/compose');
@@ -51,7 +58,7 @@ export default function BottomTabBar() {
     >
       <Flex w="full" h="full" align="center">
         {/* Home */}
-        <Tab href="/" icon={FiHome} label="Home" active={isActive('/')} />
+        <Tab href="/" icon={FiHome} label="Home" active={isActive('/')} onClick={handleHomeClick} />
 
         {/* Blog */}
         <Tab href="/blog" icon={FiBook} label="Blog" active={isActive('/blog')} />
@@ -97,13 +104,15 @@ interface TabProps {
   label: string;
   active: boolean;
   dot?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-function Tab({ href, icon, label, active, dot }: TabProps) {
+function Tab({ href, icon, label, active, dot, onClick }: TabProps) {
   return (
     <Flex
       as={NextLink}
       href={href}
+      onClick={onClick}
       flex={1}
       direction="column"
       align="center"

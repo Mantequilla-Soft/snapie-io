@@ -3,8 +3,9 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { Box, Button, HStack, Icon, Tooltip, useColorMode } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import NextLink from 'next/link';
+import { usePathname } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus, FiPlay } from 'react-icons/fi';
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useHiveNotifications } from '@/hooks/useHiveNotifications';
 
@@ -19,6 +20,14 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
     const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { openLoginModal } = useLoginModal();
     const { colorMode } = useColorMode();
+    const pathname = usePathname();
+
+    function handleHomeClick(e: React.MouseEvent) {
+        if (pathname === '/') {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('snapie:go-home'));
+        }
+    }
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
@@ -110,6 +119,7 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                     <Button
                         as={NextLink}
                         href="/"
+                        onClick={handleHomeClick}
                         variant="ghost"
                         color="white"
                         size="sm"

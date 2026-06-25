@@ -109,6 +109,19 @@ export default function Home() {
     return set;
   }, [snaps.comments, user]);
 
+  // Clicking the Home button while already on `/` dispatches this event so the
+  // nav components (which live outside this component tree) can trigger a reset
+  // without needing direct access to our state setters.
+  useEffect(() => {
+    const handler = () => {
+      setActiveFilter('community');
+      setConversation(undefined);
+      document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('snapie:go-home', handler);
+    return () => window.removeEventListener('snapie:go-home', handler);
+  }, []);
+
   // Measure the sticky tab strip so the banner can dock just below it
   // (rather than overlapping) once both are pinned to the top while scrolling.
   const tabFilterRef = useRef<HTMLDivElement>(null);

@@ -48,6 +48,13 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
     const hasUnclaimed = useUnclaimedRewards();
 
+    function handleHomeClick(e: React.MouseEvent) {
+        if (pathname === '/') {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('snapie:go-home'));
+        }
+    }
+
     const forceCompact = pathname === '/compose';
     const compactBreakpoint = forceCompact ? 'block' : { sm: 'block', md: 'none' };
     const fullBreakpoint = forceCompact ? 'none' : { sm: 'none', md: 'flex' };
@@ -142,6 +149,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/"
+                                onClick={handleHomeClick}
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
