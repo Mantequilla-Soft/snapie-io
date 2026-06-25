@@ -1,9 +1,11 @@
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalOverlay, HStack, Avatar, Link, IconButton, Box, Text } from '@chakra-ui/react';
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import SnapComposer from './SnapComposer';
 import { Comment } from '@hiveio/dhive';
 import { CloseIcon } from '@chakra-ui/icons';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
+import { separateContent } from '@/lib/utils/snapUtils';
+import MediaRenderer from '@/components/shared/MediaRenderer';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import NextLink from 'next/link';
 
@@ -16,6 +18,14 @@ interface SnapReplyModalProps {
 
 export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }: SnapReplyModalProps) {
     const composerRef = useRef<HTMLTextAreaElement>(null);
+
+    // Split body into text and media so ThreeSpeak videos use the Mantequilla
+    // player (via MediaRenderer) instead of a plain iframe from markdownRenderer.
+    const { text, media } = useMemo(() => separateContent(comment?.body ?? ''), [comment?.body]);
+    const renderedText = useMemo(
+        () => text ? markdownRenderer(text, { defaultEmojiOwner: comment?.author ?? '' }) : '',
+        [text, comment?.author]
+    );
 
     if (!comment) {
         return <div></div>;
@@ -51,19 +61,23 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                     </HStack>
                 </ModalHeader>
                 <ModalBody>
-                    <Box
-                        dangerouslySetInnerHTML={{
-                            __html: markdownRenderer(comment.body, { defaultEmojiOwner: comment.author })
-                        }}
-                        pb={6}
-                        sx={{
-                            '& p': { marginBottom: '0.75em', lineHeight: '1.6' },
-                            '& a': { color: 'var(--chakra-colors-primary)', textDecoration: 'underline' },
-                            '& ul': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'disc' },
-                            '& ol': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'decimal' },
-                            '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
-                        }}
-                    />
+                    <Box pb={6}>
+                        {renderedText && (
+                            <Box
+                                dangerouslySetInnerHTML={{ __html: renderedText }}
+                                sx={{
+                                    '& p': { marginBottom: '0.75em', lineHeight: '1.6' },
+                                    '& a': { color: 'var(--chakra-colors-primary)', textDecoration: 'underline' },
+                                    '& ul': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'disc' },
+                                    '& ol': { paddingLeft: '1.5em', marginBottom: '0.75em', listStyleType: 'decimal' },
+                                    '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
+                                }}
+                            />
+                        )}
+                        {media && (
+                            <MediaRenderer mediaContent={media} />
+                        )}
+                    </Box>
                     <SnapComposer ref={composerRef} pa={comment.author} pp={comment.permlink} onNewComment={onNewReply} post={true} onClose={onClose} />
                 </ModalBody>
             </ModalContent>
