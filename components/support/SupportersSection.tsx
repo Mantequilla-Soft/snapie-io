@@ -5,42 +5,13 @@ import { Avatar, Box, Divider, Heading, Link, Skeleton, Text, VStack, Wrap, Wrap
 import NextLink from 'next/link';
 import PatronBadge from '@/components/shared/PatronBadge';
 import type { PatronTier } from '@/hooks/usePatronStatus';
-import hardcoded from '@/data/supporters.json';
 
 interface Supporter {
   account: string;
   tier: PatronTier;
 }
 
-const TIER_ORDER: Record<PatronTier, number> = {
-  'snap-master': 0,
-  'snapian': 1,
-  'snaperino': 2,
-};
-
-function mergeSupporters(
-  sidecar: { account: string; tier: PatronTier }[],
-  fixed: { account: string; tier: string }[]
-): Supporter[] {
-  const map = new Map<string, PatronTier>();
-
-  for (const s of sidecar) map.set(s.account, s.tier);
-
-  for (const f of fixed) {
-    const incoming = f.tier as PatronTier;
-    const existing = map.get(f.account);
-    if (!existing || TIER_ORDER[incoming] < TIER_ORDER[existing]) {
-      map.set(f.account, incoming);
-    }
-  }
-
-  return Array.from(map.entries())
-    .map(([account, tier]) => ({ account, tier }))
-    .sort((a, b) => {
-      const tierDiff = TIER_ORDER[a.tier] - TIER_ORDER[b.tier];
-      return tierDiff !== 0 ? tierDiff : a.account.localeCompare(b.account);
-    });
-}
+const TIER_ORDER: Record<PatronTier, number> = { 'snap-master': 0, 'snapian': 1, 'snaperino': 2 };
 
 export default function SupportersSection() {
   const [supporters, setSupporters] = useState<Supporter[]>([]);
@@ -49,8 +20,14 @@ export default function SupportersSection() {
   useEffect(() => {
     fetch('/api/patrons')
       .then(r => r.json())
-      .then(data => setSupporters(mergeSupporters(data.patrons ?? [], hardcoded)))
-      .catch(() => setSupporters(mergeSupporters([], hardcoded)))
+      .then(data => {
+        const sorted = [...(data.patrons ?? [])].sort((a: Supporter, b: Supporter) => {
+          const tierDiff = TIER_ORDER[a.tier] - TIER_ORDER[b.tier];
+          return tierDiff !== 0 ? tierDiff : a.account.localeCompare(b.account);
+        });
+        setSupporters(sorted);
+      })
+      .catch(() => setSupporters([]))
       .finally(() => setLoading(false));
   }, []);
 
