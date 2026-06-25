@@ -2,6 +2,7 @@ import { Box, Flex, Icon, Button, Text, Slider, SliderTrack, SliderFilledTrack, 
 import React, { useState, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/fa';
+import { FaXTwitter } from 'react-icons/fa6';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
@@ -59,6 +60,12 @@ export default function InteractionBar({
             status: 'success',
             duration: 3000,
         });
+    }
+
+    function handleShareOnX() {
+        const postUrl = `${window.location.origin}/@${post.author}/${post.permlink}`;
+        const tweet = `${postUrl}\n\nCrossposted from snapie.io`;
+        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}`, '_blank', 'noopener,noreferrer');
     }
 
     async function handleVote() {
@@ -167,7 +174,10 @@ export default function InteractionBar({
                         )}
                         
                         {showShare && (
-                            <Icon as={FaShare} ml={4} cursor="pointer" onClick={handleShare} />
+                            <>
+                                <Icon as={FaShare} ml={4} cursor="pointer" onClick={handleShare} />
+                                <Icon as={FaXTwitter} ml={3} cursor="pointer" onClick={handleShareOnX} color="gray.400" _hover={{ color: 'white' }} />
+                            </>
                         )}
                     </Flex>
                     <Text fontWeight="bold" fontSize="sm">

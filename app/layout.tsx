@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary',
+    site: '@SnapieApp',
     title: 'Snapie',
     description: 'Decentralized social on Hive',
   },

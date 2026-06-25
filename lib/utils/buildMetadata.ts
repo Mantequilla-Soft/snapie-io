@@ -34,6 +34,14 @@ function extractOgImage(body: string, jsonMetadata?: string): string | undefined
     return bodyImages[0];
   }
 
+  // 3. Extract thumbnail from a 3Speak video embed
+  const threeSpeakMatch = body.match(
+    /https?:\/\/(?:play\.)?3speak\.tv\/(?:watch|embed)\?v=([^/"&\s]+)\/([^/"&\s]+)/
+  );
+  if (threeSpeakMatch) {
+    return `https://img.3speakcontent.com/${threeSpeakMatch[1]}/${threeSpeakMatch[2]}/thumbnail.png`;
+  }
+
   return undefined;
 }
 

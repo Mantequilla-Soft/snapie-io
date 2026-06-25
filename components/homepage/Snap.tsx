@@ -2,6 +2,7 @@ import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOver
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -109,6 +110,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         });
         
         return voteResult;
+    }
+
+    function handleShareOnX() {
+        const snapUrl = `${window.location.origin}/@${comment.author}/${comment.permlink}`;
+        const tweet = `${snapUrl}\n\nCrossposted from snapie.io`;
+        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}`, '_blank', 'noopener,noreferrer');
     }
 
     function handleReSnap() {
@@ -312,6 +319,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 <HStack spacing={1} cursor="pointer" onClick={handleReSnap}>
                                     <FaRetweet />
                                     <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Re-Snap/Share</Text>
+                                </HStack>
+                                <HStack spacing={1} cursor="pointer" onClick={handleShareOnX} color="gray.400" _hover={{ color: 'white' }}>
+                                    <FaXTwitter />
                                 </HStack>
                             </HStack>
                             <Text fontWeight="bold" fontSize="sm">
