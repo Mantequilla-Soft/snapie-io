@@ -39,7 +39,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [translatedText, setTranslatedText] = useState<string | null>(null);
     const [isTranslating, setIsTranslating] = useState(false);
     const [nsfwRevealed, setNsfwRevealed] = useState(false);
-    const { postData } = useCombflowPost(comment.author, comment.permlink);
+    const { postData } = useCombflowPost(comment.author, comment.permlink, false);
     const { calculateDelta } = useVoteCalculator(user ?? null);
     const { getTier } = usePatronStatus();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);

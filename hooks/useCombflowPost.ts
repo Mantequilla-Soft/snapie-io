@@ -13,13 +13,13 @@ export interface CombflowPostData {
 // Module-level cache — avoids refetching the same post within a session
 const cache = new Map<string, CombflowPostData>();
 
-export function useCombflowPost(author: string, permlink: string) {
+export function useCombflowPost(author: string, permlink: string, enabled = true) {
     const key = `${author}/${permlink}`;
     const [postData, setPostData] = useState<CombflowPostData | null>(cache.get(key) ?? null);
-    const [isLoading, setIsLoading] = useState(!cache.has(key));
+    const [isLoading, setIsLoading] = useState(enabled && !cache.has(key));
 
     useEffect(() => {
-        if (!author || !permlink) { setIsLoading(false); return; }
+        if (!enabled || !author || !permlink) { setIsLoading(false); return; }
         if (cache.has(key)) { setPostData(cache.get(key)!); setIsLoading(false); return; }
 
         let cancelled = false;
@@ -44,7 +44,7 @@ export function useCombflowPost(author: string, permlink: string) {
             .finally(() => { if (!cancelled) setIsLoading(false); });
 
         return () => { cancelled = true; };
-    }, [key, author, permlink]);
+    }, [enabled, key, author, permlink]);
 
     return { postData, isLoading };
 }
