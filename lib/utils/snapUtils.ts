@@ -205,6 +205,26 @@ export function getEmbedFallback(src: string): { href: string; label: string } |
     }
   }
 
+  // Reddit embed variants
+  if (src.includes('embed.reddit.com')) {
+    const m = src.match(/embed\.reddit\.com\/r\/([^/]+)\/comments\/([a-z0-9]+)/i);
+    if (!m) return null;
+    return {
+      href: `https://www.reddit.com/r/${m[1]}/comments/${m[2]}/`,
+      label: 'Open on Reddit',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Extract Reddit post info from various Reddit URL formats.
+ * Returns { subreddit, postId } or null.
+ */
+function extractRedditPost(url: string): { subreddit: string; postId: string } | null {
+  const m = url.match(/reddit\.com\/r\/([^/]+)\/comments\/([a-z0-9]+)/i);
+  if (m) return { subreddit: m[1], postId: m[2] };
   return null;
 }
 
@@ -271,7 +291,8 @@ export const separateContent = (body: string) => {
         line.match(/https?:\/\/audio\.3speak\.tv\/play\?a=/) ||
         line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
         line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
-        line.match(/https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/)) {
+        line.match(/https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/) ||
+        line.match(/https?:\/\/(www\.)?reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)) {
       mediaParts.push(line);
     } else {
       textParts.push(line);
@@ -487,6 +508,20 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
         type: "iframe",
         content: `<iframe src="${embedUrl}" width="100%" style="max-width: 550px; min-height: 500px; height: auto; margin: 0 auto; border: 1px solid #e1e8ed; border-radius: 12px; overflow: hidden;" frameborder="0" scrolling="no"></iframe>`,
         src: embedUrl,
+      });
+      return;
+    }
+
+    // Handle plain Reddit post URLs
+    const redditPost = extractRedditPost(trimmedItem);
+    if (redditPost && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
+      const { subreddit, postId } = redditPost;
+      const embedUrl = `https://embed.reddit.com/r/${subreddit}/comments/${postId}/?embed=true&theme=dark`;
+      mediaItems.push({
+        type: "iframe",
+        content: `<iframe src="${embedUrl}" width="100%" frameborder="0" scrolling="no" allowfullscreen style="border-radius:12px;"></iframe>`,
+        src: embedUrl,
+        embedAspect: "16/9",
       });
       return;
     }
