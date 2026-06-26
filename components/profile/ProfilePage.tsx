@@ -23,6 +23,7 @@ import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
 import CurationQualityCard from './CurationQualityCard';
+import CombflowInsights from './CombflowInsights';
 import { useUserPresence } from '@/hooks/useUserPresence';
 import { useHangout } from '@/contexts/HangoutContext';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
@@ -287,9 +288,10 @@ export default function ProfilePage({ username }: ProfilePageProps) {
         </Box>
       </Flex>
 
-      {/* Curation score */}
+      {/* Curation score + content profile */}
       <Container maxW="container.lg" mt={4} px={4}>
         <CurationQualityCard username={username} />
+        <CombflowInsights username={username} />
       </Container>
 
       {/* Tabs */}

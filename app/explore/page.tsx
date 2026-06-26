@@ -11,6 +11,8 @@ import { getCommunityInfo } from '@/lib/hive/client-functions';
 import HiveClient from '@/lib/hive/hiveclient';
 import CommunityCard from '@/components/explore/CommunityCard';
 import TrendingPostCard from '@/components/explore/TrendingPostCard';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useCombflowSummary } from '@/hooks/useCombflowSummary';
 
 const COMMUNITY_TAG = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || '';
 type TrendingScope = 'community' | 'global';
@@ -30,6 +32,8 @@ interface ResolvedCommunity extends TrendingTag {
 
 export default function ExplorePage() {
   const router = useRouter();
+  const { username: currentUser } = useCurrentUser();
+  const { summary: mySummary } = useCombflowSummary(currentUser ?? '');
   const [searchTerm, setSearchTerm] = useState('');
   const [communities, setCommunities] = useState<ResolvedCommunity[]>([]);
   const [tags, setTags] = useState<TrendingTag[]>([]);
@@ -152,6 +156,46 @@ export default function ExplorePage() {
           Go
         </Button>
       </Flex>
+
+      {/* Personalised interests — logged-in users only */}
+      {currentUser && mySummary && mySummary.top_categories.length > 0 && (
+        <Box mb={8}>
+          <Text
+            fontSize="xs"
+            fontWeight="bold"
+            color="whiteAlpha.500"
+            letterSpacing="widest"
+            textTransform="uppercase"
+            mb={3}
+          >
+            Based on Your Interests
+          </Text>
+          <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={3}>
+            {mySummary.top_categories.map(cat => (
+              <Box
+                key={cat.id}
+                as="button"
+                onClick={() => router.push(`/explore/${encodeURIComponent(cat.name)}`)}
+                bg="rgba(28, 161, 241, 0.06)"
+                border="1px solid rgba(28, 161, 241, 0.15)"
+                borderRadius="12px"
+                p={4}
+                textAlign="left"
+                cursor="pointer"
+                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', borderColor: 'rgba(28, 161, 241, 0.35)', transform: 'translateY(-1px)' }}
+                transition="all 0.15s"
+              >
+                <Text fontWeight="bold" fontSize="sm" color="white" textTransform="capitalize" mb={1}>
+                  {cat.name}
+                </Text>
+                <Text fontSize="xs" color="whiteAlpha.500">
+                  {cat.count.toLocaleString()} of your posts
+                </Text>
+              </Box>
+            ))}
+          </SimpleGrid>
+        </Box>
+      )}
 
       {loading ? (
         <Flex justify="center" py={20}>
