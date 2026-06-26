@@ -8,10 +8,12 @@ import AudioRecorder from './AudioRecorder';
 import { IGif } from '@giphy/js-types';
 import { CloseIcon } from '@chakra-ui/icons';
 import { FaImage, FaVideo, FaMicrophone } from 'react-icons/fa';
-import { MdGif } from 'react-icons/md';
+import { MdGif, MdOutlineMood } from 'react-icons/md';
 import { Comment } from '@hiveio/dhive';
 import { getLastSnapsContainer, uploadImageWithKeychain, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { aggregateBeneficiaries, type Beneficiary } from '@/lib/utils/aggregateBeneficiaries';
+import MemePickerModal from './MemePickerModal';
 
 // SDK imports
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
@@ -56,6 +58,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { percentHbd } = useUserSettings();
+    const [isMemePickerOpen, setIsMemePickerOpen] = useState(false);
+    const [memeBeneficiaries, setMemeBeneficiaries] = useState<Beneficiary[]>([]);
+    const [memeTemplateIds, setMemeTemplateIds] = useState<string[]>([]);
+    const [isMemeUploading, setIsMemeUploading] = useState(false);
 
     // Listen for re-snap events from Snap cards and pre-fill the textarea
     useEffect(() => {
@@ -69,14 +75,55 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
         return () => document.removeEventListener('resnap', onReSnap);
     }, []);
 
+    // DecentMemes — handle memeCreated postMessage
+    const handleMemeCreatedRef = useRef<(payload: any) => Promise<void>>(async () => {});
+    handleMemeCreatedRef.current = async (payload: any) => {
+        if (!user) return;
+        setIsMemeUploading(true);
+        setIsMemePickerOpen(false);
+        try {
+            const blob: Blob = await (await fetch(payload.imageDataUrl)).blob();
+            const file = new File([blob], payload.imageFileName ?? 'meme.png', { type: payload.imageMimeType ?? 'image/png' });
+            const hostedUrl = await uploadImageWithKeychain(file, user);
+
+            // Insert image into textarea
+            if (postBodyRef.current) {
+                const cur = postBodyRef.current.value;
+                postBodyRef.current.value = cur ? `${cur}\n\n![meme](${hostedUrl})` : `![meme](${hostedUrl})`;
+            }
+
+            // Aggregate beneficiaries (comment slot, since snaps are comments)
+            const incoming: Beneficiary[] = (payload.beneficiaries?.comment ?? []).map(
+                (b: any) => ({ account: b.account, weight: b.weight }),
+            );
+            setMemeBeneficiaries(prev => aggregateBeneficiaries(prev, incoming, true));
+            setMemeTemplateIds(prev => [...prev, payload.template?.id].filter(Boolean));
+        } catch {
+            // Upload failure is silent — user still has the modal to retry
+        } finally {
+            setIsMemeUploading(false);
+        }
+    };
+
+    useEffect(() => {
+        function onMessage(e: MessageEvent) {
+            if (e.origin !== 'https://decentmemes.com') return;
+            if (e.data?.type !== 'memeCreated') return;
+            handleMemeCreatedRef.current(e.data);
+        }
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+    }, []);
+
     const buttonText = post ? "Reply" : "Post";
     const hasVideo = selectedVideo !== null;
     const hasAudio = audioEmbedUrl !== null;
     const hasVideoInProgress = hasVideo || videoUploadProgress > 0;
-    
+    const hasMeme = memeTemplateIds.length > 0 || isMemeUploading;
+
     // Check if any images are still uploading
     const imagesStillUploading = uploadingImages.some(img => img.uploadedUrl === null && !img.error);
-    const isDisabled = !user || isLoading || imagesStillUploading;
+    const isDisabled = !user || isLoading || imagesStillUploading || isMemeUploading;
 
     // Handle video selection and start upload immediately using SDK
     async function handleVideoSelection(file: File) {
@@ -236,9 +283,11 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 parentPermlink = (await getLastSnapsContainer()).permlink;
             }
 
-            // Use the appropriate composer (with or without beneficiaries)
+            // Meme and video are mutually exclusive — use video composer (10% snapie
+            // beneficiary) only when no meme is present; meme posts use the base
+            // composer with DecentMemes beneficiaries merged in instead.
             const composer = videoEmbedUrl ? snapieVideoComposer : snapieComposer;
-            
+
             // Build operations using SDK
             const result = composer.build({
                 author: user,
@@ -250,6 +299,12 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 videoEmbedUrl: videoEmbedUrl || undefined,
                 audioEmbedUrl: audioEmbedUrl || undefined,
                 percentHbd,
+                ...(memeBeneficiaries.length > 0 && { beneficiaries: memeBeneficiaries }),
+                ...(memeTemplateIds.length > 0 && {
+                    metadata: {
+                        decentmemes: { v: 2, templateIds: memeTemplateIds, frontend: 'snapie' },
+                    },
+                }),
             });
 
             // Broadcast with Keychain
@@ -274,6 +329,8 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 setVideoUploadProgress(0);
                 setThumbnailProcessing(false);
                 setAudioEmbedUrl(null);
+                setMemeBeneficiaries([]);
+                setMemeTemplateIds([]);
 
                 const newComment: Partial<Comment> = {
                     author: user,
@@ -356,7 +413,8 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     <Button
                         as="label" variant="ghost" borderRadius="full"
                         color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
-                        isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
+                        isDisabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme} size={{ base: 'sm', md: 'md' }}
+                        title={hasMeme ? 'Remove meme to add a video' : undefined}
                     >
                         <FaVideo size={20} />
                         <VideoUploader onUpload={handleVideoSelection} />
@@ -367,6 +425,17 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaMicrophone size={20} />
+                    </Button>
+                    <Button
+                        variant="ghost" borderRadius="full"
+                        color={hasMeme ? 'blue.300' : 'whiteAlpha.600'}
+                        _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        onClick={() => setIsMemePickerOpen(true)}
+                        isDisabled={!user || isLoading || hasVideoInProgress || isMemeUploading}
+                        size={{ base: 'sm', md: 'md' }}
+                        title={hasVideoInProgress ? 'Remove video to add a meme' : 'Add a meme'}
+                    >
+                        {isMemeUploading ? <Spinner size="xs" /> : <MdOutlineMood size={22} />}
                     </Button>
                 </HStack>
                 <Button
@@ -473,6 +542,22 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         </VStack>
                     </Box>
                 )}
+                {memeTemplateIds.length > 0 && (
+                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="blue.800" w="100%">
+                        <HStack justify="space-between">
+                            <Text fontSize="sm" fontWeight="bold" color="blue.300">
+                                🐸 {memeTemplateIds.length} meme{memeTemplateIds.length > 1 ? 's' : ''} added
+                            </Text>
+                            <IconButton
+                                aria-label="Remove memes"
+                                icon={<CloseIcon />}
+                                size="xs"
+                                onClick={() => { setMemeTemplateIds([]); setMemeBeneficiaries([]); }}
+                                isDisabled={isLoading}
+                            />
+                        </HStack>
+                    </Box>
+                )}
             </Wrap>
             {isGiphyModalOpen && (
                 <GiphySelector
@@ -492,6 +577,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     username={user}
                 />
             )}
+            <MemePickerModal
+                isOpen={isMemePickerOpen}
+                onClose={() => setIsMemePickerOpen(false)}
+            />
         </Box>
     );
 });
