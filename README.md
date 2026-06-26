@@ -98,6 +98,34 @@ Use `.env.local` for local development.
 - `CHAT_JWT_SECRET` - signing secret for chat JWT tokens (use strong random value)
 - `NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL` - initial channel id/name (e.g. `general`)
 
+### Translation (Optional)
+
+Snapie supports per-snap inline translation via a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) instance. When configured, a translate button appears below each snap's text content and detects the user's browser language automatically.
+
+- `LIBRETRANSLATE_URL` - base URL of your LibreTranslate instance (e.g. `http://localhost:5000` if on the same server)
+- `LIBRETRANSLATE_KEY` - API key for the instance (required when `LT_API_KEYS=true`)
+
+**Self-hosting LibreTranslate (Docker):**
+
+```bash
+docker run -d \
+  --name libretranslate \
+  -p 127.0.0.1:5000:5000 \
+  -e LT_API_KEYS=true \
+  -e LT_API_KEYS_DB_PATH=/app/db/api_keys.db \
+  -v lt-db:/app/db \
+  --restart unless-stopped \
+  libretranslate/libretranslate
+```
+
+Wait for `Listening at: http://[::]:5000` in the logs, then generate an API key:
+
+```bash
+docker exec libretranslate ltmanage keys add snapie
+```
+
+Copy the printed key into `LIBRETRANSLATE_KEY`. If these vars are not set, the translate button is silently disabled and the rest of the app is unaffected.
+
 ### Chat Push Notifications (Optional but recommended)
 
 - `FIREBASE_SERVICE_ACCOUNT` - base64-encoded Firebase Admin service account JSON
@@ -182,6 +210,9 @@ This script normalizes missing fields in existing `channels` and `chatusers` doc
   - `FIREBASE_SERVICE_ACCOUNT`
   - browser notification permission + service worker registration
 - Backfill script says `MONGODB_URI is required`: ensure `.env.local` exists and includes chat DB values.
+- Translate button shows "Translation service not configured": set `LIBRETRANSLATE_URL` in your env vars.
+- Translate button shows "Translation service unreachable": check that the LibreTranslate container is running (`docker ps`) and the URL is correct.
+- Translate returning wrong language: LibreTranslate auto-detects source language — ensure the model for the target language was downloaded (check `docker logs libretranslate`).
 
 ## Contributing
 
