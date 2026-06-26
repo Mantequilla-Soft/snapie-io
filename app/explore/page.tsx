@@ -2,12 +2,18 @@
 import { useEffect, useState } from 'react';
 import {
   Box, Text, SimpleGrid, Flex, Input, InputGroup, InputRightElement,
-  CloseButton, Button, Icon, Wrap, WrapItem, Tag, TagLabel, Spinner,
+  CloseButton, Button, Icon, Wrap, WrapItem, Tag, TagLabel, Spinner, HStack, VStack,
 } from '@chakra-ui/react';
 import { FiSearch, FiCompass } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
+import { Discussion } from '@hiveio/dhive';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
+import HiveClient from '@/lib/hive/hiveclient';
 import CommunityCard from '@/components/explore/CommunityCard';
+import TrendingPostCard from '@/components/explore/TrendingPostCard';
+
+const COMMUNITY_TAG = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || '';
+type TrendingScope = 'community' | 'global';
 
 interface TrendingTag {
   name: string;
@@ -28,6 +34,9 @@ export default function ExplorePage() {
   const [communities, setCommunities] = useState<ResolvedCommunity[]>([]);
   const [tags, setTags] = useState<TrendingTag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendingPosts, setTrendingPosts] = useState<Discussion[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(true);
+  const [trendingScope, setTrendingScope] = useState<TrendingScope>('community');
 
   useEffect(() => {
     async function load() {
@@ -65,6 +74,27 @@ export default function ExplorePage() {
     }
     load();
   }, []);
+
+  useEffect(() => {
+    async function loadTrending() {
+      setTrendingLoading(true);
+      try {
+        const posts = await HiveClient.database.getDiscussions('trending', {
+          tag: trendingScope === 'community' ? COMMUNITY_TAG : '',
+          limit: 20,
+          start_author: '',
+          start_permlink: '',
+        });
+        // Filter out posts with no title (those are snaps, not blog posts)
+        setTrendingPosts((posts as Discussion[]).filter(p => p.title?.trim()));
+      } catch (e) {
+        console.error('Failed to load trending posts:', e);
+      } finally {
+        setTrendingLoading(false);
+      }
+    }
+    loadTrending();
+  }, [trendingScope]);
 
   const handleSearch = () => {
     const term = searchTerm.trim();
@@ -195,6 +225,50 @@ export default function ExplorePage() {
               </Wrap>
             </Box>
           )}
+
+          {/* Trending Posts */}
+          <Box mb={8}>
+            <Flex align="center" justify="space-between" mb={3} wrap="wrap" gap={2}>
+              <Text
+                fontSize="xs"
+                fontWeight="bold"
+                color="whiteAlpha.500"
+                letterSpacing="widest"
+                textTransform="uppercase"
+              >
+                Trending Posts
+              </Text>
+              <HStack spacing={2}>
+                {(['community', 'global'] as const).map(scope => (
+                  <Button
+                    key={scope}
+                    size="xs"
+                    variant="ghost"
+                    borderRadius="full"
+                    bg={trendingScope === scope ? 'muted' : 'transparent'}
+                    color={trendingScope === scope ? 'text' : 'gray.500'}
+                    borderWidth="1px"
+                    borderColor={trendingScope === scope ? 'primary' : 'border'}
+                    _hover={{ bg: 'muted', color: 'text' }}
+                    onClick={() => setTrendingScope(scope)}
+                  >
+                    {scope === 'community' ? 'This Community' : 'All of Hive'}
+                  </Button>
+                ))}
+              </HStack>
+            </Flex>
+            {trendingLoading ? (
+              <Flex justify="center" py={10}>
+                <Spinner size="md" color="primary" />
+              </Flex>
+            ) : (
+              <VStack spacing={2} align="stretch">
+                {trendingPosts.map(post => (
+                  <TrendingPostCard key={`${post.author}/${post.permlink}`} post={post} />
+                ))}
+              </VStack>
+            )}
+          </Box>
         </>
       )}
     </Box>
