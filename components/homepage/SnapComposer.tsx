@@ -11,6 +11,7 @@ import { FaImage, FaVideo, FaMicrophone } from 'react-icons/fa';
 import { MdGif } from 'react-icons/md';
 import { Comment } from '@hiveio/dhive';
 import { getLastSnapsContainer, uploadImageWithKeychain, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 // SDK imports
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
@@ -54,6 +55,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [isAudioRecorderOpen, setAudioRecorderOpen] = useState(false);
     const [isGiphyModalOpen, setGiphyModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const { percentHbd } = useUserSettings();
 
     // Listen for re-snap events from Snap cards and pre-fill the textarea
     useEffect(() => {
@@ -247,6 +249,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 gifUrl: selectedGif?.images.downsized_medium.url,
                 videoEmbedUrl: videoEmbedUrl || undefined,
                 audioEmbedUrl: audioEmbedUrl || undefined,
+                percentHbd,
             });
 
             // Broadcast with Keychain

@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings,
 } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -84,6 +84,9 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
               </>
             )}
             <SheetLink href="/hangouts" icon={FiRadio} label="OpenPods" badge={openPodsCount} onClose={onClose} />
+            {isLoggedIn && user && (
+              <SheetLink href="/settings" icon={FiSettings} label="Settings" onClose={onClose} />
+            )}
             {isLoggedIn && user && (
               <SheetButton
                 icon={FiMessageSquare}

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
+import { useUserSettings } from '@/hooks/useUserSettings'
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput'
 
 const Editor = dynamic(() => import('./Editor'), { ssr: false })
@@ -121,6 +122,7 @@ export default function Home() {
   }, [title, markdown, hashtags, selectedCommunity, isHangout])
 
   const { username: user } = useCurrentUser()
+  const { percentHbd } = useUserSettings()
   const toast = useToast()
   const router = useRouter()
 
@@ -257,6 +259,7 @@ export default function Home() {
         parentPermlink: selectedCommunity,
         tags: hashtags,
         beneficiaries: beneficiaries.map(b => ({ account: b.account, weight: b.weight })),
+        percentHbd,
         metadata: {
           image: imageArray
         }
