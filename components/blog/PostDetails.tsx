@@ -1,7 +1,8 @@
 'use client';
 
-import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip } from '@chakra-ui/react';
-import React, { useMemo } from 'react';
+import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast } from '@chakra-ui/react';
+import React, { useMemo, useState } from 'react';
+import { MdTranslate } from 'react-icons/md';
 import { Discussion } from '@hiveio/dhive';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
@@ -50,12 +51,50 @@ const bodySx = {
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
+function extractPlainText(markdown: string): string {
+    return markdown
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/#{1,6}\s/g, '')
+        .replace(/[*_~`]/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
     const { username: user } = useCurrentUser();
     const router = useRouter();
+    const toast = useToast();
     const canEdit = !isEmbedMode && user === author;
+    const [translatedText, setTranslatedText] = useState<string | null>(null);
+    const [isTranslating, setIsTranslating] = useState(false);
+
+    async function handleTranslate() {
+        if (isTranslating) return;
+        setIsTranslating(true);
+        try {
+            const targetLang = navigator.language.split('-')[0];
+            const res = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: extractPlainText(body), targetLang }),
+            });
+            const data = await res.json();
+            if (data.translatedText) {
+                setTranslatedText(data.translatedText);
+            } else {
+                toast({ title: 'Translation failed', description: data.error ?? 'Could not translate.', status: 'error', duration: 3000 });
+            }
+        } catch {
+            toast({ title: 'Translation failed', description: 'Could not reach the translation service.', status: 'error', duration: 3000 });
+        } finally {
+            setIsTranslating(false);
+        }
+    }
     // Suppress the parent link for "top snaps" (direct replies to the snap container):
     // navigating there would load the entire container thread (hundreds of snaps).
     const hasParent = Boolean(
@@ -273,60 +312,71 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     </Link>
                 </Flex>
             )}
-            <Box mt={4} data-blog-post-body sx={bodySx}>
-                {bodySegments.map((seg, i) => {
-                    if (seg.type === 'audio') {
-                        return <SnapieSpeakAudio key={`${seg.url}-${i}`} playUrl={seg.url} />;
-                    }
-                    if (seg.type === 'speak-video') {
-                        return <ThreeSpeakVideoPlayer key={`${seg.author}/${seg.permlink}-${i}`} author={seg.author} permlink={seg.permlink} />;
-                    }
-                    if (seg.type === 'twitter') {
-                        return <TwitterEmbed key={`twitter-${seg.tweetId}-${i}`} tweetId={seg.tweetId} />;
-                    }
-                    if (seg.type === 'youtube') {
-                        return (
-                            <Box
-                                key={`youtube-${seg.videoId}-${i}`}
-                                position="relative"
-                                w="100%"
-                                maxW={{ base: '100%', md: '640px', lg: '800px' }}
-                                aspectRatio="16/9"
-                                mx="auto"
-                                my={4}
-                                borderRadius="md"
-                                overflow="hidden"
-                                bg="black"
-                            >
+            {translatedText ? (
+                <Box mt={4}>
+                    <Text fontSize="sm" color="gray.400" mb={3}>Translated · <Text as="button" color="primary" _hover={{ textDecoration: 'underline' }} onClick={() => setTranslatedText(null)}>Show original</Text></Text>
+                    <Text whiteSpace="pre-wrap" lineHeight="1.7" wordBreak="break-word">{translatedText}</Text>
+                </Box>
+            ) : (
+                <Box mt={4} data-blog-post-body sx={bodySx}>
+                    {bodySegments.map((seg, i) => {
+                        if (seg.type === 'audio') {
+                            return <SnapieSpeakAudio key={`${seg.url}-${i}`} playUrl={seg.url} />;
+                        }
+                        if (seg.type === 'speak-video') {
+                            return <ThreeSpeakVideoPlayer key={`${seg.author}/${seg.permlink}-${i}`} author={seg.author} permlink={seg.permlink} />;
+                        }
+                        if (seg.type === 'twitter') {
+                            return <TwitterEmbed key={`twitter-${seg.tweetId}-${i}`} tweetId={seg.tweetId} />;
+                        }
+                        if (seg.type === 'youtube') {
+                            return (
                                 <Box
-                                    as="iframe"
-                                    src={`https://www.youtube-nocookie.com/embed/${seg.videoId}`}
-                                    title="YouTube video player"
-                                    loading="lazy"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
+                                    key={`youtube-${seg.videoId}-${i}`}
+                                    position="relative"
                                     w="100%"
-                                    h="100%"
-                                    border="none"
-                                />
-                                <Box position="absolute" bottom={2} right={2} bg="blackAlpha.700" px={2} py={1} borderRadius="sm">
-                                    <Link
-                                        href={`https://www.youtube.com/watch?v=${seg.videoId}`}
-                                        isExternal
-                                        fontSize="xs"
-                                        color="blue.200"
-                                        textDecoration="underline"
-                                        fontWeight="semibold"
-                                    >
-                                        Open on YouTube
-                                    </Link>
+                                    maxW={{ base: '100%', md: '640px', lg: '800px' }}
+                                    aspectRatio="16/9"
+                                    mx="auto"
+                                    my={4}
+                                    borderRadius="md"
+                                    overflow="hidden"
+                                    bg="black"
+                                >
+                                    <Box
+                                        as="iframe"
+                                        src={`https://www.youtube-nocookie.com/embed/${seg.videoId}`}
+                                        title="YouTube video player"
+                                        loading="lazy"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        w="100%"
+                                        h="100%"
+                                        border="none"
+                                    />
+                                    <Box position="absolute" bottom={2} right={2} bg="blackAlpha.700" px={2} py={1} borderRadius="sm">
+                                        <Link
+                                            href={`https://www.youtube.com/watch?v=${seg.videoId}`}
+                                            isExternal
+                                            fontSize="xs"
+                                            color="blue.200"
+                                            textDecoration="underline"
+                                            fontWeight="semibold"
+                                        >
+                                            Open on YouTube
+                                        </Link>
+                                    </Box>
                                 </Box>
-                            </Box>
-                        );
-                    }
-                    return <Box key={`html-${i}`} dangerouslySetInnerHTML={{ __html: seg.html }} />;
-                })}
-            </Box>
+                            );
+                        }
+                        return <Box key={`html-${i}`} dangerouslySetInnerHTML={{ __html: seg.html }} />;
+                    })}
+                </Box>
+            )}
+            <HStack spacing={1} mt={3} mb={1} cursor="pointer" color="gray.500" _hover={{ color: 'primary' }} onClick={handleTranslate} width="fit-content" display={translatedText ? 'none' : 'flex'}>
+                {isTranslating ? <Spinner size="xs" /> : <MdTranslate size={13} />}
+                <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
+            </HStack>
             <InteractionBar post={post} isEmbedMode={isEmbedMode} showShare={true} />
         </Box>
     );

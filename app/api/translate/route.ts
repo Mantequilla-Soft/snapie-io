@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const LIBRETRANSLATE_URL = process.env.LIBRETRANSLATE_URL ?? '';
 const LIBRETRANSLATE_KEY = process.env.LIBRETRANSLATE_KEY ?? '';
-const MAX_CHARS = 1500;
+const MAX_CHARS = 8000;
 const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 
