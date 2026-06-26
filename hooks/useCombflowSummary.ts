@@ -25,9 +25,7 @@ export function useCombflowSummary(username: string) {
         let cancelled = false;
         setIsLoading(true);
         setSummary(null);
-        fetch(`https://combflow.net/api/authors/${encodeURIComponent(username)}/summary`, {
-            headers: { accept: 'application/json' },
-        })
+        fetch(`/api/combflow/${encodeURIComponent(username)}`)
             .then(r => r.ok ? r.json() : null)
             .then(data => {
                 if (!cancelled && data?.summary) setSummary(data.summary);
