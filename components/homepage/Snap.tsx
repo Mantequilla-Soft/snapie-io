@@ -19,6 +19,7 @@ import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
 import PatronBadge from '@/components/shared/PatronBadge';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
+import { useCombflowPost } from '@/hooks/useCombflowPost';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -37,6 +38,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
     const [translatedText, setTranslatedText] = useState<string | null>(null);
     const [isTranslating, setIsTranslating] = useState(false);
+    const [nsfwRevealed, setNsfwRevealed] = useState(false);
+    const { postData } = useCombflowPost(comment.author, comment.permlink);
     const { calculateDelta } = useVoteCalculator(user ?? null);
     const { getTier } = usePatronStatus();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
@@ -88,6 +91,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }) : '',
         [textWithoutHiveUrls, comment.author]
     );
+
+    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
+    const showTranslate = !!text && !translatedText && (!postData || postData.primary_language !== browserLang);
+    const isNsfw = postData?.is_nsfw ?? false;
 
     const replies = comment.replies;
 
@@ -273,6 +280,33 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                             )}
                         </Flex>
 
+                        {/* NSFW gate */}
+                        {isNsfw && !nsfwRevealed ? (
+                            <Flex
+                                direction="column"
+                                align="center"
+                                justify="center"
+                                gap={2}
+                                py={6}
+                                my={2}
+                                borderRadius="md"
+                                border="1px solid rgba(251,191,36,0.2)"
+                                bg="rgba(251,191,36,0.04)"
+                            >
+                                <Text fontSize="lg">⚠️</Text>
+                                <Text fontSize="sm" color="yellow.300" fontWeight="semibold">Sensitive content</Text>
+                                <Box
+                                    as="button"
+                                    fontSize="xs"
+                                    color="gray.400"
+                                    _hover={{ color: 'primary' }}
+                                    onClick={() => setNsfwRevealed(true)}
+                                >
+                                    Show anyway
+                                </Box>
+                            </Flex>
+                        ) : (
+                            <>
                         {/* Media */}
                         {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
 
@@ -317,7 +351,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                         }}
                                     />
                                 )}
-                                {text && (
+                                {showTranslate && (
                                     <HStack spacing={1} mb={2} cursor="pointer" color="gray.500" _hover={{ color: 'primary' }} onClick={handleTranslate} width="fit-content">
                                         {isTranslating ? <Spinner size="xs" /> : <MdTranslate size={12} />}
                                         <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
@@ -346,6 +380,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                     <HangoutPreviewCard key={`${roomName}-${index}`} roomName={roomName} />
                                 ))}
                             </VStack>
+                        )}
+                            </>
                         )}
 
                         {/* Actions */}

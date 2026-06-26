@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast } from '@chakra-ui/react';
+import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Badge, Tag, TagLabel, Button } from '@chakra-ui/react';
 import React, { useMemo, useState } from 'react';
 import { MdTranslate } from 'react-icons/md';
 import { Discussion } from '@hiveio/dhive';
@@ -15,6 +15,7 @@ import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer } from '@/lib/utils/snapUtils';
+import { useCombflowPost } from '@/hooks/useCombflowPost';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -72,6 +73,13 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
     const canEdit = !isEmbedMode && user === author;
     const [translatedText, setTranslatedText] = useState<string | null>(null);
     const [isTranslating, setIsTranslating] = useState(false);
+    const [nsfwRevealed, setNsfwRevealed] = useState(false);
+    const { postData } = useCombflowPost(author, post.permlink);
+
+    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
+    const showTranslate = !translatedText && (!postData || postData.primary_language !== browserLang);
+    const isNsfw = !isEmbedMode && (postData?.is_nsfw ?? false);
+    const sentiment = postData && Math.abs(postData.sentiment_score) > 0.2 ? postData.sentiment : null;
 
     async function handleTranslate() {
         if (isTranslating) return;
@@ -271,9 +279,44 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 zIndex: -1,
             }}
         >
-            <Text fontSize="2xl" fontWeight="bold" mb={4} textAlign="center">
-                {title}
-            </Text>
+            <Flex align="center" justify="center" gap={2} mb={1} wrap="wrap">
+                <Text fontSize="2xl" fontWeight="bold" textAlign="center">
+                    {title}
+                </Text>
+                {sentiment && (
+                    <Badge
+                        colorScheme={sentiment === 'positive' ? 'green' : 'orange'}
+                        variant="subtle"
+                        fontSize="xs"
+                        borderRadius="full"
+                        px={2}
+                        alignSelf="center"
+                    >
+                        {sentiment === 'positive' ? '↑ Positive' : '↓ Negative'}
+                    </Badge>
+                )}
+            </Flex>
+            {postData?.categories && postData.categories.length > 0 && (
+                <Flex justify="center" wrap="wrap" gap={2} mb={4}>
+                    {postData.categories.map(cat => (
+                        <Tag
+                            key={cat}
+                            as={NextLink}
+                            href={`/explore/${encodeURIComponent(cat)}`}
+                            size="sm"
+                            borderRadius="full"
+                            bg="rgba(28, 161, 241, 0.08)"
+                            border="1px solid rgba(28, 161, 241, 0.15)"
+                            color="whiteAlpha.700"
+                            cursor="pointer"
+                            _hover={{ bg: 'rgba(28, 161, 241, 0.18)', textDecoration: 'none' }}
+                            transition="all 0.15s"
+                        >
+                            <TagLabel textTransform="capitalize">{cat}</TagLabel>
+                        </Tag>
+                    ))}
+                </Flex>
+            )}
             <Flex justifyContent="space-between" alignItems="center" mb={4}>
                 <Flex alignItems="center">
                     <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/sm`} />
@@ -312,7 +355,28 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     </Link>
                 </Flex>
             )}
-            {translatedText ? (
+            {isNsfw && !nsfwRevealed ? (
+                <Flex
+                    direction="column"
+                    align="center"
+                    justify="center"
+                    gap={3}
+                    py={16}
+                    my={4}
+                    borderRadius="md"
+                    border="1px solid rgba(251,191,36,0.25)"
+                    bg="rgba(251,191,36,0.05)"
+                >
+                    <Text fontSize="2xl">⚠️</Text>
+                    <Text fontWeight="semibold" color="yellow.300">Sensitive content</Text>
+                    <Text fontSize="sm" color="whiteAlpha.600" textAlign="center" maxW="sm">
+                        This post has been flagged as potentially sensitive by our content analysis.
+                    </Text>
+                    <Button size="sm" variant="outline" colorScheme="yellow" onClick={() => setNsfwRevealed(true)}>
+                        Show anyway
+                    </Button>
+                </Flex>
+            ) : translatedText ? (
                 <Box mt={4}>
                     <Text fontSize="sm" color="gray.400" mb={3}>Translated · <Text as="button" color="primary" _hover={{ textDecoration: 'underline' }} onClick={() => setTranslatedText(null)}>Show original</Text></Text>
                     <Text whiteSpace="pre-wrap" lineHeight="1.7" wordBreak="break-word">{translatedText}</Text>
@@ -373,10 +437,12 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     })}
                 </Box>
             )}
-            <HStack spacing={1} mt={3} mb={1} cursor="pointer" color="gray.500" _hover={{ color: 'primary' }} onClick={handleTranslate} width="fit-content" display={translatedText ? 'none' : 'flex'}>
-                {isTranslating ? <Spinner size="xs" /> : <MdTranslate size={13} />}
-                <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
-            </HStack>
+            {showTranslate && !isNsfw && (
+                <HStack spacing={1} mt={3} mb={1} cursor="pointer" color="gray.500" _hover={{ color: 'primary' }} onClick={handleTranslate} width="fit-content">
+                    {isTranslating ? <Spinner size="xs" /> : <MdTranslate size={13} />}
+                    <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
+                </HStack>
+            )}
             <InteractionBar post={post} isEmbedMode={isEmbedMode} showShare={true} />
         </Box>
     );
