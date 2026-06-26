@@ -1,8 +1,9 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
+import { MdTranslate } from "react-icons/md";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -34,6 +35,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
+    const [translatedText, setTranslatedText] = useState<string | null>(null);
+    const [isTranslating, setIsTranslating] = useState(false);
     const { calculateDelta } = useVoteCalculator(user ?? null);
     const { getTier } = usePatronStatus();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
@@ -116,6 +119,29 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         const snapUrl = `${window.location.origin}/@${comment.author}/${comment.permlink}`;
         const tweet = `${snapUrl}\n\nCrossposted from snapie.io`;
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}`, '_blank', 'noopener,noreferrer');
+    }
+
+    async function handleTranslate() {
+        if (isTranslating || !text) return;
+        setIsTranslating(true);
+        try {
+            const targetLang = navigator.language.split('-')[0];
+            const res = await fetch('/api/translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, targetLang }),
+            });
+            const data = await res.json();
+            if (data.translatedText) {
+                setTranslatedText(data.translatedText);
+            } else {
+                toast({ title: 'Translation failed', description: data.error ?? 'Could not translate.', status: 'error', duration: 3000 });
+            }
+        } catch {
+            toast({ title: 'Translation failed', description: 'Could not reach the translation service.', status: 'error', duration: 3000 });
+        } finally {
+            setIsTranslating(false);
+        }
     }
 
     function handleReSnap() {
@@ -251,29 +277,53 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
 
                         {/* Text content */}
-                        {renderedText && (
-                            <Box
-                                overflowX="hidden"
-                                wordBreak="break-word"
-                                dangerouslySetInnerHTML={{ __html: renderedText }}
-                                onClick={setConversation ? handleConversation : undefined}
-                                cursor={setConversation ? 'pointer' : 'default'}
-                                mb={2}
-                                sx={{
-                                    '& p': { marginBottom: 2 },
-                                    '& a': {
-                                        color: 'primary',
-                                        textDecoration: 'underline',
-                                        cursor: 'pointer',
-                                        _hover: { color: 'accent' },
-                                    },
-                                    '& pre, & table': { overflowX: 'auto', maxWidth: '100%' },
-                                    '& img': { maxWidth: '100%', height: 'auto' },
-                                    '& ul': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'disc' },
-                                    '& ol': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'decimal' },
-                                    '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
-                                }}
-                            />
+                        {translatedText ? (
+                            <Box mb={2}>
+                                <Text fontSize="sm" whiteSpace="pre-wrap" wordBreak="break-word">{translatedText}</Text>
+                                <Text
+                                    as="button"
+                                    fontSize="xs"
+                                    color="gray.500"
+                                    mt={1}
+                                    _hover={{ color: 'primary' }}
+                                    onClick={() => setTranslatedText(null)}
+                                >
+                                    Show original
+                                </Text>
+                            </Box>
+                        ) : (
+                            <>
+                                {renderedText && (
+                                    <Box
+                                        overflowX="hidden"
+                                        wordBreak="break-word"
+                                        dangerouslySetInnerHTML={{ __html: renderedText }}
+                                        onClick={setConversation ? handleConversation : undefined}
+                                        cursor={setConversation ? 'pointer' : 'default'}
+                                        mb={1}
+                                        sx={{
+                                            '& p': { marginBottom: 2 },
+                                            '& a': {
+                                                color: 'primary',
+                                                textDecoration: 'underline',
+                                                cursor: 'pointer',
+                                                _hover: { color: 'accent' },
+                                            },
+                                            '& pre, & table': { overflowX: 'auto', maxWidth: '100%' },
+                                            '& img': { maxWidth: '100%', height: 'auto' },
+                                            '& ul': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'disc' },
+                                            '& ol': { paddingLeft: '1.5em', marginBottom: 2, listStyleType: 'decimal' },
+                                            '& li': { marginBottom: '0.15em', lineHeight: '1.6' },
+                                        }}
+                                    />
+                                )}
+                                {text && (
+                                    <HStack spacing={1} mb={2} cursor="pointer" color="gray.500" _hover={{ color: 'primary' }} onClick={handleTranslate} width="fit-content">
+                                        {isTranslating ? <Spinner size="xs" /> : <MdTranslate size={12} />}
+                                        <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
+                                    </HStack>
+                                )}
+                            </>
                         )}
 
                         {/* Hive post preview cards */}
