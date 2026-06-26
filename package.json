@@ -35,6 +35,7 @@
     "firebase": "^12.14.0",
     "firebase-admin": "^13.10.0",
     "framer-motion": "^11.3.28",
+    "franc-min": "^6.2.0",
     "isomorphic-dompurify": "^2.31.0",
     "jsonwebtoken": "^9.0.3",
     "jsqr": "^1.4.0",

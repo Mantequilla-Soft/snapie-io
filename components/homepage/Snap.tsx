@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
+import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
@@ -93,7 +94,11 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     );
 
     const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
-    const showTranslate = !!text && !translatedText && (!postData || postData.primary_language !== browserLang);
+    const detectedLang = useMemo(() => detectLang(text), [text]);
+    // Show translate when: we detected a language and it differs from the browser's,
+    // OR the text is too short/ambiguous to detect (detectedLang === null) — offer it anyway.
+    // Hides the button when the snap is confidently the same language as the browser.
+    const showTranslate = !!text && !translatedText && (detectedLang === null || detectedLang !== browserLang);
     const isNsfw = postData?.is_nsfw ?? false;
 
     const replies = comment.replies;
