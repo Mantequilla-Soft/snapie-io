@@ -211,7 +211,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
   /** Avoid calling load() on every inView=true tick while readyState is still 0 (causes perpetual loading). */
   const loadRequestedRef = React.useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0); // Always start muted for autoplay
+  const [volume, setVolume] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -261,7 +261,6 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     setIsVideoLoaded(true);
     setHasError(false);
     if (videoRef.current) {
-      // Ensure video starts muted for autoplay
       videoRef.current.muted = true;
       videoRef.current.volume = 0;
     }
@@ -384,11 +383,6 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
         loadRequestedRef.current = true;
         video.load();
       }
-      void video.play().catch(() => {
-        // Silent fail if autoplay is blocked
-      });
-      setIsPlaying(true);
-      setShouldLoop(true);
     } else {
       video.pause();
       setIsPlaying(false);
