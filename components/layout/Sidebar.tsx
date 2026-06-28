@@ -11,7 +11,7 @@ import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
-import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
 
 interface ProfileInfo {
@@ -45,7 +45,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const { colorMode } = useColorMode();
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
-    const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
+    const { unreadCount } = useNotifications();
     const hasUnclaimed = useUnclaimedRewards();
 
     function handleHomeClick(e: React.MouseEvent) {

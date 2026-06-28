@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { FiBell, FiBook, FiCreditCard, FiHome, FiUser, FiLogIn, FiLogOut, FiMessageSquare, FiChevronLeft, FiChevronRight, FiRadio, FiUserPlus, FiPlay } from 'react-icons/fi';
 import React, { useState, useRef, useEffect } from 'react';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
-import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import { useNotifications } from '@/contexts/NotificationContext';
 
 interface FooterNavigationProps {
     isChatOpen?: boolean;
@@ -32,7 +32,7 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
     const [showLeftFade, setShowLeftFade] = useState(false);
     const [showRightFade, setShowRightFade] = useState(false);
     const openPodsCount = useOpenPodsCount();
-    const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
+    const { unreadCount } = useNotifications();
     
     // Check scroll position to show/hide fade indicators
     const checkScroll = () => {

@@ -5,7 +5,7 @@ import { FaMicrophone } from 'react-icons/fa';
 import { keyframes } from '@emotion/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { usePathname } from 'next/navigation';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import NextLink from 'next/link';
@@ -24,7 +24,7 @@ interface MobileHeaderProps {
 export default function MobileHeader({ onMePress }: MobileHeaderProps) {
   const { username: user, isLoggedIn } = useCurrentUser();
   const { openLoginModal } = useLoginModal();
-  const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
+  const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const openPodsCount = useOpenPodsCount();
 

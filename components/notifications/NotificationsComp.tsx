@@ -218,7 +218,7 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
     markAllAsRead,
     markingAsRead,
     isUnread,
-  } = useHiveNotifications(canViewNotifications ? username : null, { limit: 50 });
+  } = useHiveNotifications(canViewNotifications ? username : null, { limit: 50, poll: false });
 
   const filtered = useMemo(() => {
     if (filter === 'unread') return notifications.filter(isUnread);

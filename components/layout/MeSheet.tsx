@@ -10,7 +10,7 @@ import {
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { useHiveNotifications } from '@/hooks/useHiveNotifications';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import HiveActivityWidget from './HiveActivityWidget';
@@ -25,7 +25,7 @@ interface MeSheetProps {
 export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount }: MeSheetProps) {
   const { username: user, isLoggedIn, logout } = useCurrentUser();
   const { openLoginModal } = useLoginModal();
-  const { unreadCount } = useHiveNotifications(user, { limit: 1, poll: false });
+  const { unreadCount } = useNotifications();
   const openPodsCount = useOpenPodsCount();
 
   return (

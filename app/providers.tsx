@@ -14,6 +14,7 @@ import { hiveBRTheme } from '@/themes/hivebr'
 import { cannabisTheme } from '@/themes/cannabis'
 import { mengaoTheme } from '@/themes/mengao'
 import { UserProvider } from '@/contexts/UserContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { HangoutContextProvider } from '@/contexts/HangoutContext'
 import { AiohaProvider } from '@aioha/react-ui'
 import { HiveAuthProvider } from '@/contexts/HiveAuthContext'
@@ -166,6 +167,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <AiohaProvider aioha={aioha}>
       <ChakraProvider theme={selectedTheme}>
         <UserProvider>
+          <NotificationProvider>
           <SnapieAuthProvider>
             <HiveAuthProvider>
               <LoginModalProvider>
@@ -175,6 +177,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
               </LoginModalProvider>
             </HiveAuthProvider>
           </SnapieAuthProvider>
+          </NotificationProvider>
         </UserProvider>
       </ChakraProvider>
     </AiohaProvider>
