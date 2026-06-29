@@ -21,6 +21,7 @@ import VoteControls from './VoteSlider';
 import PatronBadge from '@/components/shared/PatronBadge';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
+import { translationCache } from '@/lib/utils/translationCache';
 
 interface SnapProps {
     comment: ExtendedComment;
@@ -37,7 +38,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const [editedBody, setEditedBody] = useState(comment.body);
     const [isEditing, setIsEditing] = useState(false);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
-    const [translatedText, setTranslatedText] = useState<string | null>(null);
+    const [translatedText, setTranslatedText] = useState<string | null>(
+        () => translationCache.get(comment.permlink) ?? null
+    );
     const [isTranslating, setIsTranslating] = useState(false);
     const [nsfwRevealed, setNsfwRevealed] = useState(false);
     const { postData } = useCombflowPost(comment.author, comment.permlink, false);
@@ -145,6 +148,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
             });
             const data = await res.json();
             if (data.translatedText) {
+                translationCache.set(comment.permlink, data.translatedText);
                 setTranslatedText(data.translatedText);
             } else {
                 toast({ title: 'Translation failed', description: data.error ?? 'Could not translate.', status: 'error', duration: 3000 });
@@ -325,7 +329,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                     color="gray.500"
                                     mt={1}
                                     _hover={{ color: 'primary' }}
-                                    onClick={() => setTranslatedText(null)}
+                                    onClick={() => { translationCache.delete(comment.permlink); setTranslatedText(null); }}
                                 >
                                     Show original
                                 </Text>

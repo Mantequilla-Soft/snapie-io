@@ -83,14 +83,14 @@ export function useComments(
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    const fetchAndUpdateComments = useCallback(async () => {
+    const fetchAndUpdateComments = useCallback(async (showLoader = true) => {
         // Skip fetching if author or permlink is empty
         if (!author || !permlink) {
             setIsLoading(false);
             return;
         }
-        
-        setIsLoading(true);
+
+        if (showLoader) setIsLoading(true);
         try {
             const fetchedComments = await fetchComments(author, permlink, recursive);
             // Filter out muted accounts (recursively including nested replies)
@@ -106,12 +106,22 @@ export function useComments(
                     });
             };
             const filteredComments = filterMuted(fetchedComments as ExtendedComment[]);
-            setComments(filteredComments);
-            setIsLoading(false);
+            // Merge: keep any recently-added optimistic comments that haven't
+            // propagated to the blockchain yet so they don't disappear on refresh.
+            setComments(prev => {
+                const fetchedPermlinks = new Set(filteredComments.map(c => c.permlink));
+                const now = Date.now();
+                const pending = prev.filter(c => {
+                    const ageMs = now - new Date(c.created as any).getTime();
+                    return ageMs < 60_000 && !fetchedPermlinks.has(c.permlink);
+                });
+                return [...filteredComments, ...pending];
+            });
+            if (showLoader) setIsLoading(false);
         } catch (err: any) {
             setError(err.message ? err.message : "Error loading comments");
             console.error(err);
-            setIsLoading(false);
+            if (showLoader) setIsLoading(false);
         }
     }, [author, permlink, recursive, username]);
 
@@ -124,7 +134,7 @@ export function useComments(
     }, []);
 
     const updateComments = useCallback(async () => {
-        await fetchAndUpdateComments();
+        await fetchAndUpdateComments(false);
     }, [fetchAndUpdateComments]);
 
     return {
