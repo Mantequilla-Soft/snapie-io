@@ -129,3 +129,28 @@ Adds a "Get sponsored by Snapie" button to the requester form for users with no 
 - Phase 6 (verify on chain): ~2 hrs (needs a sponsor account with ACT)
 
 Total: ~1.5–2 focused dev days for a working v1.
+
+---
+
+# Review — Fix "send short via chat" (2026-06-29)
+
+## Problem
+Two bugs in the `604fe80` shorts-via-chat feature:
+1. Preview card thumbnail/title often blank — `/api/short-meta` read `json_metadata.image[0]` / `title` from the Hive post, which is empty for many 3speak shorts (e.g. snapie-mobile snaps).
+2. Clicking the card opened `/shorts` but played the random feed — `ShortsPlayer` never read the `?v=` param.
+
+## Root cause (confirmed with live API calls)
+- The reliable thumbnail/title source is `https://play.3speak.tv/api/watch?v=author/<videoPermlink>`, keyed by the **3speak video permlink**, not the Hive post permlink.
+- The two permlinks differ for snaps (`snap-…` vs `3cb3gaih`). The video permlink is recoverable from the Hive post's `json_metadata.video.url`.
+
+## Changes
+- NEW `lib/shorts/shortMeta.ts` — pure helpers: `extractVideoPermlink`, `isFilenameTitle`, `firstBodyLine`, `pickTitle`, `pickThumbnail`.
+- MOD `app/api/short-meta/route.ts` — resolve video permlink from `video.url`, fetch the 3speak watch API for thumbnail/title, return `{ author, hivePermlink, videoPermlink, thumbnailUrl, title, stats }`.
+- MOD `hooks/useShorts.ts` — added `prime(target)` + `seenKeysRef` dedupe so a shared short plays first and isn't duplicated by the feed.
+- MOD `components/shorts/ShortsPlayer.tsx` — reads `?v=`, resolves the target via `/api/short-meta`, primes it, loads the feed in background.
+- NEW Vitest setup (`vitest.config.ts`, `test` scripts) + `lib/shorts/shortMeta.test.ts` (14 tests, all pass).
+
+## Verification
+- `pnpm test` → 14/14 pass.
+- Live route check: previously-blank `wendyth16/snap-1782692085491` now returns real thumbnail + title "Golden sunset." + videoPermlink `3cb3gaih`; legacy `meno/127fd37d` resolves via fallback. `tsc --noEmit` clean for changed files.
+- Browser playback not exercised (no Chrome in env); player path is a direct consequence of the verified resolution (autoLoads `author/videoPermlink`).

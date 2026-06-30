@@ -64,6 +64,8 @@ async function fetchPage(page: number, limit: number): Promise<{ shorts: ShortIt
   return { shorts: shuffle(shorts), hasMore: (data.page ?? 1) < (data.totalPages ?? 1) };
 }
 
+const shortKey = (s: { author: string; permlink: string }) => `${s.author}/${s.permlink}`;
+
 export function useShorts() {
   const [shorts, setShorts] = useState<ShortItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,9 @@ export function useShorts() {
   const pageRef = useRef(1);
   const inflightRef = useRef(false);
   const failedPageRef = useRef<number | null>(null);
+  // Keys (author/videoPermlink) already in the list — dedupes feed appends and
+  // prevents a primed target short from showing up twice once the feed loads.
+  const seenKeysRef = useRef<Set<string>>(new Set());
 
   const load = useCallback(async (reset = false) => {
     if (inflightRef.current) return;
@@ -83,6 +88,7 @@ export function useShorts() {
       seed = Math.floor(Math.random() * 1_000_000);
       pageRef.current = 1;
       failedPageRef.current = null;
+      seenKeysRef.current = new Set();
       setShorts([]);
       setHasMore(true);
     }
@@ -92,7 +98,9 @@ export function useShorts() {
     try {
       const { shorts: newShorts, hasMore: more } = await fetchPage(pageRef.current, 10);
       failedPageRef.current = null;
-      setShorts(prev => (reset ? newShorts : [...prev, ...newShorts]));
+      const fresh = newShorts.filter(s => !seenKeysRef.current.has(shortKey(s)));
+      for (const s of fresh) seenKeysRef.current.add(shortKey(s));
+      setShorts(prev => (reset ? fresh : [...prev, ...fresh]));
       setHasMore(more);
       pageRef.current += 1;
     } catch (e: any) {
@@ -104,5 +112,15 @@ export function useShorts() {
     }
   }, []);
 
-  return { shorts, loading, error, hasMore, load };
+  // Seed the list with a specific short (from a shared chat link) so it plays
+  // first, then call load() to pull the rest of the feed in behind it.
+  const prime = useCallback((target: ShortItem) => {
+    pageRef.current = 1;
+    failedPageRef.current = null;
+    seenKeysRef.current = new Set([shortKey(target)]);
+    setShorts([target]);
+    setHasMore(true);
+  }, []);
+
+  return { shorts, loading, error, hasMore, load, prime };
 }

@@ -5,6 +5,7 @@ import { Mousewheel, Keyboard } from 'swiper/modules';
 import 'swiper/css';
 import { useEffect, useState, useCallback } from 'react';
 import { useShorts } from '@/hooks/useShorts';
+import type { ShortItem } from '@/lib/shorts/types';
 import ShortCard from './ShortCard';
 import ShortsCommentSheet from './ShortsCommentSheet';
 import ShortsCommentContent from './ShortsCommentContent';
@@ -16,16 +17,52 @@ interface ActiveComment {
 }
 
 export default function ShortsPlayer() {
-  const { shorts, loading, error, hasMore, load } = useShorts();
+  const { shorts, loading, error, hasMore, load, prime } = useShorts();
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [activeComment, setActiveComment] = useState<ActiveComment | null>(null);
 
   const isDesktop = useBreakpointValue({ base: false, md: true }, { ssr: false });
 
+  // If opened from a shared chat link (?v=author/hivePermlink), resolve that short
+  // and play it first, then load the rest of the feed in the background. Component
+  // is ssr:false, so reading location directly is safe (no Suspense boundary needed).
   useEffect(() => {
-    load(true);
-  }, [load]);
+    const v = new URLSearchParams(window.location.search).get('v');
+    if (!v) {
+      load(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/short-meta?v=${encodeURIComponent(v)}`);
+        if (!res.ok) throw new Error('meta');
+        const m = await res.json();
+        if (cancelled) return;
+        const target: ShortItem = {
+          id: `${m.author}-${m.videoPermlink}-shared`,
+          author: m.author,
+          hivePermlink: m.hivePermlink,
+          permlink: m.videoPermlink,
+          thumbnailUrl: m.thumbnailUrl || '',
+          title: m.title || '',
+          views: 0,
+          timeAgo: '',
+          stats: {
+            likes: m.stats?.likes ?? 0,
+            comments: m.stats?.comments ?? 0,
+            payout: m.stats?.payout ?? '0.00',
+          },
+        };
+        prime(target);
+        load();
+      } catch {
+        if (!cancelled) load(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [load, prime]);
 
   const onSlideChange = useCallback(
     (swiper: any) => {
