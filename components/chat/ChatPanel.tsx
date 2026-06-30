@@ -17,6 +17,10 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalOverlay,
   Popover,
   PopoverArrow,
   PopoverBody,
@@ -330,6 +334,7 @@ function MessageBubble({
   const imageUrls = isDeleted ? [] : extractImageUrls(msg.content);
   const textContent = stripInlineImageUrls(msg.content, imageUrls);
   const canOpenDm = !isOwn && !!onOpenDm;
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!onReplySelect) return;
     if (e.key === 'Enter' || e.key === ' ') {
@@ -401,6 +406,8 @@ function MessageBubble({
                       border="1px solid"
                       borderColor="whiteAlpha.200"
                       bg="blackAlpha.200"
+                      cursor="pointer"
+                      onClick={() => setLightboxUrl(url)}
                     >
                       <Image
                         src={url}
@@ -420,6 +427,24 @@ function MessageBubble({
             {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
           </Text>
         </Box>
+        {lightboxUrl && (
+          <Modal isOpen onClose={() => setLightboxUrl(null)} size="full" isCentered>
+            <ModalOverlay bg="blackAlpha.900" onClick={() => setLightboxUrl(null)} />
+            <ModalContent bg="transparent" shadow="none" onClick={() => setLightboxUrl(null)}>
+              <ModalBody display="flex" alignItems="center" justifyContent="center" p={4}>
+                <Image
+                  src={lightboxUrl}
+                  alt="Expanded image"
+                  maxH="90vh"
+                  maxW="90vw"
+                  objectFit="contain"
+                  borderRadius="8px"
+                  onClick={e => e.stopPropagation()}
+                />
+              </ModalBody>
+            </ModalContent>
+          </Modal>
+        )}
         {!isDeleted && (onEditSelect || onDeleteSelect || forwardTargets?.length) && (
           <HStack justify="flex-end" mt={1} spacing={3}>
             {onEditSelect && (
@@ -540,6 +565,8 @@ function MessageBubble({
                         border="1px solid"
                         borderColor="whiteAlpha.200"
                         bg="blackAlpha.200"
+                        cursor="pointer"
+                        onClick={() => setLightboxUrl(url)}
                       >
                         <Image
                           src={url}
