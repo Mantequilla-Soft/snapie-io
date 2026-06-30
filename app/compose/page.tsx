@@ -5,7 +5,7 @@ import { Flex, Input, Tag, TagCloseButton, TagLabel, Wrap, WrapItem, Button, use
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { prepareImageArray, validateTitle, validateContent } from '@/lib/utils/composeUtils'
+import { prepareImageArray, validateTitle, validateContent, generatePermlink } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
 import { useUserSettings } from '@/hooks/useUserSettings'
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput'
@@ -255,6 +255,7 @@ export default function Home() {
         author: username,
         body: postBody,
         title: title,
+        permlink: generatePermlink(title),
         parentAuthor: '',
         parentPermlink: selectedCommunity,
         tags: hashtags,
