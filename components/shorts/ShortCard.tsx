@@ -3,20 +3,24 @@ import {
   Box, Flex, Text, Image, VStack, HStack, IconButton, useToast,
   Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Menu, MenuButton, MenuList, MenuItem, Spinner,
+  Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
+  Avatar, Input,
 } from '@chakra-ui/react';
 import { CloseIcon } from '@chakra-ui/icons';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
 import {
-  FaHeart, FaRegHeart, FaComment, FaShare,
+  FaHeart, FaRegHeart, FaComment, FaShare, FaPaperPlane,
   FaVolumeUp, FaVolumeMute, FaEllipsisH,
   FaUserPlus, FaUserMinus, FaVolumeMute as FaMuteUser,
 } from 'react-icons/fa';
 import { ShortItem } from '@/lib/shorts/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote, getPost } from '@/lib/hive/client-functions';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { useRouter } from 'next/navigation';
+import { chatService, Conversation } from '@/lib/chat/ChatService';
+import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -162,6 +166,11 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const [showVoteSlider, setShowVoteSlider] = useState(false);
   const [voteWeight, setVoteWeight] = useState(100);
   const [isVoting, setIsVoting] = useState(false);
+  const [showSendPicker, setShowSendPicker] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConvs, setLoadingConvs] = useState(false);
+  const [sendingTo, setSendingTo] = useState<string | null>(null);
+  const [convSearch, setConvSearch] = useState('');
   const { username: user } = useCurrentUser();
   const toast = useToast();
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -273,6 +282,55 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
       );
     }
   }, [short.author, short.hivePermlink, short.title, toast]);
+
+  // ── Send via chat ─────────────────────────────────────────────────────────
+
+  const handleOpenSendPicker = useCallback(async () => {
+    if (!user) {
+      toast({ title: 'Login to send', status: 'info', duration: 2000 });
+      return;
+    }
+    setConvSearch('');
+    setShowSendPicker(true);
+    if (conversations.length === 0) {
+      setLoadingConvs(true);
+      try {
+        const convs = await chatService.getConversations();
+        setConversations(convs);
+      } catch {
+        toast({ title: 'Could not load conversations', status: 'error', duration: 2000 });
+      } finally {
+        setLoadingConvs(false);
+      }
+    }
+  }, [user, conversations.length, toast]);
+
+  const filteredConvs = useMemo(() => {
+    const q = convSearch.toLowerCase();
+    return conversations.filter(c => {
+      const name = c.type === 'dm' ? (c.peer ?? '') : c.name;
+      return name.toLowerCase().includes(q);
+    });
+  }, [conversations, convSearch]);
+
+  const handleSendToConversation = useCallback(async (conv: Conversation) => {
+    if (sendingTo) return;
+    setSendingTo(conv._id);
+    const url = `${window.location.origin}/shorts?v=${short.author}/${short.hivePermlink}`;
+    try {
+      if (conv.type === 'channel') {
+        await chatService.sendMessage(conv._id, url);
+      } else {
+        await chatService.sendDmMessage(conv._id, url);
+      }
+      toast({ title: 'Sent!', status: 'success', duration: 2000 });
+      setShowSendPicker(false);
+    } catch {
+      toast({ title: 'Failed to send', status: 'error', duration: 2000 });
+    } finally {
+      setSendingTo(null);
+    }
+  }, [sendingTo, short.author, short.hivePermlink, toast]);
 
   return (
     <Box position="relative" w="100%" h="100%" bg="black" overflow="hidden">
@@ -449,6 +507,13 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
           onClick={onOpenComments}
         />
 
+        {/* Send via chat */}
+        <ActionBtn
+          icon={<FaPaperPlane />}
+          label="Send"
+          onClick={handleOpenSendPicker}
+        />
+
         {/* Share */}
         <ActionBtn
           icon={<FaShare />}
@@ -515,6 +580,59 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         )}
       </VStack>
 
+      {/* Conversation picker */}
+      {showSendPicker && (
+        <Modal isOpen onClose={() => setShowSendPicker(false)} size="sm" isCentered>
+          <ModalOverlay bg="blackAlpha.800" />
+          <ModalContent bg="gray.900" borderRadius="16px" border="1px solid" borderColor="whiteAlpha.200">
+            <ModalHeader color="white" fontSize="md" pb={2}>Send to...</ModalHeader>
+            <ModalCloseButton color="whiteAlpha.700" />
+            <ModalBody pb={5}>
+              <Input
+                placeholder="Search conversations"
+                value={convSearch}
+                onChange={e => setConvSearch(e.target.value)}
+                mb={3}
+                bg="whiteAlpha.100"
+                border="none"
+                color="white"
+                size="sm"
+                borderRadius="8px"
+                _placeholder={{ color: 'whiteAlpha.400' }}
+              />
+              {loadingConvs ? (
+                <Flex justify="center" py={6}><Spinner color="whiteAlpha.600" /></Flex>
+              ) : filteredConvs.length === 0 ? (
+                <Text color="whiteAlpha.500" fontSize="sm" textAlign="center" py={6}>
+                  {conversations.length === 0 ? 'No conversations yet' : 'No matches'}
+                </Text>
+              ) : (
+                <VStack align="stretch" spacing={1} maxH="300px" overflowY="auto">
+                  {filteredConvs.map(conv => {
+                    const name = conv.type === 'dm' ? (conv.peer ?? conv.name) : conv.name;
+                    const avatarSrc = conv.type === 'dm' && conv.peer ? getHiveAvatarUrl(conv.peer, 'small') : undefined;
+                    return (
+                      <HStack
+                        key={conv._id}
+                        p={2}
+                        borderRadius="8px"
+                        cursor="pointer"
+                        _hover={{ bg: 'whiteAlpha.100' }}
+                        onClick={() => handleSendToConversation(conv)}
+                        opacity={sendingTo && sendingTo !== conv._id ? 0.5 : 1}
+                      >
+                        <Avatar size="sm" name={name} src={avatarSrc} />
+                        <Text color="white" fontSize="sm" flex={1} noOfLines={1}>{name}</Text>
+                        {sendingTo === conv._id && <Spinner size="xs" color="whiteAlpha.600" />}
+                      </HStack>
+                    );
+                  })}
+                </VStack>
+              )}
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      )}
     </Box>
   );
 }

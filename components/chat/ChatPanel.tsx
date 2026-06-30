@@ -40,6 +40,7 @@ import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signMessageWithAioha } from '@/lib/hive/aioha';
 import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
+import { FaPlay } from 'react-icons/fa';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
@@ -74,6 +75,69 @@ const DELTA_MESSAGE_LIMIT = 50;
 const MAX_ACTIVE_MESSAGES = 600;
 
 const IMAGE_HOSTS = new Set(['images.hive.blog', 'images.3speak.tv', 'files.peakd.com']);
+
+// ── Short preview ─────────────────────────────────────────────────────────────
+
+type ShortMeta = { thumbnailUrl: string; title: string; author: string };
+const shortMetaCache = new Map<string, ShortMeta | null>();
+
+function extractShortsV(content: string): string | null {
+  const match = content.match(/\/shorts[?]v=([^\s&"']+)/);
+  return match ? match[1] : null;
+}
+
+function ShortPreview({ v }: { v: string }) {
+  const [meta, setMeta] = useState<ShortMeta | null | 'loading'>(() => {
+    const cached = shortMetaCache.get(v);
+    return cached !== undefined ? cached : 'loading';
+  });
+
+  useEffect(() => {
+    if (meta !== 'loading') return;
+    fetch(`/api/short-meta?v=${encodeURIComponent(v)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const m: ShortMeta | null = data?.author ? data : null;
+        shortMetaCache.set(v, m);
+        setMeta(m);
+      })
+      .catch(() => { shortMetaCache.set(v, null); setMeta(null); });
+  }, [v, meta]);
+
+  if (meta === 'loading') return <Spinner size="xs" color="whiteAlpha.500" mt={1} />;
+  if (!meta) return null;
+
+  return (
+    <Box
+      as="a"
+      href={`/shorts?v=${v}`}
+      display="block"
+      mt={2}
+      borderRadius="10px"
+      overflow="hidden"
+      border="1px solid"
+      borderColor="whiteAlpha.200"
+      textDecoration="none"
+      _hover={{ opacity: 0.85 }}
+      transition="opacity 0.15s"
+    >
+      {meta.thumbnailUrl && (
+        <Box position="relative">
+          <Image src={meta.thumbnailUrl} alt={meta.title} w="100%" maxH="160px" objectFit="cover" display="block" />
+          <Box position="absolute" inset="0" display="flex" alignItems="center" justifyContent="center" bg="blackAlpha.300">
+            <Box bg="blackAlpha.700" borderRadius="full" p="10px" lineHeight="0">
+              <FaPlay color="white" size={14} />
+            </Box>
+          </Box>
+        </Box>
+      )}
+      <Box px={3} py={2} bg="blackAlpha.500">
+        <Text fontSize="10px" color="whiteAlpha.600">@{meta.author} · Snapie Short</Text>
+        {meta.title && <Text fontSize="sm" color="white" fontWeight="medium" noOfLines={2}>{meta.title}</Text>}
+      </Box>
+    </Box>
+  );
+}
 
 function isImageUrl(url: string): boolean {
   const trimmed = url.trim();
@@ -332,7 +396,12 @@ function MessageBubble({
 }) {
   const isDeleted = msg.content === '[deleted]';
   const imageUrls = isDeleted ? [] : extractImageUrls(msg.content);
-  const textContent = stripInlineImageUrls(msg.content, imageUrls);
+  const shortsV = isDeleted ? null : extractShortsV(msg.content);
+  const textContent = (() => {
+    let t = stripInlineImageUrls(msg.content, imageUrls);
+    if (shortsV) t = t.replace(/https?:\/\/\S*\/shorts\?v=\S*/g, '').trim();
+    return t;
+  })();
   const canOpenDm = !isOwn && !!onOpenDm;
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const handleReplyKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -421,6 +490,7 @@ function MessageBubble({
                   ))}
                 </VStack>
               )}
+              {shortsV && <ShortPreview v={shortsV} />}
             </>
           )}
           <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
@@ -580,6 +650,7 @@ function MessageBubble({
                     ))}
                   </VStack>
                 )}
+                {shortsV && <ShortPreview v={shortsV} />}
               </>
             )}
             <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
