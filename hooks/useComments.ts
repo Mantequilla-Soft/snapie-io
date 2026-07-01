@@ -15,6 +15,8 @@ interface ActiveVote {
 export interface ExtendedComment extends Comment {
     active_votes?: ActiveVote[]
     replies?: ExtendedComment[]
+    /** Set only by useBlendedFeed — undefined everywhere else means "snap". */
+    source?: 'snap' | 'wave'
 }
 
 interface ActiveVote {

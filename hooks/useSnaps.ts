@@ -15,9 +15,13 @@ export type SnapFilterType = 'community' | 'all' | 'following' | 'patrons';
 interface UseSnapsProps {
   filterType?: SnapFilterType;
   username?: string; // Required when filterType is 'following'
+  /** When true, this hook does no fetching at all — used when a caller has
+   *  another data source covering the current filter (e.g. the blended feed
+   *  standing in for 'all') and doesn't want useSnaps duplicating the RPC walk. */
+  skip?: boolean;
 }
 
-export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps = {}) => {
+export const useSnaps = ({ filterType = 'community', username, skip = false }: UseSnapsProps = {}) => {
   const lastContainerRef = useRef<lastContainerInfo | null>(null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const followingListRef = useRef<string[]>([]);
@@ -221,6 +225,11 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
 
   // Fetch posts when `currentPage` changes (or when followingListLoaded changes for following filter)
   useEffect(() => {
+    // A caller (currently: the blended feed standing in for 'all') is covering
+    // this filter already — don't duplicate the RPC walk in the background.
+    if (skip) {
+      return;
+    }
     // Only wait for following list if we're on the following filter
     if (filterType === 'following') {
       if (!followingListLoaded) {
@@ -272,7 +281,7 @@ export const useSnaps = ({ filterType = 'community', username }: UseSnapsProps =
 
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, fetchTrigger, patronsGate]);
+  }, [currentPage, fetchTrigger, patronsGate, skip]);
 
   // Load the next page with throttling — ref-based so the flag survives re-renders
   const loadNextPage = useCallback(() => {

@@ -19,6 +19,7 @@ import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
 import PatronBadge from '@/components/shared/PatronBadge';
+import WaveBadge from '@/components/shared/WaveBadge';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { translationCache } from '@/lib/utils/translationCache';
@@ -271,6 +272,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                     @{comment.author}
                                 </Link>
                                 <PatronBadge tier={getTier(comment.author)} />
+                                {comment.source === 'wave' && <WaveBadge />}
                                 <Text fontSize="sm" color="whiteAlpha.400" flexShrink={0}>·</Text>
                                 <Text fontSize="sm" color="whiteAlpha.500" flexShrink={0}>{commentDate}</Text>
                             </HStack>

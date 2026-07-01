@@ -14,7 +14,7 @@ import InteractionBar from '@/components/shared/InteractionBar';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
-import { extractYouTubeId, isSnapContainer } from '@/lib/utils/snapUtils';
+import { extractYouTubeId, isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 
 type BodySegment =
@@ -109,7 +109,8 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
         post.depth > 0 &&
         post.parent_author &&
         post.parent_permlink &&
-        !isSnapContainer(post.parent_author, post.parent_permlink)
+        !isSnapContainer(post.parent_author, post.parent_permlink) &&
+        !isWaveContainer(post.parent_author, post.parent_permlink)
     );
 
     const bodySegments = useMemo((): BodySegment[] => {

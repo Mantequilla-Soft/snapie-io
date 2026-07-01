@@ -6,7 +6,7 @@ import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { isSnapContainer } from '@/lib/utils/snapUtils';
+import { isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { getPayoutValue } from '@/lib/hive/client-functions';
 
 type SortOrder = 'new' | 'top';
@@ -23,9 +23,11 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
     const { hiveUser } = useHiveUser();
     const router = useRouter();
     const { comments, isLoading, error, updateComments } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
-    // A "top snap" replies directly to the snap container; hide its parent link so users
-    // can't open the container and load hundreds of snaps at once.
-    const isTopLevel = !comment.parent_author || isSnapContainer(comment.parent_author, comment.parent_permlink);
+    // A "top snap" (or top wave) replies directly to its container; hide its parent
+    // link so users can't open the container and load hundreds of replies at once.
+    const isTopLevel = !comment.parent_author ||
+        isSnapContainer(comment.parent_author, comment.parent_permlink) ||
+        isWaveContainer(comment.parent_author, comment.parent_permlink);
     const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
     useEffect(() => {

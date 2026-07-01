@@ -8,6 +8,7 @@ import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
+import { useBlendedFeed } from '@/hooks/useBlendedFeed';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import NewSnapsBanner from '@/components/homepage/NewSnapsBanner';
 import { useNewSnapsAvailable } from '@/hooks/useNewSnapsAvailable';
@@ -77,23 +78,51 @@ export default function Home() {
 
   const handleReply = (_partial: Partial<Comment>) => {
     setTimeout(() => {
-      snaps.refresh?.();
+      activeFeedData.refresh?.();
       setConversationRefreshTrigger(t => t + 1);
     }, 3000);
   };
 
   const handleFilterChange = (filter: SnapFilterType) => {
     setActiveFilter(filter);
+    setBlendedFailed(false); // retry the blended source fresh on every visit to "Latest"
     setConversation(undefined); // Close conversation view when changing filter
     if (filter === 'all') acknowledge();
   };
 
+  // "Latest" blends snaps+waves via the sidecar's /feed endpoint when this flag
+  // is on — see internal-docs/hive-activity-sidecar-feed.md. If the sidecar
+  // isn't up yet (or hiccups), blendedFailed flips true and we fall back to
+  // the plain snaps-only path below, so "Latest" never goes blank for visitors.
+  const ENABLE_BLENDED_FEED = process.env.NEXT_PUBLIC_ENABLE_BLENDED_FEED === 'true';
+  const [blendedFailed, setBlendedFailed] = useState(false);
+  const showBlendedForAll = ENABLE_BLENDED_FEED && activeFilter === 'all' && !blendedFailed;
+
   const snaps = useSnaps({
     filterType: activeFilter,
-    username: user || undefined
+    username: user || undefined,
+    skip: showBlendedForAll, // blended is covering 'all' right now — don't duplicate the RPC walk
   });
+  const blendedFeed = useBlendedFeed({
+    username: user || undefined,
+    enabled: ENABLE_BLENDED_FEED && activeFilter === 'all',
+  });
+  const activeFeedData = showBlendedForAll ? blendedFeed : snaps;
 
-  const { newCount, acknowledge } = useNewSnapsAvailable();
+  // First-page probe: if the blended source comes back empty, fall back to
+  // snaps-only for this session. Scoped to the first page only — a sidecar
+  // outage is a launch-day/persistent condition worth guarding against; a
+  // hiccup deep into scrolling is the same class of "ran out of results"
+  // every filter's own scan cap can already legitimately produce.
+  useEffect(() => {
+    if (showBlendedForAll && blendedFeed.hasFetchedOnce && blendedFeed.comments.length === 0 && !blendedFeed.hasMore) {
+      setBlendedFailed(true);
+    }
+  }, [showBlendedForAll, blendedFeed.hasFetchedOnce, blendedFeed.comments.length, blendedFeed.hasMore]);
+
+  // Matches whatever "Latest" is actually showing right now — blended when
+  // healthy, snap-only during the same fallback window the feed itself uses.
+  const { newCount, acknowledge } = useNewSnapsAvailable({ source: showBlendedForAll ? 'blended' : 'snaps' });
 
   // Authors of snaps the current user has already upvoted in the currently
   // loaded feed — read from data already in memory for the feed itself, no
@@ -101,13 +130,13 @@ export default function Home() {
   const engagedAuthors = useMemo(() => {
     const set = new Set<string>();
     if (!user) return set;
-    for (const comment of snaps.comments) {
+    for (const comment of activeFeedData.comments) {
       if (comment.active_votes?.some(vote => vote.voter === user)) {
         set.add(comment.author);
       }
     }
     return set;
-  }, [snaps.comments, user]);
+  }, [activeFeedData.comments, user]);
 
   // Clicking the Home button while already on `/` dispatches this event so the
   // nav components (which live outside this component tree) can trigger a reset
@@ -142,7 +171,7 @@ export default function Home() {
     // visible. If already on "Latest", filterType won't change so it won't
     // auto-refetch — refresh explicitly in that case.
     if (activeFilter === 'all') {
-      snaps.refresh?.();
+      activeFeedData.refresh?.();
     } else {
       handleFilterChange('all');
     }
@@ -186,8 +215,11 @@ export default function Home() {
               setConversation={setConversation}
               onOpen={onOpen}
               setReply={setReply}
-              data={{...snaps, refresh: snaps.refresh}}
-              emptyMessage={activeFilter === 'patrons' ? 'No patrons yet — be the first to support Snapie!' : undefined}
+              data={{...activeFeedData, refresh: activeFeedData.refresh}}
+              emptyMessage={
+                activeFilter === 'patrons' ? 'No patrons yet — be the first to support Snapie!' :
+                showBlendedForAll ? 'No snaps or waves yet.' : undefined
+              }
             />
           </>
         ) : (

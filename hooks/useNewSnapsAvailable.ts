@@ -10,23 +10,37 @@ interface NewSnapsResponse {
   warming: boolean;
 }
 
+const SOURCE_ENDPOINT: Record<'snaps' | 'blended', string> = {
+  snaps: '/api/new-snaps',
+  blended: '/api/feed/new-since',
+};
+
+interface UseNewSnapsAvailableProps {
+  /** 'snaps' (default) counts against peak.snaps only, matching the "For You"/
+   *  legacy behavior. 'blended' counts against the merged snap+wave index that
+   *  backs "Latest" when the blended feed is active — pass
+   *  `showBlendedForAll` from app/page.tsx so this always matches whatever
+   *  "Latest" is actually showing right now. */
+  source?: 'snaps' | 'blended';
+}
+
 /**
- * Polls the activity sidecar (via /api/new-snaps) for snaps posted since a
- * cursor that only advances when the caller acknowledges them — so the count
- * accumulates the longer the banner is ignored, same as Twitter's "N new
- * posts" prompt.
+ * Polls the activity sidecar for posts made since a cursor that only advances
+ * when the caller acknowledges them — so the count accumulates the longer the
+ * banner is ignored, same as Twitter's "N new posts" prompt.
  */
-export function useNewSnapsAvailable() {
+export function useNewSnapsAvailable({ source = 'snaps' }: UseNewSnapsAvailableProps = {}) {
   const [newCount, setNewCount] = useState(0);
   const baselineSinceRef = useRef<number>(Date.now());
   const lastServerTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     let cancelled = false;
+    const endpoint = SOURCE_ENDPOINT[source];
 
     async function poll() {
       try {
-        const res = await fetch(`/api/new-snaps?since=${baselineSinceRef.current}`);
+        const res = await fetch(`${endpoint}?since=${baselineSinceRef.current}`);
         if (!res.ok) return;
         const data: NewSnapsResponse = await res.json();
         if (cancelled) return;
@@ -43,7 +57,7 @@ export function useNewSnapsAvailable() {
       cancelled = true;
       clearInterval(id);
     };
-  }, []);
+  }, [source]);
 
   // Advance the cursor to the last known SERVER clock (not the browser's —
   // avoids client/server drift) and zero the count. Call this when the user

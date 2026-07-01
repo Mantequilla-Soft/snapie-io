@@ -21,6 +21,19 @@ export function isSnapContainer(author?: string | null, permlink?: string | null
   return !permlink || permlink === SNAP_CONTAINER_PERMLINK;
 }
 
+/**
+ * Ecency's equivalent of the snap container — same mechanics (top-level replies
+ * to a container post), different account. Unlike peak.snaps, the container
+ * permlink rotates daily (waves-YYYY-MM-DD) rather than staying fixed, so there
+ * is no single permlink to compare against — author match alone is the signal.
+ */
+export const WAVE_CONTAINER_AUTHOR = "ecency.waves";
+
+/** True when `author` is the wave container account — see isSnapContainer. */
+export function isWaveContainer(author?: string | null, _permlink?: string | null): boolean {
+  return author === WAVE_CONTAINER_AUTHOR;
+}
+
 /** Wrapper aspect for iframe/video embeds (avoids forcing vertical content into 16/9). */
 export type EmbedAspect = "16/9" | "9/16" | "4/5" | "3/4";
 
