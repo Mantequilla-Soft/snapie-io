@@ -53,6 +53,20 @@ function subscribe(username: string, cb: (v: boolean) => void): () => void {
   };
 }
 
+/**
+ * Call right after a successful claim broadcast. Polls the chain until the
+ * reward balance actually clears (broadcast success doesn't guarantee the
+ * claim is in a block yet), updating the shared cache so the LED indicator
+ * reflects reality instead of waiting for the next 5-minute poll.
+ */
+export async function refreshAfterClaim(username: string, attempts = 5, delayMs = 1500): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+    await fetchRewards(username);
+    if (cache.get(username) === false) return;
+  }
+}
+
 export function useUnclaimedRewards(): boolean {
   const { username } = useCurrentUser();
   const [hasRewards, setHasRewards] = useState(() => cache.get(username ?? '') ?? false);

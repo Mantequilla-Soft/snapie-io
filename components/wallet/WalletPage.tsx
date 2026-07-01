@@ -39,6 +39,7 @@ import {
 } from '@/lib/hive/client-functions';
 import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
+import { refreshAfterClaim } from '@/hooks/useUnclaimedRewards';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
@@ -342,12 +343,15 @@ export default function WalletPage({ username }: WalletPageProps) {
     setIsClaiming(true);
     try {
       await claimRewardsWithKeychain(user, rewardHive, rewardHbd, rewardVests);
+      // Broadcast success just means the node accepted it — wait for the
+      // claim to actually land in a block before trusting a refetch.
+      await refreshAfterClaim(user);
     } catch (err) {
       console.error('Claim rewards failed:', err);
     } finally {
       setIsClaiming(false);
     }
-    setTimeout(refetch, 3500);
+    refetch();
   }
 
   const balance = hiveAccount?.balance ? String(extractNumber(String(hiveAccount.balance))) : '0.000';
