@@ -154,3 +154,49 @@ Two bugs in the `604fe80` shorts-via-chat feature:
 - `pnpm test` → 14/14 pass.
 - Live route check: previously-blank `wendyth16/snap-1782692085491` now returns real thumbnail + title "Golden sunset." + videoPermlink `3cb3gaih`; legacy `meno/127fd37d` resolves via fallback. `tsc --noEmit` clean for changed files.
 - Browser playback not exercised (no Chrome in env); player path is a direct consequence of the verified resolution (autoLoads `author/videoPermlink`).
+
+---
+
+# Fix — Unbounded reply-nesting indentation (2026-07-03)
+
+## Problem
+Deeply nested conversations (reply→reply→reply→…) rendered comically narrow comment cards — at 29 levels deep the card was 34px wide on a 390px phone (seen on /@meno/20260702t010620059z).
+
+## Root cause
+`components/homepage/Snap.tsx` renders replies recursively; every level wraps children in a Box with `pl={1} ml={2}` (~12px), compounding without limit.
+
+## Change
+- MOD `components/homepage/Snap.tsx` — added `MAX_INDENT_LEVEL = 3`; the indent is only applied for levels 1–3, so deeper replies render flush with their level-3 ancestor (same order, same parent grouping). One shared component fixes snaps conversations, the home feed, and blog-post comments alike.
+
+## Verification
+- Dev server + Playwright (chromium) at 390px viewport on the reported conversation:
+  - Before: 29 distinct indent offsets, narrowest card **34px**.
+  - After: 4 distinct offsets (16/28/40/52px), narrowest card **322px**.
+- Screenshots confirmed deep replies are fully readable at mobile width.
+
+---
+
+# Plan — Blogs section: feed-source tabs (2026-07-03)
+
+## Goal
+Blog page gets a source selector like peakd: **Snapie** (community, default) / **Following** (logged-in user's follow feed) / **Trending** (global Hive). Nav label "Blog" → "Blogs".
+
+## Decisions (confirmed with meno)
+- Following tab always visible; logged out → login prompt.
+- Trending = global Hive trending (community trending stays as sort pill on Snapie tab).
+- Sort pills (New/Hot/Trending/Top) only shown on the Snapie tab.
+
+## Steps
+- [x] `lib/hive/client-functions.ts`: add `findFeedPosts(account, params)` — bridge `get_account_posts` sort `feed`, cursor pagination.
+- [x] `components/blog/TopBar.tsx`: add source tab row (Snapie/Following/Trending); hide sort pills unless source is snapie.
+- [x] `app/blog/page.tsx`: `feedSource` state; fetch branches (snapie = current, following = feed by username, trending = ranked trending with empty tag); reset pagination on source change; login-prompt state for Following when logged out.
+- [x] Rename Blog → Blogs in `Sidebar.tsx`, `BottomTabBar.tsx`, `FooterNavigation.tsx`.
+- [x] Verify in dev server with Playwright: all three tabs, logged-out prompt, simulated login via localStorage.
+
+## Review
+- Snapie tab unchanged (default): community posts load, all four sort pills visible.
+- Trending tab: global Hive trending via bridge `get_ranked_posts` with empty tag; sort pills hidden.
+- Following tab: logged out shows a "log in to see your feed" prompt; logged in (simulated via `aiohaUsername`/`aiohaProvider`/`hiveuser` localStorage) loads meno's real follow feed — verified it matches peakd (@sportsblock, @ericvancewalton, @wiseagent…). Infinite scroll verified: 5 paginated RPC calls with advancing `start_author`/`start_permlink` cursors, 426 post links loaded.
+- Note: `LoginModalContext` clears `hiveuser` unless an Aioha/Snapie session exists — simulating login requires setting the Aioha keys too.
+- Nav renamed Blog → Blogs in Sidebar, BottomTabBar, FooterNavigation (labels + tooltips; route stays `/blog`).
+- `tsc --noEmit` clean.

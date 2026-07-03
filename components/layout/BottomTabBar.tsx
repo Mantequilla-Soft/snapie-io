@@ -61,7 +61,7 @@ export default function BottomTabBar() {
         <Tab href="/" icon={FiHome} label="Home" active={isActive('/')} onClick={handleHomeClick} />
 
         {/* Blog */}
-        <Tab href="/blog" icon={FiBook} label="Blog" active={isActive('/blog')} />
+        <Tab href="/blog" icon={FiBook} label="Blogs" active={isActive('/blog')} />
 
         {/* Compose — elevated center CTA */}
         <Flex flex={1} justify="center" align="center">

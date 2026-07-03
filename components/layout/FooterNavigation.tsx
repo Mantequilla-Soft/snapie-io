@@ -130,7 +130,7 @@ export default function FooterNavigation({ isChatOpen = false, setIsChatOpen, ch
                     />
                 </Tooltip>
 
-                <Tooltip label="Blog" aria-label="Blog tooltip">
+                <Tooltip label="Blogs" aria-label="Blogs tooltip">
                     <Button
                         as={NextLink}
                         href="/blog"

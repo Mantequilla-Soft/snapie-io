@@ -180,7 +180,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Button>
                         </Box>
                     </Tooltip>
-                    <Tooltip label="Blog" placement="right" hasArrow isDisabled={!isCompactMode}>
+                    <Tooltip label="Blogs" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
                                 as={NextLink}
@@ -193,7 +193,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 borderRadius="10px"
                                 _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                             >
-                                <Text display={textDisplay}>Blog</Text>
+                                <Text display={textDisplay}>Blogs</Text>
                             </Button>
                         </Box>
                     </Tooltip>

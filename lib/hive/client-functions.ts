@@ -943,6 +943,18 @@ export async function findPosts(query: string, params: any) {
   });
 }
 
+// Follow feed (posts + reblogs from accounts the user follows), like peakd's /@user/feed.
+export async function findFeedPosts(account: string, params: { limit?: number; start_author?: string; start_permlink?: string }) {
+  return HiveClient.call('bridge', 'get_account_posts', {
+    sort: 'feed',
+    account,
+    observer: account,
+    limit: params.limit ?? 20,
+    start_author: params.start_author || '',
+    start_permlink: params.start_permlink || '',
+  });
+}
+
 export async function getLastSnapsContainer() {
   const author = "peak.snaps";
   const beforeDate = new Date().toISOString().split('.')[0];

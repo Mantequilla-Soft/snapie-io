@@ -2,10 +2,10 @@
 import { Box, Text } from '@chakra-ui/react';
 import { useState, useRef, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { findPosts, searchPosts } from '@/lib/hive/client-functions';
+import { findPosts, findFeedPosts, searchPosts } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
-import TopBar from '@/components/blog/TopBar';
+import TopBar, { FeedSource } from '@/components/blog/TopBar';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
@@ -16,6 +16,7 @@ export default function Blog() {
     const searchParams = useSearchParams();
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [query, setQuery] = useState('created');
+    const [feedSource, setFeedSource] = useState<FeedSource>('snapie');
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
     const [activeSearchTerm, setActiveSearchTerm] = useState(searchParams.get('q') || '');
     const [allPosts, setAllPosts] = useState<Discussion[]>([]);
@@ -25,6 +26,8 @@ export default function Blog() {
     const mutedSetRef = useRef<Set<string>>(new Set());
 
     const tag = process.env.NEXT_PUBLIC_HIVE_SEARCH_TAG
+    // Snapie tab is scoped to the community tag; Following/Trending span all of Hive
+    const feedTag = feedSource === 'snapie' ? tag : '';
 
     const params = useRef({
         tag: tag,
@@ -84,7 +87,16 @@ export default function Blog() {
                 return;
             }
 
-            const posts = await findPosts(query, params.current);
+            if (feedSource === 'following' && !hiveUser?.name) {
+                // Logged out: the page renders a login prompt instead of a feed
+                setHasMore(false);
+                isFetching.current = false;
+                return;
+            }
+
+            const posts = feedSource === 'following'
+                ? await findFeedPosts(hiveUser!.name, params.current)
+                : await findPosts(feedSource === 'trending' ? 'trending' : query, params.current);
 
             if (posts.length === 0) {
                 setHasMore(false);
@@ -105,7 +117,7 @@ export default function Blog() {
             // so we don't re-fetch posts that were filtered out
             const lastPost = posts[posts.length - 1];
             params.current = {
-                tag: tag,
+                tag: feedTag,
                 limit: 20,
                 start_author: lastPost?.author || '',
                 start_permlink: lastPost?.permlink || '',
@@ -146,14 +158,14 @@ export default function Blog() {
         setAllPosts([]);
         setHasMore(!activeSearchTerm);
         params.current = {
-            tag: tag,
+            tag: feedTag,
             limit: 20,
             start_author: '',
             start_permlink: '',
         };
         fetchPosts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, mutedLoaded, tag, activeSearchTerm, hiveUser?.name]); // fetchPosts excluded - callback identity changes each render
+    }, [query, feedSource, mutedLoaded, tag, activeSearchTerm, hiveUser?.name]); // fetchPosts excluded - callback identity changes each render
 
     const submitSearch = () => {
         setActiveSearchTerm(searchTerm.trim());
@@ -183,6 +195,8 @@ export default function Blog() {
                 setViewMode={setViewMode}
                 activeQuery={query}
                 setQuery={setQuery}
+                feedSource={feedSource}
+                setFeedSource={setFeedSource}
                 searchTerm={searchTerm}
                 setSearchTerm={setSearchTerm}
                 onSearchSubmit={submitSearch}
@@ -193,13 +207,23 @@ export default function Blog() {
                     {`Search results for "${activeSearchTerm}" (${allPosts.length})`}
                 </Text>
             )}
-            <PostInfiniteScroll
-                allPosts={allPosts}
-                fetchPosts={fetchPosts}
-                viewMode={viewMode}
-                hasMore={hasMore}
-                searchMode={Boolean(activeSearchTerm)}
-            />
+            {feedSource === 'following' && !hiveUser?.name && !activeSearchTerm ? (
+                <Box textAlign="center" py={16} px={4}>
+                    <Text fontSize="3xl" mb={3}>👥</Text>
+                    <Text fontSize="lg" fontWeight="semibold" mb={2}>Your follow feed lives here</Text>
+                    <Text fontSize="sm" color="gray.500">
+                        Log in to see the latest blog posts from the people you follow on Hive.
+                    </Text>
+                </Box>
+            ) : (
+                <PostInfiniteScroll
+                    allPosts={allPosts}
+                    fetchPosts={fetchPosts}
+                    viewMode={viewMode}
+                    hasMore={hasMore}
+                    searchMode={Boolean(activeSearchTerm)}
+                />
+            )}
         </Box>
     );
 }

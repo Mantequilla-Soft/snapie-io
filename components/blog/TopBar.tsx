@@ -16,11 +16,21 @@ const SORT_OPTIONS: SortOption[] = [
     { label: 'Top',      value: 'payout',   icon: '💰' },
 ];
 
+export type FeedSource = 'snapie' | 'following' | 'trending';
+
+const FEED_SOURCES: { label: string; value: FeedSource; icon: string }[] = [
+    { label: 'Snapie',    value: 'snapie',    icon: '📸' },
+    { label: 'Following', value: 'following', icon: '👥' },
+    { label: 'Trending',  value: 'trending',  icon: '🌍' },
+];
+
 interface TopBarProps {
     viewMode: 'grid' | 'list';
     setViewMode: (mode: 'grid' | 'list') => void;
     activeQuery: string;
     setQuery: (query: string) => void;
+    feedSource: FeedSource;
+    setFeedSource: (source: FeedSource) => void;
     searchTerm: string;
     setSearchTerm: (value: string) => void;
     onSearchSubmit: () => void;
@@ -32,6 +42,8 @@ export default function TopBar({
     setViewMode,
     activeQuery,
     setQuery,
+    feedSource,
+    setFeedSource,
     searchTerm,
     setSearchTerm,
     onSearchSubmit,
@@ -112,29 +124,56 @@ export default function TopBar({
                 </Flex>
             </Flex>
 
-            {/* Row 2 — sort pills */}
+            {/* Row 2 — feed source tabs */}
             <Flex gap={2} flexWrap="wrap">
-                {SORT_OPTIONS.map((opt) => {
-                    const isActive = activeQuery === opt.value;
+                {FEED_SOURCES.map((src) => {
+                    const isActive = feedSource === src.value;
                     return (
                         <Button
-                            key={opt.value}
+                            key={src.value}
                             size="sm"
                             variant="ghost"
                             borderRadius="full"
                             bg={isActive ? 'muted' : 'transparent'}
-                            color={isActive ? 'text' : 'gray.500'}
+                            color={isActive ? 'primary' : 'gray.500'}
+                            fontWeight="bold"
                             borderWidth="1px"
                             borderColor={isActive ? 'primary' : 'border'}
                             _hover={{ bg: 'muted', color: 'text' }}
-                            onClick={() => setQuery(opt.value)}
-                            leftIcon={<Text as="span" fontSize="sm">{opt.icon}</Text>}
+                            onClick={() => setFeedSource(src.value)}
+                            leftIcon={<Text as="span" fontSize="sm">{src.icon}</Text>}
                         >
-                            {opt.label}
+                            {src.label}
                         </Button>
                     );
                 })}
             </Flex>
+
+            {/* Row 3 — sort pills (community feed only; Following is chronological, Trending is pre-sorted) */}
+            {feedSource === 'snapie' && (
+                <Flex gap={2} flexWrap="wrap">
+                    {SORT_OPTIONS.map((opt) => {
+                        const isActive = activeQuery === opt.value;
+                        return (
+                            <Button
+                                key={opt.value}
+                                size="sm"
+                                variant="ghost"
+                                borderRadius="full"
+                                bg={isActive ? 'muted' : 'transparent'}
+                                color={isActive ? 'text' : 'gray.500'}
+                                borderWidth="1px"
+                                borderColor={isActive ? 'primary' : 'border'}
+                                _hover={{ bg: 'muted', color: 'text' }}
+                                onClick={() => setQuery(opt.value)}
+                                leftIcon={<Text as="span" fontSize="sm">{opt.icon}</Text>}
+                            >
+                                {opt.label}
+                            </Button>
+                        );
+                    })}
+                </Flex>
+            )}
         </Flex>
     );
 }
