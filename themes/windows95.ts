@@ -247,6 +247,30 @@ export const windows95Theme = extendTheme({
                 color: 'text',
             },
         },
+        Menu: {
+            baseStyle: {
+                // Chakra's default Menu styling switches on its own internal color-mode
+                // state (independent of this theme's fixed dark palette). If that ever
+                // desyncs to "light" — e.g. a stale chakra-ui-color-mode value — the list
+                // renders white-on-white and becomes unreadable. Pin it to our tokens so
+                // it can never depend on that state.
+                list: {
+                    bg: 'muted',
+                    borderColor: 'border',
+                    borderWidth: '1px',
+                    borderRadius: 'md',
+                    boxShadow: 'lg',
+                    py: 1,
+                },
+                item: {
+                    bg: 'transparent',
+                    color: 'text',
+                    _hover: { bg: 'background' },
+                    _focus: { bg: 'background' },
+                    _active: { bg: 'background' },
+                },
+            },
+        },
         Modal: {
             baseStyle: {
                 dialog: {
