@@ -24,6 +24,10 @@ import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { translationCache } from '@/lib/utils/translationCache';
 
+// Deeper replies than this render flush with their ancestor instead of
+// indenting further — unbounded nesting crushes the card width on mobile.
+const MAX_INDENT_LEVEL = 3;
+
 interface SnapProps {
     comment: ExtendedComment;
     onOpen: () => void;
@@ -224,7 +228,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         }
     }
     return (
-        <Box pl={level > 0 ? 1 : 0} ml={level > 0 ? 2 : 0}>
+        <Box pl={level > 0 && level <= MAX_INDENT_LEVEL ? 1 : 0} ml={level > 0 && level <= MAX_INDENT_LEVEL ? 2 : 0}>
             <Box
                 bg="rgba(8, 24, 40, 0.72)"
                 px={4}
