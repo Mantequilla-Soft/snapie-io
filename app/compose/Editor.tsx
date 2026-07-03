@@ -700,6 +700,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 borderRadius="10px"
                                 bg="background"
                                 overflow="hidden"
+                                flexShrink={0}
                                 align="center"
                                 px={3}
                                 gap={2}
@@ -733,9 +734,11 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             </Flex>
                         )}
 
-                        {/* Markdown Editor Panel */}
+                        {/* Markdown Editor Panel — minH keeps the writing area usable on
+                            short viewports; sections below it scroll instead of crushing it */}
                         <Box
                             h="100%"
+                            minH="300px"
                             border="1px solid"
                             borderColor="border"
                             borderRadius="10px"
