@@ -258,15 +258,38 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     // Use SDK toolbar hook for markdown editing
     const toolbar = useEditorToolbar(textareaRef, markdown, setMarkdown);
 
-    // Hashtag handlers
+    // Hashtag handlers.
+    // Mobile virtual keyboards don't reliably fire a keydown with key === " "
+    // for the space bar (IME composition often reports keyCode 229 /
+    // "Unidentified"), so committing tags from onKeyDown silently drops every
+    // tag on mobile. Instead react to the actual value, which mobile keyboards
+    // do update correctly, and split on whitespace/commas as they appear.
+    const handleHashtagChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        if (!/[\s,]/.test(value)) {
+            setHashtagInput(value);
+            return;
+        }
+        const endsWithDelimiter = /[\s,]$/.test(value);
+        const parts = value.split(/[\s,]+/).filter(Boolean);
+        const remainder = endsWithDelimiter ? "" : parts.pop() || "";
+        if (parts.length) {
+            setHashtags([...hashtags, ...parts]);
+        }
+        setHashtagInput(remainder);
+    };
+
     const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         const { key } = e;
-        if (key === " " && hashtagInput.trim()) {
-            e.preventDefault(); // Prevent space from being added
+        if (key === "Backspace" && !hashtagInput && hashtags.length) {
+            setHashtags(hashtags.slice(0, -1));
+        }
+    };
+
+    const commitPendingHashtag = () => {
+        if (hashtagInput.trim()) {
             setHashtags([...hashtags, hashtagInput.trim()]);
             setHashtagInput("");
-        } else if (key === "Backspace" && !hashtagInput && hashtags.length) {
-            setHashtags(hashtags.slice(0, -1));
         }
     };
 
@@ -1121,10 +1144,11 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         >
                             {/* Hashtag Input */}
                             <Input
-                                placeholder="Enter hashtags (press space to add)"
+                                placeholder="Enter hashtags (space or comma to add)"
                                 value={hashtagInput}
-                                onChange={(e) => setHashtagInput(e.target.value)}
+                                onChange={handleHashtagChange}
                                 onKeyDown={handleHashtagKeyDown}
+                                onBlur={commitPendingHashtag}
                                 size="sm"
                                 border="none"
                                 borderRadius="10px"

@@ -142,21 +142,6 @@ export default function Home() {
     })()
   }, [user])
 
-  const handleHashtagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const { key } = e
-    if (key === " " && hashtagInput.trim()) { // If space is pressed and input is not empty
-      setHashtags([...hashtags, hashtagInput.trim()])
-      setHashtagInput("") // Clear input field
-    } else if (key === "Backspace" && !hashtagInput && hashtags.length) {
-      // Remove the last tag if backspace is hit and input is empty
-      setHashtags(hashtags.slice(0, -1))
-    }
-  }
-
-  const removeHashtag = (index: number) => {
-    setHashtags(hashtags.filter((_, i) => i !== index))
-  }
-
   function clearDraft() {
     localStorage.removeItem(DRAFT_KEY)
     setDraftRestored(false)
@@ -250,6 +235,11 @@ export default function Home() {
       // thumbnail explicitly so it lands in json_metadata.image[0].
       const imageArray = prepareImageArray(postBody, videoThumbnailUrl)
 
+      // Safety net: include any hashtag text still sitting in the input
+      // (e.g. never followed by a space/comma) so it isn't silently dropped.
+      const pendingTags = hashtagInput.trim().split(/[\s,]+/).filter(Boolean)
+      const finalTags = pendingTags.length ? [...hashtags, ...pendingTags] : hashtags
+
       // Use SDK to build operations
       const composerResult = blogComposer.build({
         author: username,
@@ -258,7 +248,7 @@ export default function Home() {
         permlink: generatePermlink(title),
         parentAuthor: '',
         parentPermlink: selectedCommunity,
-        tags: hashtags,
+        tags: finalTags,
         beneficiaries: beneficiaries.map(b => ({ account: b.account, weight: b.weight })),
         percentHbd,
         metadata: {
