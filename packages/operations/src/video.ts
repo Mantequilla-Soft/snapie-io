@@ -205,31 +205,57 @@ export async function extractVideoThumbnail(
     return new Promise((resolve, reject) => {
         const url = URL.createObjectURL(file);
         const video = document.createElement('video');
-        
-        video.src = url;
-        video.crossOrigin = 'anonymous';
+
+        // Mobile Safari/WebKit routinely never fires loadeddata/seeked on a
+        // video element that isn't attached to the document, and treats
+        // crossOrigin on a local blob: URL as a reason to error the load out
+        // entirely — both fail silently here since the caller swallows
+        // rejections, so the post just ends up with no thumbnail. Mirror the
+        // playsInline/muted setup used by every other <video> in this app and
+        // keep the element (off-screen) in the DOM for the duration of capture.
         video.muted = true;
-        
-        video.addEventListener('loadeddata', () => {
-            video.currentTime = seekTime;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.style.position = 'fixed';
+        video.style.top = '-9999px';
+        video.style.width = '1px';
+        video.style.height = '1px';
+        video.src = url;
+        document.body.appendChild(video);
+
+        const cleanup = () => {
+            URL.revokeObjectURL(url);
+            video.remove();
+        };
+
+        video.addEventListener('loadedmetadata', () => {
+            const target = Math.min(seekTime, Math.max((video.duration || seekTime) - 0.05, 0));
+            // iOS Safari needs a play() kick (allowed unprompted since muted)
+            // before it will actually decode a frame to seek/draw from.
+            video.play().catch(() => {}).finally(() => {
+                video.pause();
+                video.currentTime = target;
+            });
         });
-        
+
         video.addEventListener('seeked', () => {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
+
             const ctx = canvas.getContext('2d');
             if (!ctx) {
+                cleanup();
                 reject(new Error('Failed to get canvas context'));
                 return;
             }
-            
+
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
+
             canvas.toBlob(
                 (blob) => {
-                    URL.revokeObjectURL(url);
+                    cleanup();
                     if (blob) {
                         resolve(blob);
                     } else {
@@ -240,12 +266,12 @@ export async function extractVideoThumbnail(
                 0.9
             );
         });
-        
+
         video.addEventListener('error', () => {
-            URL.revokeObjectURL(url);
+            cleanup();
             reject(new Error('Failed to load video'));
         });
-        
+
         video.load();
     });
 }

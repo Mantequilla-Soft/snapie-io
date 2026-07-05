@@ -127,11 +127,27 @@ async function extractVideoThumbnail(file, seekTime = 0.5) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const video = document.createElement("video");
-    video.src = url;
-    video.crossOrigin = "anonymous";
     video.muted = true;
-    video.addEventListener("loadeddata", () => {
-      video.currentTime = seekTime;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    video.style.position = "fixed";
+    video.style.top = "-9999px";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    video.src = url;
+    document.body.appendChild(video);
+    const cleanup = () => {
+      URL.revokeObjectURL(url);
+      video.remove();
+    };
+    video.addEventListener("loadedmetadata", () => {
+      const target = Math.min(seekTime, Math.max((video.duration || seekTime) - 0.05, 0));
+      video.play().catch(() => {
+      }).finally(() => {
+        video.pause();
+        video.currentTime = target;
+      });
     });
     video.addEventListener("seeked", () => {
       const canvas = document.createElement("canvas");
@@ -139,13 +155,14 @@ async function extractVideoThumbnail(file, seekTime = 0.5) {
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
+        cleanup();
         reject(new Error("Failed to get canvas context"));
         return;
       }
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(
         (blob) => {
-          URL.revokeObjectURL(url);
+          cleanup();
           if (blob) {
             resolve(blob);
           } else {
@@ -157,7 +174,7 @@ async function extractVideoThumbnail(file, seekTime = 0.5) {
       );
     });
     video.addEventListener("error", () => {
-      URL.revokeObjectURL(url);
+      cleanup();
       reject(new Error("Failed to load video"));
     });
     video.load();
