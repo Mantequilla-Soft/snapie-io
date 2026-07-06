@@ -18,6 +18,28 @@ import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
 
+/**
+ * This module's DOMPurify.sanitize() call below allows the `style` attribute on
+ * `div`/`iframe` (needed for embed sizing), but DOMPurify does not itself validate
+ * CSS property values. Without this hook, an attacker-controlled <iframe> or <div>
+ * with style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999"
+ * renders a full-viewport overlay (e.g. a fake phishing dialog) even though no
+ * <script> or event handler is involved. Strip position/z-index from every style
+ * attribute so nothing can escape its normal place in page flow.
+ *
+ * NOTE: packages/renderer has its own separate DOMPurify instance (its own nested
+ * node_modules) with the equivalent hook — this one only covers this file's
+ * direct DOMPurify.sanitize() call for media/iframe embeds.
+ */
+DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+  if (data.attrName === "style" && data.attrValue) {
+    data.attrValue = data.attrValue
+      .split(";")
+      .filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl))
+      .join(";");
+  }
+});
+
 interface MediaRendererProps {
   mediaContent: string;
 }

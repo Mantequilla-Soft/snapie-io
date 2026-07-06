@@ -131,6 +131,11 @@ var DOMPURIFY_CONFIG = {
   KEEP_CONTENT: true,
   RETURN_TRUSTED_TYPE: false
 };
+DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+  if (data.attrName === "style" && data.attrValue) {
+    data.attrValue = data.attrValue.split(";").filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl)).join(";");
+  }
+});
 function fixMalformedCenterTags(content) {
   return content.replace(
     /<p><center>([\s\S]*?)<hr \/>([\s\S]*?)<\/center><\/p>/gi,

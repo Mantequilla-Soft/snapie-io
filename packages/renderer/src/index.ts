@@ -146,6 +146,25 @@ const DOMPURIFY_CONFIG = {
 };
 
 /**
+ * DOMPurify allows the `style` attribute (needed for embeds and hivemoji sizing)
+ * but does not itself validate CSS property values. Without this hook, a post
+ * body containing raw HTML like:
+ *   <div style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999">
+ * renders a full-viewport overlay with no <script> and no event handler involved,
+ * which is enough to build a convincing phishing takeover (e.g. a fake "vote this
+ * witness on HiveSigner" dialog). Strip `position` and `z-index` from every style
+ * attribute so no element can escape its normal place in page flow.
+ */
+DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+    if (data.attrName === 'style' && data.attrValue) {
+        data.attrValue = data.attrValue
+            .split(';')
+            .filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl))
+            .join(';');
+    }
+});
+
+/**
  * Fix malformed center tags from DefaultRenderer
  * DefaultRenderer sometimes produces: <p><center>...content...<hr />...more content...</center></p>
  */

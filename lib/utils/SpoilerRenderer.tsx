@@ -1,13 +1,22 @@
 'use client';
 import { useState } from 'react';
 import { Box, Button } from '@chakra-ui/react';
+import markdownRenderer from './MarkdownRenderer';
 
 interface SpoilerProps {
   title: string;
   content: string;
+  emojiOwner?: string;
 }
 
-export function SpoilerComponent({ title, content }: SpoilerProps) {
+/**
+ * Title is rendered as a plain React text node (auto-escaped, never treated as
+ * markup). Content is rendered through the shared sanitized markdownRenderer ->
+ * DOMPurify pipeline, same as every other piece of rendered content in the app.
+ * Do not switch this back to building an HTML string and assigning it via
+ * element.innerHTML — that bypasses DOMPurify entirely (see incident writeup).
+ */
+export function SpoilerComponent({ title, content, emojiOwner }: SpoilerProps) {
   const [isRevealed, setIsRevealed] = useState(false);
 
   return (
@@ -28,21 +37,16 @@ export function SpoilerComponent({ title, content }: SpoilerProps) {
         {isRevealed ? 'Hide' : 'Show'} Spoiler: {title}
       </Button>
       {isRevealed && (
-        <Box mt={2} p={2} bg="white" borderRadius="sm" border="1px solid" borderColor="gray.200">
-          {content}
-        </Box>
+        <Box
+          mt={2}
+          p={2}
+          bg="white"
+          borderRadius="sm"
+          border="1px solid"
+          borderColor="gray.200"
+          dangerouslySetInnerHTML={{ __html: markdownRenderer(content, { defaultEmojiOwner: emojiOwner }) }}
+        />
       )}
     </Box>
   );
-}
-
-// Function to process markdown and replace spoilers with interactive components
-export function processSpoilers(htmlContent: string): string {
-  // Regex to match spoiler syntax: >! [Title] Content
-  const spoilerRegex = />!\s*\[([^\]]+)\]\s*([\s\S]*?)(?=\n\n|$)/g;
-  
-  return htmlContent.replace(spoilerRegex, (match, title, content) => {
-    const spoilerId = Math.random().toString(36).substr(2, 9);
-    return `<div class="spoiler-container" data-title="${title}" data-content="${content.trim()}" data-id="${spoilerId}"></div>`;
-  });
 }

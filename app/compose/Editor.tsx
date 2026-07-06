@@ -1,13 +1,13 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
-import { FC, useRef, useState, useCallback, useEffect } from "react";
+import { FC, useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
-import { processSpoilers } from '@/lib/utils/SpoilerRenderer';
+import { SpoilerComponent } from '@/lib/utils/SpoilerRenderer';
 import GiphySelector from '@/components/homepage/GiphySelector';
 import { IGif } from '@giphy/js-types';
 import { useDropzone } from 'react-dropzone';
@@ -19,67 +19,40 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEditorToolbar, ALL_COMMON_EMOJIS } from '@snapie/composer/react';
 
 // Preview Content Component with Spoiler Support
+type PreviewSegment =
+    | { type: 'html'; html: string }
+    | { type: 'spoiler'; title: string; content: string };
+
+const SPOILER_REGEX = />!\s*\[([^\]]+)\]\s*([\s\S]*?)(?=\n(?!>)|\n\n|$)/gm;
+
 const PreviewContent: FC<{ markdown: string; emojiOwner?: string }> = ({ markdown, emojiOwner }) => {
-    const [spoilerStates, setSpoilerStates] = useState<{[key: string]: boolean}>({});
+    // Split into plain-markdown segments (sanitized via markdownRenderer -> DOMPurify)
+    // and spoiler segments (rendered as real React components). Spoiler title/content
+    // are never turned into an HTML string or assigned via element.innerHTML.
+    const segments = useMemo<PreviewSegment[]>(() => {
+        const parts: PreviewSegment[] = [];
+        const regex = new RegExp(SPOILER_REGEX);
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
 
-    const toggleSpoiler = (id: string) => {
-        setSpoilerStates(prev => ({
-            ...prev,
-            [id]: !prev[id]
-        }));
-    };
-
-    // Process spoilers before rendering
-    const processMarkdown = (text: string) => {
-        // Handle spoilers first
-        let processed = text.replace(
-            />!\s*\[([^\]]+)\]\s*([\s\S]*?)(?=\n(?!>)|\n\n|$)/gm,
-            (match, title, content) => {
-                const spoilerId = `spoiler-${Math.random().toString(36).substr(2, 9)}`;
-                return `<div class="spoiler-container" data-title="${title}" data-content="${content.trim()}" data-id="${spoilerId}"></div>`;
+        while ((match = regex.exec(markdown)) !== null) {
+            const [full, title, content] = match;
+            if (match.index > lastIndex) {
+                const plain = markdown.slice(lastIndex, match.index);
+                parts.push({ type: 'html', html: markdownRenderer(plain, { defaultEmojiOwner: emojiOwner }) });
             }
-        );
-
-        return processed;
-    };
-
-    const processedMarkdown = processMarkdown(markdown);
-    const renderedHtml = markdownRenderer(processedMarkdown, { defaultEmojiOwner: emojiOwner });
-
-    // Handle spoiler rendering after component mounts/updates
-    useEffect(() => {
-        const spoilerContainers = document.querySelectorAll('.spoiler-container');
-        spoilerContainers.forEach((container) => {
-            const element = container as HTMLElement;
-            const title = element.getAttribute('data-title') || '';
-            const content = element.getAttribute('data-content') || '';
-            const id = element.getAttribute('data-id') || '';
-            const isRevealed = spoilerStates[id];
-
-            // Create spoiler component
-            const spoilerHtml = `
-                <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin: 8px 0; background-color: #f8fafc;">
-                    <button 
-                        onclick="this.parentElement.nextElementSibling?.style.display === 'none' ? (this.parentElement.nextElementSibling.style.display = 'block', this.textContent = 'Hide Spoiler: ${title}') : (this.parentElement.nextElementSibling.style.display = 'none', this.textContent = 'Show Spoiler: ${title}')"
-                        style="background: #fff; border: 1px solid #d1d5db; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px;"
-                    >
-                        ${isRevealed ? 'Hide' : 'Show'} Spoiler: ${title}
-                    </button>
-                </div>
-                <div style="display: ${isRevealed ? 'block' : 'none'}; margin-top: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #e5e7eb;">
-                    ${markdownRenderer(content, { defaultEmojiOwner: emojiOwner })}
-                </div>
-            `;
-
-            element.innerHTML = spoilerHtml;
-        });
-    }, [markdown, spoilerStates, emojiOwner]);
+            parts.push({ type: 'spoiler', title, content: content.trim() });
+            lastIndex = match.index + full.length;
+            if (match.index === regex.lastIndex) regex.lastIndex++;
+        }
+        if (lastIndex < markdown.length) {
+            parts.push({ type: 'html', html: markdownRenderer(markdown.slice(lastIndex), { defaultEmojiOwner: emojiOwner }) });
+        }
+        return parts;
+    }, [markdown, emojiOwner]);
 
     return (
-        <Box 
-            dangerouslySetInnerHTML={{ 
-                __html: renderedHtml
-            }}
+        <Box
             sx={{
                 // Base text styling
                 color: 'inherit',
@@ -191,7 +164,15 @@ const PreviewContent: FC<{ markdown: string; emojiOwner?: string }> = ({ markdow
                     marginBottom: '1em'
                 }
             }}
-        />
+        >
+            {segments.map((seg, i) =>
+                seg.type === 'spoiler' ? (
+                    <SpoilerComponent key={i} title={seg.title} content={seg.content} emojiOwner={emojiOwner} />
+                ) : (
+                    <Box key={i} as="span" dangerouslySetInnerHTML={{ __html: seg.html }} />
+                )
+            )}
+        </Box>
     );
 };
 
