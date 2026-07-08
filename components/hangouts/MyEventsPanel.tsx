@@ -76,7 +76,7 @@ export default function MyEventsPanel({ username, refreshKey = 0 }: MyEventsPane
 
   return (
     <Box mt={6}>
-      <Divider borderColor="rgba(255,255,255,0.08)" mb={4} />
+      <Divider borderColor="overlay.100" mb={4} />
       <Text fontSize="sm" fontWeight={700} color="text" mb={3}>
         Your Scheduled OpenPods
       </Text>
@@ -90,8 +90,8 @@ export default function MyEventsPanel({ username, refreshKey = 0 }: MyEventsPane
               p={3}
               borderRadius="10px"
               borderWidth="1px"
-              borderColor={isLive ? 'primary' : 'rgba(255,255,255,0.1)'}
-              bg="rgba(255,255,255,0.03)"
+              borderColor={isLive ? 'primary' : 'overlay.200'}
+              bg="overlay.50"
             >
               <Flex justify="space-between" align="flex-start" gap={2}>
                 <Box flex={1} minW={0}>
@@ -103,7 +103,7 @@ export default function MyEventsPanel({ username, refreshKey = 0 }: MyEventsPane
                       {event.title}
                     </Text>
                   </HStack>
-                  <Text fontSize="xs" color="rgba(255,255,255,0.5)">
+                  <Text fontSize="xs" color="overlay.500">
                     {isLive ? 'Started' : formatEventDate(event.scheduledAt)}
                     {event.attendeeCount > 0 && ` · ${event.attendeeCount} attending`}
                   </Text>

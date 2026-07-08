@@ -266,7 +266,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
             border="tb1"
             borderRadius={isEmbedMode ? 'none' : 'lg'}
             overflow="hidden"
-            bg={isEmbedMode ? 'transparent' : 'rgba(8, 24, 40, 0.72)'}
+            bg={isEmbedMode ? 'transparent' : 'surface'}
             mb={3}
             px={isEmbedMode ? 2 : { base: 4, md: 16, lg: 24 }}
             py={isEmbedMode ? 2 : { base: 5, md: 10 }}
@@ -308,7 +308,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                             borderRadius="full"
                             bg="rgba(28, 161, 241, 0.08)"
                             border="1px solid rgba(28, 161, 241, 0.15)"
-                            color="whiteAlpha.700"
+                            color="overlay.700"
                             cursor="pointer"
                             _hover={{ bg: 'rgba(28, 161, 241, 0.18)', textDecoration: 'none' }}
                             transition="all 0.15s"
@@ -370,7 +370,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 >
                     <Text fontSize="2xl">⚠️</Text>
                     <Text fontWeight="semibold" color="yellow.300">Sensitive content</Text>
-                    <Text fontSize="sm" color="whiteAlpha.600" textAlign="center" maxW="sm">
+                    <Text fontSize="sm" color="overlay.600" textAlign="center" maxW="sm">
                         This post has been flagged as potentially sensitive by our content analysis.
                     </Text>
                     <Button size="sm" variant="outline" colorScheme="yellow" onClick={() => setNsfwRevealed(true)}>
@@ -379,7 +379,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 </Flex>
             ) : translatedText ? (
                 <Box mt={4}>
-                    <Text fontSize="sm" color="gray.400" mb={3}>Translated · <Text as="button" color="primary" _hover={{ textDecoration: 'underline' }} onClick={() => setTranslatedText(null)}>Show original</Text></Text>
+                    <Text fontSize="sm" color="overlay.500" mb={3}>Translated · <Text as="button" color="primary" _hover={{ textDecoration: 'underline' }} onClick={() => setTranslatedText(null)}>Show original</Text></Text>
                     <Text whiteSpace="pre-wrap" lineHeight="1.7" wordBreak="break-word">{translatedText}</Text>
                 </Box>
             ) : (

@@ -54,9 +54,9 @@ export default function HiveActivityWidget({ compact = false }: HiveActivityWidg
           boxShadow="0 0 5px rgba(72, 187, 120, 0.8)"
           animation={`${pulse} 2s ease-in-out infinite`}
         />
-        <Text fontSize="xs" color="whiteAlpha.700" fontWeight="500">
+        <Text fontSize="xs" color="overlay.700" fontWeight="500">
           {data.count.toLocaleString()}{' '}
-          <Text as="span" color="whiteAlpha.400" fontWeight="400">
+          <Text as="span" color="overlay.400" fontWeight="400">
             online
           </Text>
         </Text>
@@ -75,9 +75,9 @@ export default function HiveActivityWidget({ compact = false }: HiveActivityWidg
         boxShadow="0 0 6px rgba(72, 187, 120, 0.8)"
         animation={`${pulse} 2s ease-in-out infinite`}
       />
-      <Text fontSize="xs" color="whiteAlpha.500">
+      <Text fontSize="xs" color="overlay.500">
         Active on Hive{' '}
-        <Text as="span" color="whiteAlpha.800" fontWeight="600">
+        <Text as="span" color="overlay.700" fontWeight="600">
           {data.count.toLocaleString()}
         </Text>
       </Text>

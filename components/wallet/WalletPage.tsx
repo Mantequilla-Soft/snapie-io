@@ -104,7 +104,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [isClaimingInterest, setIsClaimingInterest] = useState(false);
   const { pendingInterest, annualRatePct, isLoading: isInterestLoading } = useHbdSavingsInterest(hiveAccount);
 
-  const textMuted = 'gray.400';
+  const textMuted = 'overlay.500';
   const successColor = 'success';
   const accentColor = 'accent';
 
@@ -461,7 +461,7 @@ export default function WalletPage({ username }: WalletPageProps) {
               variant="ghost"
               leftIcon={<Icon as={FaEdit} boxSize={3} />}
               onClick={onEditOpen}
-              color="gray.400"
+              color="overlay.500"
               _hover={{ color: 'primary', bg: 'rgba(24,168,255,0.08)' }}
               borderRadius="full"
               px={3}

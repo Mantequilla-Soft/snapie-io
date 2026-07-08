@@ -17,9 +17,9 @@ const TIER_STYLE: Record<PatronTier, TierStyle> = {
   snaperino: {
     label: 'Snaperino',
     description: 'Snaperino — supports Snapie',
-    color: 'whiteAlpha.700',
+    color: 'overlay.700',
     bg: 'transparent',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
+    border: '1px solid var(--chakra-colors-overlay-400)',
   },
   snapian: {
     label: 'Snapian',

@@ -65,12 +65,12 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent bg="rgba(8, 24, 40, 0.96)" color="white" border="1px solid" borderColor="whiteAlpha.200">
+      <ModalContent bg="background" color="text" border="1px solid" borderColor="overlay.200">
         <ModalHeader>Share your invite link</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={4}>
-            <Alert status="info" bg="rgba(28, 161, 241, 0.08)" border="1px solid" borderColor="rgba(28, 161, 241, 0.3)" borderRadius="md" color="white">
+            <Alert status="info" bg="rgba(28, 161, 241, 0.08)" border="1px solid" borderColor="rgba(28, 161, 241, 0.3)" borderRadius="md" color="text">
               <AlertIcon color="rgba(28, 161, 241, 1)" />
               <Text fontSize="sm">
                 Send this link to a friend who already has a Hive account.
@@ -86,7 +86,7 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
                 fontFamily="mono"
                 fontSize="sm"
                 bg="blackAlpha.500"
-                borderColor="whiteAlpha.200"
+                borderColor="overlay.200"
                 cursor="pointer"
                 pr={12}
               />
@@ -118,7 +118,7 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
                   fgColor="#000000"
                 />
               </Box>
-              <Text fontSize="xs" color="gray.400">{qrExpanded ? 'Tap to collapse' : 'Tap to enlarge'}</Text>
+              <Text fontSize="xs" color="overlay.500">{qrExpanded ? 'Tap to collapse' : 'Tap to enlarge'}</Text>
             </Stack>
 
             <HStack>
@@ -132,9 +132,9 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
 
             {waitingForSponsor && (
               <Box
-                bg="rgba(255, 255, 255, 0.03)"
+                bg="overlay.50"
                 border="1px dashed"
-                borderColor="whiteAlpha.300"
+                borderColor="overlay.300"
                 borderRadius="md"
                 p={3}
                 display="flex"
@@ -144,7 +144,7 @@ export default function ShareLinkDialog({ isOpen, onClose, link, username, waiti
                 <Spinner size="sm" />
                 <Box>
                   <Text fontSize="sm" fontWeight="medium">Waiting for a sponsor…</Text>
-                  <Text fontSize="xs" color="gray.400">
+                  <Text fontSize="xs" color="overlay.500">
                     This page will update automatically once your account is created on Hive.
                   </Text>
                 </Box>

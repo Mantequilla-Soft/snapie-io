@@ -143,8 +143,9 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       overflowY="auto"
       position="sticky"
       top={0}
-      bg="rgba(8, 24, 40, 0.62)"
-      borderLeft="1px solid rgba(28, 161, 241, 0.1)"
+      bg="surface"
+      borderLeft="1px solid"
+      borderLeftColor="surfaceBorder"
       borderRadius={0}
       backdropFilter="blur(18px)"
       ref={sidebarRef}
@@ -159,17 +160,17 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         <>
           <Flex justify="space-around" px={3} pt={4} pb={3}>
             <Box textAlign="center">
-              <Text fontSize="xl" fontWeight="bold" color="white" letterSpacing="-0.03em">
+              <Text fontSize="xl" fontWeight="bold" color="text" letterSpacing="-0.03em">
                 {communityStats.numPending}
               </Text>
-              <Text fontSize="xs" color="whiteAlpha.500" mt="1px">live posts</Text>
+              <Text fontSize="xs" color="overlay.500" mt="1px">live posts</Text>
             </Box>
             <Box w="1px" bg="rgba(28, 161, 241, 0.08)" alignSelf="stretch" />
             <Box textAlign="center">
-              <Text fontSize="xl" fontWeight="bold" color="white" letterSpacing="-0.03em">
+              <Text fontSize="xl" fontWeight="bold" color="text" letterSpacing="-0.03em">
                 ${communityStats.sumPending.toFixed(2)}
               </Text>
-              <Text fontSize="xs" color="whiteAlpha.500" mt="1px">pending HBD</Text>
+              <Text fontSize="xs" color="overlay.500" mt="1px">pending HBD</Text>
             </Box>
           </Flex>
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
@@ -184,7 +185,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         <Text
           fontSize="xs"
           fontWeight="bold"
-          color="whiteAlpha.400"
+          color="overlay.400"
           letterSpacing="widest"
           textTransform="uppercase"
           px={2}

@@ -115,7 +115,7 @@ export default function ExploreTagPage({ params }: { params: { tag: string } }) 
           leftIcon={<Icon as={FiArrowLeft} />}
           px={2}
           borderRadius="10px"
-          color="whiteAlpha.700"
+          color="overlay.700"
           _hover={{ bg: 'rgba(28, 161, 241, 0.1)', color: 'white' }}
           flexShrink={0}
         >

@@ -286,7 +286,7 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
           color: 'var(--chakra-colors-text)',
           borderRadius: '16px',
           borderWidth: '1px',
-          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderColor: 'var(--chakra-colors-overlay-200)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',

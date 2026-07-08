@@ -35,18 +35,18 @@ export default function MemePickerModal({ isOpen, onClose }: MemePickerModalProp
         <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
             <ModalOverlay bg="blackAlpha.700" backdropFilter="blur(8px)" />
             <ModalContent
-                bg="rgba(8, 24, 40, 0.97)"
+                bg="background"
                 border="1px solid rgba(28, 161, 241, 0.15)"
                 borderRadius="16px"
                 overflow="hidden"
                 mx={3}
             >
-                <ModalCloseButton color="whiteAlpha.600" zIndex={10} />
+                <ModalCloseButton color="overlay.600" zIndex={10} />
                 <ModalBody p={0} position="relative" minH="640px">
                     {!loaded && (
                         <Flex h="640px" align="center" justify="center" direction="column" gap={3}>
                             <Spinner color="blue.400" size="lg" />
-                            <Text color="whiteAlpha.500" fontSize="sm">Loading meme picker…</Text>
+                            <Text color="overlay.500" fontSize="sm">Loading meme picker…</Text>
                         </Flex>
                     )}
                     <Box display={loaded ? 'block' : 'none'}>

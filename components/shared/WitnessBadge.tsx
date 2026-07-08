@@ -25,7 +25,7 @@ export default function WitnessBadge({ voted }: WitnessBadgeProps) {
         fontWeight="bold"
         letterSpacing="wide"
         textTransform="uppercase"
-        color="whiteAlpha.700"
+        color="overlay.700"
         bg="transparent"
         border="1px solid rgba(72, 187, 120, 0.5)"
         flexShrink={0}

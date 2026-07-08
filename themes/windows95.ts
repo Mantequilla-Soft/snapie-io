@@ -1,21 +1,54 @@
 import { extendTheme } from '@chakra-ui/react';
-import { swiperStyles } from './swiperStyles';
 
-export const windows95Theme = extendTheme({
-    initialColorMode: 'dark',
-    useSystemColorMode: false,
-    colors: {
-        background: '#1a2332', // Dark navy background from branding
-        text: '#ffffff', // White text for dark mode
-        primary: '#00a8ff', // Bright cyan blue from logo
-        secondary: '#2563eb', // Medium blue from branding
-        accent: '#06b6d4', // Cyan accent from wings/elements
-        muted: '#2d3748', // Dark gray for muted elements
-        border: '#374151', // Subtle border color
-        error: '#ef4444', // Modern red for errors
-        success: '#10b981', // Modern green for success
-        warning: '#f59e0b', // Modern orange for warnings
-    },
+type ColorMode = 'dark' | 'light';
+
+interface Palette {
+    background: string;
+    text: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    muted: string;
+    border: string;
+    error: string;
+    success: string;
+    warning: string;
+    surface: string;
+    surfaceBorder: string;
+}
+
+const darkColors: Palette = {
+    background: '#1a2332', // Dark navy background from branding
+    text: '#ffffff', // White text for dark mode
+    primary: '#00a8ff', // Bright cyan blue from logo
+    secondary: '#2563eb', // Medium blue from branding
+    accent: '#06b6d4', // Cyan accent from wings/elements
+    muted: '#2d3748', // Dark gray for muted elements
+    border: '#374151', // Subtle border color
+    error: '#ef4444', // Modern red for errors
+    success: '#10b981', // Modern green for success
+    warning: '#f59e0b', // Modern orange for warnings
+    surface: 'rgba(8, 24, 40, 0.72)', // Glass-card background
+    surfaceBorder: 'rgba(28, 161, 241, 0.10)', // Glass-card hairline border
+};
+
+const lightColors: Palette = {
+    background: '#ffffff',
+    text: '#0f172a',
+    primary: '#0369a1', // Darkened from #00a8ff for AA contrast on white
+    secondary: '#2563eb', // Already AA-contrast on white, unchanged
+    accent: '#0891b2', // Darkened from #06b6d4 for contrast on white
+    muted: '#f1f5f9',
+    border: '#cbd5e1',
+    error: '#dc2626',
+    success: '#059669',
+    warning: '#d97706',
+    surface: 'rgba(255, 255, 255, 0.82)',
+    surfaceBorder: 'rgba(3, 105, 161, 0.12)',
+};
+
+// Mode-agnostic config shared verbatim between dark and light variants.
+const sharedBase = {
     fonts: {
         heading: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif',
         body: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif',
@@ -46,10 +79,6 @@ export const windows95Theme = extendTheme({
         base: 1.5,
         tall: 1.625,
         taller: '2',
-    },
-    borders: {
-        tb1: '1px solid #374151',
-        borderRadius: 'md',
     },
     radii: {
         none: '0',
@@ -118,7 +147,18 @@ export const windows95Theme = extendTheme({
         none: 'none',
         'dark-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.4)',
     },
-    components: {
+};
+
+// Two spots reference a hardcoded rgba tint of `primary` rather than the
+// token itself, so they need an explicit value per mode.
+function buildComponents(mode: ColorMode) {
+    const primaryHoverTint = mode === 'dark' ? 'rgba(0, 168, 255, 0.1)' : 'rgba(3, 105, 161, 0.1)';
+    // Menu hover previously keyed off `background` reading darker than `muted`,
+    // a relationship that isn't guaranteed to hold in the light palette. Use
+    // this theme's own overlay scale instead (see buildOverlay).
+    const menuHoverOverlay = 'overlay.100';
+
+    return {
         Link: {
             baseStyle: {
                 color: 'primary',
@@ -169,13 +209,13 @@ export const windows95Theme = extendTheme({
                     color: 'primary',
                     borderWidth: '2px',
                     _hover: {
-                        bg: 'rgba(0, 168, 255, 0.1)',
+                        bg: primaryHoverTint,
                     },
                 },
                 ghost: {
                     color: 'primary',
                     _hover: {
-                        bg: 'rgba(0, 168, 255, 0.1)',
+                        bg: primaryHoverTint,
                     },
                 },
             },
@@ -250,10 +290,10 @@ export const windows95Theme = extendTheme({
         Menu: {
             baseStyle: {
                 // Chakra's default Menu styling switches on its own internal color-mode
-                // state (independent of this theme's fixed dark palette). If that ever
-                // desyncs to "light" — e.g. a stale chakra-ui-color-mode value — the list
-                // renders white-on-white and becomes unreadable. Pin it to our tokens so
-                // it can never depend on that state.
+                // state (independent of this theme's fixed palette). If that ever
+                // desyncs to the wrong mode — e.g. a stale chakra-ui-color-mode value —
+                // the list can render illegibly. Pin it to our tokens so it can never
+                // depend on that state.
                 list: {
                     bg: 'muted',
                     borderColor: 'border',
@@ -265,9 +305,9 @@ export const windows95Theme = extendTheme({
                 item: {
                     bg: 'transparent',
                     color: 'text',
-                    _hover: { bg: 'background' },
-                    _focus: { bg: 'background' },
-                    _active: { bg: 'background' },
+                    _hover: { bg: menuHoverOverlay },
+                    _focus: { bg: menuHoverOverlay },
+                    _active: { bg: menuHoverOverlay },
                 },
             },
         },
@@ -301,5 +341,50 @@ export const windows95Theme = extendTheme({
                 },
             },
         },
-    },
-});
+    };
+}
+
+// Mirrors Chakra's own whiteAlpha/blackAlpha scales, but resolves to the
+// *foreground* tint for whichever mode is active — components that used
+// `whiteAlpha.NNN` for muted text/icons/hover fills only look right against
+// a dark background. Referencing `overlay.NNN` instead lets the same
+// component render correctly in both themes with no per-component mode logic.
+//
+// The two modes use different alpha curves for the same step numbers,
+// deliberately. Light text blended at low opacity onto a dark background
+// still reads fine (that's the original dark-mode tuning below), but dark
+// text blended at the same low opacity onto *white* comes out washed-out —
+// white has much higher luminance, so it takes a much higher alpha to reach
+// the same perceived contrast. Twitter's light theme solves this the same
+// way: a solid, fairly dark gray (~#536471) for secondary text, not a faint
+// wash. The light-mode curve below is tuned so overlay.500 (the most common
+// "muted body text" step) clears WCAG AA (~4.5:1) against white.
+function buildOverlay(mode: ColorMode) {
+    const base = mode === 'dark' ? '255, 255, 255' : '15, 23, 42';
+    const steps: Record<string, number> = mode === 'dark'
+        ? { 50: 0.04, 100: 0.06, 200: 0.08, 300: 0.16, 400: 0.24, 500: 0.36, 600: 0.48, 700: 0.64 }
+        : { 50: 0.06, 100: 0.10, 200: 0.16, 300: 0.26, 400: 0.40, 500: 0.60, 600: 0.72, 700: 0.85 };
+    return Object.fromEntries(
+        Object.entries(steps).map(([step, alpha]) => [step, `rgba(${base}, ${alpha})`])
+    );
+}
+
+function buildTheme(colors: Palette, mode: ColorMode) {
+    return extendTheme({
+        // Chakra's own color-mode flag, deliberately pinned and never toggled —
+        // see app/providers.tsx for why light/dark is driven entirely by our own
+        // `colorMode` user setting instead of Chakra's internal mechanism.
+        initialColorMode: 'dark',
+        useSystemColorMode: false,
+        colors: { ...colors, overlay: buildOverlay(mode) },
+        ...sharedBase,
+        borders: {
+            tb1: `1px solid ${colors.border}`,
+            borderRadius: 'md',
+        },
+        components: buildComponents(mode),
+    });
+}
+
+export const windows95ThemeDark = buildTheme(darkColors, 'dark');
+export const windows95ThemeLight = buildTheme(lightColors, 'light');

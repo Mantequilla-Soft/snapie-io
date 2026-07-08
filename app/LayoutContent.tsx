@@ -10,6 +10,7 @@ import MeSheet from '@/components/layout/MeSheet';
 import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
 import { useHangout } from '@/contexts/HangoutContext';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
@@ -23,6 +24,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isEmbedMode = searchParams.get('embed') === 'true';
   const isChatPopoutMode = searchParams.get('chat_popout') === '1';
   const { activeRoom, closeRoom } = useHangout();
+  const { settings } = useUserSettings();
+  const baseGradient = settings.colorMode === 'light'
+    ? 'radial(circle at 18% 8%, rgba(3, 105, 161, 0.08), transparent 34%), radial(circle at 78% 0%, rgba(3, 105, 161, 0.05), transparent 30%), linear(to-br, #ffffff, #f8fafc 48%, #f1f5f9)'
+    : 'radial(circle at 18% 8%, rgba(28, 161, 241, 0.12), transparent 34%), radial(circle at 78% 0%, rgba(28, 161, 241, 0.07), transparent 30%), linear(to-br, #080f1e, #0d1525 48%, #070d1a)';
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
@@ -94,7 +99,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       bg="background"
       color="text"
       minH="100vh"
-      bgGradient="radial(circle at 18% 8%, rgba(28, 161, 241, 0.12), transparent 34%), radial(circle at 78% 0%, rgba(28, 161, 241, 0.07), transparent 30%), linear(to-br, #080f1e, #0d1525 48%, #070d1a)"
+      bgGradient={baseGradient}
     >
       <Box maxW="1320px" mx="auto" h="100vh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">

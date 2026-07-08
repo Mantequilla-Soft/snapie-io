@@ -95,7 +95,7 @@ export default function GameResultSnapModal({ isOpen, onClose, result, currentUs
         position="relative"
         zIndex={2001}
         bg="var(--chakra-colors-background)"
-        border="1px solid rgba(255,255,255,0.12)"
+        border="1px solid var(--chakra-colors-overlay-300)"
         borderRadius="16px"
         p={6}
         w="min(480px, 92vw)"
@@ -110,14 +110,14 @@ export default function GameResultSnapModal({ isOpen, onClose, result, currentUs
         ) : (
           <VStack spacing={4} align="stretch">
             <Text fontWeight="bold" fontSize="lg" color="text">{getHeadline(result, currentUser)}</Text>
-            <Text fontSize="sm" color="gray.400">Share your result as a snap:</Text>
+            <Text fontSize="sm" color="overlay.500">Share your result as a snap:</Text>
             <Textarea
               value={body}
               onChange={e => setBody(e.target.value)}
               rows={6}
               resize="vertical"
-              bg="rgba(255,255,255,0.05)"
-              border="1px solid rgba(255,255,255,0.12)"
+              bg="var(--chakra-colors-overlay-50)"
+              border="1px solid var(--chakra-colors-overlay-300)"
               borderRadius="8px"
               color="text"
               fontSize="sm"

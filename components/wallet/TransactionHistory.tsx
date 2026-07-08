@@ -423,7 +423,7 @@ export default function TransactionHistory({ username }: TransactionHistoryProps
                           {isOutgoingTransfer ? 'to' : 'from'} @{otherParty}
                         </Text>
                       )}
-                      <Text fontSize="2xs" color="gray.400" ml="auto" flexShrink={0}>
+                      <Text fontSize="2xs" color="overlay.500" ml="auto" flexShrink={0}>
                         {formatTimestamp(tx.timestamp)}
                       </Text>
                     </Flex>

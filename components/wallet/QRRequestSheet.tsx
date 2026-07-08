@@ -74,7 +74,7 @@ export default function QRRequestSheet({ isOpen, onClose, username }: QRRequestS
             </Box>
           </Flex>
 
-          <Text textAlign="center" fontSize="xs" color="gray.400" mb={5}>
+          <Text textAlign="center" fontSize="xs" color="overlay.500" mb={5}>
             Anyone with a Hive wallet can scan this to send you {formattedAmount}
           </Text>
 

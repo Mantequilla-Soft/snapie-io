@@ -25,7 +25,7 @@ export default function CombflowInsights({ username }: CombflowInsightsProps) {
     if (isLoading) {
         return (
             <Box
-                bg="rgba(8, 24, 40, 0.6)"
+                bg="surface"
                 border="tb1"
                 borderRadius="12px"
                 px={4}
@@ -52,7 +52,7 @@ export default function CombflowInsights({ username }: CombflowInsightsProps) {
 
     return (
         <Box
-            bg="rgba(8, 24, 40, 0.6)"
+            bg="surface"
             border="tb1"
             borderRadius="12px"
             px={4}
@@ -62,7 +62,7 @@ export default function CombflowInsights({ username }: CombflowInsightsProps) {
             <Text
                 fontSize="xs"
                 fontWeight="bold"
-                color="whiteAlpha.400"
+                color="overlay.400"
                 letterSpacing="widest"
                 textTransform="uppercase"
                 mb={3}
@@ -82,7 +82,7 @@ export default function CombflowInsights({ username }: CombflowInsightsProps) {
                             borderRadius="full"
                             bg="rgba(28, 161, 241, 0.10)"
                             border="1px solid rgba(28, 161, 241, 0.20)"
-                            color="whiteAlpha.800"
+                            color="overlay.800"
                             cursor="pointer"
                             _hover={{ bg: 'rgba(28, 161, 241, 0.22)', borderColor: 'rgba(28, 161, 241, 0.45)', textDecoration: 'none' }}
                             transition="all 0.15s"
@@ -95,30 +95,30 @@ export default function CombflowInsights({ username }: CombflowInsightsProps) {
             )}
 
             {/* Stats row */}
-            <HStack spacing={3} flexWrap="wrap" divider={<Text color="whiteAlpha.300" fontSize="xs">·</Text>}>
-                <Text fontSize="xs" color="whiteAlpha.500">
-                    <Text as="span" color="whiteAlpha.800" fontWeight="semibold">
+            <HStack spacing={3} flexWrap="wrap" divider={<Text color="overlay.300" fontSize="xs">·</Text>}>
+                <Text fontSize="xs" color="overlay.500">
+                    <Text as="span" color="overlay.800" fontWeight="semibold">
                         {summary.total_posts.toLocaleString()}
                     </Text>{' '}posts
                 </Text>
                 {summary.first_seen && (
-                    <Text fontSize="xs" color="whiteAlpha.500">
+                    <Text fontSize="xs" color="overlay.500">
                         on Hive since{' '}
-                        <Text as="span" color="whiteAlpha.800" fontWeight="semibold">
+                        <Text as="span" color="overlay.800" fontWeight="semibold">
                             {formatFirstSeen(summary.first_seen)}
                         </Text>
                     </Text>
                 )}
                 {langs && (
-                    <Text fontSize="xs" color="whiteAlpha.500">
+                    <Text fontSize="xs" color="overlay.500">
                         writes in{' '}
-                        <Text as="span" color="whiteAlpha.800" fontWeight="semibold">
+                        <Text as="span" color="overlay.800" fontWeight="semibold">
                             {langs}
                         </Text>
                     </Text>
                 )}
                 {summary.top_community && (
-                    <Text fontSize="xs" color="whiteAlpha.500">
+                    <Text fontSize="xs" color="overlay.500">
                         top community{' '}
                         <Text as="span" color="primary" fontWeight="semibold">
                             {summary.top_community.name}

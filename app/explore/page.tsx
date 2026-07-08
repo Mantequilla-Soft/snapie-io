@@ -163,7 +163,7 @@ export default function ExplorePage() {
           <Text
             fontSize="xs"
             fontWeight="bold"
-            color="whiteAlpha.500"
+            color="overlay.500"
             letterSpacing="widest"
             textTransform="uppercase"
             mb={3}
@@ -185,10 +185,10 @@ export default function ExplorePage() {
                 _hover={{ bg: 'rgba(28, 161, 241, 0.14)', borderColor: 'rgba(28, 161, 241, 0.35)', transform: 'translateY(-1px)' }}
                 transition="all 0.15s"
               >
-                <Text fontWeight="bold" fontSize="sm" color="white" textTransform="capitalize" mb={1}>
+                <Text fontWeight="bold" fontSize="sm" color="text" textTransform="capitalize" mb={1}>
                   {cat.name}
                 </Text>
-                <Text fontSize="xs" color="whiteAlpha.500">
+                <Text fontSize="xs" color="overlay.500">
                   {cat.count.toLocaleString()} of your posts
                 </Text>
               </Box>
@@ -209,7 +209,7 @@ export default function ExplorePage() {
               <Text
                 fontSize="xs"
                 fontWeight="bold"
-                color="whiteAlpha.500"
+                color="overlay.500"
                 letterSpacing="widest"
                 textTransform="uppercase"
                 mb={3}
@@ -238,7 +238,7 @@ export default function ExplorePage() {
               <Text
                 fontSize="xs"
                 fontWeight="bold"
-                color="whiteAlpha.500"
+                color="overlay.500"
                 letterSpacing="widest"
                 textTransform="uppercase"
                 mb={3}
@@ -254,7 +254,7 @@ export default function ExplorePage() {
                       borderRadius="full"
                       bg="rgba(28, 161, 241, 0.08)"
                       border="1px solid rgba(28, 161, 241, 0.15)"
-                      color="whiteAlpha.800"
+                      color="overlay.800"
                       cursor="pointer"
                       _hover={{ bg: 'rgba(28, 161, 241, 0.18)', borderColor: 'rgba(28, 161, 241, 0.35)' }}
                       transition="all 0.15s"
@@ -276,7 +276,7 @@ export default function ExplorePage() {
               <Text
                 fontSize="xs"
                 fontWeight="bold"
-                color="whiteAlpha.500"
+                color="overlay.500"
                 letterSpacing="widest"
                 textTransform="uppercase"
               >

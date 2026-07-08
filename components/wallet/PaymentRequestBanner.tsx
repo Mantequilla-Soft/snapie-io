@@ -36,10 +36,10 @@ export default function PaymentRequestBanner({
         </Flex>
 
         <Box flex={1} minW={0}>
-          <Text fontSize="sm" fontWeight="semibold" color="white" mb={0.5}>
+          <Text fontSize="sm" fontWeight="semibold" color="text" mb={0.5}>
             Payment Request
           </Text>
-          <Text fontSize="xs" color="gray.400" noOfLines={1}>
+          <Text fontSize="xs" color="overlay.500" noOfLines={1}>
             @{to} is requesting <Text as="span" color="cyan.300" fontWeight="semibold">{amount}</Text>
             {memo && <Text as="span"> · &ldquo;{memo}&rdquo;</Text>}
           </Text>
@@ -84,7 +84,7 @@ export default function PaymentRequestBanner({
           color="gray.500"
           borderRadius="full"
           flexShrink={0}
-          _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+          _hover={{ color: 'text', bg: 'overlay.100' }}
           onClick={onDismiss}
         />
       </Flex>

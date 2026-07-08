@@ -175,7 +175,7 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
             {/* Current Beneficiaries */}
             {beneficiaries.length > 0 && (
               <Box>
-                <Text fontSize="sm" color="gray.400" mb={2}>
+                <Text fontSize="sm" color="overlay.500" mb={2}>
                   Current beneficiaries:
                 </Text>
                 <Flex flexWrap="wrap" gap={2}>
@@ -202,7 +202,7 @@ const BeneficiariesInput: FC<BeneficiariesInputProps> = ({ beneficiaries, setBen
 
             {/* Add New Beneficiary */}
             <Box>
-              <Text fontSize="sm" color="gray.400" mb={2}>
+              <Text fontSize="sm" color="overlay.500" mb={2}>
                 Add beneficiary:
               </Text>
               <HStack spacing={2}>

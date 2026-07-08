@@ -39,8 +39,9 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
       left={0}
       right={0}
       h="56px"
-      bg="rgba(8, 24, 40, 0.93)"
-      borderBottom="1px solid rgba(28, 161, 241, 0.10)"
+      bg="surface"
+      borderBottom="1px solid"
+      borderBottomColor="surfaceBorder"
       backdropFilter="blur(20px)"
       display={{ base: 'flex', sm: 'none' }}
       alignItems="center"
@@ -73,10 +74,10 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
                 aria-label="Notifications"
                 icon={<Icon as={FiBell} boxSize={5} />}
                 variant="ghost"
-                color={unreadCount > 0 ? 'red.300' : 'whiteAlpha.700'}
+                color={unreadCount > 0 ? 'red.300' : 'overlay.700'}
                 size="sm"
                 borderRadius="full"
-                _hover={{ bg: 'whiteAlpha.100' }}
+                _hover={{ bg: 'overlay.100' }}
               />
               <CountBadge count={unreadCount} colorScheme="red" top="-2px" right="-2px" />
             </Box>
@@ -93,7 +94,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
                   color="red.300"
                   size="sm"
                   borderRadius="full"
-                  _hover={{ bg: 'whiteAlpha.100' }}
+                  _hover={{ bg: 'overlay.100' }}
                 />
                 <CountBadge count={openPodsCount} colorScheme="red" top="-2px" right="-2px" />
               </Box>
@@ -123,10 +124,10 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               aria-label="Menu"
               icon={<Icon as={FiMenu} boxSize={5} />}
               variant="ghost"
-              color="whiteAlpha.700"
+              color="overlay.700"
               size="sm"
               borderRadius="full"
-              _hover={{ bg: 'whiteAlpha.100' }}
+              _hover={{ bg: 'overlay.100' }}
               onClick={onMePress}
             />
             <Button

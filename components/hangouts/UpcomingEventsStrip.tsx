@@ -60,9 +60,9 @@ function EventCard({ event }: { event: HangoutsEvent }) {
       display="flex"
       alignItems="center"
       gap={2.5}
-      bg="rgba(255, 255, 255, 0.05)"
+      bg="overlay.50"
       borderWidth="1px"
-      borderColor={isLive ? 'primary' : 'rgba(255, 255, 255, 0.08)'}
+      borderColor={isLive ? 'primary' : 'overlay.200'}
       borderRadius="10px"
       px={3}
       py={2}
@@ -79,9 +79,9 @@ function EventCard({ event }: { event: HangoutsEvent }) {
         boxSize="34px"
         borderRadius="full"
         objectFit="cover"
-        bg="rgba(255, 255, 255, 0.1)"
+        bg="overlay.200"
         flexShrink={0}
-        fallback={<Box boxSize="34px" borderRadius="full" bg="rgba(255, 255, 255, 0.1)" flexShrink={0} />}
+        fallback={<Box boxSize="34px" borderRadius="full" bg="overlay.200" flexShrink={0} />}
       />
       <Flex direction="column" minW={0} flex={1}>
         <HStack spacing={1} mb="1px">
@@ -94,7 +94,7 @@ function EventCard({ event }: { event: HangoutsEvent }) {
             {event.title}
           </Text>
         </HStack>
-        <Text fontSize="11px" color="rgba(255,255,255,0.55)" noOfLines={1}>
+        <Text fontSize="11px" color="overlay.600" noOfLines={1}>
           @{event.hostUsername}
           {!isLive && (
             <Text as="span" color="primary"> · {formatEventDate(event.scheduledAt)}</Text>
@@ -110,16 +110,16 @@ function EventCard({ event }: { event: HangoutsEvent }) {
               icon={attending ? <FaCheck /> : <FaPlus />}
               size="xs"
               variant="ghost"
-              colorScheme={attending ? 'green' : 'whiteAlpha'}
-              color={attending ? 'green.400' : 'rgba(255,255,255,0.4)'}
+              colorScheme={attending ? 'green' : undefined}
+              color={attending ? 'green.400' : 'overlay.500'}
               isLoading={rsvpLoading}
               onClick={handleRsvp}
-              _hover={{ color: attending ? 'green.300' : 'white' }}
+              _hover={{ color: attending ? 'green.300' : 'text', bg: 'overlay.100' }}
             />
           </Tooltip>
         )}
         {count > 0 && (
-          <Text fontSize="10px" color="rgba(255,255,255,0.45)">{count}</Text>
+          <Text fontSize="10px" color="overlay.500">{count}</Text>
         )}
       </Flex>
     </Box>

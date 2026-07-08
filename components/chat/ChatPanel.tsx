@@ -104,7 +104,7 @@ function ShortPreview({ v }: { v: string }) {
       .catch(() => { shortMetaCache.set(v, null); setMeta(null); });
   }, [v, meta]);
 
-  if (meta === 'loading') return <Spinner size="xs" color="whiteAlpha.500" mt={1} />;
+  if (meta === 'loading') return <Spinner size="xs" color="overlay.500" mt={1} />;
   if (!meta) return null;
 
   return (
@@ -116,7 +116,7 @@ function ShortPreview({ v }: { v: string }) {
       borderRadius="10px"
       overflow="hidden"
       border="1px solid"
-      borderColor="whiteAlpha.200"
+      borderColor="overlay.200"
       textDecoration="none"
       _hover={{ opacity: 0.85 }}
       transition="opacity 0.15s"
@@ -132,7 +132,7 @@ function ShortPreview({ v }: { v: string }) {
         </Box>
       )}
       <Box px={3} py={2} bg="blackAlpha.500">
-        <Text fontSize="10px" color="whiteAlpha.600">@{meta.author} · Snapie Short</Text>
+        <Text fontSize="10px" color="overlay.600">@{meta.author} · Snapie Short</Text>
         {meta.title && <Text fontSize="sm" color="white" fontWeight="medium" noOfLines={2}>{meta.title}</Text>}
       </Box>
     </Box>
@@ -312,12 +312,12 @@ function ConversationAvatar({ conv }: { conv: Conversation }) {
         w="28px"
         h="28px"
         borderRadius="full"
-        bg="whiteAlpha.200"
+        bg="overlay.200"
         align="center"
         justify="center"
         flexShrink={0}
       >
-        <Icon as={FiHash} boxSize={3} color="whiteAlpha.800" />
+        <Icon as={FiHash} boxSize={3} color="overlay.700" />
       </Flex>
     );
   }
@@ -341,22 +341,22 @@ function ForwardButton({
         as={Button}
         size="xs"
         variant="link"
-        color="whiteAlpha.500"
+        color="overlay.500"
         fontSize="10px"
         fontWeight="500"
         minH="unset"
-        _hover={{ color: 'whiteAlpha.700' }}
+        _hover={{ color: 'overlay.700' }}
       >
         Forward
       </MenuButton>
-      <MenuList bg="gray.800" borderColor="whiteAlpha.200" maxH="240px" overflowY="auto">
+      <MenuList bg="muted" borderColor="overlay.200" maxH="240px" overflowY="auto">
         {targets.map(target => (
           <MenuItem
             key={target._id}
-            bg="gray.800"
-            color="white"
+            bg="muted"
+            color="text"
             fontSize="sm"
-            _hover={{ bg: 'whiteAlpha.100' }}
+            _hover={{ bg: 'overlay.100' }}
             onClick={() => onForwardSelect(msg, target)}
           >
             {target.type === 'channel' ? `#${target.name}` : target.name}
@@ -441,7 +441,7 @@ function MessageBubble({
                   @{replyPreview?.sender || 'message'}
                 </Text>
               </HStack>
-              <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+              <Text fontSize="11px" color="whiteAlpha.700" noOfLines={2}>
                 {replyPreview?.content || 'Original message unavailable'}
               </Text>
             </Box>
@@ -521,13 +521,13 @@ function MessageBubble({
               <Button
                 size="xs"
                 variant="link"
-                color="whiteAlpha.500"
+                color="overlay.500"
                 fontSize="10px"
                 fontWeight="500"
                 minH="unset"
                 onClick={() => onEditSelect(msg)}
                 onKeyDown={handleEditKeyDown}
-                _hover={{ color: 'whiteAlpha.700' }}
+                _hover={{ color: 'overlay.700' }}
               >
                 Edit
               </Button>
@@ -586,28 +586,28 @@ function MessageBubble({
             @{msg.sender}
           </Text>
           <Box
-            bg={highlightMention ? 'purple.900' : 'whiteAlpha.100'}
+            bg={highlightMention ? 'rgba(168, 85, 247, 0.18)' : 'overlay.100'}
             px={3}
             py={2}
             borderRadius="16px 16px 16px 4px"
             border="1px solid"
-            borderColor={highlightMention ? 'purple.300' : 'whiteAlpha.100'}
+            borderColor={highlightMention ? 'rgba(168, 85, 247, 0.4)' : 'overlay.100'}
           >
             {msg.replyTo && (
-              <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="whiteAlpha.200">
+              <Box mb={2} px={2} py={1} borderRadius="8px" bg="blackAlpha.300" border="1px solid" borderColor="overlay.200">
                 <HStack spacing={1} mb="2px">
-                  <Icon as={FiCornerUpLeft} boxSize={3} color="whiteAlpha.700" />
-                  <Text fontSize="10px" color="whiteAlpha.700" fontWeight="600">
+                  <Icon as={FiCornerUpLeft} boxSize={3} color="overlay.700" />
+                  <Text fontSize="10px" color="overlay.700" fontWeight="600">
                     @{replyPreview?.sender || 'message'}
                   </Text>
                 </HStack>
-                <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                <Text fontSize="11px" color="overlay.700" noOfLines={2}>
                   {replyPreview?.content || 'Original message unavailable'}
                 </Text>
               </Box>
             )}
             {isDeleted ? (
-              <Text fontSize="sm" color="whiteAlpha.600" fontStyle="italic">
+              <Text fontSize="sm" color="overlay.600" fontStyle="italic">
                 Message deleted
               </Text>
             ) : (
@@ -620,7 +620,7 @@ function MessageBubble({
                     tabIndex={onReplySelect ? 0 : undefined}
                     onKeyDown={handleReplyKeyDown}
                   >
-                    <Text fontSize="sm" color="white" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
+                    <Text fontSize="sm" color="text" lineHeight="1.5" whiteSpace="pre-wrap" wordBreak="break-word">
                       <MentionAwareText content={textContent} activeUsername={activeUsername} />
                     </Text>
                   </Box>
@@ -633,7 +633,7 @@ function MessageBubble({
                         borderRadius="10px"
                         overflow="hidden"
                         border="1px solid"
-                        borderColor="whiteAlpha.200"
+                        borderColor="overlay.200"
                         bg="blackAlpha.200"
                         cursor="pointer"
                         onClick={() => setLightboxUrl(url)}
@@ -653,7 +653,7 @@ function MessageBubble({
                 {shortsV && <ShortPreview v={shortsV} />}
               </>
             )}
-            <Text fontSize="9px" color="whiteAlpha.400" mt="4px" textAlign="right">
+            <Text fontSize="9px" color="overlay.400" mt="4px" textAlign="right">
               {msg.editedAt ? `edited • ${formatTime(msg.createdAt)}` : formatTime(msg.createdAt)}
             </Text>
           </Box>
@@ -679,17 +679,17 @@ function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isAc
       border="1px solid"
       borderColor={isActive ? 'blue.400' : 'transparent'}
       cursor="pointer"
-      _hover={{ bg: isActive ? 'blue.600' : 'whiteAlpha.100' }}
+      _hover={{ bg: isActive ? 'blue.600' : 'overlay.100' }}
       align="center"
       justify="space-between"
     >
       <HStack spacing={2} minW={0}>
         <ConversationAvatar conv={conv} />
         <Box minW={0}>
-          <Text color="white" fontSize="sm" fontWeight="600" noOfLines={1}>
+          <Text color="text" fontSize="sm" fontWeight="600" noOfLines={1}>
             {conv.type === 'channel' ? `#${conv.name}` : conv.name}
           </Text>
-          <Text fontSize="11px" color="whiteAlpha.600" noOfLines={1}>
+          <Text fontSize="11px" color="overlay.600" noOfLines={1}>
             {conv.lastMessage ? `${conv.lastMessage.sender}: ${conv.lastMessage.content}` : 'No messages yet'}
           </Text>
         </Box>
@@ -1637,11 +1637,11 @@ export default function ChatPanel({
         right={{ base: '0', md: '16px' }}
         w={{ base: '100vw', md: '220px' }}
         h="44px"
-        bg="rgba(6,17,31,0.96)"
+        bg="surface"
         backdropFilter="blur(12px)"
         borderRadius="12px 12px 0 0"
         border="1px solid"
-        borderColor="whiteAlpha.100"
+        borderColor="overlay.100"
         borderBottom="none"
         zIndex={1400}
         px={4}
@@ -1655,11 +1655,11 @@ export default function ChatPanel({
       >
         <HStack spacing={2}>
           <Icon as={FiMessageSquare} color="blue.300" boxSize={4} />
-          <Text fontSize="sm" fontWeight="600" color="white">Chat</Text>
+          <Text fontSize="sm" fontWeight="600" color="text">Chat</Text>
         </HStack>
         <HStack spacing={1}>
-          <IconButton aria-label="Restore" icon={<FiMaximize2 />} size="xs" variant="ghost" color="whiteAlpha.600" _hover={{ color: 'white' }} onClick={onRestore} />
-          <IconButton aria-label="Close" icon={<FiX />} size="xs" variant="ghost" color="whiteAlpha.600" _hover={{ color: 'white' }} onClick={(e) => { e.stopPropagation(); onClose(); }} />
+          <IconButton aria-label="Restore" icon={<FiMaximize2 />} size="xs" variant="ghost" color="overlay.600" _hover={{ color: 'white' }} onClick={onRestore} />
+          <IconButton aria-label="Close" icon={<FiX />} size="xs" variant="ghost" color="overlay.600" _hover={{ color: 'white' }} onClick={(e) => { e.stopPropagation(); onClose(); }} />
         </HStack>
       </Box>
     );
@@ -1688,11 +1688,11 @@ export default function ChatPanel({
         display="flex"
         flexDirection="column"
         cursor={isResizing ? 'nwse-resize' : 'default'}
-        bg="rgba(6,17,31,0.95)"
+        bg="surface"
         backdropFilter="blur(16px)"
         borderRadius={borderRadius}
         border="1px solid"
-        borderColor="whiteAlpha.100"
+        borderColor="overlay.100"
         borderBottom={isPopoutWindow ? '1px solid' : 'none'}
         overflow="hidden"
         boxShadow="0 -4px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(24,168,255,0.08)"
@@ -1714,17 +1714,17 @@ export default function ChatPanel({
               zIndex={1500}
               onMouseDown={handleResizeStart}
               title="Drag to resize"
-              bg="whiteAlpha.100"
+              bg="overlay.100"
               borderTop="1px solid"
               borderRight="1px solid"
-              borderColor="whiteAlpha.200"
+              borderColor="overlay.200"
               borderTopRightRadius="8px"
               display="flex"
               alignItems="center"
               justifyContent="center"
-              _hover={{ bg: 'whiteAlpha.200' }}
+              _hover={{ bg: 'overlay.200' }}
             >
-              <Icon as={FiMaximize2} boxSize={3} color="whiteAlpha.700" />
+              <Icon as={FiMaximize2} boxSize={3} color="overlay.700" />
             </Box>
           </Tooltip>
         )}
@@ -1736,7 +1736,7 @@ export default function ChatPanel({
           px={4}
           py={3}
           borderBottom="1px solid"
-          borderColor="whiteAlpha.100"
+          borderColor="overlay.100"
           flexShrink={0}
         >
           <HStack spacing={2}>
@@ -1746,11 +1746,11 @@ export default function ChatPanel({
                 icon={<FiArrowLeft />}
                 size="xs"
                 variant="ghost"
-                color="whiteAlpha.700"
+                color="overlay.700"
                 onClick={() => setMobileView('list')}
               />
             )}
-            <Text fontSize="sm" fontWeight="700" color="white" letterSpacing="0.02em">
+            <Text fontSize="sm" fontWeight="700" color="text" letterSpacing="0.02em">
               {showList && !showThread ? 'Conversations' : (activeConversation?.type === 'channel' ? `#${activeConversation?.name}` : activeConversation?.name || 'Chat')}
             </Text>
             {showThread && activeConversation?.type === 'dm' && (
@@ -1759,9 +1759,9 @@ export default function ChatPanel({
                   w="7px"
                   h="7px"
                   borderRadius="full"
-                  bg={dmStatus?.peerOnline ? 'green.300' : 'whiteAlpha.400'}
+                  bg={dmStatus?.peerOnline ? 'green.300' : 'overlay.400'}
                 />
-                <Text fontSize="10px" color={dmStatus?.peerOnline ? 'green.200' : 'whiteAlpha.500'}>
+                <Text fontSize="10px" color={dmStatus?.peerOnline ? 'green.200' : 'overlay.500'}>
                   {dmStatus?.peerOnline ? 'Online' : (dmStatus?.peerLastSeenAt ? `Last seen ${formatLastSeen(dmStatus.peerLastSeenAt)}` : 'Offline')}
                 </Text>
               </HStack>
@@ -1781,13 +1781,13 @@ export default function ChatPanel({
                   icon={<FiPlus />}
                   size="xs"
                   variant="ghost"
-                  color="whiteAlpha.500"
-                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  color="overlay.500"
+                  _hover={{ color: 'white', bg: 'overlay.100' }}
                 />
-                <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+                <MenuList bg="muted" borderColor="overlay.200">
                   <MenuItem
-                    bg="gray.800"
-                    color="white"
+                    bg="muted"
+                    color="text"
                     onClick={() => {
                       setMobileView('list');
                       setListAction('new-dm');
@@ -1797,8 +1797,8 @@ export default function ChatPanel({
                     Start DM
                   </MenuItem>
                   <MenuItem
-                    bg="gray.800"
-                    color="white"
+                    bg="muted"
+                    color="text"
                     onClick={() => {
                       setMobileView('list');
                       setListAction('new-group');
@@ -1817,8 +1817,8 @@ export default function ChatPanel({
                   icon={<FiMessageSquare />}
                   size="xs"
                   variant="ghost"
-                  color="whiteAlpha.500"
-                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  color="overlay.500"
+                  _hover={{ color: 'white', bg: 'overlay.100' }}
                   onClick={() => {
                     setListAction(listAction === 'new-dm' ? 'none' : 'new-dm');
                     setPanelError('');
@@ -1829,8 +1829,8 @@ export default function ChatPanel({
                   icon={<FiUsers />}
                   size="xs"
                   variant="ghost"
-                  color="whiteAlpha.500"
-                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  color="overlay.500"
+                  _hover={{ color: 'white', bg: 'overlay.100' }}
                   onClick={() => {
                     setListAction(listAction === 'new-group' ? 'none' : 'new-group');
                     setPanelError('');
@@ -1844,8 +1844,8 @@ export default function ChatPanel({
                 icon={<FiMinus />}
                 size="xs"
                 variant="ghost"
-                color="whiteAlpha.500"
-                _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                color="overlay.500"
+                _hover={{ color: 'white', bg: 'overlay.100' }}
                 onClick={onMinimize}
               />
             )}
@@ -1855,8 +1855,8 @@ export default function ChatPanel({
                   size="xs"
                   leftIcon={<FiExternalLink />}
                   variant="ghost"
-                  color="whiteAlpha.500"
-                  _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+                  color="overlay.500"
+                  _hover={{ color: 'white', bg: 'overlay.100' }}
                   onClick={onPopout}
                 >
                   Pop out
@@ -1868,8 +1868,8 @@ export default function ChatPanel({
               icon={<FiX />}
               size="xs"
               variant="ghost"
-              color="whiteAlpha.500"
-              _hover={{ color: 'white', bg: 'whiteAlpha.100' }}
+              color="overlay.500"
+              _hover={{ color: 'white', bg: 'overlay.100' }}
               onClick={onClose}
             />
           </HStack>
@@ -1891,18 +1891,18 @@ export default function ChatPanel({
               flex={isDesktopSplit ? '0 0 42%' : '1'}
               minW={0}
               borderRight={isDesktopSplit ? '1px solid' : 'none'}
-              borderRightColor={isDesktopSplit ? 'whiteAlpha.100' : 'transparent'}
+              borderRightColor={isDesktopSplit ? 'overlay.100' : 'transparent'}
               sx={{
                 overscrollBehavior: 'contain',
                 WebkitOverflowScrolling: 'touch',
                 '&::-webkit-scrollbar': { width: '3px' },
                 '&::-webkit-scrollbar-track': { bg: 'transparent' },
-                '&::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
+                '&::-webkit-scrollbar-thumb': { bg: 'overlay.200', borderRadius: 'full' },
               }}
             >
             {listAction === 'new-dm' && (
-              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="10px" p={3} bg="whiteAlpha.50">
-                <Text color="white" fontSize="xs" mb={2}>Start Direct Message</Text>
+              <Box border="1px solid" borderColor="overlay.200" borderRadius="10px" p={3} bg="overlay.50">
+                <Text color="text" fontSize="xs" mb={2}>Start Direct Message</Text>
                 <HStack>
                   <Input
                     value={dmTarget}
@@ -1910,16 +1910,16 @@ export default function ChatPanel({
                     placeholder="Hive username"
                     size="sm"
                     bg="blackAlpha.300"
-                    borderColor="whiteAlpha.200"
-                    color="white"
+                    borderColor="overlay.200"
+                    color="text"
                   />
                   <Button size="sm" colorScheme="blue" onClick={handleCreateDmSubmit}>Start</Button>
                 </HStack>
               </Box>
             )}
             {listAction === 'new-group' && (
-              <Box border="1px solid" borderColor="whiteAlpha.200" borderRadius="10px" p={3} bg="whiteAlpha.50">
-                <Text color="white" fontSize="xs" mb={2}>Create Group Chat</Text>
+              <Box border="1px solid" borderColor="overlay.200" borderRadius="10px" p={3} bg="overlay.50">
+                <Text color="text" fontSize="xs" mb={2}>Create Group Chat</Text>
                 <VStack spacing={2} align="stretch">
                   <Input
                     value={groupName}
@@ -1927,8 +1927,8 @@ export default function ChatPanel({
                     placeholder="Group name"
                     size="sm"
                     bg="blackAlpha.300"
-                    borderColor="whiteAlpha.200"
-                    color="white"
+                    borderColor="overlay.200"
+                    color="text"
                   />
                   <Input
                     value={groupMemberDraft}
@@ -1942,15 +1942,15 @@ export default function ChatPanel({
                     placeholder="Add member username"
                     size="sm"
                     bg="blackAlpha.300"
-                    borderColor="whiteAlpha.200"
-                    color="white"
+                    borderColor="overlay.200"
+                    color="text"
                   />
                   <HStack justify="space-between">
                     <HStack spacing={2} flexWrap="wrap">
                       {groupMembers.map(member => (
-                        <HStack key={member} spacing={1} bg="whiteAlpha.100" px={2} py={1} borderRadius="full">
+                        <HStack key={member} spacing={1} bg="overlay.100" px={2} py={1} borderRadius="full">
                           <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
-                          <Text fontSize="10px" color="whiteAlpha.900">@{member}</Text>
+                          <Text fontSize="10px" color="overlay.700">@{member}</Text>
                           <IconButton
                             aria-label={`Remove ${member}`}
                             icon={<FiX />}
@@ -1969,7 +1969,7 @@ export default function ChatPanel({
                   <HStack justify="space-between">
                     <HStack>
                       <Switch size="sm" isChecked={groupIsPublic} onChange={e => setGroupIsPublic(e.target.checked)} />
-                      <Text color="whiteAlpha.700" fontSize="xs">Public group</Text>
+                      <Text color="overlay.700" fontSize="xs">Public group</Text>
                     </HStack>
                     <Button size="sm" colorScheme="blue" onClick={handleCreateGroupSubmit}>Create</Button>
                   </HStack>
@@ -1981,7 +1981,7 @@ export default function ChatPanel({
             )}
             {conversations.length === 0 ? (
               <Flex flex="1" align="center" justify="center" py={6}>
-                <Text fontSize="xs" color="whiteAlpha.500">No conversations yet</Text>
+                <Text fontSize="xs" color="overlay.500">No conversations yet</Text>
               </Flex>
             ) : (
               conversations.map(conv => (
@@ -2000,8 +2000,8 @@ export default function ChatPanel({
           {showThread && (
             <Flex flex="1" minW={0} direction="column">
               {canManageMembers && (
-                <Box px={3} py={2} borderBottom="1px solid" borderColor="whiteAlpha.100" bg="whiteAlpha.50">
-                  <Text fontSize="10px" color="whiteAlpha.600" mb={2}>Group members (owner controls)</Text>
+                <Box px={3} py={2} borderBottom="1px solid" borderColor="overlay.100" bg="overlay.50">
+                  <Text fontSize="10px" color="overlay.600" mb={2}>Group members (owner controls)</Text>
                   <HStack mb={2}>
                     <Input
                       value={memberInput}
@@ -2009,16 +2009,16 @@ export default function ChatPanel({
                       placeholder="Add member username"
                       size="xs"
                       bg="blackAlpha.300"
-                      borderColor="whiteAlpha.200"
-                      color="white"
+                      borderColor="overlay.200"
+                      color="text"
                     />
                     <Button size="xs" colorScheme="blue" onClick={handleAddMember} isLoading={memberActionBusy}>Add</Button>
                   </HStack>
                   <HStack spacing={2} flexWrap="wrap">
                     {(activeConversation?.members || []).map(member => (
-                      <HStack key={member} spacing={1} bg="whiteAlpha.100" px={2} py={1} borderRadius="full">
+                      <HStack key={member} spacing={1} bg="overlay.100" px={2} py={1} borderRadius="full">
                         <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
-                        <Text fontSize="10px" color="whiteAlpha.900">@{member}</Text>
+                        <Text fontSize="10px" color="overlay.700">@{member}</Text>
                         {member === activeConversation.owner && (
                           <Badge colorScheme="purple" variant="solid" fontSize="8px" borderRadius="full">Owner</Badge>
                         )}
@@ -2038,7 +2038,7 @@ export default function ChatPanel({
                       </HStack>
                     ))}
                   </HStack>
-                  <Divider mt={2} borderColor="whiteAlpha.200" />
+                  <Divider mt={2} borderColor="overlay.200" />
                 </Box>
               )}
               <Box
@@ -2051,7 +2051,7 @@ export default function ChatPanel({
                   WebkitOverflowScrolling: 'touch',
                   '& [data-virtuoso-scroller]::-webkit-scrollbar': { width: '3px' },
                   '& [data-virtuoso-scroller]::-webkit-scrollbar-track': { bg: 'transparent' },
-                  '& [data-virtuoso-scroller]::-webkit-scrollbar-thumb': { bg: 'whiteAlpha.200', borderRadius: 'full' },
+                  '& [data-virtuoso-scroller]::-webkit-scrollbar-thumb': { bg: 'overlay.200', borderRadius: 'full' },
                 }}
               >
                 {loadingMessages ? (
@@ -2060,8 +2060,8 @@ export default function ChatPanel({
                   </Flex>
                 ) : messages.length === 0 ? (
                   <Flex direction="column" justify="center" align="center" flex="1" gap={2} opacity={0.5} h="100%">
-                    <Icon as={FiMessageSquare} boxSize={8} color="whiteAlpha.400" />
-                    <Text fontSize="xs" color="whiteAlpha.500">No messages yet. Say hello!</Text>
+                    <Icon as={FiMessageSquare} boxSize={8} color="overlay.400" />
+                    <Text fontSize="xs" color="overlay.500">No messages yet. Say hello!</Text>
                   </Flex>
                 ) : (
                   <Virtuoso
@@ -2116,7 +2116,7 @@ export default function ChatPanel({
                             const msgTs = new Date(myLast.createdAt).getTime();
                             if (peerSeenTs && peerSeenTs >= msgTs) {
                               return (
-                                <Text fontSize="10px" color="whiteAlpha.500" textAlign="right" pr={1}>
+                                <Text fontSize="10px" color="overlay.500" textAlign="right" pr={1}>
                                   Seen
                                 </Text>
                               );
@@ -2124,7 +2124,7 @@ export default function ChatPanel({
                             return null;
                           })()}
                           {!!typingLabel && (
-                            <Text fontSize="11px" color="whiteAlpha.600" mt={1}>
+                            <Text fontSize="11px" color="overlay.600" mt={1}>
                               {typingLabel}
                             </Text>
                           )}
@@ -2171,19 +2171,19 @@ export default function ChatPanel({
                   px={4}
                   py={4}
                   borderTop="1px solid"
-                  borderColor="whiteAlpha.100"
+                  borderColor="overlay.100"
                   direction="column"
                   align="center"
                   gap={2}
                   flexShrink={0}
                 >
                   {!user ? (
-                    <Text fontSize="xs" color="whiteAlpha.500" textAlign="center">
+                    <Text fontSize="xs" color="overlay.500" textAlign="center">
                       Log in to send messages
                     </Text>
                   ) : (
                     <>
-                      <Text fontSize="xs" color="whiteAlpha.500" textAlign="center">
+                      <Text fontSize="xs" color="overlay.500" textAlign="center">
                         Connect your Hive account to chat
                       </Text>
                       <Button
@@ -2209,7 +2209,7 @@ export default function ChatPanel({
                 px={3}
                 py={isTabletLayout ? 2 : 3}
                 borderTop="1px solid"
-                borderColor="whiteAlpha.100"
+                borderColor="overlay.100"
                 gap={2}
                 align="center"
                 flexShrink={0}
@@ -2225,7 +2225,7 @@ export default function ChatPanel({
                     borderRadius="10px"
                     p={2}
                   >
-                    <Text fontSize="xs" color="white" mb={2}>
+                    <Text fontSize="xs" color="text" mb={2}>
                       Block @{confirmBlockUser}? You will no longer receive their messages.
                     </Text>
                     <HStack justify="flex-end">
@@ -2243,7 +2243,7 @@ export default function ChatPanel({
                     borderRadius="10px"
                     p={2}
                   >
-                    <Text fontSize="xs" color="white" mb={2}>
+                    <Text fontSize="xs" color="text" mb={2}>
                       @{showMemoFallbackPrompt.peer} has no push token. Send encrypted Hive memo fallback?
                     </Text>
                     <HStack mb={2}>
@@ -2296,7 +2296,7 @@ export default function ChatPanel({
                         onClick={() => setReplyingTo(null)}
                       />
                     </HStack>
-                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                    <Text fontSize="11px" color="overlay.700" noOfLines={2}>
                       {replyingTo.content}
                     </Text>
                   </Box>
@@ -2325,7 +2325,7 @@ export default function ChatPanel({
                         }}
                       />
                     </HStack>
-                    <Text fontSize="11px" color="whiteAlpha.800" noOfLines={2}>
+                    <Text fontSize="11px" color="overlay.700" noOfLines={2}>
                       {editingMessage.content}
                     </Text>
                   </Box>
@@ -2350,22 +2350,22 @@ export default function ChatPanel({
                       <MenuButton as={Button} size="xs" variant="ghost" rightIcon={<FiChevronDown />}>
                         Manage
                       </MenuButton>
-                      <MenuList bg="gray.800" borderColor="whiteAlpha.200">
+                      <MenuList bg="muted" borderColor="overlay.200">
                         {mutedUsers.includes(activeConversation.peer) ? (
-                          <MenuItem bg="gray.800" color="white" onClick={() => handleUnmute(activeConversation.peer || '')}>
+                          <MenuItem bg="muted" color="text" onClick={() => handleUnmute(activeConversation.peer || '')}>
                             Unmute @{activeConversation.peer}
                           </MenuItem>
                         ) : (
-                          <MenuItem bg="gray.800" color="white" onClick={() => handleMute(activeConversation.peer || '')}>
+                          <MenuItem bg="muted" color="text" onClick={() => handleMute(activeConversation.peer || '')}>
                             Mute @{activeConversation.peer}
                           </MenuItem>
                         )}
                         {blockedUsers.includes(activeConversation.peer) ? (
-                          <MenuItem bg="gray.800" color="white" onClick={() => handleUnblock(activeConversation.peer || '')}>
+                          <MenuItem bg="muted" color="text" onClick={() => handleUnblock(activeConversation.peer || '')}>
                             Unblock @{activeConversation.peer}
                           </MenuItem>
                         ) : (
-                          <MenuItem bg="gray.800" color="red.300" onClick={() => handleBlock(activeConversation.peer || '')}>
+                          <MenuItem bg="muted" color="red.300" onClick={() => handleBlock(activeConversation.peer || '')}>
                             Block @{activeConversation.peer}
                           </MenuItem>
                         )}
@@ -2416,8 +2416,8 @@ export default function ChatPanel({
                         GIF
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent bg="gray.800" borderColor="whiteAlpha.200" w="320px">
-                      <PopoverArrow bg="gray.800" />
+                    <PopoverContent bg="muted" borderColor="overlay.200" w="320px">
+                      <PopoverArrow bg="muted" />
                       <PopoverBody maxH="360px" overflowY="auto">
                         <GiphySelector
                           apiKey={process.env.NEXT_PUBLIC_GIPHY_API_KEY || 'qXGQXTPKyNJByTFZpW7Kb0tEFeB90faV'}
@@ -2454,13 +2454,13 @@ export default function ChatPanel({
                     placeholder="Message…"
                     size={isTabletLayout ? 'md' : 'sm'}
                     borderRadius={isTabletLayout ? '14px' : 'full'}
-                    bg={hasValidMentionInDraft ? 'yellow.900' : 'whiteAlpha.50'}
+                    bg={hasValidMentionInDraft ? 'rgba(234, 179, 8, 0.18)' : 'overlay.50'}
                     border="1px solid"
-                    borderColor={hasValidMentionInDraft ? 'yellow.400' : 'whiteAlpha.100'}
-                    color="white"
-                    _placeholder={{ color: 'whiteAlpha.400' }}
-                    _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)', bg: 'whiteAlpha.100' }}
-                    _hover={{ borderColor: 'whiteAlpha.300' }}
+                    borderColor={hasValidMentionInDraft ? 'yellow.400' : 'overlay.100'}
+                    color="text"
+                    _placeholder={{ color: 'overlay.400' }}
+                    _focus={{ borderColor: 'blue.400', boxShadow: '0 0 0 1px var(--chakra-colors-blue-400)', bg: 'overlay.100' }}
+                    _hover={{ borderColor: 'overlay.300' }}
                     maxLength={2000}
                     autoComplete="off"
                     minW={0}
@@ -2485,12 +2485,12 @@ export default function ChatPanel({
                   <Box
                     w="100%"
                     border="1px solid"
-                    borderColor="whiteAlpha.200"
+                    borderColor="overlay.200"
                     borderRadius="10px"
-                    bg="gray.800"
+                    bg="muted"
                     overflow="hidden"
                   >
-                    <Text fontSize="10px" color="whiteAlpha.600" px={2} pt={2}>
+                    <Text fontSize="10px" color="overlay.600" px={2} pt={2}>
                       Mention suggestions {mentionQuery ? `for "${mentionQuery}"` : ''}
                     </Text>
                     <VStack align="stretch" spacing={0} p={1}>
@@ -2501,7 +2501,7 @@ export default function ChatPanel({
                           justifyContent="flex-start"
                           variant="ghost"
                           borderRadius="8px"
-                          bg={idx === activeMentionIdx ? 'whiteAlpha.200' : 'transparent'}
+                          bg={idx === activeMentionIdx ? 'overlay.200' : 'transparent'}
                           onClick={() => applyMentionSuggestion(name)}
                           onMouseEnter={() => setActiveMentionIdx(idx)}
                         >
@@ -2512,7 +2512,7 @@ export default function ChatPanel({
                   </Box>
                 )}
                 {isTabletLayout && (
-                  <Text fontSize="10px" color="whiteAlpha.500" w="100%" px={1}>
+                  <Text fontSize="10px" color="overlay.500" w="100%" px={1}>
                     Tip: type @ to mention someone in this conversation.
                   </Text>
                 )}

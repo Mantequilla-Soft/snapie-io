@@ -230,7 +230,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     return (
         <Box pl={level > 0 && level <= MAX_INDENT_LEVEL ? 1 : 0} ml={level > 0 && level <= MAX_INDENT_LEVEL ? 2 : 0}>
             <Box
-                bg="rgba(8, 24, 40, 0.72)"
+                bg="surface"
                 px={4}
                 pt={4}
                 pb={3}
@@ -277,15 +277,15 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 </Link>
                                 <PatronBadge tier={getTier(comment.author)} />
                                 {comment.source === 'wave' && <WaveBadge />}
-                                <Text fontSize="sm" color="whiteAlpha.400" flexShrink={0}>·</Text>
-                                <Text fontSize="sm" color="whiteAlpha.500" flexShrink={0}>{commentDate}</Text>
+                                <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
+                                <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
                             </HStack>
                             {canEdit && (
                                 <Box
                                     as="button"
                                     onClick={() => setIsEditModalOpen(true)}
-                                    color="whiteAlpha.400"
-                                    _hover={{ color: 'white' }}
+                                    color="overlay.400"
+                                    _hover={{ color: 'text' }}
                                     flexShrink={0}
                                     ml={2}
                                     aria-label="Edit post"
@@ -313,7 +313,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 <Box
                                     as="button"
                                     fontSize="xs"
-                                    color="gray.400"
+                                    color="overlay.500"
                                     _hover={{ color: 'primary' }}
                                     onClick={() => setNsfwRevealed(true)}
                                 >
@@ -421,7 +421,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                     <FaRetweet />
                                     <Text fontSize="sm" display={{ base: 'none', sm: 'inline' }}>Re-Snap/Share</Text>
                                 </HStack>
-                                <HStack spacing={1} cursor="pointer" onClick={handleShareOnX} color="gray.400" _hover={{ color: 'white' }}>
+                                <HStack spacing={1} cursor="pointer" onClick={handleShareOnX} color="overlay.500" _hover={{ color: 'white' }}>
                                     <FaXTwitter />
                                 </HStack>
                             </HStack>

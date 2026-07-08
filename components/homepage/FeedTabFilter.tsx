@@ -53,17 +53,17 @@ export default function FeedTabFilter({
               onClick={() => !isDisabled && onFilterChange(tab.value)}
               size="md"
               bg="transparent"
-              color={isActive ? 'white' : 'whiteAlpha.500'}
+              color={isActive ? 'text' : 'overlay.500'}
               borderRadius="full"
               borderBottom="2px solid"
-              borderColor={isActive ? '#1ca1f1' : 'transparent'}
+              borderColor={isActive ? 'primary' : 'transparent'}
               fontWeight={isActive ? 'bold' : 'medium'}
               px={4}
               py={3}
               _hover={{
                 bg: 'rgba(28, 161, 241, 0.08)',
-                color: isActive ? 'white' : 'whiteAlpha.800',
-                borderColor: isActive ? '#1ca1f1' : 'rgba(28, 161, 241, 0.3)',
+                color: isActive ? 'text' : 'overlay.700',
+                borderColor: isActive ? 'primary' : 'rgba(28, 161, 241, 0.3)',
               }}
               _active={{
                 bg: 'rgba(28, 161, 241, 0.12)',
@@ -73,7 +73,7 @@ export default function FeedTabFilter({
                 cursor: 'not-allowed',
                 _hover: {
                   bg: 'transparent',
-                  color: 'whiteAlpha.500',
+                  color: 'overlay.500',
                   borderColor: 'transparent',
                 },
               }}

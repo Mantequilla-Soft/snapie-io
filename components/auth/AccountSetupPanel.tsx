@@ -227,7 +227,7 @@ export default function AccountSetupPanel({ onComplete }: Props) {
             ✓ @{username} is available
           </Text>
         ) : checking ? (
-          <Text fontSize="xs" color="gray.400" mt={1}>
+          <Text fontSize="xs" color="overlay.500" mt={1}>
             Checking…
           </Text>
         ) : null}

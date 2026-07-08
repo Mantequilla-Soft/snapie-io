@@ -370,7 +370,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
 
     return (
         <Box
-            bg="rgba(8, 24, 40, 0.76)"
+            bg="surface"
             p={4}
             mb={3}
             borderRadius="10px"
@@ -380,14 +380,14 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
         >
             <Textarea
                 placeholder={!user ? "Please log in to post..." : "What's happening?"}
-                bg="rgba(4, 16, 29, 0.72)"
+                bg="muted"
                 border="1px solid"
-                borderColor="rgba(28, 161, 241, 0.14)"
+                borderColor="surfaceBorder"
                 borderRadius="10px"
                 mb={3}
                 ref={postBodyRef}
                 minH="92px"
-                _placeholder={{ color: 'rgba(232, 244, 255, 0.68)' }}
+                _placeholder={{ color: 'overlay.600' }}
                 _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(28, 161, 241, 0.42), 0 0 34px rgba(28, 161, 241, 0.16)' }}
                 isDisabled={!user || isLoading}
                 onKeyDown={handleKeyDown}
@@ -397,7 +397,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 <HStack flexShrink={1} minW={0}>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaImage size={20} />
@@ -405,14 +405,14 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
                         <MdGif size={44} />
                     </Button>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         isDisabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme} size={{ base: 'sm', md: 'md' }}
                         title={hasMeme ? 'Remove meme to add a video' : undefined}
                     >
@@ -421,15 +421,15 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
-                        color="whiteAlpha.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
                         <FaMicrophone size={20} />
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
-                        color={hasMeme ? 'blue.300' : 'whiteAlpha.600'}
-                        _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'whiteAlpha.900' }}
+                        color={hasMeme ? 'primary' : 'overlay.600'}
+                        _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setIsMemePickerOpen(true)}
                         isDisabled={!user || isLoading || hasVideoInProgress || isMemeUploading}
                         size={{ base: 'sm', md: 'md' }}
@@ -510,7 +510,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                                     isDisabled={isLoading}
                                 />
                             </HStack>
-                            <Text fontSize="xs" color="gray.400">
+                            <Text fontSize="xs" color="overlay.500">
                                 {(selectedVideo.size / (1024 * 1024)).toFixed(2)} MB
                             </Text>
                             {videoUploadProgress > 0 && (
@@ -543,7 +543,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Box>
                 )}
                 {memeTemplateIds.length > 0 && (
-                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="blue.800" w="100%">
+                    <Box position="relative" bg="muted" p={3} borderRadius="base" border="1px solid" borderColor="border" w="100%">
                         <HStack justify="space-between">
                             <Text fontSize="sm" fontWeight="bold" color="blue.300">
                                 🐸 {memeTemplateIds.length} meme{memeTemplateIds.length > 1 ? 's' : ''} added

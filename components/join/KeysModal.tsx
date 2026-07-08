@@ -50,15 +50,15 @@ export default function KeysModal({ isOpen, onClose, keys }: KeysModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent bg="rgba(8, 24, 40, 0.96)" color="white" border="1px solid" borderColor="whiteAlpha.200">
+      <ModalContent bg="background" color="text" border="1px solid" borderColor="overlay.200">
         <ModalHeader>Your Hive Keys</ModalHeader>
         <ModalCloseButton />
         <ModalBody pb={6}>
           <Stack spacing={5}>
             {keys && ROLES.map(({ label, privKey, pubKey, hint }) => (
-              <Box key={label} bg="rgba(4, 16, 29, 0.72)" p={3} borderRadius="md" border="1px solid" borderColor="whiteAlpha.100">
+              <Box key={label} bg="muted" p={3} borderRadius="md" border="1px solid" borderColor="overlay.100">
                 <Text fontSize="sm" fontWeight="bold" mb={1}>{label}</Text>
-                <Text fontSize="xs" color="gray.400" mb={2}>{hint}</Text>
+                <Text fontSize="xs" color="overlay.500" mb={2}>{hint}</Text>
 
                 <Text fontSize="xs" color="gray.500" mt={1}>Private</Text>
                 <Box display="flex" alignItems="center" gap={2}>
@@ -76,7 +76,7 @@ export default function KeysModal({ isOpen, onClose, keys }: KeysModalProps) {
 
                 <Text fontSize="xs" color="gray.500" mt={2}>Public</Text>
                 <Box display="flex" alignItems="center" gap={2}>
-                  <Box flex={1} bg="blackAlpha.300" p={2} borderRadius="sm" fontFamily="mono" fontSize="xs" wordBreak="break-all" color="gray.300">
+                  <Box flex={1} bg="blackAlpha.300" p={2} borderRadius="sm" fontFamily="mono" fontSize="xs" wordBreak="break-all" color="overlay.600">
                     {keys[pubKey]}
                   </Box>
                   <IconButton

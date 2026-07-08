@@ -176,7 +176,7 @@ export default function InteractionBar({
                         {showShare && (
                             <>
                                 <Icon as={FaShare} ml={4} cursor="pointer" onClick={handleShare} />
-                                <Icon as={FaXTwitter} ml={3} cursor="pointer" onClick={handleShareOnX} color="gray.400" _hover={{ color: 'white' }} />
+                                <Icon as={FaXTwitter} ml={3} cursor="pointer" onClick={handleShareOnX} color="overlay.500" _hover={{ color: 'white' }} />
                             </>
                         )}
                     </Flex>

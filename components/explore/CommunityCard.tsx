@@ -20,7 +20,7 @@ export default function CommunityCard({ tag, title, about, subscribers, topPosts
       as={NextLink}
       href={`/explore/${encodeURIComponent(tag)}`}
       display="block"
-      bg="rgba(8, 24, 40, 0.78)"
+      bg="surface"
       border="tb1"
       borderRadius="12px"
       backdropFilter="blur(18px)"
@@ -45,7 +45,7 @@ export default function CommunityCard({ tag, title, about, subscribers, topPosts
         />
         <Box flex={1} minW={0}>
           <Flex align="center" justify="space-between" gap={2} mb={1}>
-            <Text fontWeight="bold" fontSize="sm" color="white" noOfLines={1} flex={1}>
+            <Text fontWeight="bold" fontSize="sm" color="text" noOfLines={1} flex={1}>
               {title}
             </Text>
             <Badge
@@ -60,19 +60,19 @@ export default function CommunityCard({ tag, title, about, subscribers, topPosts
             </Badge>
           </Flex>
           {about && (
-            <Text fontSize="xs" color="whiteAlpha.600" noOfLines={2} mb={2} lineHeight="short">
+            <Text fontSize="xs" color="overlay.600" noOfLines={2} mb={2} lineHeight="short">
               {about}
             </Text>
           )}
           <Flex gap={4}>
-            <Text fontSize="xs" color="whiteAlpha.400">
-              <Text as="span" color="whiteAlpha.700" fontWeight="semibold">
+            <Text fontSize="xs" color="overlay.400">
+              <Text as="span" color="overlay.700" fontWeight="semibold">
                 {subscribers?.toLocaleString()}
               </Text>{' '}
               subscribers
             </Text>
-            <Text fontSize="xs" color="whiteAlpha.400">
-              <Text as="span" color="whiteAlpha.700" fontWeight="semibold">
+            <Text fontSize="xs" color="overlay.400">
+              <Text as="span" color="overlay.700" fontWeight="semibold">
                 {topPosts?.toLocaleString()}
               </Text>{' '}
               posts

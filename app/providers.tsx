@@ -3,16 +3,8 @@
 
 import { ChakraProvider } from '@chakra-ui/react'
 
-import { blueSkyTheme } from '@/themes/bluesky'
-import { hackerTheme } from '@/themes/hacker'
-import { nounsDaoTheme } from '@/themes/nounish'
-import { forestTheme } from '@/themes/forest'
-
 import { useEffect } from 'react'
-import { windows95Theme } from '@/themes/windows95'
-import { hiveBRTheme } from '@/themes/hivebr'
-import { cannabisTheme } from '@/themes/cannabis'
-import { mengaoTheme } from '@/themes/mengao'
+import { windows95ThemeDark, windows95ThemeLight } from '@/themes/windows95'
 import { UserProvider } from '@/contexts/UserContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
 import { HangoutContextProvider } from '@/contexts/HangoutContext'
@@ -21,23 +13,7 @@ import { HiveAuthProvider } from '@/contexts/HiveAuthContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import { SnapieAuthProvider } from '@/contexts/SnapieAuthContext'
 import { getAioha } from '@/lib/hive/aioha'
-
-const themeMap = {
-  forest: forestTheme,
-  bluesky: blueSkyTheme,
-  hacker: hackerTheme,
-  nounish: nounsDaoTheme,
-  windows95: windows95Theme,
-  snapie: windows95Theme,
-  hivebr: hiveBRTheme,
-  cannabis: cannabisTheme,
-  mengao: mengaoTheme,
-}
-
-type ThemeName = keyof typeof themeMap;
-
-const themeName = (process.env.NEXT_PUBLIC_THEME as ThemeName) || 'hacker';
-const selectedTheme = themeMap[themeName];
+import { useUserSettings } from '@/hooks/useUserSettings'
 
 // Persistent across renders + strict mode remounts
 let hasAttachedPlayerListener = false;
@@ -155,6 +131,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   const aioha = getAioha()
+  const { settings } = useUserSettings()
+  const selectedTheme = settings.colorMode === 'light' ? windows95ThemeLight : windows95ThemeDark
 
   // Restore the stored aioha session after mount. Doing this synchronously
   // during module init breaks hydration, because the server renders without

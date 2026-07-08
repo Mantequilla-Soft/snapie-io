@@ -120,8 +120,8 @@ export default function EditProfileModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg" scrollBehavior="inside">
       <ModalOverlay backdropFilter="blur(6px)" />
-      <ModalContent bg="background" color="text" borderColor="rgba(255,255,255,0.08)" borderWidth="1px">
-        <ModalHeader borderBottomWidth="1px" borderColor="rgba(255,255,255,0.08)">
+      <ModalContent bg="background" color="text" borderColor="var(--chakra-colors-overlay-200)" borderWidth="1px">
+        <ModalHeader borderBottomWidth="1px" borderColor="var(--chakra-colors-overlay-200)">
           Edit Profile
         </ModalHeader>
         <ModalCloseButton />
@@ -131,7 +131,7 @@ export default function EditProfileModal({
 
             {/* Avatar */}
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Profile Photo</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">Profile Photo</FormLabel>
               <HStack spacing={3} align="center">
                 <Box position="relative" flexShrink={0}>
                   <Avatar
@@ -185,7 +185,7 @@ export default function EditProfileModal({
 
             {/* Cover image */}
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Cover Photo</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">Cover Photo</FormLabel>
               <VStack spacing={2} align="stretch">
                 <Box
                   position="relative"
@@ -245,7 +245,7 @@ export default function EditProfileModal({
             </FormControl>
 
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Display Name</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">Display Name</FormLabel>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -257,7 +257,7 @@ export default function EditProfileModal({
             </FormControl>
 
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">About</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">About</FormLabel>
               <Textarea
                 value={about}
                 onChange={(e) => setAbout(e.target.value)}
@@ -271,7 +271,7 @@ export default function EditProfileModal({
             </FormControl>
 
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Location</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">Location</FormLabel>
               <Input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -283,7 +283,7 @@ export default function EditProfileModal({
             </FormControl>
 
             <FormControl>
-              <FormLabel fontSize="sm" color="gray.400">Website</FormLabel>
+              <FormLabel fontSize="sm" color="overlay.500">Website</FormLabel>
               <Input
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
@@ -297,7 +297,7 @@ export default function EditProfileModal({
           </VStack>
         </ModalBody>
 
-        <ModalFooter borderTopWidth="1px" borderColor="rgba(255,255,255,0.08)" gap={2}>
+        <ModalFooter borderTopWidth="1px" borderColor="var(--chakra-colors-overlay-200)" gap={2}>
           <Button variant="ghost" onClick={onClose} isDisabled={isSaving || isUploading}>Cancel</Button>
           <Button
             colorScheme="blue"

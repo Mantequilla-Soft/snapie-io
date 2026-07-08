@@ -31,7 +31,7 @@ function SubScoreBar({ label, value, tooltip }: { label: string; value: number; 
   return (
     <Box>
       <Flex justify="space-between" mb={1}>
-        <Text fontSize="xs" color="gray.400" title={tooltip}>{label}</Text>
+        <Text fontSize="xs" color="overlay.500" title={tooltip}>{label}</Text>
         <Text fontSize="xs" fontWeight="bold" color="text">{pct}%</Text>
       </Flex>
       <Progress

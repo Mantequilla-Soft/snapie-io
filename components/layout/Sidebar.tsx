@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useColorMode, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
+import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
@@ -42,7 +42,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const { colorMode } = useColorMode();
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useNotifications();
@@ -89,7 +88,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     return (
         <Box
             as="nav"
-            bg="rgba(8, 24, 40, 0.78)"
+            bg="surface"
             p={3}
             w={forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' }}
             h="100vh"
@@ -100,7 +99,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             alignSelf={{ base: 'auto', sm: 'flex-start' }}
             display={{ base: 'none', sm: 'block' }}
             transition="width 0.3s ease"
-            borderRight="1px solid rgba(28, 161, 241, 0.1)"
+            borderRight="1px solid"
+            borderRightColor="surfaceBorder"
             borderRadius={0}
             backdropFilter="blur(18px)"
             sx={{
@@ -289,7 +289,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             borderRadius="full"
                                             bg="orange.400"
                                             boxShadow="0 0 6px rgba(251, 146, 60, 0.9)"
-                                            border="1px solid rgba(8, 24, 40, 0.8)"
+                                            border="1px solid"
+                                            borderColor="background"
                                             pointerEvents="none"
                                         />
                                     )}
@@ -408,8 +409,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             border="1px solid rgba(28, 161, 241, 0.3)"
                                         />
                                         <Box overflow="hidden">
-                                            <Text fontSize="10px" color="whiteAlpha.500" lineHeight={1} mb="2px">Logged in as</Text>
-                                            <Text fontSize="sm" fontWeight="semibold" color="white" noOfLines={1}>@{user}</Text>
+                                            <Text fontSize="10px" color="overlay.500" lineHeight={1} mb="2px">Logged in as</Text>
+                                            <Text fontSize="sm" fontWeight="semibold" color="text" noOfLines={1}>@{user}</Text>
                                         </Box>
                                     </Flex>
                                     <Button
@@ -420,7 +421,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         minW="auto"
                                         h="auto"
                                         borderRadius="md"
-                                        color="whiteAlpha.400"
+                                        color="overlay.400"
                                         flexShrink={0}
                                         _hover={{ color: 'red.300', bg: 'rgba(255, 80, 80, 0.1)' }}
                                         aria-label="Logout"

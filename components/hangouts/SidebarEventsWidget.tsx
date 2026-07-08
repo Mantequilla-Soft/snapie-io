@@ -35,12 +35,12 @@ export default function SidebarEventsWidget() {
     <Box px={2} mb={4}>
       <Flex align="center" justify="space-between" px={2} pt={2} pb={3}>
         <HStack spacing={1.5}>
-          <Icon as={FaCalendarAlt} color="whiteAlpha.500" boxSize="11px" />
-          <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.400" letterSpacing="widest" textTransform="uppercase">
+          <Icon as={FaCalendarAlt} color="overlay.500" boxSize="11px" />
+          <Text fontSize="xs" fontWeight="bold" color="overlay.400" letterSpacing="widest" textTransform="uppercase">
             Upcoming OpenPods
           </Text>
         </HStack>
-        <ChakraLink as={NextLink} href="/hangouts" fontSize="xs" color="whiteAlpha.400" _hover={{ color: 'whiteAlpha.700' }}>
+        <ChakraLink as={NextLink} href="/hangouts" fontSize="xs" color="overlay.400" _hover={{ color: 'overlay.700' }}>
           All
         </ChakraLink>
       </Flex>
@@ -61,7 +61,7 @@ export default function SidebarEventsWidget() {
               borderRadius="8px"
               cursor={isLive ? 'pointer' : 'default'}
               transition="background 0.15s"
-              _hover={isLive ? { bg: 'rgba(255,255,255,0.05)' } : {}}
+              _hover={isLive ? { bg: 'overlay.50' } : {}}
               w="100%"
               textAlign="left"
             >
@@ -72,7 +72,7 @@ export default function SidebarEventsWidget() {
                 borderRadius="full"
                 objectFit="cover"
                 flexShrink={0}
-                fallback={<Box boxSize="28px" borderRadius="full" bg="rgba(255,255,255,0.1)" flexShrink={0} />}
+                fallback={<Box boxSize="28px" borderRadius="full" bg="overlay.100" flexShrink={0} />}
               />
               <Box flex={1} minW={0}>
                 <HStack spacing={1}>
@@ -81,15 +81,15 @@ export default function SidebarEventsWidget() {
                       LIVE
                     </Badge>
                   )}
-                  <Text fontSize="12px" fontWeight={600} color="white" noOfLines={1}>
+                  <Text fontSize="12px" fontWeight={600} color="text" noOfLines={1}>
                     {event.title}
                   </Text>
                 </HStack>
-                <Text fontSize="11px" color="whiteAlpha.500" noOfLines={1}>
+                <Text fontSize="11px" color="overlay.500" noOfLines={1}>
                   @{event.hostUsername}
                 </Text>
               </Box>
-              <Text fontSize="11px" color="whiteAlpha.400" flexShrink={0} pl={1}>
+              <Text fontSize="11px" color="overlay.400" flexShrink={0} pl={1}>
                 {isLive ? (
                   <Text as="span" color="red.400" fontWeight={600}>●</Text>
                 ) : (

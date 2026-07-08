@@ -275,7 +275,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               variant="ghost"
               leftIcon={<Icon as={FiEdit2} boxSize={3.5} />}
               onClick={onEditOpen}
-              color="gray.400"
+              color="overlay.500"
               borderRadius="full"
               px={3}
               _hover={{ color: 'primary', bg: 'rgba(24,168,255,0.08)' }}

@@ -48,9 +48,9 @@ export default function OpenPodsLiveStrip() {
             display="flex"
             alignItems="center"
             gap={2.5}
-            bg="rgba(255, 255, 255, 0.05)"
+            bg="overlay.50"
             borderWidth="1px"
-            borderColor="rgba(255, 255, 255, 0.08)"
+            borderColor="overlay.200"
             borderRadius="10px"
             px={3}
             py={2}
@@ -70,20 +70,20 @@ export default function OpenPodsLiveStrip() {
               boxSize="34px"
               borderRadius="full"
               objectFit="cover"
-              bg="rgba(255, 255, 255, 0.1)"
+              bg="overlay.200"
               flexShrink={0}
-              fallback={<Box boxSize="34px" borderRadius="full" bg="rgba(255, 255, 255, 0.1)" flexShrink={0} />}
+              fallback={<Box boxSize="34px" borderRadius="full" bg="overlay.200" flexShrink={0} />}
             />
             <Flex direction="column" minW={0}>
               <Text fontSize="13px" fontWeight={600} color="text" noOfLines={1} maxW="130px">
                 {room.title}
               </Text>
-              <Text fontSize="11px" color="rgba(255,255,255,0.55)">
+              <Text fontSize="11px" color="overlay.600">
                 @{room.host}
               </Text>
             </Flex>
             {!!room.numParticipants && room.numParticipants > 0 && (
-              <Text fontSize="11px" color="rgba(255,255,255,0.55)" ml="auto" flexShrink={0} pl={2}>
+              <Text fontSize="11px" color="overlay.600" ml="auto" flexShrink={0} pl={2}>
                 {room.numParticipants}
               </Text>
             )}

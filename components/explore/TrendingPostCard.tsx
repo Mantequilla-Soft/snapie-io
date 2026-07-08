@@ -30,7 +30,7 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
             as={NextLink}
             href={`/@${post.author}/${post.permlink}`}
             display="block"
-            bg="rgba(8, 24, 40, 0.78)"
+            bg="surface"
             border="tb1"
             borderRadius="12px"
             backdropFilter="blur(18px)"
@@ -54,13 +54,13 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
                         objectFit="cover"
                         borderRadius="8px"
                         flexShrink={0}
-                        bg="whiteAlpha.100"
+                        bg="overlay.100"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                 )}
                 <Box flex={1} minW={0}>
                     <Flex align="flex-start" gap={2} mb={1}>
-                        <Text fontWeight="semibold" fontSize="sm" color="white" noOfLines={2} lineHeight="short" flex={1}>
+                        <Text fontWeight="semibold" fontSize="sm" color="text" noOfLines={2} lineHeight="short" flex={1}>
                             {post.title}
                         </Text>
                         {sentimentColor && (
@@ -76,7 +76,7 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
                                     borderRadius="full"
                                     bg="rgba(28,161,241,0.08)"
                                     border="1px solid rgba(28,161,241,0.15)"
-                                    color="whiteAlpha.600"
+                                    color="overlay.600"
                                     px={2}
                                     onClick={(e) => e.preventDefault()}
                                 >
@@ -86,7 +86,7 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
                         </HStack>
                     )}
                     <Flex align="center" justify="space-between" gap={2}>
-                        <Text fontSize="xs" color="whiteAlpha.500" noOfLines={1} flex={1} minW={0}>
+                        <Text fontSize="xs" color="overlay.500" noOfLines={1} flex={1} minW={0}>
                             @{post.author}
                         </Text>
                         <HStack spacing={2} flexShrink={0}>
@@ -94,8 +94,8 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
                                 ${payout}
                             </Badge>
                             <HStack spacing={1}>
-                                <FaRegComment size={10} color="var(--chakra-colors-whiteAlpha-400)" />
-                                <Text fontSize="xs" color="whiteAlpha.400">{post.children}</Text>
+                                <FaRegComment size={10} color="var(--chakra-colors-overlay-400)" />
+                                <Text fontSize="xs" color="overlay.400">{post.children}</Text>
                             </HStack>
                         </HStack>
                     </Flex>

@@ -36,7 +36,7 @@ export default function SupportersSection() {
       <Divider mb={8} />
       <VStack spacing={2} align="center" textAlign="center" mb={8}>
         <Heading size="md">Hall of Fame</Heading>
-        <Text fontSize="sm" color="whiteAlpha.600" maxW="440px">
+        <Text fontSize="sm" color="overlay.600" maxW="440px">
           Snapie is made possible by the contribution of these lovely humans:
         </Text>
       </VStack>
@@ -50,7 +50,7 @@ export default function SupportersSection() {
           ))}
         </Wrap>
       ) : supporters.length === 0 ? (
-        <Text textAlign="center" color="whiteAlpha.500" fontSize="sm">
+        <Text textAlign="center" color="overlay.500" fontSize="sm">
           Be the first to support Snapie!
         </Text>
       ) : (
@@ -63,8 +63,8 @@ export default function SupportersSection() {
                   p={3}
                   borderRadius="xl"
                   borderWidth={1}
-                  borderColor="whiteAlpha.100"
-                  _hover={{ borderColor: 'whiteAlpha.300', bg: 'whiteAlpha.50' }}
+                  borderColor="overlay.100"
+                  _hover={{ borderColor: 'overlay.300', bg: 'overlay.50' }}
                   transition="all 0.15s"
                   w="108px"
                   align="center"
@@ -74,7 +74,7 @@ export default function SupportersSection() {
                     name={account}
                     src={`https://images.hive.blog/u/${account}/avatar/sm`}
                   />
-                  <Text fontSize="xs" fontWeight="bold" color="whiteAlpha.900" noOfLines={1} w="full" textAlign="center">
+                  <Text fontSize="xs" fontWeight="bold" color="overlay.900" noOfLines={1} w="full" textAlign="center">
                     @{account}
                   </Text>
                   <PatronBadge tier={tier} />

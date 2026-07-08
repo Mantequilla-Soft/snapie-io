@@ -167,7 +167,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
   if (mode === 'loading') {
     return (
       <Box display="flex" justifyContent="center" py={16}>
-        <Spinner color="white" />
+        <Spinner color="text" />
       </Box>
     );
   }
@@ -186,10 +186,10 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
   return (
     <Stack spacing={5} maxW="md" mx="auto" w="full" px={4} py={8}>
       <Box textAlign="center">
-        <Heading size="lg" color="white" mb={2}>
+        <Heading size="lg" color="text" mb={2}>
           Sponsor a Hive account
         </Heading>
-        <Text fontSize="sm" color="gray.400">
+        <Text fontSize="sm" color="overlay.500">
           Someone is asking you to create{' '}
           <Code colorScheme="blue" fontFamily="mono">
             @{data?.username}
@@ -208,12 +208,12 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
       )}
 
       <Accordion allowToggle>
-        <AccordionItem border="1px solid" borderColor="whiteAlpha.200" borderRadius="md">
-          <AccordionButton _hover={{ bg: 'whiteAlpha.50' }}>
-            <Box flex="1" textAlign="left" fontSize="sm" color="white">
+        <AccordionItem border="1px solid" borderColor="overlay.200" borderRadius="md">
+          <AccordionButton _hover={{ bg: 'overlay.50' }}>
+            <Box flex="1" textAlign="left" fontSize="sm" color="text">
               View public keys being assigned
             </Box>
-            <AccordionIcon color="white" />
+            <AccordionIcon color="text" />
           </AccordionButton>
           <AccordionPanel pb={4}>
             {data && (
@@ -247,10 +247,10 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
 
       {mode === 'ready' && nameStillAvailable !== false && (
         <Stack spacing={3}>
-          <Text fontSize="sm" color="gray.300">
-            Signed in as <Text as="span" fontWeight="bold" color="white">@{hiveUser?.name}</Text>.
+          <Text fontSize="sm" color="overlay.600">
+            Signed in as <Text as="span" fontWeight="bold" color="text">@{hiveUser?.name}</Text>.
             You hold{' '}
-            <Text as="span" fontWeight="bold" color="white">{pendingAct}</Text>{' '}
+            <Text as="span" fontWeight="bold" color="text">{pendingAct}</Text>{' '}
             Account Creation Token{pendingAct === 1 ? '' : 's'}.
           </Text>
 
@@ -260,7 +260,7 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
             </Button>
           ) : (
             <Stack spacing={2}>
-              <Text fontSize="xs" color="gray.400">
+              <Text fontSize="xs" color="overlay.500">
                 You don&apos;t have any Account Creation Tokens. Choose how to proceed:
               </Text>
               <Button variant="outline" onClick={() => broadcast('claim_first')}>
@@ -275,9 +275,9 @@ export default function SponsorFlow({ code }: SponsorFlowProps) {
       )}
 
       {mode === 'broadcasting' && (
-        <Box display="flex" alignItems="center" gap={3} bg="whiteAlpha.50" p={3} borderRadius="md">
-          <Spinner size="sm" color="white" />
-          <Text fontSize="sm" color="white">Approve the transaction in your wallet…</Text>
+        <Box display="flex" alignItems="center" gap={3} bg="overlay.50" p={3} borderRadius="md">
+          <Spinner size="sm" color="text" />
+          <Text fontSize="sm" color="text">Approve the transaction in your wallet…</Text>
         </Box>
       )}
 

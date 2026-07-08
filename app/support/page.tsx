@@ -136,14 +136,14 @@ export default function SupportPage() {
       <VStack spacing={8} align="stretch">
         <VStack spacing={2} align="center" textAlign="center">
           <Heading size="lg">Support Snapie</Heading>
-          <Text color="whiteAlpha.700" fontSize="sm" maxW="480px">
+          <Text color="overlay.700" fontSize="sm" maxW="480px">
             Snapie stays free and open for everyone — nothing here is ever paywalled. If you&apos;d
             like to help keep it running, supporting the platform earns you a patron badge next
             to your name and a spot on the Patrons feed tab. Pure recognition, no strings.
           </Text>
         </VStack>
 
-        <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="xl" p={5}>
+        <Box borderWidth={1} borderColor="overlay.200" borderRadius="xl" p={5}>
           <Heading size="sm" mb={3}>Patron tiers</Heading>
           <Table size="sm">
             <Thead>
@@ -171,7 +171,7 @@ export default function SupportPage() {
               </Tr>
             </Tbody>
           </Table>
-          <Text fontSize="xs" color="whiteAlpha.500" mt={2}>
+          <Text fontSize="xs" color="overlay.500" mt={2}>
             Your badge is whichever tier is higher between the two paths below — sending more
             than a tier&apos;s minimum never penalizes you, it just places you in that tier.
             Delegation tiers track the current USD value of your HP, not a fixed amount — so a
@@ -179,9 +179,9 @@ export default function SupportPage() {
           </Text>
         </Box>
 
-        <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="xl" p={5}>
+        <Box borderWidth={1} borderColor="overlay.200" borderRadius="xl" p={5}>
           <Heading size="sm" mb={1}>Recurring HBD transfer</Heading>
-          <Text fontSize="sm" color="whiteAlpha.600" mb={4}>
+          <Text fontSize="sm" color="overlay.600" mb={4}>
             A monthly transfer to @{PATRON_ACCOUNT}. Cancel anytime from your wallet.
           </Text>
           {isSnapie && (
@@ -219,9 +219,9 @@ export default function SupportPage() {
           </HStack>
         </Box>
 
-        <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="xl" p={5}>
+        <Box borderWidth={1} borderColor="overlay.200" borderRadius="xl" p={5}>
           <Heading size="sm" mb={1}>Delegate Hive Power</Heading>
-          <Text fontSize="sm" color="whiteAlpha.600" mb={4}>
+          <Text fontSize="sm" color="overlay.600" mb={4}>
             Delegate HP to @{PATRON_ACCOUNT}. You keep ownership — undelegate anytime from your
             wallet (funds return after Hive&apos;s standard delegation cooldown). Buttons below show
             how much HP that is at today&apos;s price.
@@ -259,9 +259,9 @@ export default function SupportPage() {
           </HStack>
         </Box>
 
-        <Box borderWidth={1} borderColor="whiteAlpha.200" borderRadius="xl" p={5}>
+        <Box borderWidth={1} borderColor="overlay.200" borderRadius="xl" p={5}>
           <Heading size="sm" mb={1}>Vote for Snapie as a witness</Heading>
-          <Text fontSize="sm" color="whiteAlpha.600" mb={4}>
+          <Text fontSize="sm" color="overlay.600" mb={4}>
             Free — costs nothing and doesn&apos;t lock any funds. Witness votes are how Hive
             decides who helps run the chain; voting for @{PATRON_ACCOUNT} is its own way of
             supporting the platform, separate from the patron tiers above.
@@ -275,7 +275,7 @@ export default function SupportPage() {
           {hasVotedForWitness ? (
             <HStack>
               <WitnessBadge voted />
-              <Text fontSize="sm" color="whiteAlpha.700">You&apos;re already voting for @{PATRON_ACCOUNT}.</Text>
+              <Text fontSize="sm" color="overlay.700">You&apos;re already voting for @{PATRON_ACCOUNT}.</Text>
             </HStack>
           ) : (
             <Button
@@ -290,7 +290,7 @@ export default function SupportPage() {
         </Box>
 
         <Divider />
-        <Text fontSize="xs" color="whiteAlpha.400" textAlign="center">
+        <Text fontSize="xs" color="overlay.400" textAlign="center">
           Patron status is recognized within a few minutes of your transfer or delegation
           landing on-chain.
         </Text>

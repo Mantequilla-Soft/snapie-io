@@ -48,8 +48,9 @@ export default function BottomTabBar() {
       left={0}
       right={0}
       h="60px"
-      bg="rgba(8, 24, 40, 0.95)"
-      borderTop="1px solid rgba(28, 161, 241, 0.14)"
+      bg="surface"
+      borderTop="1px solid"
+      borderTopColor="surfaceBorder"
       backdropFilter="blur(20px)"
       display={{ base: 'flex', sm: 'none' }}
       alignItems="center"
@@ -118,7 +119,7 @@ function Tab({ href, icon, label, active, dot, onClick }: TabProps) {
       align="center"
       justify="center"
       h="full"
-      color={active ? 'cyan.300' : 'white'}
+      color={active ? 'primary' : 'text'}
       opacity={active ? 1 : 0.55}
       transition="opacity 0.15s, color 0.15s"
       _hover={{ opacity: 1 }}
@@ -136,7 +137,8 @@ function Tab({ href, icon, label, active, dot, onClick }: TabProps) {
             borderRadius="full"
             bg="orange.400"
             boxShadow="0 0 6px rgba(251, 146, 60, 0.9)"
-            border="1px solid rgba(8, 24, 40, 0.8)"
+            border="1px solid"
+            borderColor="background"
           />
         )}
       </Box>

@@ -36,7 +36,7 @@ export default function WhoToFollowWidget({ engagedAuthors }: WhoToFollowWidgetP
       <Text
         fontSize="xs"
         fontWeight="bold"
-        color="whiteAlpha.400"
+        color="overlay.400"
         letterSpacing="widest"
         textTransform="uppercase"
         px={2}

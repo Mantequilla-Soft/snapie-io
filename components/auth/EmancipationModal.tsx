@@ -172,7 +172,7 @@ export default function EmancipationModal({ isOpen, onClose }: EmancipationModal
             <ModalBody>
               <VStack py={8} spacing={4}>
                 <Spinner size="lg" />
-                <Text fontSize="sm" color="gray.400">Generating key export…</Text>
+                <Text fontSize="sm" color="overlay.500">Generating key export…</Text>
               </VStack>
             </ModalBody>
           </>
@@ -191,7 +191,7 @@ export default function EmancipationModal({ isOpen, onClose }: EmancipationModal
               <VStack align="start" spacing={3}>
                 {(['owner', 'active', 'posting', 'memo'] as const).map((k) => (
                   <Box key={k} w="100%">
-                    <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={1} color="gray.400">
+                    <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" mb={1} color="overlay.500">
                       {k} key
                     </Text>
                     <Box display="flex" alignItems="center" gap={2}>

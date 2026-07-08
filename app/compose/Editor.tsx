@@ -656,13 +656,13 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 align="center"
                                 justify="space-between"
                                 fontSize="xs"
-                                color="gray.400"
+                                color="overlay.500"
                             >
                                 <Text>Draft restored — your previous work is back.</Text>
                                 <Button
                                     size="xs"
                                     variant="ghost"
-                                    color="gray.400"
+                                    color="overlay.500"
                                     _hover={{ color: 'text', bg: 'background' }}
                                     onClick={onDiscardDraft}
                                 >

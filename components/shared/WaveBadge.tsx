@@ -16,9 +16,9 @@ export default function WaveBadge() {
         fontWeight="bold"
         letterSpacing="wide"
         textTransform="uppercase"
-        color="whiteAlpha.700"
-        bg="rgba(255, 255, 255, 0.08)"
-        border="1px solid rgba(255, 255, 255, 0.25)"
+        color="overlay.700"
+        bg="overlay.100"
+        border="1px solid var(--chakra-colors-overlay-400)"
         flexShrink={0}
         lineHeight="1.4"
       >

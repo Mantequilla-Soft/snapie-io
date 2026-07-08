@@ -197,7 +197,7 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
             ⚡ Lightning
           </Button>
         </HStack>
-        <Button variant="ghost" size="xs" color="gray.400" onClick={onCancel}>
+        <Button variant="ghost" size="xs" color="overlay.500" onClick={onCancel}>
           Cancel
         </Button>
       </VStack>
@@ -211,7 +211,7 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
   ) : null
 
   const pollSpinner = (
-    <HStack spacing={2} color="gray.400">
+    <HStack spacing={2} color="overlay.500">
       <Spinner size="xs" />
       <Text fontSize="xs">Watching for payment…</Text>
     </HStack>
@@ -246,7 +246,7 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
           </Box>
         ))}
         {pollSpinner}
-        <Button variant="ghost" size="xs" color="gray.400" onClick={reset}>
+        <Button variant="ghost" size="xs" color="overlay.500" onClick={reset}>
           ← Different payment method
         </Button>
       </VStack>
@@ -275,7 +275,7 @@ export default function PaidAccountFlow({ onConfirmed, onCancel }: Props) {
           </Button>
         </HStack>
         {pollSpinner}
-        <Button variant="ghost" size="xs" color="gray.400" onClick={reset}>
+        <Button variant="ghost" size="xs" color="overlay.500" onClick={reset}>
           ← Different payment method
         </Button>
       </VStack>

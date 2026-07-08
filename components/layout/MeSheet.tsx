@@ -32,16 +32,17 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
     <Drawer isOpen={isOpen} onClose={onClose} placement="bottom">
       <DrawerOverlay bg="blackAlpha.600" backdropFilter="blur(6px)" />
       <DrawerContent
-        bg="rgba(7, 20, 36, 0.98)"
+        bg="background"
         borderTopRadius="24px"
         backdropFilter="blur(24px)"
-        border="1px solid rgba(28, 161, 241, 0.12)"
+        border="1px solid"
+        borderColor="surfaceBorder"
         maxH="82dvh"
       >
         <DrawerBody p={0} overflowY="auto">
           {/* Drag handle */}
           <Flex justify="center" pt={3} pb={2} flexShrink={0}>
-            <Box w="36px" h="4px" borderRadius="full" bg="whiteAlpha.300" />
+            <Box w="36px" h="4px" borderRadius="full" bg="overlay.300" />
           </Flex>
 
           {isLoggedIn && user && (
@@ -58,10 +59,10 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                   flexShrink={0}
                 />
                 <Box overflow="hidden">
-                  <Text color="white" fontWeight="bold" fontSize="lg" noOfLines={1}>
+                  <Text color="text" fontWeight="bold" fontSize="lg" noOfLines={1}>
                     @{user}
                   </Text>
-                  <Text color="whiteAlpha.500" fontSize="xs">Logged in</Text>
+                  <Text color="overlay.500" fontSize="xs">Logged in</Text>
                 </Box>
               </Flex>
 
@@ -126,10 +127,10 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
           ) : (
             /* Not logged in */
             <Box px={5} py={6}>
-              <Text color="white" fontWeight="bold" fontSize="lg" mb={1}>
+              <Text color="text" fontWeight="bold" fontSize="lg" mb={1}>
                 Welcome to Snapie
               </Text>
-              <Text color="whiteAlpha.500" fontSize="sm" mb={6}>
+              <Text color="overlay.500" fontSize="sm" mb={6}>
                 Log in to post, vote, and connect with the community.
               </Text>
               <VStack spacing={3}>
@@ -145,7 +146,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                 <Button
                   w="full"
                   variant="outline"
-                  color="white"
+                  color="text"
                   borderColor="rgba(28, 161, 241, 0.25)"
                   borderRadius="12px"
                   leftIcon={<Icon as={FiUserPlus} />}
@@ -188,12 +189,12 @@ function SheetLink({ href, icon, label, badge = 0, external, onClose }: SheetLin
       py={3}
       w="full"
       cursor="pointer"
-      color="white"
-      _hover={{ bg: 'whiteAlpha.50' }}
+      color="text"
+      _hover={{ bg: 'overlay.50' }}
       transition="background 0.12s"
       onClick={onClose}
     >
-      <Icon as={icon} boxSize={5} color="whiteAlpha.600" />
+      <Icon as={icon} boxSize={5} color="overlay.600" />
       <Text fontSize="sm" flex={1}>{label}</Text>
       {badge > 0 && <Badge colorScheme="red" borderRadius="full" fontSize="xs" px={2}>{badge}</Badge>}
     </Flex>
@@ -216,12 +217,12 @@ function SheetButton({ icon, label, badge = 0, onClick }: SheetButtonProps) {
       py={3}
       w="full"
       cursor="pointer"
-      color="white"
-      _hover={{ bg: 'whiteAlpha.50' }}
+      color="text"
+      _hover={{ bg: 'overlay.50' }}
       transition="background 0.12s"
       onClick={onClick}
     >
-      <Icon as={icon} boxSize={5} color="whiteAlpha.600" />
+      <Icon as={icon} boxSize={5} color="overlay.600" />
       <Text fontSize="sm" flex={1}>{label}</Text>
       {badge > 0 && <Badge colorScheme="red" borderRadius="full" fontSize="xs" px={2}>{badge}</Badge>}
     </Flex>

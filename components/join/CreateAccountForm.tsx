@@ -228,17 +228,17 @@ export default function CreateAccountForm() {
   return (
     <Stack spacing={6} maxW="md" mx="auto" w="full" px={4} py={8}>
       <Box textAlign="center">
-        <Heading size="xl" color="white" mb={2}>
+        <Heading size="xl" color="text" mb={2}>
           Join Snapie
         </Heading>
-        <Text color="gray.400" fontSize="sm">
+        <Text color="overlay.500" fontSize="sm">
           Pick a username and create your Hive account. Anyone with an existing Hive account can sponsor yours in one click.
         </Text>
       </Box>
 
       <Box>
-        <Text fontSize="sm" color="white" mb={1}>Username</Text>
-        <Text fontSize="xs" color="gray.400" mb={2}>
+        <Text fontSize="sm" color="text" mb={1}>Username</Text>
+        <Text fontSize="xs" color="overlay.500" mb={2}>
           3–16 characters, lowercase. Start each segment with a letter.
         </Text>
         <InputGroup>
@@ -248,9 +248,9 @@ export default function CreateAccountForm() {
             placeholder="yourname"
             autoComplete="off"
             fontFamily="mono"
-            bg="rgba(4, 16, 29, 0.72)"
-            borderColor={usernameError ? 'red.400' : isAvailable ? 'green.400' : 'whiteAlpha.200'}
-            color="white"
+            bg="muted"
+            borderColor={usernameError ? 'red.400' : isAvailable ? 'green.400' : 'overlay.200'}
+            color="text"
             isDisabled={locked}
           />
           <InputRightElement>
@@ -269,8 +269,8 @@ export default function CreateAccountForm() {
 
       {hasBeenValid && (
         <Box>
-          <Text fontSize="sm" color="white" mb={1}>Master password</Text>
-          <Text fontSize="xs" color="gray.400" mb={2}>
+          <Text fontSize="sm" color="text" mb={1}>Master password</Text>
+          <Text fontSize="xs" color="overlay.500" mb={2}>
             Auto-generated. Back it up — this is the only way to recover your account.
           </Text>
           <InputGroup>
@@ -283,9 +283,9 @@ export default function CreateAccountForm() {
                 if (!isEditingPassword && !locked) copyPassword();
               }}
               fontFamily="mono"
-              bg="rgba(4, 16, 29, 0.72)"
-              borderColor="whiteAlpha.200"
-              color="white"
+              bg="muted"
+              borderColor="overlay.200"
+              color="text"
               cursor={!isEditingPassword && !locked ? 'pointer' : 'text'}
               pr="7rem"
             />
@@ -329,7 +329,7 @@ export default function CreateAccountForm() {
             colorScheme="blue"
             isDisabled={!backupDownloaded || locked}
           >
-            <Text fontSize="sm" color="gray.300">
+            <Text fontSize="sm" color="overlay.600">
               I&apos;ve saved my keys somewhere safe. I understand Hive has no password reset.
             </Text>
           </Checkbox>
@@ -349,7 +349,7 @@ export default function CreateAccountForm() {
               variant="ghost"
               size="sm"
               onClick={shareDialog.onOpen}
-              color="gray.400"
+              color="overlay.500"
             >
               Show invite link again
             </Button>
@@ -358,11 +358,11 @@ export default function CreateAccountForm() {
       )}
 
       {success && (
-        <Alert status="success" bg="rgba(72, 187, 120, 0.1)" border="1px solid" borderColor="green.400" color="white" borderRadius="md">
+        <Alert status="success" bg="rgba(72, 187, 120, 0.1)" border="1px solid" borderColor="green.400" color="text" borderRadius="md">
           <AlertIcon color="green.400" />
           <Box>
             <Text fontWeight="bold">@{username} is live on Hive!</Text>
-            <Text fontSize="sm" color="gray.300">You can now log in to Snapie with your new account.</Text>
+            <Text fontSize="sm" color="overlay.600">You can now log in to Snapie with your new account.</Text>
           </Box>
         </Alert>
       )}
