@@ -421,3 +421,27 @@ Two independent content pipelines, two independent gaps:
 - Live, end-to-end against the real pool (not just unit fixtures) — pulled `/api/discovery/foryou-warm` with a broad tag set before and after: **before** — 25 items, oldest 211.5h, 7 of 25 over 48h; **after both fixes** — 25 items, oldest 47.3h, 0 over 48h, newest 5.1h. Confirmed the residual timezone bug specifically by re-testing after only the age-ceiling fix (before the Z-parsing fix): one item at true age 52.8h still slipped through at computed ~47.8h — exactly the UTC-5 server offset — then re-tested clean after the timestamp fix too.
 - Did not reproduce inside meno's actual logged-in browser session (would need his real interest-tag combination + auth state); the live API pulls above exercise the identical server-side code path the browser hits, with a broad tag superset standing in for his specific tags.
 - Committed and pushed to main for VPS redeploy.
+
+---
+
+# Fix — personal mutes ignored on Trending & cold-start For You (2026-07-09)
+
+## Problem (reported by meno, as a question: "did we override muted lists?")
+Audited every feed/tab for mute handling. Everywhere else (Latest/Following/Patrons, warm For You, Blog's four tabs, Long Reads sidebar) correctly applies both community-wide *and* the viewer's personal mute list. Two spots didn't: the Home page's **Trending** tab and **cold-start For You** (before interest tags are picked) only ever checked community-wide mutes — a user's personal mutes were silently ignored there.
+
+## Root cause
+`lib/discovery/snapTrending.ts`'s `fetchRankedTrendingPool`/`fetchRankedForYouPool` call `mutedAccountsManager.getMutedList()` with **no username**, which only returns community-wide mutes (see `lib/hive/muted-accounts.ts` — personal mutes are only fetched when a username is passed). `fetchTrendingSnapCandidates`/`fetchForYouSnapCandidates` didn't even accept a `username` parameter, and neither did the two API routes behind them (`/api/discovery/snap-candidates`, `/api/discovery/foryou-candidates`) or the two client hooks calling them (`useTrendingFeed` for the Trending/cold tabs, `useDiscoveryCandidates` for the Trending-badge splice into the "all" feed). `lib/discovery/forYouWarm.ts` already had the correct pattern (community mutes baked into the shared cache, personal mutes layered on top per-request) — this was a gap unique to the other two pools, not a design choice.
+
+## Fix
+Threaded `username` end-to-end through both gaps, mirroring `forYouWarm.ts`'s existing pattern exactly:
+- `lib/discovery/snapTrending.ts`: `fetchTrendingSnapCandidates`/`fetchForYouSnapCandidates` now accept an optional `username`; when present, fetches that viewer's personal mutes and filters them out of the full cached pool *before* slicing for pagination (so a muted post doesn't throw off offset math) — same shared-cache-plus-per-request-layer approach as the warm pool.
+- `app/api/discovery/snap-candidates/route.ts` + `foryou-candidates/route.ts`: read `username` from the query string, pass through.
+- `app/page.tsx`: both `useTrendingFeed(...)` calls now pass `extraQuery` carrying `username=<user>` when logged in (same pattern `warmExtraQuery` already used).
+- `hooks/useDiscoveryCandidates.ts` (the Trending-badge interleave into the "all" tab): added a `username` option, appended to its fetch URL, added to the effect's dependency array.
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 75/75 pass (2 new, `lib/discovery/snapTrending.mutes.test.ts`) — a dedicated test file (isolated from the existing pure-function tests since this one mocks `HiveClient` + `mutedAccountsManager`) proving deterministically: with no username, both a normal and a "muted" fixture author appear; with `username: 'meno'`, the personally-muted one is excluded and the other still isn't.
+- `pnpm build` clean.
+- Attempted live verification against meno's real Hive mute list (39 accounts, pulled directly via `bridge.get_follow_list`) — none currently overlap with authors active in the live Trending pool, so no observable before/after difference was possible from real production data at this moment; the dedicated mocked test above is the authoritative proof instead.
+- Committed and pushed to main for VPS redeploy.
+

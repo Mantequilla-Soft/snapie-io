@@ -7,6 +7,10 @@ interface UseDiscoveryCandidatesProps {
     limit?: number;
     /** How often to refetch a fresh candidate pool while mounted. */
     refetchIntervalMs?: number;
+    /** Applies this viewer's personal mutes on top of the shared cached
+     *  pool (community mutes are already baked in server-side). Omit for a
+     *  logged-out viewer, who only has community mutes to begin with. */
+    username?: string;
 }
 
 const DEFAULT_LIMIT = 10;
@@ -22,6 +26,7 @@ export function useDiscoveryCandidates({
     enabled,
     limit = DEFAULT_LIMIT,
     refetchIntervalMs = DEFAULT_REFETCH_INTERVAL_MS,
+    username,
 }: UseDiscoveryCandidatesProps) {
     const [candidates, setCandidates] = useState<ExtendedComment[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +53,8 @@ export function useDiscoveryCandidates({
             isFetching = true;
             setIsLoading(true);
             try {
-                const res = await fetch(`/api/discovery/snap-candidates?limit=${limit}`, { cache: 'no-store' });
+                const usernameParam = username ? `&username=${encodeURIComponent(username)}` : '';
+                const res = await fetch(`/api/discovery/snap-candidates?limit=${limit}${usernameParam}`, { cache: 'no-store' });
                 const data = await res.json();
                 if (!cancelled) setCandidates(Array.isArray(data.items) ? data.items : []);
             } catch {
@@ -65,7 +71,7 @@ export function useDiscoveryCandidates({
             cancelled = true;
             clearInterval(interval);
         };
-    }, [enabled, limit, refetchIntervalMs]);
+    }, [enabled, limit, refetchIntervalMs, username]);
 
     return { candidates, isLoading };
 }

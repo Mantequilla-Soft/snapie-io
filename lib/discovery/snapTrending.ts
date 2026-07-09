@@ -201,13 +201,24 @@ async function fetchRankedForYouPool(): Promise<ExtendedComment[]> {
 /** Cached, ranked pool of trending-snap candidates. `limit`/`offset` only
  *  slice the already-ranked cached pool — they don't change how much of Hive
  *  gets scanned. Used both for the feed-interleave (small limit, offset 0)
- *  and the dedicated Trending tab (paginating via offset). */
-export async function fetchTrendingSnapCandidates(limit: number, offset: number = 0): Promise<{ items: ExtendedComment[]; hasMore: boolean }> {
+ *  and the dedicated Trending tab (paginating via offset).
+ *
+ *  `username`, if provided, layers that viewer's *personal* mutes on top of
+ *  the shared cached pool — never baked into the cache itself (same reason
+ *  as fetchWarmForYouCandidates: one requester's personal mutes must not
+ *  leak into every other visitor's results). The cached pool already
+ *  excludes community-wide mutes via rankSnapCandidates/rankForYouCandidates
+ *  above; this only adds the extra, per-viewer layer on top. */
+export async function fetchTrendingSnapCandidates(limit: number, offset: number = 0, username?: string): Promise<{ items: ExtendedComment[]; hasMore: boolean }> {
     const now = Date.now();
     if (!rankedCache || rankedCache.expiresAt < now) {
         rankedCache = { expiresAt: now + CACHE_TTL_MS, promise: fetchRankedTrendingPool() };
     }
-    const pool = await rankedCache.promise;
+    let pool = await rankedCache.promise;
+    if (username) {
+        const personalMuted = await mutedAccountsManager.getMutedList(username);
+        pool = pool.filter(item => !personalMuted.has(item.author.toLowerCase()));
+    }
     return {
         items: pool.slice(offset, offset + limit),
         hasMore: offset + limit < pool.length,
@@ -217,13 +228,18 @@ export async function fetchTrendingSnapCandidates(limit: number, offset: number 
 /** Same cached raw Hive walk as fetchTrendingSnapCandidates, but filtered to
  *  Snapie-community-tagged posts only and ranked without the trending tag —
  *  this is the cold-start "For You" pool: community-scoped, engagement
- *  ordered instead of chronological. */
-export async function fetchForYouSnapCandidates(limit: number, offset: number = 0): Promise<{ items: ExtendedComment[]; hasMore: boolean }> {
+ *  ordered instead of chronological. Personal-mute handling mirrors
+ *  fetchTrendingSnapCandidates above. */
+export async function fetchForYouSnapCandidates(limit: number, offset: number = 0, username?: string): Promise<{ items: ExtendedComment[]; hasMore: boolean }> {
     const now = Date.now();
     if (!forYouCache || forYouCache.expiresAt < now) {
         forYouCache = { expiresAt: now + CACHE_TTL_MS, promise: fetchRankedForYouPool() };
     }
-    const pool = await forYouCache.promise;
+    let pool = await forYouCache.promise;
+    if (username) {
+        const personalMuted = await mutedAccountsManager.getMutedList(username);
+        pool = pool.filter(item => !personalMuted.has(item.author.toLowerCase()));
+    }
     return {
         items: pool.slice(offset, offset + limit),
         hasMore: offset + limit < pool.length,
