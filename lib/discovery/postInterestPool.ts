@@ -3,6 +3,9 @@ import HiveClient from '@/lib/hive/hiveclient';
 import { getOrFetchPostCategories } from './postCategoryCache';
 import { computeVelocityScore } from './snapTrending';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { buildTopicSearchQuery } from './tagKeywordMatch';
+
+export type PostDiscoveryReason = 'category-match' | 'topic-search';
 
 // One Hive walk serves every visitor for this window — same reasoning as
 // snapTrending.ts's raw pool cache, just a plain single-slot cache since the
@@ -17,6 +20,19 @@ const RANKED_POOL_CACHE_TTL_MS = 5 * 60 * 1000;
 // Unlike the snap pool (2000+ items), this is small enough that no
 // pre-rank-then-cap step is needed before the Combflow lookup.
 const POSTS_PER_CALL = 20;
+
+// Same scale as forYouWarm.ts's WARM_POOL_SIZE — bounds pagination depth,
+// not a cost concern. The live/recent pool above rarely gets close to this
+// on its own (see fetchTopicSearchMatches below for why).
+const TARGET_POOL_SIZE = 50;
+
+// Genuine top-level posts only, never the daily snap/wave container
+// scaffolding (authored by peak.snaps/ecency.waves) — empty shells with no
+// real content to personalize around. Shared between the live pool
+// (buildPostPool) and the topic-search backfill (fetchTopicSearchMatches).
+const SCAFFOLD_AUTHORS = new Set(['peak.snaps', 'ecency.waves']);
+
+const HIVESENSE_SEARCH_URL = 'https://api.hive.blog/hivesense-api/posts/search';
 
 interface RawCacheEntry {
     expiresAt: number;
@@ -88,11 +104,76 @@ export function filterAndRankPosts(
         .filter(post => {
             const categories = categoryMap.get(`${post.author}/${post.permlink}`) ?? [];
             return categories.some(c => tagSet.has(c));
-        });
+        })
+        .map(post => ({ ...post, discoveryReason: 'category-match' as const }));
 }
 
 function tagsCacheKey(tags: string[]): string {
     return [...tags].sort().join(',');
+}
+
+/** Combflow classification only covers the ~40 most recent posts site-wide
+ *  (see getRawPostPool) — a genuinely tiny pool before it's even filtered
+ *  by tag match, so most interest-tag combinations end up with a handful of
+ *  matches at best (confirmed live: several combinations returned exactly
+ *  one post, no pagination). hivesense-api's search endpoint searches all
+ *  of Hive's indexed history instead of just the last 40 posts, but it
+ *  ranks by relevance, not recency — confirmed live, queries for several
+ *  categories returned nothing newer than a few years old. So this is a
+ *  backfill, not a replacement: the live/recent pool leads (it's what's
+ *  actually current), search only fills the remainder once that runs out,
+ *  same shape as forYouWarm.ts's community-content backfill but staying
+ *  on-topic instead of falling back to "anything recent." One combined
+ *  query across every requested tag (buildTopicSearchQuery) rather than one
+ *  call per tag — this hits a shared public Hive node, not our own
+ *  infrastructure. */
+async function fetchTopicSearchMatches(
+    tags: string[],
+    limit: number,
+    communityMuted: Set<string>,
+): Promise<Discussion[]> {
+    if (limit <= 0) return [];
+    const query = buildTopicSearchQuery(tags);
+    if (!query) return [];
+
+    const url = new URL(HIVESENSE_SEARCH_URL);
+    url.searchParams.set('q', query);
+    url.searchParams.set('truncate', '0');
+    url.searchParams.set('result_limit', String(limit));
+    // Only the first `full_posts` results come back fully hydrated
+    // (author/created/etc.) — anything beyond that is a bare stub.
+    // Matching it to result_limit means every result we ask for is usable.
+    url.searchParams.set('full_posts', String(limit));
+    url.searchParams.set('observer', process.env.NEXT_PUBLIC_HIVE_USER || 'snapie');
+
+    try {
+        const res = await fetch(url.toString(), { cache: 'no-store' });
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (!Array.isArray(data)) return [];
+        return filterTopicSearchResults(data, communityMuted);
+    } catch {
+        return [];
+    }
+}
+
+/** Pure core of fetchTopicSearchMatches — no I/O, unit-testable directly.
+ *  hivesense-api doesn't expose parent_author on search results the way
+ *  bridge.get_ranked_posts does, so `depth === 0` is the top-level check
+ *  here instead. Also drops anything past the request's `full_posts` count
+ *  (hivesense only fully hydrates that many results; the rest come back as
+ *  bare stubs missing author/permlink/created — unusable, not "matches
+ *  nothing"). */
+export function filterTopicSearchResults(
+    results: Array<Discussion & { depth?: number }>,
+    communityMuted: Set<string>,
+): Discussion[] {
+    return results.filter(post =>
+        post?.depth === 0 &&
+        post?.author && post?.permlink && post?.created &&
+        !SCAFFOLD_AUTHORS.has(post.author) &&
+        !communityMuted.has(post.author.toLowerCase()),
+    );
 }
 
 /** Builds the interest-matched pool for one tag combination. Deliberately
@@ -116,7 +197,6 @@ async function buildPostPool(tags: string[]): Promise<Discussion[]> {
     // genuine top-level posts, so they pass every other check, but they're
     // empty scaffolding ("Snaps Container // ...") with no real content to
     // personalize around, confirmed showing up in a live test.
-    const SCAFFOLD_AUTHORS = new Set(['peak.snaps', 'ecency.waves']);
     const candidates = rawPool.filter(post =>
         !post.parent_author &&
         !SCAFFOLD_AUTHORS.has(post.author) &&
@@ -129,7 +209,22 @@ async function buildPostPool(tags: string[]): Promise<Discussion[]> {
     const categoryMap = new Map<string, string[]>();
     categoryResults.forEach((result, key) => categoryMap.set(key, result.categories));
 
-    return filterAndRankPosts(candidates, tags, categoryMap);
+    const matched = filterAndRankPosts(candidates, tags, categoryMap);
+    if (matched.length >= TARGET_POOL_SIZE) return matched;
+
+    const matchedKeys = new Set(matched.map(post => `${post.author}/${post.permlink}`));
+    const searchResults = await fetchTopicSearchMatches(tags, TARGET_POOL_SIZE - matched.length + matchedKeys.size, communityMuted);
+
+    const fallback: (Discussion & { discoveryReason?: PostDiscoveryReason })[] = [];
+    for (const post of searchResults) {
+        const key = `${post.author}/${post.permlink}`;
+        if (matchedKeys.has(key)) continue;
+        matchedKeys.add(key);
+        fallback.push({ ...post, discoveryReason: 'topic-search' as const });
+        if (fallback.length >= TARGET_POOL_SIZE - matched.length) break;
+    }
+
+    return [...matched, ...fallback];
 }
 
 interface RankedCacheEntry {

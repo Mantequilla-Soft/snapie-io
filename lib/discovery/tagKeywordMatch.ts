@@ -9,7 +9,7 @@
 // json_metadata.tags. Coverage is necessarily partial (an untagged snap
 // matches nothing) — a documented v1 limitation, not a bug. Revisit only if
 // production usage shows this pool is too thin.
-const TOPIC_KEYWORDS: Record<string, string[]> = {
+export const TOPIC_KEYWORDS: Record<string, string[]> = {
     travel: ['travel', 'travelling', 'traveling', 'trip', 'tourism', 'wanderlust'],
     photography: ['photography', 'photo', 'photos', 'photograph'],
     writing: ['writing', 'blog', 'blogging', 'poetry', 'poem', 'story', 'storytelling'],
@@ -50,4 +50,20 @@ export function matchTagsToCategories(jsonMetadata: string | undefined): string[
         }
     }
     return [...matched];
+}
+
+/** Turns a set of interest-topic category slugs into a single hivesense-api
+ *  search query — reuses the same hand-curated keyword lists above rather
+ *  than maintaining a second dictionary, and combines every requested
+ *  category into one query (one search call per tag *combination*, not one
+ *  per tag) to keep call volume down against a shared public node. Unknown
+ *  slugs contribute nothing rather than erroring. */
+export function buildTopicSearchQuery(tags: string[]): string {
+    const keywords = new Set<string>();
+    for (const tag of tags) {
+        for (const keyword of TOPIC_KEYWORDS[tag] ?? []) {
+            keywords.add(keyword);
+        }
+    }
+    return [...keywords].join(' ');
 }

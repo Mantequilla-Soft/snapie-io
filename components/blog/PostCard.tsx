@@ -10,9 +10,11 @@ import { getPostDate } from '@/lib/utils/GetPostDate';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import InteractionBar from '@/components/shared/InteractionBar';
+import TopicSearchBadge from '@/components/shared/TopicSearchBadge';
+import type { PostDiscoveryReason } from '@/lib/discovery/postInterestPool';
 
 interface PostCardProps {
-    post: Discussion;
+    post: Discussion & { discoveryReason?: PostDiscoveryReason };
     compact?: boolean;
 }
 
@@ -144,6 +146,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                         </Text>
                     </Box>
                 </Flex>
+                {post.discoveryReason === 'topic-search' && <TopicSearchBadge />}
             </Flex>
 
             {/* Content Section */}

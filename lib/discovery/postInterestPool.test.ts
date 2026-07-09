@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { filterAndRankPosts } from './postInterestPool';
+import { filterAndRankPosts, filterTopicSearchResults } from './postInterestPool';
 import type { Discussion } from '@hiveio/dhive';
 
 const NOW = new Date('2026-07-08T12:00:00.000Z').getTime();
@@ -60,5 +60,56 @@ describe('filterAndRankPosts', () => {
         delete (post as { children?: number }).children;
         const categoryMap = new Map([['a/p1', ['travel']]]);
         expect(() => filterAndRankPosts([post], ['travel'], categoryMap, NOW)).not.toThrow();
+    });
+
+    it('tags results as discovery/category-match, distinct from a topic-search backfill result', () => {
+        const posts = [makePost({ permlink: 'p1', author: 'a' })];
+        const categoryMap = new Map([['a/p1', ['travel']]]);
+        const [ranked] = filterAndRankPosts(posts, ['travel'], categoryMap, NOW);
+        expect((ranked as Discussion & { discoveryReason?: string }).discoveryReason).toBe('category-match');
+    });
+});
+
+function makeSearchResult(overrides: Partial<Discussion> & { depth?: number }): Discussion & { depth?: number } {
+    return {
+        author: 'someone',
+        permlink: 'p1',
+        created: new Date(NOW - 60 * 60 * 1000).toISOString(),
+        depth: 0,
+        ...overrides,
+    } as Discussion & { depth?: number };
+}
+
+describe('filterTopicSearchResults', () => {
+    it('keeps a genuine top-level result', () => {
+        const results = filterTopicSearchResults([makeSearchResult({ permlink: 'p1' })], new Set());
+        expect(results).toHaveLength(1);
+    });
+
+    it('excludes replies (depth > 0) — hivesense has no parent_author to check instead', () => {
+        const results = filterTopicSearchResults([makeSearchResult({ permlink: 'p1', depth: 1 })], new Set());
+        expect(results).toHaveLength(0);
+    });
+
+    it('excludes bare stubs beyond the hydrated full_posts count (missing created)', () => {
+        const stub = makeSearchResult({ permlink: 'p1' });
+        delete (stub as { created?: string }).created;
+        expect(filterTopicSearchResults([stub], new Set())).toHaveLength(0);
+    });
+
+    it('excludes the snap/wave container-scaffold authors', () => {
+        const results = filterTopicSearchResults(
+            [makeSearchResult({ permlink: 'p1', author: 'peak.snaps' }), makeSearchResult({ permlink: 'p2', author: 'ecency.waves' })],
+            new Set(),
+        );
+        expect(results).toHaveLength(0);
+    });
+
+    it('excludes community-muted authors', () => {
+        const results = filterTopicSearchResults(
+            [makeSearchResult({ permlink: 'p1', author: 'spammer' })],
+            new Set(['spammer']),
+        );
+        expect(results).toHaveLength(0);
     });
 });

@@ -460,3 +460,26 @@ Threaded `username` end-to-end through both gaps, mirroring `forYouWarm.ts`'s ex
 - `pnpm build` clean.
 - Live against the real pool: `tags=philosophy,diy-crafts` (both confirmed 0 hashtag matches) — **before**: 0 items, `hasMore: false`, a dead feed. **After**: 10 items returned (limit 10), all `community-fallback`, `hasMore: true`. Mixed case `tags=hive,philosophy` (hive has 7 real matches, philosophy 0): 25 items returned — 7 `category-match` first, 18 `community-fallback` after, `hasMore` still true — confirms real matches surface first and backfill only fills the remainder.
 - Committed and pushed to main for VPS redeploy.
+
+---
+
+# Feature — Blog For You: topic-search backfill when live matches are thin (2026-07-09)
+
+## Problem (reported by meno)
+"I just went on snapie.io to blogs, by default it selected For You. There is one blog there. One. No pagination, nothing." Traced to `lib/discovery/postInterestPool.ts`: the live/recent pool it matches against is only the **40 most recent posts site-wide** (two pages of `bridge.get_ranked_posts`, uncapped by community), Combflow-classified, then filtered by interest tag. Same structural gap as the snap warm pool fixed earlier today (no backfill when matches run thin) — except worse here, since the raw candidate pool itself is tiny (40 vs. the snap pool's much deeper container walk), so most tag combinations land at 0-1 matches.
+
+## Discussion (meno + Claude, before building)
+meno asked why "For You" only draws from live/recent posts instead of using hivesense-api's search (already used elsewhere in the app — `getSimilarPosts`, the Blog search box). Tested it directly against several interest categories before committing to an approach: hivesense search returns genuinely on-topic results, but consistently skews old (`"diy crafts homesteading"` → 2017/2018/2020/2022, `"crypto"` → 2021-2023, `"gaming"` → 2017-2023 — nothing near-current in any test). It ranks by relevance, not recency. Agreed approach: **blend, don't replace** — live/recent matches lead (freshness matters for a "For You" feed), hivesense search backfills the remainder when live matches run thin, community content stays as the last-resort fallback under that. Three open questions, resolved: (1) query construction — reuse the existing hand-curated keyword dictionary (`tagKeywordMatch.ts`, already built for snap hashtag matching) rather than raw category labels; (2) presentation — yes, mark backfilled posts visibly distinct rather than blending silently; (3) call volume — one combined search query across every requested tag rather than one call per tag, since this hits a shared public Hive node.
+
+## Changes
+- `lib/discovery/tagKeywordMatch.ts` — exported `TOPIC_KEYWORDS` (was module-private) and added `buildTopicSearchQuery(tags)`, reusing the existing per-category keyword lists to build one combined hivesense search query instead of maintaining a second dictionary.
+- `lib/discovery/postInterestPool.ts` — `filterAndRankPosts` now tags results `discoveryReason: 'category-match'` (parity with the snap pipeline's convention, previously untagged here). New `fetchTopicSearchMatches` calls hivesense-api's search endpoint with the combined query (`full_posts` matched to `result_limit` — confirmed live that hivesense only fully hydrates the first `full_posts` results, the rest come back as unusable bare stubs), filtered through new pure/exported `filterTopicSearchResults` (top-level only via `depth === 0` since hivesense doesn't expose `parent_author`, excludes scaffold authors and community-muted, drops stubs). `buildPostPool` backfills the remainder up to `TARGET_POOL_SIZE` (50, same scale as the snap pool) when live matches fall short, tagging backfill items `discoveryReason: 'topic-search'`, excluding anything already live-matched.
+- `components/shared/TopicSearchBadge.tsx` (new) — small pill badge, label "Classic", tooltip explains it was found by search rather than recent activity.
+- `components/blog/PostCard.tsx` — renders the badge when `post.discoveryReason === 'topic-search'`.
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 90/90 pass (14 new — 4 in `tagKeywordMatch.test.ts` for `buildTopicSearchQuery`; 6 in `postInterestPool.test.ts` for the `category-match` tagging and `filterTopicSearchResults`' top-level/stub/scaffold/mute filtering).
+- `pnpm build` clean.
+- Live against the real pool: `tags=crypto` alone — 10 items, all `topic-search` (0 live matches among the current 40 most recent posts, as expected), `hasMore: true`. Broader 3-tag query (`crypto,tech-programming,music`) — 47 total items across 2 pages (25 + 22), `hasMore` correctly false once exhausted — versus "one post, done" before this fix.
+- Live browser (Playwright) as `@snapieapp` (real interest tags: gaming, music) on Blog's For You tab: first 5 cards were genuine live matches (Splinterlands, Pokémon, a zombie-game post, all posted within the last 30 minutes) with no badge; 6th card was an 8-year-old (`16/3/2018`) on-topic post ("Music & Games") clearly marked `CLASSIC`. Scrolled further — pagination continues smoothly with more `CLASSIC`-badged posts from 2016/2021, no layout breakage, no console errors introduced.
+- Committed and pushed to main for VPS redeploy.

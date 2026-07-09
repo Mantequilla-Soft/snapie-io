@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { matchTagsToCategories } from './tagKeywordMatch';
+import { matchTagsToCategories, buildTopicSearchQuery } from './tagKeywordMatch';
 
 function meta(tags: string[]): string {
     return JSON.stringify({ tags });
@@ -46,5 +46,31 @@ describe('matchTagsToCategories', () => {
     it('returns empty when tags field is missing or not an array', () => {
         expect(matchTagsToCategories(JSON.stringify({}))).toEqual([]);
         expect(matchTagsToCategories(JSON.stringify({ tags: 'travel' }))).toEqual([]);
+    });
+});
+
+describe('buildTopicSearchQuery', () => {
+    it('combines the keyword lists for every requested tag into one query', () => {
+        const query = buildTopicSearchQuery(['travel', 'gaming']);
+        expect(query).toContain('travel');
+        expect(query).toContain('gaming');
+    });
+
+    it('deduplicates keywords shared across categories', () => {
+        // 'travel'/'travelling' etc. only live under one category, but the
+        // combined query must not repeat a keyword if it somehow appears
+        // in two requested categories' lists.
+        const query = buildTopicSearchQuery(['crypto', 'crypto']);
+        const occurrences = query.split(' ').filter(w => w === 'crypto').length;
+        expect(occurrences).toBe(1);
+    });
+
+    it('ignores unknown tag slugs rather than throwing', () => {
+        expect(() => buildTopicSearchQuery(['not-a-real-category'])).not.toThrow();
+        expect(buildTopicSearchQuery(['not-a-real-category'])).toBe('');
+    });
+
+    it('returns an empty string for an empty tag list', () => {
+        expect(buildTopicSearchQuery([])).toBe('');
     });
 });
