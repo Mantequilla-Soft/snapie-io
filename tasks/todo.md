@@ -399,3 +399,25 @@ Two independent content pipelines, two independent gaps:
 - Ran the actual built `packages/renderer/dist/index.js` against the reported attack shape directly (Node, not just types): `![photo](http://192.168.0.180/...)` → renders as `<img alt="photo">` with `src` stripped entirely; a public `images.hive.blog` image in the same markdown passes through unaffected. Also verified `<iframe src="http://192.168.1.1/admin">` and `<video src="http://10.0.0.5/...">` both lose their `src`, and `http://my-nas.local/...` (mDNS) is caught too.
 - Live browser (Playwright) reload of the exact reported snap (`@meno/20260709t024538346z`): the `192.168.0.180` Mixed Content errors are gone; thread renders normally with no layout breakage. Remaining console output (hivesense-api CORS from the localhost dev origin, a combflow 404, a pre-existing hydration warning) is unrelated pre-existing noise, unchanged by this fix.
 - Committed and pushed to main for VPS redeploy.
+
+---
+
+# Fix — warm "For You" feed stuck showing the same content for hours (2026-07-09)
+
+## Problem (reported by meno)
+"I went to sleep, woke up, and the For You feed is exactly the same... Latest shows many new snaps, but For You is stuck in time." Confirmed via a hard page reload (not a stale tab) — this is server-side, not a client re-fetch problem.
+
+## Root cause (two compounding bugs, both in `lib/discovery/`)
+1. **No age ceiling on the warm pool.** `lib/discovery/snapTrending.ts`'s cold-start/Trending ranker (`scoreAndWindowCandidates`) has always excluded anything older than `MAX_AGE_HOURS = 48`. `lib/discovery/forYouWarm.ts`'s warm-state ranker (`filterAndRankByCategory`, used once a user has picked interest tags — the state meno is in) never had that same bound — it just velocity-sorted the entire snaps+waves pool with no cutoff. Confirmed live by pulling the real pool directly: items up to **211 hours (8.8 days) old** ranked alongside 5-hour-old ones. A post that racked up replies over days can out-score anything fresh and never gets evicted — which is exactly "stuck in time."
+2. **Age itself was computed wrong.** Hive's `created` timestamps omit the trailing `Z`; `computeVelocityScore`/`isWithinDiscoveryWindow` fed them straight into `new Date()`, which parses a `Z`-less string as *local* time. This VPS runs UTC-5, so every age in this file was coming out ~5 hours short of the true UTC age — after fixing bug #1, one item still slipped past the fresh 48h cap because its true age (52.8h) computed as ~47.8h. Same class of bug already fixed twice this session elsewhere (payout display, blog date boundaries) — just never applied to the discovery pipeline.
+
+## Fix
+- `lib/discovery/snapTrending.ts`: extracted `isWithinDiscoveryWindow(createdAt, now)` (the same `MIN_AGE_MINUTES=15`/`MAX_AGE_HOURS=48` check `scoreAndWindowCandidates` already had) as a shared, exported helper. Added `parseHiveTimestamp()` (append `Z` if missing, matching `GetPostDate.ts`'s established pattern) and routed both `computeVelocityScore` and `isWithinDiscoveryWindow` through it.
+- `lib/discovery/forYouWarm.ts`: `filterAndRankByCategory` now filters through `isWithinDiscoveryWindow` before ranking — the warm pool has the same 48h bound as Trending/cold-start now, for free, from one shared source of truth instead of three separate re-implementations.
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 73/73 pass (4 new: two in `forYouWarm.test.ts` — an 80-reply/8.8-day-old item now loses to a 1-reply/5-hour-old one, and a brand-new item under the 15-minute floor is excluded; two in `snapTrending.test.ts` — a Z-less timestamp at true age 52.8h is correctly rejected at the 48h boundary, a Z-less timestamp at true age 10h is correctly accepted).
+- `pnpm build` clean.
+- Live, end-to-end against the real pool (not just unit fixtures) — pulled `/api/discovery/foryou-warm` with a broad tag set before and after: **before** — 25 items, oldest 211.5h, 7 of 25 over 48h; **after both fixes** — 25 items, oldest 47.3h, 0 over 48h, newest 5.1h. Confirmed the residual timezone bug specifically by re-testing after only the age-ceiling fix (before the Z-parsing fix): one item at true age 52.8h still slipped through at computed ~47.8h — exactly the UTC-5 server offset — then re-tested clean after the timestamp fix too.
+- Did not reproduce inside meno's actual logged-in browser session (would need his real interest-tag combination + auth state); the live API pulls above exercise the identical server-side code path the browser hits, with a broad tag superset standing in for his specific tags.
+- Committed and pushed to main for VPS redeploy.

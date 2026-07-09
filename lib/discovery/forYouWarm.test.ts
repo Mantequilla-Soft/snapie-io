@@ -73,4 +73,25 @@ describe('filterAndRankByCategory', () => {
         delete (item as { children?: number }).children;
         expect(() => filterAndRankByCategory([item], ['travel'], NOW)).not.toThrow();
     });
+
+    // Regression test — confirmed live: the warm pool had no age ceiling at
+    // all, so an old post that had accumulated a lot of replies over days
+    // could sit at #1 indefinitely (observed: an 8.8-day-old item ranked
+    // above a 5-hour-old one). Without this window, "For You" never feels
+    // like it moves even while the plain chronological feed is full of
+    // brand-new content.
+    it('excludes candidates older than the 48-hour discovery window, even high-scoring ones', () => {
+        const items = [
+            makeItem({ permlink: 'week-old-popular', tags: ['travel'], children: 80, created: new Date(NOW - 211 * 60 * 60 * 1000).toISOString() }),
+            makeItem({ permlink: 'fresh', tags: ['travel'], children: 1, created: new Date(NOW - 5 * 60 * 60 * 1000).toISOString() }),
+        ];
+        const ranked = filterAndRankByCategory(items, ['travel'], NOW);
+        expect(ranked.map(r => r.permlink)).toEqual(['fresh']);
+    });
+
+    it('excludes candidates younger than the 15-minute minimum age (matches Trending)', () => {
+        const items = [makeItem({ permlink: 'brand-new', tags: ['travel'], children: 5, created: new Date(NOW - 60 * 1000).toISOString() })];
+        const ranked = filterAndRankByCategory(items, ['travel'], NOW);
+        expect(ranked).toHaveLength(0);
+    });
 });

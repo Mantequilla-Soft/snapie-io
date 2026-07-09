@@ -12,9 +12,35 @@ const MAX_AGE_HOURS = 48;
 // a near-zero number of hours.
 const MIN_SCORE_AGE_HOURS = 0.25;
 
+// Hive timestamps omit the trailing 'Z' — parsed as-is, `new Date()` reads
+// them as local time instead of UTC. On a server running outside UTC (this
+// one runs UTC-5) every age in this file was coming out ~5 hours short of
+// the truth, letting posts up to ~53h old slide past the intended 48h
+// cutoff. Same normalization already used in lib/utils/GetPostDate.ts and
+// getPayoutValue — one shared helper here since two functions need it.
+function parseHiveTimestamp(createdAt: string): number {
+    const normalized = !createdAt.endsWith('Z') ? `${createdAt}Z` : createdAt;
+    return new Date(normalized).getTime();
+}
+
 export function computeVelocityScore(children: number, createdAt: string, now: number = Date.now()): number {
-    const ageHours = Math.max((now - new Date(createdAt).getTime()) / (1000 * 60 * 60), MIN_SCORE_AGE_HOURS);
+    const ageHours = Math.max((now - parseHiveTimestamp(createdAt)) / (1000 * 60 * 60), MIN_SCORE_AGE_HOURS);
     return children / ageHours;
+}
+
+/**
+ * Shared recency window for every "discovery" pool (Trending, cold-start For
+ * You, warm For You) — too young and its velocity score is noise (a single
+ * reply on a 2-minute-old post looks huge); too old and it's not "currently
+ * active," it's just accumulated history. Exported so every ranker applies
+ * the identical cutoff instead of each one deciding for itself whether "old"
+ * means something.
+ */
+export function isWithinDiscoveryWindow(createdAt: string, now: number = Date.now()): boolean {
+    const ageMs = now - parseHiveTimestamp(createdAt);
+    const ageMinutes = ageMs / (1000 * 60);
+    const ageHours = ageMs / (1000 * 60 * 60);
+    return ageMinutes >= MIN_AGE_MINUTES && ageHours <= MAX_AGE_HOURS;
 }
 
 /**
@@ -34,15 +60,8 @@ function scoreAndWindowCandidates(
 ): ExtendedComment[] {
     return items
         .filter(item => !mutedAuthors.has(item.author.toLowerCase()))
-        .map(item => {
-            const ageMs = now - new Date(item.created).getTime();
-            return { item, ageMs, score: computeVelocityScore(item.children, item.created, now) };
-        })
-        .filter(({ ageMs }) => {
-            const ageMinutes = ageMs / (1000 * 60);
-            const ageHours = ageMs / (1000 * 60 * 60);
-            return ageMinutes >= MIN_AGE_MINUTES && ageHours <= MAX_AGE_HOURS;
-        })
+        .filter(item => isWithinDiscoveryWindow(item.created, now))
+        .map(item => ({ item, score: computeVelocityScore(item.children, item.created, now) }))
         .sort((a, b) => b.score - a.score)
         .slice(0, limit)
         .map(({ item }) => item);

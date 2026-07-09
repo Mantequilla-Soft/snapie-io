@@ -1,5 +1,5 @@
 import { ExtendedComment } from '@/hooks/useComments';
-import { getRawSnapPool, computeVelocityScore } from './snapTrending';
+import { getRawSnapPool, computeVelocityScore, isWithinDiscoveryWindow } from './snapTrending';
 import { fetchSidecarFeed, SidecarFeedItem } from './sidecarClient';
 import { matchTagsToCategories } from './tagKeywordMatch';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
@@ -32,14 +32,20 @@ function tagsCacheKey(tags: string[]): string {
     return [...tags].sort().join(',');
 }
 
-/** Pure core: velocity-ranks candidates, then filters to those whose own
- *  hashtags (json_metadata.tags) match the requested interest tags — see
- *  tagKeywordMatch.ts for why this is hashtag-based rather than Combflow-
- *  based (Combflow doesn't classify snaps/waves at all, confirmed directly).
- *  No I/O — takes items that already carry their own json_metadata, so this
- *  is unit-testable without network/Mongo. Deliberately simple for v1
- *  (filter-then-sort-by-engagement, not a weighted match-strength blend) —
- *  a documented simplification, not a hidden gap. */
+/** Pure core: windows candidates to the same recency bound as Trending
+ *  (see isWithinDiscoveryWindow — without this, an old post that racked up
+ *  a lot of replies over days can outscore anything fresh indefinitely,
+ *  since nothing ever evicts it; the warm pool went stale exactly this way
+ *  before this filter existed, confirmed live: items up to 8+ days old
+ *  ranked above 5-hour-old ones), then velocity-ranks, then filters to
+ *  those whose own hashtags (json_metadata.tags) match the requested
+ *  interest tags — see tagKeywordMatch.ts for why this is hashtag-based
+ *  rather than Combflow-based (Combflow doesn't classify snaps/waves at
+ *  all, confirmed directly). No I/O — takes items that already carry their
+ *  own json_metadata, so this is unit-testable without network/Mongo.
+ *  Deliberately simple for v1 (filter-then-sort-by-engagement, not a
+ *  weighted match-strength blend) — a documented simplification, not a
+ *  hidden gap. */
 export function filterAndRankByCategory(
     items: ExtendedComment[],
     tags: string[],
@@ -47,6 +53,7 @@ export function filterAndRankByCategory(
 ): ExtendedComment[] {
     const tagSet = new Set(tags);
     return items
+        .filter(item => isWithinDiscoveryWindow(item.created, now))
         .map(item => ({ item, score: computeVelocityScore(item.children ?? 0, item.created, now) }))
         .sort((a, b) => b.score - a.score)
         .map(({ item }) => item)

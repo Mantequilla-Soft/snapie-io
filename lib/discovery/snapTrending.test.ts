@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeVelocityScore, rankSnapCandidates, rankForYouCandidates } from './snapTrending';
+import { computeVelocityScore, rankSnapCandidates, rankForYouCandidates, isWithinDiscoveryWindow } from './snapTrending';
 import type { ExtendedComment } from '@/hooks/useComments';
 
 const NOW = new Date('2026-07-08T12:00:00.000Z').getTime();
@@ -73,6 +73,27 @@ describe('rankSnapCandidates', () => {
         const [ranked] = rankSnapCandidates(items, 10, new Set(), NOW);
         expect(ranked.isDiscovery).toBe(true);
         expect(ranked.discoveryReason).toBe('trending');
+    });
+});
+
+describe('isWithinDiscoveryWindow', () => {
+    // Regression test — confirmed live on the real (server runs UTC-5) pool:
+    // a snap whose true UTC age was 52.8 hours still passed the 48-hour
+    // cutoff, because `created` (no trailing 'Z', per Hive convention) was
+    // parsed as local time instead of UTC, undercounting its age by the
+    // server's UTC offset. Same class of bug already fixed once for payout
+    // display and once for blog date boundaries — this is the discovery
+    // pipeline's copy of it.
+    it('does not misparse a Z-less timestamp as local time near the 48-hour boundary', () => {
+        const trueAgeMs = 52.8 * 60 * 60 * 1000;
+        const created = new Date(NOW - trueAgeMs).toISOString().replace('Z', ''); // no trailing Z, like real Hive data
+        expect(isWithinDiscoveryWindow(created, NOW)).toBe(false);
+    });
+
+    it('accepts a Z-less timestamp genuinely inside the window', () => {
+        const trueAgeMs = 10 * 60 * 60 * 1000;
+        const created = new Date(NOW - trueAgeMs).toISOString().replace('Z', '');
+        expect(isWithinDiscoveryWindow(created, NOW)).toBe(true);
     });
 });
 
