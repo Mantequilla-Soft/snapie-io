@@ -1,5 +1,5 @@
 import { ExtendedComment } from '@/hooks/useComments';
-import { getRawSnapPool, computeVelocityScore, isWithinDiscoveryWindow } from './snapTrending';
+import { getRawSnapPool, computeVelocityScore, isWithinDiscoveryWindow, isSnapieCommunityPost, rankForYouCandidates } from './snapTrending';
 import { fetchSidecarFeed, SidecarFeedItem } from './sidecarClient';
 import { matchTagsToCategories } from './tagKeywordMatch';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
@@ -66,6 +66,33 @@ export function filterAndRankByCategory(
         }));
 }
 
+/** Hashtag matching only catches posts that happened to self-tag with
+ *  something recognizable (see filterAndRankByCategory above) — for a lot of
+ *  real interest-tag combinations that's a genuinely small number, and it
+ *  shrinks further now that the pool is correctly windowed to 48h (see
+ *  isWithinDiscoveryWindow). Rather than let pagination just run dry, fill
+ *  the remainder with the same community-scoped, engagement-ranked content
+ *  the cold-start "For You" state already shows — the exact same fallback
+ *  the cold state already applies for "zero interests picked," just
+ *  triggered by "too few interest matches" instead. `exclude` keeps an
+ *  already-matched post from also appearing as a fallback duplicate. */
+export function backfillWithCommunityContent(
+    pool: ExtendedComment[],
+    exclude: Set<string>,
+    limit: number,
+    now: number,
+): ExtendedComment[] {
+    if (limit <= 0) return [];
+    const candidates = pool.filter(
+        item => isSnapieCommunityPost(item) && !exclude.has(`${item.author}/${item.permlink}`),
+    );
+    return rankForYouCandidates(candidates, limit, new Set(), now).map(item => ({
+        ...item,
+        isDiscovery: true,
+        discoveryReason: 'community-fallback' as const,
+    }));
+}
+
 /** Builds the warm-state candidate pool for one interest-tag combination.
  *  Deliberately does NOT apply personal mutes here — this pool is cached and
  *  shared across every user who happens to share the same tag combination
@@ -75,6 +102,7 @@ export function filterAndRankByCategory(
  *  shape the Trending pool already uses) are safe to bake in here; personal
  *  mutes are applied per-request, after the cache lookup, below. */
 async function buildWarmPool(tags: string[]): Promise<ExtendedComment[]> {
+    const now = Date.now();
     const [snapPool, wavePool, communityMuted] = await Promise.all([
         getRawSnapPool(),
         fetchWavePool(),
@@ -82,7 +110,12 @@ async function buildWarmPool(tags: string[]): Promise<ExtendedComment[]> {
     ]);
 
     const combined = [...snapPool, ...wavePool].filter(item => !communityMuted.has(item.author.toLowerCase()));
-    return filterAndRankByCategory(combined, tags);
+    const matched = filterAndRankByCategory(combined, tags, now);
+    if (matched.length >= WARM_POOL_SIZE) return matched;
+
+    const matchedKeys = new Set(matched.map(item => `${item.author}/${item.permlink}`));
+    const fallback = backfillWithCommunityContent(combined, matchedKeys, WARM_POOL_SIZE - matched.length, now);
+    return [...matched, ...fallback];
 }
 
 interface CacheEntry {

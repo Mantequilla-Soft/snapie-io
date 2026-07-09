@@ -19,7 +19,7 @@ export interface ExtendedComment extends Comment {
     source?: 'snap' | 'wave'
     /** Set only by the discovery candidate routes — undefined everywhere else means "organic". */
     isDiscovery?: boolean
-    discoveryReason?: 'trending' | 'category-match'
+    discoveryReason?: 'trending' | 'category-match' | 'community-fallback'
 }
 
 interface ActiveVote {

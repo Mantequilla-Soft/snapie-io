@@ -445,3 +445,18 @@ Threaded `username` end-to-end through both gaps, mirroring `forYouWarm.ts`'s ex
 - Attempted live verification against meno's real Hive mute list (39 accounts, pulled directly via `bridge.get_follow_list`) — none currently overlap with authors active in the live Trending pool, so no observable before/after difference was possible from real production data at this moment; the dedicated mocked test above is the authoritative proof instead.
 - Committed and pushed to main for VPS redeploy.
 
+---
+
+# Fix — warm For You pagination dies early when interest-tag matches run thin (2026-07-09)
+
+## Problem (reported by meno)
+"I'm trying to see other suggested posts with my meno account, and it stops at suggesting only 6 posts." Pulled the real warm pool per-category to check: half the 17 interest categories return **zero** hashtag matches right now (philosophy, spirituality, health-fitness, diy-crafts, social-issues, homesteading, tech-programming all 0; others in the low single digits — crypto 2, gaming 2, travel 4, food 4, writing 3). This is a known v1 limitation (hashtag-based category matching only catches posts that happened to self-tag with something recognizable — most authors don't), compounded by the 48h freshness window added earlier today, which correctly shrinks what was already thin. `hasMore: false` was being reported *honestly* — the interest-matched pool really was exhausted that small — but nothing backfilled it the way the cold-start state (zero interests picked) already gracefully falls back to community content instead of an empty screen.
+
+## Fix
+`lib/discovery/forYouWarm.ts` — `buildWarmPool` now backfills: if the interest-tag-matched pool (`filterAndRankByCategory`) comes back smaller than `WARM_POOL_SIZE` (50), the remainder is filled with the same community-scoped, engagement-ranked content the cold-start pool already uses (new `backfillWithCommunityContent`, reusing `snapTrending.ts`'s exported `isSnapieCommunityPost` + `rankForYouCandidates` rather than reimplementing), excluding anything already surfaced as a real match so nothing appears twice. Real matches always come first (`[...matched, ...fallback]`), backfill items are tagged `discoveryReason: 'community-fallback'` (new value added to the `ExtendedComment` union alongside the existing `'trending'`/`'category-match'`) so they stay distinguishable from genuine interest matches even though no UI currently branches on it.
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 80/80 pass (5 new in `lib/discovery/forYouWarm.backfill.test.ts` — a separate file since testing `isSnapieCommunityPost` requires controlling `NEXT_PUBLIC_HIVE_COMMUNITY_TAG` before `snapTrending.ts` first evaluates it, via `beforeAll` + dynamic import rather than the static import the sibling `forYouWarm.test.ts` uses): fills with community content when matches run thin, excludes already-matched posts from the fallback, respects the limit, returns nothing when the matched pool alone already hit target size, tags fallback items correctly.
+- `pnpm build` clean.
+- Live against the real pool: `tags=philosophy,diy-crafts` (both confirmed 0 hashtag matches) — **before**: 0 items, `hasMore: false`, a dead feed. **After**: 10 items returned (limit 10), all `community-fallback`, `hasMore: true`. Mixed case `tags=hive,philosophy` (hive has 7 real matches, philosophy 0): 25 items returned — 7 `category-match` first, 18 `community-fallback` after, `hasMore` still true — confirms real matches surface first and backfill only fills the remainder.
+- Committed and pushed to main for VPS redeploy.
