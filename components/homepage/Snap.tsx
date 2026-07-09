@@ -22,6 +22,7 @@ import PatronBadge from '@/components/shared/PatronBadge';
 import WaveBadge from '@/components/shared/WaveBadge';
 import TrendingBadge from '@/components/shared/TrendingBadge';
 import SnapieCommunityBadge from '@/components/shared/SnapieCommunityBadge';
+import VaultBadge from '@/components/shared/VaultBadge';
 import { isSnapieCommunityPost } from '@/lib/discovery/snapTrending';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
@@ -287,6 +288,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 {getTier(comment.author) && <WrapItem><PatronBadge tier={getTier(comment.author)} /></WrapItem>}
                                 {comment.source === 'wave' && <WrapItem><WaveBadge /></WrapItem>}
                                 {comment.isDiscovery && comment.discoveryReason === 'trending' && <WrapItem><TrendingBadge /></WrapItem>}
+                                {comment.isDiscovery && comment.discoveryReason === 'resurrected' && <WrapItem><VaultBadge /></WrapItem>}
                                 {isSnapieCommunityPost(comment) && <WrapItem><SnapieCommunityBadge /></WrapItem>}
                             </Wrap>
                             {canEdit && (

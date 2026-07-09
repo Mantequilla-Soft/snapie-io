@@ -1,12 +1,24 @@
 import HiveClient from '@/lib/hive/hiveclient';
 import { ExtendedComment } from '@/hooks/useComments';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { fetchResurrectionCandidates } from './contentResurrection';
+import { interleaveCandidates } from './interleave';
 
-// Phase 1 stays close to "currently active but under-surfaced" — true
-// resurrection of old, dormant content is a Phase 2+ concept that needs its
-// own rate-vs-baseline machinery, not this simple recency-windowed score.
+// How often a resurrected item shows up in the ranked pool — wide on
+// purpose. This should read as a rare, delightful surprise, not a pattern
+// users learn to expect every few scrolls.
+const RESURRECTION_INTERLEAVE_EVERY_N = 15;
+
+// This file stays close to "currently active but under-surfaced" — content
+// resurrection (old, dormant content that genuinely catches fire again) is a
+// separate rate-vs-baseline concern with its own age band and its own
+// scoring, not a variant of this simple recency-windowed score. See
+// lib/discovery/contentResurrection.ts.
 const MIN_AGE_MINUTES = 15;
-const MAX_AGE_HOURS = 48;
+// Exported: contentResurrection.ts uses this as the boundary between "the
+// existing Trending/For You window" and "dormant" — resurrection only
+// considers content older than this.
+export const MAX_AGE_HOURS = 48;
 // Floor on the age used in the score denominator, so a snap posted moments
 // ago with a single reply doesn't produce an absurd score from dividing by
 // a near-zero number of hours.
@@ -18,7 +30,7 @@ const MIN_SCORE_AGE_HOURS = 0.25;
 // the truth, letting posts up to ~53h old slide past the intended 48h
 // cutoff. Same normalization already used in lib/utils/GetPostDate.ts and
 // getPayoutValue — one shared helper here since two functions need it.
-function parseHiveTimestamp(createdAt: string): number {
+export function parseHiveTimestamp(createdAt: string): number {
     const normalized = !createdAt.endsWith('Z') ? `${createdAt}Z` : createdAt;
     return new Date(normalized).getTime();
 }
@@ -109,7 +121,9 @@ let rawPoolCache: CacheEntry<ExtendedComment[]> | null = null;
 let rankedCache: CacheEntry<ExtendedComment[]> | null = null;
 let forYouCache: CacheEntry<ExtendedComment[]> | null = null;
 
-const CONTAINER_AUTHOR = 'peak.snaps';
+// Exported: contentResurrection.ts's dormant-container walk targets the
+// same container author, just much further back in time.
+export const CONTAINER_AUTHOR = 'peak.snaps';
 // 10 containers is enough to build a pool deep enough for a dedicated
 // Trending tab to paginate through (see RANKED_POOL_SIZE below), while still
 // bounding a cold-cache fetch to a reasonable number of sequential Hive
@@ -188,14 +202,29 @@ export function getRawSnapPool(): Promise<ExtendedComment[]> {
 }
 
 async function fetchRankedTrendingPool(): Promise<ExtendedComment[]> {
-    const [pool, mutedList] = await Promise.all([getRawSnapPool(), mutedAccountsManager.getMutedList()]);
-    return rankSnapCandidates(pool, RANKED_POOL_SIZE, mutedList);
+    const [pool, mutedList, resurrected] = await Promise.all([
+        getRawSnapPool(),
+        mutedAccountsManager.getMutedList(),
+        fetchResurrectionCandidates(),
+    ]);
+    const ranked = rankSnapCandidates(pool, RANKED_POOL_SIZE, mutedList);
+    return interleaveCandidates(ranked, resurrected, RESURRECTION_INTERLEAVE_EVERY_N);
 }
 
 async function fetchRankedForYouPool(): Promise<ExtendedComment[]> {
-    const [pool, mutedList] = await Promise.all([getRawSnapPool(), mutedAccountsManager.getMutedList()]);
+    const [pool, mutedList, resurrected] = await Promise.all([
+        getRawSnapPool(),
+        mutedAccountsManager.getMutedList(),
+        fetchResurrectionCandidates(),
+    ]);
     const communityOnly = pool.filter(isSnapieCommunityPost);
-    return rankForYouCandidates(communityOnly, RANKED_POOL_SIZE, mutedList);
+    const ranked = rankForYouCandidates(communityOnly, RANKED_POOL_SIZE, mutedList);
+    // Cold-start For You is Snapie-community-scoped throughout — a
+    // resurrected item needs the same scoping as everything else here, even
+    // though the resurrection pool itself isn't community-filtered (it
+    // feeds Trending too, which isn't scoped).
+    const resurrectedInCommunity = resurrected.filter(isSnapieCommunityPost);
+    return interleaveCandidates(ranked, resurrectedInCommunity, RESURRECTION_INTERLEAVE_EVERY_N);
 }
 
 /** Cached, ranked pool of trending-snap candidates. `limit`/`offset` only

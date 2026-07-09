@@ -2,7 +2,14 @@ import { ExtendedComment } from '@/hooks/useComments';
 import { getRawSnapPool, computeVelocityScore, isWithinDiscoveryWindow, isSnapieCommunityPost, rankForYouCandidates } from './snapTrending';
 import { fetchSidecarFeed, SidecarFeedItem } from './sidecarClient';
 import { matchTagsToCategories } from './tagKeywordMatch';
+import { fetchResurrectionCandidates } from './contentResurrection';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+
+// A resurrected item doesn't need to match the requester's interest tags —
+// same relaxation as the community-content backfill below (neither is
+// "personalized," both are "genuinely worth seeing anyway"). Capped small;
+// this is a sprinkle, not a pool.
+const RESURRECTION_SPRINKLE_LIMIT = 2;
 
 // No longer Combflow-bound (see tagKeywordMatch.ts for why) — this TTL is
 // just "how fresh does the ranked pool need to be," same reasoning as
@@ -103,19 +110,31 @@ export function backfillWithCommunityContent(
  *  mutes are applied per-request, after the cache lookup, below. */
 async function buildWarmPool(tags: string[]): Promise<ExtendedComment[]> {
     const now = Date.now();
-    const [snapPool, wavePool, communityMuted] = await Promise.all([
+    const [snapPool, wavePool, communityMuted, resurrected] = await Promise.all([
         getRawSnapPool(),
         fetchWavePool(),
         mutedAccountsManager.getMutedList(),
+        fetchResurrectionCandidates(),
     ]);
 
     const combined = [...snapPool, ...wavePool].filter(item => !communityMuted.has(item.author.toLowerCase()));
     const matched = filterAndRankByCategory(combined, tags, now);
-    if (matched.length >= WARM_POOL_SIZE) return matched;
 
+    // Priority order: real interest matches, then a small resurrection
+    // sprinkle, then generic community backfill only if there's still room
+    // — a resurrected item is more interesting than generic backfill, so it
+    // goes ahead of it, not behind it.
     const matchedKeys = new Set(matched.map(item => `${item.author}/${item.permlink}`));
-    const fallback = backfillWithCommunityContent(combined, matchedKeys, WARM_POOL_SIZE - matched.length, now);
-    return [...matched, ...fallback];
+    const resurrectedSprinkle = resurrected
+        .filter(item => !matchedKeys.has(`${item.author}/${item.permlink}`) && !communityMuted.has(item.author.toLowerCase()))
+        .slice(0, RESURRECTION_SPRINKLE_LIMIT);
+    resurrectedSprinkle.forEach(item => matchedKeys.add(`${item.author}/${item.permlink}`));
+
+    const withResurrection = [...matched, ...resurrectedSprinkle];
+    if (withResurrection.length >= WARM_POOL_SIZE) return withResurrection;
+
+    const fallback = backfillWithCommunityContent(combined, matchedKeys, WARM_POOL_SIZE - withResurrection.length, now);
+    return [...withResurrection, ...fallback];
 }
 
 interface CacheEntry {
