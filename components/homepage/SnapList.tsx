@@ -6,6 +6,7 @@ import { ExtendedComment, useComments } from '@/hooks/useComments';
 import { useSnaps } from '@/hooks/useSnaps';
 import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
+import { interleaveCandidates } from '@/lib/discovery/interleave';
 
 type SortOrder = 'new' | 'top';
 
@@ -21,6 +22,11 @@ interface SnapListProps {
    *  give a filter-specific message (e.g. the Patrons tab) instead of the
    *  generic default. */
   emptyMessage?: React.ReactNode
+  /** Discovery Engine Phase 1 — optional, undefined/empty changes nothing for
+   *  any existing caller. Spliced in after sorting, only when sortOrder is
+   *  'new' — see the interleave call below for why. */
+  discoveryItems?: ExtendedComment[]
+  discoveryEveryN?: number
 }
 
 interface InfiniteScrollData {
@@ -46,6 +52,8 @@ export default function SnapList(
     post,
     data,
     emptyMessage = 'No snaps yet.',
+    discoveryItems,
+    discoveryEveryN = 5,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -69,6 +77,16 @@ export default function SnapList(
     return new Date(b.created).getTime() - new Date(a.created).getTime();
   });
 
+  // Discovery candidates only make sense against the chronological view —
+  // 'top' is an explicit request for payout ranking, and injecting
+  // engagement-ranked items there would contradict what the user just asked
+  // for. Must happen after the sort above, not before — comments.sort()
+  // mutates in place and re-runs on every render, so anything spliced in
+  // upstream of it would just get reshuffled back out.
+  const displayComments = (discoveryItems?.length && sortOrder === 'new')
+    ? interleaveCandidates(comments, discoveryItems, discoveryEveryN)
+    : comments;
+
   if (isLoading && comments.length === 0) {
     return (
       <Box textAlign="center" mt={4}>
@@ -88,7 +106,7 @@ export default function SnapList(
 
   return (
         <InfiniteScroll
-            dataLength={comments.length}
+            dataLength={displayComments.length}
             next={loadNextPage}
             hasMore={hasMore}
             loader={
@@ -120,7 +138,7 @@ export default function SnapList(
                   ))}
               </HStack>
           )}
-          {comments.map((comment: ExtendedComment) => (
+          {displayComments.map((comment: ExtendedComment) => (
             <Snap
               key={comment.permlink}
               comment={comment}

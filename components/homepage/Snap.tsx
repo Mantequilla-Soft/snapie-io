@@ -20,6 +20,9 @@ import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
 import PatronBadge from '@/components/shared/PatronBadge';
 import WaveBadge from '@/components/shared/WaveBadge';
+import TrendingBadge from '@/components/shared/TrendingBadge';
+import SnapieCommunityBadge from '@/components/shared/SnapieCommunityBadge';
+import { isSnapieCommunityPost } from '@/lib/discovery/snapTrending';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { translationCache } from '@/lib/utils/translationCache';
@@ -277,6 +280,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 </Link>
                                 <PatronBadge tier={getTier(comment.author)} />
                                 {comment.source === 'wave' && <WaveBadge />}
+                                {comment.isDiscovery && comment.discoveryReason === 'trending' && <TrendingBadge />}
+                                {isSnapieCommunityPost(comment) && <SnapieCommunityBadge />}
                                 <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
                                 <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
                             </HStack>

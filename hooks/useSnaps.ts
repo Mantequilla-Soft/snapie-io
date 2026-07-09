@@ -10,7 +10,11 @@ interface lastContainerInfo {
   date: string;
 }
 
-export type SnapFilterType = 'community' | 'all' | 'following' | 'patrons';
+// 'trending' is handled entirely outside this hook (see useTrendingFeed) —
+// it's a distinct data source (the discovery candidate pool), not a filter
+// over the normal snap-container walk. Included here only so callers can
+// share one SnapFilterType across the tab bar and skip this hook cleanly.
+export type SnapFilterType = 'community' | 'all' | 'following' | 'patrons' | 'trending';
 
 interface UseSnapsProps {
   filterType?: SnapFilterType;

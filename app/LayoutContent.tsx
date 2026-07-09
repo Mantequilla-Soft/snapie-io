@@ -11,10 +11,13 @@ import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
 const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHandler'), { ssr: false });
+const InterestPicker = dynamic(() => import('@/components/onboarding/InterestPicker'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,6 +28,12 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isChatPopoutMode = searchParams.get('chat_popout') === '1';
   const { activeRoom, closeRoom } = useHangout();
   const { settings } = useUserSettings();
+  const { username: currentUsername } = useCurrentUser();
+  // Discovery Engine Phase 2 — onboarding only ever shows while dogfooding
+  // behind the same flag + allowlist as the rest of "For You" personalization
+  // (see lib/discovery/config.ts). Invisible to everyone else regardless of
+  // their interestsOnboardedAt state.
+  const showInterestPicker = isDiscoveryEnabledFor(currentUsername) && settings.interestsOnboardedAt === null;
   const baseGradient = settings.colorMode === 'light'
     ? 'radial(circle at 18% 8%, rgba(3, 105, 161, 0.08), transparent 34%), radial(circle at 78% 0%, rgba(3, 105, 161, 0.05), transparent 30%), linear(to-br, #ffffff, #f8fafc 48%, #f1f5f9)'
     : 'radial(circle at 18% 8%, rgba(28, 161, 241, 0.12), transparent 34%), radial(circle at 78% 0%, rgba(28, 161, 241, 0.07), transparent 30%), linear(to-br, #080f1e, #0d1525 48%, #070d1a)';
@@ -158,6 +167,12 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       )}
       {!isEmbedMode && activeRoom && (
         <HangoutModal isOpen onClose={closeRoom} roomName={activeRoom} />
+      )}
+      {!isEmbedMode && !isChatPopoutMode && showInterestPicker && (
+        // No-op: saving/skipping updates interestsOnboardedAt via
+        // useUserSettings, which flips showInterestPicker false and
+        // unmounts this on its own — no separate close handler needed.
+        <InterestPicker onDone={() => {}} />
       )}
     </Box>
   );

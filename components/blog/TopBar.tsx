@@ -16,9 +16,9 @@ const SORT_OPTIONS: SortOption[] = [
     { label: 'Top',      value: 'payout',   icon: '💰' },
 ];
 
-export type FeedSource = 'snapie' | 'following' | 'trending';
+export type FeedSource = 'snapie' | 'following' | 'trending' | 'foryou';
 
-const FEED_SOURCES: { label: string; value: FeedSource; icon: string }[] = [
+const BASE_FEED_SOURCES: { label: string; value: FeedSource; icon: string }[] = [
     { label: 'Snapie',    value: 'snapie',    icon: '📸' },
     { label: 'Following', value: 'following', icon: '👥' },
     { label: 'Trending',  value: 'trending',  icon: '🌍' },
@@ -35,6 +35,10 @@ interface TopBarProps {
     setSearchTerm: (value: string) => void;
     onSearchSubmit: () => void;
     onSearchClear: () => void;
+    /** Discovery Engine — same flag+allowlist gate as the home feed's
+     *  Trending tab (see lib/discovery/config.ts). Invisible to everyone
+     *  else, so there's nothing confusing left behind if turned off. */
+    showForYou?: boolean;
 }
 
 export default function TopBar({
@@ -48,8 +52,12 @@ export default function TopBar({
     setSearchTerm,
     onSearchSubmit,
     onSearchClear,
+    showForYou = false,
 }: TopBarProps) {
     const router = useRouter();
+    const FEED_SOURCES = showForYou
+        ? [...BASE_FEED_SOURCES, { label: 'For You', value: 'foryou' as const, icon: '✨' }]
+        : BASE_FEED_SOURCES;
 
     return (
         <Flex direction="column" gap={3} mb={4}>

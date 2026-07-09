@@ -38,10 +38,32 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         setIsNavigating(true);
         router.push(postHref);
     }
+    // Plain-text excerpt — strips markdown/HTML markup rather than just
+    // hiding image/link syntax, matching the mobile app's BlogCard
+    // (hivesnaps/app/components/BlogCard.tsx:buildExcerpt) so the same post
+    // doesn't show stray `#`/`**`/`` ` ``/`>` characters here that mobile
+    // already cleans up. Also strips bare (non-markdown) URLs and
+    // `---`/`***` horizontal-rule dividers — neither the web nor mobile
+    // regex handled these, and video-embed posts (e.g. a raw 3speak embed
+    // link followed by "---") rendered the raw link right in the excerpt,
+    // confirmed live. The image/link regexes tolerate stray whitespace
+    // around `!`/`[`/`]`/`(` — real post bodies aren't always clean
+    // `![alt](url)`; a "! [alt] (url)" variant (space after `!`, space
+    // before `(`) was found live and broke the tighter version of this
+    // regex, leaking the raw markdown fragment into the excerpt. Also
+    // strips markdown table pipes (`|`) — a post built around a table
+    // (e.g. an image gallery laid out as `| ![img](url) |` rows) otherwise
+    // leaves literal `|` characters and `| - |` separator-row artifacts in
+    // the excerpt once the cell contents themselves are stripped away.
     const snippet = safeBody
         .replace(/<[^>]*>/g, ' ')
-        .replace(/!\[[^\]]*]\(([^)]+)\)/g, ' ')
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+        .replace(/!\s*\[[^\]]*]\s*\([^)]*\)/g, ' ')
+        .replace(/\[([^\]]+)\]\s*\(([^)]*)\)/g, '$1')
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/[-*_]{3,}/g, ' ')
+        .replace(/\|/g, ' ')
+        .replace(/#{1,6}\s*/g, '')
+        .replace(/[*_~`>]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 
@@ -139,7 +161,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                 >
                     {title || 'Untitled post'}
                 </Text>
-                {compact && snippet && (
+                {snippet && (
                     <Text
                         as="a"
                         href={postHref}
@@ -147,7 +169,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                         fontSize="sm"
                         color="text"
                         opacity={0.82}
-                        noOfLines={3}
+                        noOfLines={compact ? 3 : 2}
                         mb={3}
                         _hover={{ opacity: 1 }}
                     >

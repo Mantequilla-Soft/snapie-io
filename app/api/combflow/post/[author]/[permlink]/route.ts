@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchCombflowPost, CombflowHttpError } from '@/lib/combflow/client';
 
 export async function GET(
     _req: NextRequest,
@@ -11,20 +12,14 @@ export async function GET(
     }
 
     try {
-        const res = await fetch(
-            `https://combflow.net/posts/${encodeURIComponent(author)}/${encodeURIComponent(permlink)}`,
-            { headers: { accept: 'application/json' }, next: { revalidate: 300 } }
-        );
-
-        if (!res.ok) {
-            return NextResponse.json({ error: 'Not found.' }, { status: res.status });
-        }
-
-        const data = await res.json();
+        const data = await fetchCombflowPost(author, permlink);
         return NextResponse.json(data, {
             headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=60' },
         });
-    } catch {
+    } catch (err) {
+        if (err instanceof CombflowHttpError) {
+            return NextResponse.json({ error: 'Not found.' }, { status: err.status });
+        }
         return NextResponse.json({ error: 'CombFlow unreachable.' }, { status: 502 });
     }
 }

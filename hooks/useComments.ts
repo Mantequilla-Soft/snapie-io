@@ -17,6 +17,9 @@ export interface ExtendedComment extends Comment {
     replies?: ExtendedComment[]
     /** Set only by useBlendedFeed — undefined everywhere else means "snap". */
     source?: 'snap' | 'wave'
+    /** Set only by the discovery candidate routes — undefined everywhere else means "organic". */
+    isDiscovery?: boolean
+    discoveryReason?: 'trending' | 'category-match'
 }
 
 interface ActiveVote {

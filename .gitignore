@@ -50,3 +50,10 @@ ECENCY_CHAT_IMPLEMENTATION.md
 # Package build artifacts (tracked in source, not dist)
 packages/*/dist/*.d.mts
 packages/*/dist/*.d.ts
+
+# debug login
+.login.txt
+
+# Playwright MCP test artifacts (screenshots, traces)
+.playwright-mcp/
+

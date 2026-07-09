@@ -17,6 +17,10 @@ import UpcomingEventsStrip from '@/components/hangouts/UpcomingEventsStrip';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useDiscoveryCandidates } from '@/hooks/useDiscoveryCandidates';
+import { useTrendingFeed } from '@/hooks/useTrendingFeed';
+import { useUserSettings } from '@/hooks/useUserSettings';
+import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 
 interface CommunityInfo {
   title: string;
@@ -39,6 +43,7 @@ export default function Home() {
   const [communityName, setCommunityName] = useState<string>('Community');
 
   const { username: user, isLoggedIn } = useCurrentUser();
+  const { settings } = useUserSettings();
 
   useEffect(() => {
     const loadCommunityInfo = async () => {
@@ -98,16 +103,49 @@ export default function Home() {
   const [blendedFailed, setBlendedFailed] = useState(false);
   const showBlendedForAll = ENABLE_BLENDED_FEED && activeFilter === 'all' && !blendedFailed;
 
+  // Discovery Engine Phase 1 — gated behind a flag + account allowlist (see
+  // lib/discovery/config.ts), off for everyone else.
+  const showTrendingTab = isDiscoveryEnabledFor(user);
+  const isTrendingTab = activeFilter === 'trending';
+
+  // Discovery Engine Phase 2 — "For You" 3-state design, gated to
+  // allowlisted accounts (everyone else keeps today's exact
+  // useSnaps('community') chronological behavior):
+  //  - cold: no interest signal yet (never onboarded, or onboarded with
+  //    nothing selected) — Snapie-community-scoped, engagement-ranked
+  //    (fetchForYouSnapCandidates).
+  //  - warm: has picked interest topics — cross-community, snaps+waves,
+  //    ranked by interest-tag match + engagement (fetchWarmForYouCandidates).
+  // An onboarded-but-empty-interestTags user (skipped onboarding) is treated
+  // as cold — handing the warm pool an impossible "match nothing" request
+  // would just waste a request for an empty result.
+  const isColdStart = settings.interestsOnboardedAt === null || settings.interestTags.length === 0;
+  const isForYouCold = showTrendingTab && activeFilter === 'community' && isColdStart;
+  const isForYouWarm = showTrendingTab && activeFilter === 'community' && !isColdStart;
+  const warmExtraQuery = `tags=${encodeURIComponent(settings.interestTags.join(','))}${user ? `&username=${encodeURIComponent(user)}` : ''}`;
+
   const snaps = useSnaps({
     filterType: activeFilter,
     username: user || undefined,
-    skip: showBlendedForAll, // blended is covering 'all' right now — don't duplicate the RPC walk
+    skip: showBlendedForAll || isTrendingTab || isForYouCold || isForYouWarm, // covered by another source — don't duplicate the RPC walk
   });
   const blendedFeed = useBlendedFeed({
     username: user || undefined,
     enabled: ENABLE_BLENDED_FEED && activeFilter === 'all',
   });
-  const activeFeedData = showBlendedForAll ? blendedFeed : snaps;
+  const trendingFeed = useTrendingFeed({ enabled: isTrendingTab });
+  const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates' });
+  const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery });
+  const activeFeedData = showBlendedForAll ? blendedFeed : isTrendingTab ? trendingFeed : isForYouWarm ? forYouWarmFeed : isForYouCold ? forYouColdFeed : snaps;
+
+  // Interleaving into the normal feed only makes sense for 'all' — 'For You'
+  // is now itself an engagement-ranked pool for allowlisted accounts (no
+  // point interleaving trending items into a feed that's already trending-
+  // ordered), and 'following'/'patrons' are relationship-curated by design.
+  // The dedicated 'trending' tab already *is* this same pool, so splicing it
+  // into itself would just be confusing duplication.
+  const discoveryEnabled = showTrendingTab && activeFilter === 'all';
+  const { candidates: discoveryItems } = useDiscoveryCandidates({ enabled: discoveryEnabled });
 
   // First-page probe: if the blended source comes back empty, fall back to
   // snaps-only for this session. Scoped to the first page only — a sidecar
@@ -204,6 +242,7 @@ export default function Home() {
             onFilterChange={handleFilterChange}
             communityName={communityName}
             isLoggedIn={isLoggedIn}
+            showTrending={showTrendingTab}
           />
         </Box>
         {!conversation ? (
@@ -218,8 +257,13 @@ export default function Home() {
               data={{...activeFeedData, refresh: activeFeedData.refresh}}
               emptyMessage={
                 activeFilter === 'patrons' ? 'No patrons yet — be the first to support Snapie!' :
+                isTrendingTab ? 'Nothing trending right now — check back soon.' :
+                isForYouWarm ? 'Nothing matching your interests right now — check back soon.' :
+                isForYouCold ? 'Nothing trending in the Snapie community right now — check back soon.' :
                 showBlendedForAll ? 'No snaps or waves yet.' : undefined
               }
+              discoveryItems={discoveryEnabled ? discoveryItems : undefined}
+              discoveryEveryN={DISCOVERY_INTERLEAVE_EVERY_N}
             />
           </>
         ) : (

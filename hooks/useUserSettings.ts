@@ -9,11 +9,21 @@ export type ColorMode = 'dark' | 'light';
 export interface UserSettings {
     payoutType: PayoutType;
     colorMode: ColorMode;
+    /** Combflow category slugs the user picked in the interest onboarding
+     *  modal — the "For You" warm-state signal (see lib/discovery/interestTopics.ts).
+     *  Empty until onboarded, or if they picked nothing (Skip). */
+    interestTags: string[];
+    /** Timestamp the onboarding modal was completed (Save or Skip) — null
+     *  means "never shown/finished yet", which is also treated as cold-start
+     *  for ranking purposes regardless of interestTags. */
+    interestsOnboardedAt: number | null;
 }
 
 const defaults: UserSettings = {
     payoutType: 'half_hbd',
     colorMode: 'dark',
+    interestTags: [],
+    interestsOnboardedAt: null,
 };
 
 function load(): UserSettings {

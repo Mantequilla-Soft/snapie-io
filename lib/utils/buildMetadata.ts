@@ -7,8 +7,10 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 function stripMarkdown(text: string): string {
   return text
-    .replace(/!\[.*?\]\(.*?\)/g, '')        // remove images
-    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')   // links → text only
+    .replace(/!\s*\[.*?\]\s*\(.*?\)/g, '')   // remove images (tolerates stray whitespace, e.g. "! [alt] (url)")
+    .replace(/\[([^\]]*)\]\s*\(.*?\)/g, '$1') // links → text only
+    .replace(/https?:\/\/\S+/g, '')          // bare (non-markdown) URLs, e.g. a raw video-embed link
+    .replace(/\|/g, ' ')                     // markdown table pipes
     .replace(/[#*>`~_\-]/g, '')              // strip markdown chars
     .replace(/\n+/g, ' ')                    // collapse newlines
     .trim();

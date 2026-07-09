@@ -1,9 +1,16 @@
 'use client';
 import {
-    Box, Flex, Heading, Text, VStack, Icon, Divider,
+    Box, Flex, Heading, Text, VStack, Icon, Divider, Button, Wrap, WrapItem, Tag,
 } from '@chakra-ui/react';
-import { FiZap, FiDollarSign, FiMoon, FiSun } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
+import { useState } from 'react';
+import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass } from 'react-icons/fi';
 import { useUserSettings, type PayoutType, type ColorMode } from '@/hooks/useUserSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
+import { INTEREST_TOPICS } from '@/lib/discovery/interestTopics';
+
+const InterestPicker = dynamic(() => import('@/components/onboarding/InterestPicker'), { ssr: false });
 
 interface PayoutOption {
     value: PayoutType;
@@ -57,6 +64,17 @@ const APPEARANCE_OPTIONS: AppearanceOption[] = [
 
 export default function SettingsPage() {
     const { settings, update } = useUserSettings();
+    const { username } = useCurrentUser();
+    const [isInterestPickerOpen, setIsInterestPickerOpen] = useState(false);
+
+    // Discovery Engine Phase 2 — same flag+allowlist gate as everywhere else
+    // this feature appears (see lib/discovery/config.ts). Invisible to
+    // everyone else, so there's nothing confusing left behind if the feature
+    // is ever turned off again.
+    const showInterestsSection = isDiscoveryEnabledFor(username);
+    const selectedTopicLabels = INTEREST_TOPICS.filter(topic =>
+        topic.tags.some(tag => settings.interestTags.includes(tag)),
+    );
 
     return (
         <Box maxW="640px" mx="auto" px={{ base: 4, md: 8 }} py={10}>
@@ -285,6 +303,83 @@ export default function SettingsPage() {
                     </VStack>
                 </Box>
             </Box>
+
+            {showInterestsSection && (
+                <Box
+                    bg="surface"
+                    borderRadius="16px"
+                    border="1px solid"
+                    borderColor="surfaceBorder"
+                    backdropFilter="blur(18px)"
+                    overflow="hidden"
+                    mt={6}
+                >
+                    <Box px={6} py={4}>
+                        <Text fontSize="xs" fontWeight="semibold" color="overlay.500" textTransform="uppercase" letterSpacing="0.08em">
+                            Discovery
+                        </Text>
+                    </Box>
+
+                    <Divider borderColor="surfaceBorder" />
+
+                    <Box px={6} py={5}>
+                        <Flex align="center" gap={4} mb={4}>
+                            <Flex
+                                flexShrink={0}
+                                w="36px"
+                                h="36px"
+                                borderRadius="10px"
+                                bg="rgba(28, 161, 241, 0.15)"
+                                align="center"
+                                justify="center"
+                            >
+                                <Icon as={FiCompass} boxSize={4} color="primary" />
+                            </Flex>
+                            <Box flex={1}>
+                                <Text color="text" fontWeight="medium" fontSize="sm" mb={1}>
+                                    Your interests
+                                </Text>
+                                <Text color="overlay.500" fontSize="xs">
+                                    Drives what &quot;For You&quot; surfaces from outside the Snapie community.
+                                </Text>
+                            </Box>
+                        </Flex>
+
+                        {selectedTopicLabels.length > 0 ? (
+                            <Wrap spacing={2} mb={4}>
+                                {selectedTopicLabels.map(topic => (
+                                    <WrapItem key={topic.label}>
+                                        <Tag
+                                            size="md"
+                                            borderRadius="full"
+                                            px={3}
+                                            py={1}
+                                            bg="rgba(28, 161, 241, 0.08)"
+                                            color="text"
+                                            border="1px solid"
+                                            borderColor="rgba(28, 161, 241, 0.3)"
+                                        >
+                                            {topic.label}
+                                        </Tag>
+                                    </WrapItem>
+                                ))}
+                            </Wrap>
+                        ) : (
+                            <Text color="overlay.500" fontSize="xs" mb={4}>
+                                No interests selected yet — &quot;For You&quot; is showing Snapie-community trending content instead.
+                            </Text>
+                        )}
+
+                        <Button size="sm" variant="outline" onClick={() => setIsInterestPickerOpen(true)}>
+                            {selectedTopicLabels.length > 0 ? 'Edit interests' : 'Choose interests'}
+                        </Button>
+                    </Box>
+                </Box>
+            )}
+
+            {isInterestPickerOpen && (
+                <InterestPicker mode="edit" onDone={() => setIsInterestPickerOpen(false)} />
+            )}
         </Box>
     );
 }
