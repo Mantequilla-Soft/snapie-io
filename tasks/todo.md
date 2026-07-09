@@ -115,6 +115,19 @@ User's call: mechanisms verified against real data, rollback is a one-line flag 
 - Full regression pass before flipping: `tsc --noEmit`, `pnpm test` (54/54), `pnpm build` all clean.
 - **Still outstanding, not done by me**: the actual production deploy (this session only ever ran `pnpm dev`/`pnpm build` locally on port 3310 — never confirmed access to the real production host or its `NEXT_PUBLIC_ENABLE_DISCOVERY_SNAPS` env value).
 
+### Env doc gap fixed (2026-07-09)
+`NEXT_PUBLIC_ENABLE_DISCOVERY_SNAPS` was never added to `.env.local.example` (the tracked template) — added with a comment noting it's build-time (requires rebuild + pm2 restart, not just a server restart), matching the existing `NEXT_PUBLIC_ENABLE_BLENDED_FEED` documentation pattern. Committed + pushed.
+
+### Bug fix — old snap payout showing $0.00 (2026-07-09)
+User-reported, unrelated to Discovery Engine: an 8-day-old snap by @beelzael showed $0.00 instead of its real payout. Same class of bug as an earlier "blogs older than 7 days" fix, but that fix has its own latent gap.
+- **Root cause**: `getPayoutValue` (`lib/hive/client-functions.ts`) picks `total_payout_value` vs `pending_payout_value` based on whether `Date.now() - new Date(post.created).getTime()` is ≥ 7 days. Hive's `created` timestamps omit the trailing `Z`, so `new Date(post.created)` parses them as the **viewer's local time**, not UTC. Confirmed directly against this exact snap's real data (`created: 2026-07-01T23:13:24`, true UTC age 7.16 days, `total_payout_value: 0.252 HBD`, `pending_payout_value: 0.000 HBD` — already zeroed out since the window really has closed): on this UTC-5 system the local-parsed age computed as 6.95 days, landing just under the cutoff, so it read the now-empty `pending_payout_value` instead of the real `0.252`. `lib/utils/GetPostDate.ts` already had the correct UTC-normalization fix for this exact Hive quirk — `getPayoutValue` just never got it.
+- **Fix**: append `Z` to `post.created` before parsing, mirroring `GetPostDate.ts`'s existing pattern exactly.
+- New `lib/hive/client-functions.test.ts` (first test file for this module).
+
+**Follow-up, same session**: user noticed the fixed value ($0.252) still didn't match PeakD ($0.50) on this exact post. Real second bug: `getPayoutValue`'s post-cashout branch returned `total_payout_value` alone, which is only the **author's** share — post-cashout, Hive splits the full pot into `total_payout_value` (author) + `curator_payout_value` (curators). Confirmed against the exact numbers: `0.252 + 0.251 = 0.503`, matching PeakD's $0.50 precisely. Fixed by summing both fields (the pending-payout branch was already correct — `pending_payout_value` is the whole pre-split pot, no addition needed there). Updated the 2 affected tests to expect the summed total using the real numbers, added a third test for a missing `curator_payout_value` defaulting to zero (no NaN). 6 tests total now.
+- Verified live against the real post again: now shows $0.503, matching PeakD.
+- `tsc --noEmit`, `pnpm test` (60/60), `pnpm build` all clean.
+
 ---
 
 # Plan — Peer-Sponsored Account Creation (à la hive.io /join)

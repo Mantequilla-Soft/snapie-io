@@ -784,10 +784,28 @@ export function getPayoutValue(post: any): string {
     return post.payout.toFixed(3);
   }
 
-  // Condenser API: pick field based on whether the 7-day payout window has closed
-  const timeDifferenceInDays = (Date.now() - new Date(post.created).getTime()) / (1000 * 60 * 60 * 24);
+  // Condenser API: pick field based on whether the 7-day payout window has
+  // closed. Hive timestamps omit the trailing 'Z' — append it so the string
+  // is parsed as UTC rather than the viewer's local time (same fix as
+  // lib/utils/GetPostDate.ts). Without this, a post whose true UTC age is
+  // just past 7 days can parse as just *under* 7 days for any viewer west
+  // of UTC, incorrectly reading the now-empty pending_payout_value (0.000)
+  // instead of the real total_payout_value — confirmed live on a real snap.
+  const normalizedCreated = typeof post.created === 'string' && !post.created.endsWith('Z')
+    ? `${post.created}Z`
+    : post.created;
+  const timeDifferenceInDays = (Date.now() - new Date(normalizedCreated).getTime()) / (1000 * 60 * 60 * 24);
   if (timeDifferenceInDays >= 7) {
-    return (post.total_payout_value ?? "0.000 HBD").replace(" HBD", "");
+    // total_payout_value alone is only the author's share — post-cashout,
+    // Hive splits the full pot into total_payout_value (author) +
+    // curator_payout_value (curators). pending_payout_value (below, used
+    // before cashout) is already the whole pot pre-split, so this addition
+    // only applies here. Confirmed against a real post: PeakD showed $0.50,
+    // we showed $0.252 (author-only) — total_payout_value (0.252) +
+    // curator_payout_value (0.251) = 0.503, matching PeakD.
+    const authorShare = parseFloat((post.total_payout_value ?? "0.000 HBD").replace(" HBD", "")) || 0;
+    const curatorShare = parseFloat((post.curator_payout_value ?? "0.000 HBD").replace(" HBD", "")) || 0;
+    return (authorShare + curatorShare).toFixed(3);
   }
   return (post.pending_payout_value ?? "0.000 HBD").replace(" HBD", "");
 }
