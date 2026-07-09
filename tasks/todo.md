@@ -332,3 +332,28 @@ Blog page gets a source selector like peakd: **Snapie** (community, default) / *
 - Note: `LoginModalContext` clears `hiveuser` unless an Aioha/Snapie session exists — simulating login requires setting the Aioha keys too.
 - Nav renamed Blog → Blogs in Sidebar, BottomTabBar, FooterNavigation (labels + tooltips; route stays `/blog`).
 - `tsc --noEmit` clean.
+
+---
+
+# Fix — Wallet send-amount leading zero + real-time username lookup (2026-07-09)
+
+## Problem (reported by meno, unrelated to Discovery Engine work)
+1. Send HIVE/HBD amount field started at `"0"`; typing "1" produced `"01"` instead of replacing the zero.
+2. No feedback on who you're sending to — a typo'd recipient is invisible until after the transaction.
+
+## Root cause (leading zero)
+`components/wallet/WalletModal.tsx` held the amount as a parsed `number` in state, bound to a controlled `<input type="number">`. React skips re-syncing the DOM value when the parsed number already equals the current state (so it doesn't stomp on in-progress typing like `"1."`) — so a stale `"0"` character the user never explicitly cleared survives every keystroke after it.
+
+## Changes
+- `amount` state changed from `number` to raw `amountText: string`, starting `''` (not `'0'`) — no leading zero ever exists to collide with. Numeric `amount` is derived via `parseFloat(amountText) || 0`.
+- Added debounced (1000ms) real-time username lookup: `HiveClient.database.getAccounts([username])` on typing pause, shows a `Spinner` while checking, an `Avatar` (via existing `getHiveAvatarUrl`) on a real account, and inline red "No Hive account found" text + red input border on a miss. Confirm button disabled while status is `not-found`.
+- Edge case found during live testing: Hive account names are capped at 16 chars — the RPC node throws an `assert_exception` for anything longer, which the original catch-all silently reset to `idle` (no feedback at all). Added a client-side length check (`trimmed.length > 16`) that routes straight to the `not-found` state instead of hitting the network.
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 60/60 pass, `pnpm build` clean.
+- Live browser (Playwright) as `@snapieapp`, Send HIVE modal:
+  - Amount field opens empty; typing "1" shows DOM value `"1"` (not `"01"`).
+  - Typing "meno" → after debounce, avatar renders next to the field.
+  - Typing a valid-format but nonexistent username (`notarealacct99`) → red border + "No Hive account found with this username." + Confirm disabled.
+  - Typing a 40-char username → immediately (no network round-trip) shows the same not-found state instead of silently doing nothing.
+- Committed and pushed to main for VPS redeploy.

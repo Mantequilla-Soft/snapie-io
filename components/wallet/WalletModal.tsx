@@ -1,6 +1,8 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select } from '@chakra-ui/react';
+import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Avatar, Spinner } from '@chakra-ui/react';
 import type { SwapDirection } from '@/lib/hive/client-functions';
+import HiveClient from '@/lib/hive/hiveclient';
+import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface WalletModalSwapConfig {
     enabled: boolean;
@@ -26,29 +28,92 @@ interface WalletModalProps {
 
 const SLIPPAGE_PRESETS = [0.1, 0.5, 1.0];
 
+type UsernameLookupStatus = 'idle' | 'checking' | 'found' | 'not-found';
+
+// How long to wait after the last keystroke before checking whether the
+// typed username is a real Hive account — user asked for "1, maybe 2
+// seconds" so they're clearly done typing before we spend a network call.
+const USERNAME_LOOKUP_DEBOUNCE_MS = 1000;
+
 export default function WalletModal ({ isOpen, onClose, title, description, showMemoField = false, showUsernameField = false, swapConfig, initialTo, initialAmount, initialMemo, onConfirm }: WalletModalProps) {
-    const [amount, setAmount] = useState<number>(initialAmount ?? 0);
+    // Raw typed text, not a parsed number — a controlled number input whose
+    // value is a number React re-renders as a string, but React deliberately
+    // skips re-syncing the DOM when the current text already parses to the
+    // same number (so mid-typing states like "1." aren't stomped on). That
+    // means a stale leading "0" a user didn't clear survives every future
+    // keystroke ("0" + typing "1" => "01", forever). Storing the raw string
+    // sidesteps this entirely, and starting empty (not "0") means there's
+    // never a leading zero to collide with in the first place.
+    const [amountText, setAmountText] = useState<string>(initialAmount ? String(initialAmount) : '');
     const [memo, setMemo] = useState<string>(initialMemo ?? '');
     const [username, setUsername] = useState<string>(initialTo ?? '');
     const [isLoading, setIsLoading] = useState(false);
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
+    const [usernameLookupStatus, setUsernameLookupStatus] = useState<UsernameLookupStatus>('idle');
+    const [usernameAvatarUrl, setUsernameAvatarUrl] = useState<string>('');
+
+    const amount = parseFloat(amountText) || 0;
 
     // Reset form fields each time the modal opens (picks up any new initial values from QR)
     useEffect(() => {
         if (isOpen) {
-            setAmount(initialAmount ?? 0);
+            setAmountText(initialAmount ? String(initialAmount) : '');
             setMemo(initialMemo ?? '');
             setUsername(initialTo ?? '');
             setIsLoading(false);
             setCustomSlippage('');
             setSelectedSlippage('');
+            setUsernameLookupStatus('idle');
+            setUsernameAvatarUrl('');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
+    // Debounced real-time lookup — confirms the typed username is a real
+    // Hive account and shows their avatar, so a mistyped recipient is
+    // obvious before hitting Confirm rather than after.
+    useEffect(() => {
+        if (!showUsernameField) return;
+        const trimmed = username.trim().toLowerCase();
+        if (!trimmed) {
+            setUsernameLookupStatus('idle');
+            setUsernameAvatarUrl('');
+            return;
+        }
+        // Hive account names are capped at 16 chars — the RPC node throws
+        // an assert_exception for anything longer, which isn't a network
+        // hiccup, it's a definite "not a real account." Catch it here so
+        // it lands on the same not-found feedback instead of the catch
+        // block below quietly resetting to no verdict shown.
+        if (trimmed.length > 16) {
+            setUsernameAvatarUrl('');
+            setUsernameLookupStatus('not-found');
+            return;
+        }
+        setUsernameLookupStatus('checking');
+        const timeoutId = setTimeout(async () => {
+            try {
+                const accounts = await HiveClient.database.getAccounts([trimmed]);
+                if (accounts.length > 0) {
+                    setUsernameAvatarUrl(getHiveAvatarUrl(trimmed, 'small'));
+                    setUsernameLookupStatus('found');
+                } else {
+                    setUsernameAvatarUrl('');
+                    setUsernameLookupStatus('not-found');
+                }
+            } catch {
+                // Network hiccup — don't block sending on a failed check,
+                // just drop back to no verdict shown.
+                setUsernameAvatarUrl('');
+                setUsernameLookupStatus('idle');
+            }
+        }, USERNAME_LOOKUP_DEBOUNCE_MS);
+        return () => clearTimeout(timeoutId);
+    }, [username, showUsernameField]);
+
     const handleAmountChange = (e: ChangeEvent<HTMLInputElement>) => {
-        setAmount(parseFloat(e.target.value) || 0);
+        setAmountText(e.target.value);
     };
 
     const handleMemoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -107,7 +172,7 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                         <Input
                             type="number"
                             placeholder="Enter amount"
-                            value={amount}
+                            value={amountText}
                             onChange={handleAmountChange}
                             min={0}
                         />
@@ -171,11 +236,23 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                     )}
                     {showUsernameField && (
                         <Box mb={4}>
-                            <Input
-                                placeholder="Enter username"
-                                value={username}
-                                onChange={handleUsernameChange}
-                            />
+                            <HStack spacing={2}>
+                                <Input
+                                    placeholder="Enter username"
+                                    value={username}
+                                    onChange={handleUsernameChange}
+                                    borderColor={usernameLookupStatus === 'not-found' ? 'red.400' : undefined}
+                                />
+                                {usernameLookupStatus === 'checking' && <Spinner size="sm" flexShrink={0} />}
+                                {usernameLookupStatus === 'found' && (
+                                    <Avatar size="sm" src={usernameAvatarUrl} name={username} flexShrink={0} />
+                                )}
+                            </HStack>
+                            {usernameLookupStatus === 'not-found' && (
+                                <Text fontSize="xs" color="red.400" mt={1}>
+                                    No Hive account found with this username.
+                                </Text>
+                            )}
                         </Box>
                     )}
                     {showMemoField && (
@@ -195,7 +272,11 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                         onClick={handleConfirm}
                         isLoading={isLoading}
                         loadingText="Processing…"
-                        isDisabled={isLoading || (isSwapMode && (effectiveSlippage === undefined || Number.isNaN(effectiveSlippage) || effectiveSlippage < 0 || effectiveSlippage > 20))}
+                        isDisabled={
+                            isLoading ||
+                            (isSwapMode && (effectiveSlippage === undefined || Number.isNaN(effectiveSlippage) || effectiveSlippage < 0 || effectiveSlippage > 20)) ||
+                            (showUsernameField && usernameLookupStatus === 'not-found')
+                        }
                     >
                         Confirm
                     </Button>
