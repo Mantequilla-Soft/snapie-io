@@ -1,4 +1,4 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Wrap, WrapItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
@@ -265,26 +265,30 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
 
                     {/* Right column: header + content + actions */}
                     <Box flex={1} minW={0} pt="4px">
-                        {/* Header row: name · date + edit icon */}
-                        <Flex align="center" justify="space-between" mb={1}>
-                            <HStack spacing={1} overflow="hidden" flex={1} minW={0}>
-                                <Link
-                                    as={NextLink}
-                                    href={`/@${comment.author}`}
-                                    fontWeight="semibold"
-                                    fontSize="sm"
-                                    noOfLines={1}
-                                    _hover={{ color: 'primary' }}
-                                >
-                                    @{comment.author}
-                                </Link>
-                                <PatronBadge tier={getTier(comment.author)} />
-                                {comment.source === 'wave' && <WaveBadge />}
-                                {comment.isDiscovery && comment.discoveryReason === 'trending' && <TrendingBadge />}
-                                {isSnapieCommunityPost(comment) && <SnapieCommunityBadge />}
-                                <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
-                                <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
-                            </HStack>
+                        {/* Header row: name · date, badges wrap to their own line if they don't fit */}
+                        <Flex align="flex-start" justify="space-between" mb={1}>
+                            <Wrap spacing={1} align="center" flex={1} minW={0}>
+                                <WrapItem>
+                                    <HStack spacing={1}>
+                                        <Link
+                                            as={NextLink}
+                                            href={`/@${comment.author}`}
+                                            fontWeight="semibold"
+                                            fontSize="sm"
+                                            noOfLines={1}
+                                            _hover={{ color: 'primary' }}
+                                        >
+                                            @{comment.author}
+                                        </Link>
+                                        <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
+                                        <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
+                                    </HStack>
+                                </WrapItem>
+                                {getTier(comment.author) && <WrapItem><PatronBadge tier={getTier(comment.author)} /></WrapItem>}
+                                {comment.source === 'wave' && <WrapItem><WaveBadge /></WrapItem>}
+                                {comment.isDiscovery && comment.discoveryReason === 'trending' && <WrapItem><TrendingBadge /></WrapItem>}
+                                {isSnapieCommunityPost(comment) && <WrapItem><SnapieCommunityBadge /></WrapItem>}
+                            </Wrap>
                             {canEdit && (
                                 <Box
                                     as="button"

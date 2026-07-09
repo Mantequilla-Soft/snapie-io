@@ -357,3 +357,21 @@ Blog page gets a source selector like peakd: **Snapie** (community, default) / *
   - Typing a valid-format but nonexistent username (`notarealacct99`) → red border + "No Hive account found with this username." + Confirm disabled.
   - Typing a 40-char username → immediately (no network round-trip) shows the same not-found state instead of silently doing nothing.
 - Committed and pushed to main for VPS redeploy.
+
+---
+
+# Fix — Snap header badges crowd out the author name on mobile (2026-07-09)
+
+## Problem (reported by meno)
+`@oldmans` has a snap in the Trending pool. Between his Patron (Snaperino) badge, the Trending badge, and the Snapie Community badge, all crammed onto one line with his `@username`, the name became unreadable on mobile — the pills ate all the horizontal space.
+
+## Root cause
+`components/homepage/Snap.tsx`'s header row rendered name + all badges + date in a single `HStack` with `overflow="hidden" flex={1} minW={0}` — every badge added shrank the remaining space for the name, with no fallback once it ran out.
+
+## Fix
+Reworked the header into a Chakra `Wrap`: name + date are grouped in the first `WrapItem` (always rendered together, never split), each badge (Patron, Wave, Trending, Snapie Community) is its own `WrapItem` after that. `Wrap` only drops items to a second line once the row actually runs out of room — on desktop/wide mobile everything still sits on one line exactly as before; on narrow screens with several badges, the badges flow to line 2 while the name+date stay fully readable on line 1. One shared component, so this covers the home feed, snaps conversations, and blog-post comments alike (same component fixed for the reply-indentation bug on 2026-07-03).
+
+## Verification
+- `tsc --noEmit` clean, `pnpm test` 60/60 pass, `pnpm build` clean.
+- Live browser (Playwright) at 390px (iPhone-width) and 260px (extreme narrow, to force the wrap deterministically without hunting for a specific multi-badge post): confirmed a single-badge post (`@rachaeldwatson` + TRENDING) renders normally at 390px, and at 260px the TRENDING badge cleanly drops to its own second line while `@rachael…` (truncated) + date stay intact on line 1 — proving the wrap mechanism triggers correctly rather than squishing the name. Since `Wrap` is pure flex-wrap, additional badges (Patron/Wave/Snapie Community) follow the same reflow rule.
+- Did not reproduce `@oldmans`' exact snap directly (couldn't locate the specific trending snap via the Hive bridge API in the time available — his `bridge.get_account_posts` results were long-form blog posts, not the snap in question); the generic wrap-mechanism proof above covers the fix regardless of which/how-many badges apply.
