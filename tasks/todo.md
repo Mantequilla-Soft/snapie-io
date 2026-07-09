@@ -375,3 +375,27 @@ Reworked the header into a Chakra `Wrap`: name + date are grouped in the first `
 - `tsc --noEmit` clean, `pnpm test` 60/60 pass, `pnpm build` clean.
 - Live browser (Playwright) at 390px (iPhone-width) and 260px (extreme narrow, to force the wrap deterministically without hunting for a specific multi-badge post): confirmed a single-badge post (`@rachaeldwatson` + TRENDING) renders normally at 390px, and at 260px the TRENDING badge cleanly drops to its own second line while `@rachael…` (truncated) + date stay intact on line 1 — proving the wrap mechanism triggers correctly rather than squishing the name. Since `Wrap` is pure flex-wrap, additional badges (Patron/Wave/Snapie Community) follow the same reflow rule.
 - Did not reproduce `@oldmans`' exact snap directly (couldn't locate the specific trending snap via the Hive bridge API in the time available — his `bridge.get_account_posts` results were long-form blog posts, not the snap in question); the generic wrap-mechanism proof above covers the fix regardless of which/how-many badges apply.
+
+---
+
+# Fix — security: reject private/local-network URLs in post & snap content (2026-07-09)
+
+## Problem (reported by meno via browser console)
+Viewing a real snap (`@meno/20260709t024538346z`) threw repeated `Mixed Content` warnings and `ERR_ADDRESS_UNREACHABLE` for `http://192.168.0.180/wordpress/wp-content/uploads/...jpg` — some reply in that thread embedded an image hosted on the *author's own home-network IP*. Every visitor's browser auto-attempted that request on page load. Separately, meno saw a Chrome "wants to access devices on your local network" prompt (unrelated root cause — that one's Hangouts/LiveKit WebRTC ICE gathering, confirmed pre-existing and properly gated behind `activeRoom`, not touched here) — but investigating it surfaced this real, unrelated, more serious issue: **nothing validated the *host* of a post/snap's image, video, or iframe URLs**, only the scheme (`http:`/`https:`). Any author (deliberately or by accident, e.g. pasting a local dev/CMS URL) could embed a private-network address that every viewer's own browser would auto-fetch with zero interaction — mixed-content breakage at best, an unsolicited probe of whatever's listening on that viewer's LAN at worst.
+
+## Root cause
+Two independent content pipelines, two independent gaps:
+- **Snaps** (`lib/utils/snapUtils.ts` `parseMediaContent`): extracts `![alt](url)`/`<iframe src>` via regex directly from snap markdown and hands the raw URL straight to `MediaRenderer`/`ImageCarousel` — **no sanitization pipeline touches this path at all**, DOMPurify is never called for the image/video render.
+- **Blog posts** (`packages/renderer/src/index.ts`, the `@snapie/renderer` package): DOMPurify's `ALLOWED_URI_REGEXP` only checks URL scheme, never host, so `<img src="http://192.168.x.x/...">` sails through untouched.
+
+## Fix
+- `lib/utils/snapUtils.ts` — new exported `isPrivateNetworkUrl(url)`: checks hostname against RFC1918 ranges (10/8, 172.16/12, 192.168/16), loopback (127/8, `::1`), link-local (169.254/16, `fe80::/10`), `localhost`, and mDNS `.local` names. Applied at the two places `parseMediaContent` extracts a raw URL (markdown image/video regex, raw `<iframe src>` regex) — matching URLs are skipped, not pushed as a media item.
+- `packages/renderer/src/index.ts` — same host-check, added as a second `uponSanitizeAttribute` DOMPurify hook (same hook point already used for the CSS-overlay fix on 2026-07-06): strips `src` on any auto-loading tag (`img`/`video`/`source`/`audio`/`iframe`) whose host matches. `<a href>` links are deliberately left alone — a link takes a click, it isn't an automatic fetch. Rebuilt the package (`npx tsup` in `packages/renderer`) since the app consumes `dist/`, not `src/` directly.
+- `components/shared/MediaRenderer.tsx`'s separate DOMPurify instance needed no change — its iframe embed path already uses a strict domain allowlist (`ALLOWED_URI_REGEXP` matching only youtube/3speak/twitter/etc. literal domains), so a private IP could never match it in the first place.
+
+## Verification
+- `tsc --noEmit` clean (both the app and the `packages/renderer` package), `pnpm test` 69/69 pass (9 new: `lib/utils/snapUtils.test.ts` — RFC1918/loopback/link-local/mDNS detection, public-URL passthrough, unparseable-URL fallback, `parseMediaContent` dropping a private-IP image/iframe and keeping a public one).
+- `pnpm build` clean.
+- Ran the actual built `packages/renderer/dist/index.js` against the reported attack shape directly (Node, not just types): `![photo](http://192.168.0.180/...)` → renders as `<img alt="photo">` with `src` stripped entirely; a public `images.hive.blog` image in the same markdown passes through unaffected. Also verified `<iframe src="http://192.168.1.1/admin">` and `<video src="http://10.0.0.5/...">` both lose their `src`, and `http://my-nas.local/...` (mDNS) is caught too.
+- Live browser (Playwright) reload of the exact reported snap (`@meno/20260709t024538346z`): the `192.168.0.180` Mixed Content errors are gone; thread renders normally with no layout breakage. Remaining console output (hivesense-api CORS from the localhost dev origin, a combflow 404, a pre-existing hydration warning) is unrelated pre-existing noise, unchanged by this fix.
+- Committed and pushed to main for VPS redeploy.

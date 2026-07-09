@@ -136,6 +136,31 @@ DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
     data.attrValue = data.attrValue.split(";").filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl)).join(";");
   }
 });
+var AUTO_LOAD_SRC_TAGS = /* @__PURE__ */ new Set(["img", "video", "source", "audio", "iframe"]);
+var PRIVATE_HOSTNAME_PATTERNS = [
+  /^localhost$/i,
+  /\.local$/i,
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^169\.254\./,
+  /^0\.0\.0\.0$/,
+  /^\[?::1]?$/,
+  /^\[?f[cd][0-9a-f]{2}:/i,
+  /^\[?fe80:/i
+];
+DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
+  if (data.attrName !== "src" || !data.attrValue) return;
+  if (!AUTO_LOAD_SRC_TAGS.has(node.nodeName.toLowerCase())) return;
+  try {
+    const { hostname } = new URL(data.attrValue, "https://placeholder.invalid");
+    if (PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))) {
+      data.keepAttr = false;
+    }
+  } catch {
+  }
+});
 function fixMalformedCenterTags(content) {
   return content.replace(
     /<p><center>([\s\S]*?)<hr \/>([\s\S]*?)<\/center><\/p>/gi,

@@ -165,6 +165,45 @@ DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
 });
 
 /**
+ * ALLOWED_URI_REGEXP above only checks URL *scheme* (http/https/etc), never
+ * *host* — so <img src="http://192.168.1.1/..."> from a post body sails
+ * straight through. Every visitor's own browser then fires an automatic
+ * request at that address: a mixed-content warning (http on this https
+ * site) at best, an unsolicited probe of whatever's on that visitor's own
+ * LAN at worst. Strip `src` on auto-loading elements (img/video/source/
+ * audio/iframe) whose host is a private/loopback/link-local address or an
+ * mDNS `.local` name. Links (<a href>) are left alone — navigating there
+ * takes a click, it isn't an automatic fetch.
+ */
+const AUTO_LOAD_SRC_TAGS = new Set(['img', 'video', 'source', 'audio', 'iframe']);
+const PRIVATE_HOSTNAME_PATTERNS = [
+    /^localhost$/i,
+    /\.local$/i,
+    /^127\./,
+    /^10\./,
+    /^192\.168\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^169\.254\./,
+    /^0\.0\.0\.0$/,
+    /^\[?::1]?$/,
+    /^\[?f[cd][0-9a-f]{2}:/i,
+    /^\[?fe80:/i,
+];
+
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+    if (data.attrName !== 'src' || !data.attrValue) return;
+    if (!AUTO_LOAD_SRC_TAGS.has(node.nodeName.toLowerCase())) return;
+    try {
+        const { hostname } = new URL(data.attrValue, 'https://placeholder.invalid');
+        if (PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))) {
+            data.keepAttr = false;
+        }
+    } catch {
+        // Unparseable src — leave it to ALLOWED_URI_REGEXP.
+    }
+});
+
+/**
  * Fix malformed center tags from DefaultRenderer
  * DefaultRenderer sometimes produces: <p><center>...content...<hr />...more content...</center></p>
  */

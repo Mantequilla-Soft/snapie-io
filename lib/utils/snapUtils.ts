@@ -456,6 +456,39 @@ const isIpfsUrl = (url: string): boolean => {
 };
 
 /**
+ * Detect URLs pointing at a private/local network host (RFC1918, loopback,
+ * link-local, mDNS .local, IPv6 equivalents). Post/snap bodies are public
+ * content viewed by everyone, not just the author — an `![img](http://192.168.x.x/...)`
+ * only ever "works" for whoever happens to be on that exact LAN. For
+ * everyone else it's a broken image, a mixed-content warning (http on an
+ * https page), and a request their own browser fires at a private address
+ * with zero user interaction. Reject these at extraction time so they never
+ * reach an <img>/<video> src.
+ */
+const PRIVATE_HOSTNAME_PATTERNS = [
+  /^localhost$/i,
+  /\.local$/i,
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^169\.254\./,
+  /^0\.0\.0\.0$/,
+  /^\[?::1]?$/,
+  /^\[?f[cd][0-9a-f]{2}:/i,
+  /^\[?fe80:/i,
+];
+
+export const isPrivateNetworkUrl = (url: string): boolean => {
+  try {
+    const { hostname } = new URL(url);
+    return PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname));
+  } catch {
+    return false;
+  }
+};
+
+/**
  * Convert any IPFS gateway URL to skatehive gateway for consistency
  */
 const convertToSkatehiveGateway = (url: string): string => {
@@ -620,7 +653,9 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       while ((match = imageRegex.exec(trimmedItem)) !== null) {
         const url = match[1];
         const fullMatch = match[0]; // The complete ![...](url) pattern
-        
+
+        if (isPrivateNetworkUrl(url)) continue;
+
         // Check if it's an IPFS URL
         if (isIpfsUrl(url)) {
           // Convert to skatehive gateway for consistency
@@ -684,9 +719,9 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
     // Handle iframes
     if (trimmedItem.includes("<iframe") && trimmedItem.includes("</iframe>")) {
       const srcMatch = trimmedItem.match(/src=["']([^"']+)["']/i);
-      if (srcMatch && srcMatch[1]) {
+      if (srcMatch && srcMatch[1] && !isPrivateNetworkUrl(srcMatch[1])) {
         let url = srcMatch[1];
-        
+
         // Add mode=iframe to 3Speak URLs if not present
         if (url.includes('play.3speak.tv/embed?v=') && !url.includes('mode=iframe')) {
           url += '&mode=iframe';
