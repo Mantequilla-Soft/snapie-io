@@ -167,15 +167,20 @@ function getSelectionFromTextarea(textarea) {
   };
 }
 function applyToTextarea(textarea, result, onChange) {
-  textarea.value = result.text;
+  const restoreSelection = () => {
+    textarea.focus();
+    if (result.selection) {
+      textarea.setSelectionRange(result.selection.start, result.selection.end);
+    } else {
+      textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+    }
+  };
   if (onChange) {
     onChange(result.text);
-  }
-  textarea.focus();
-  if (result.selection) {
-    textarea.setSelectionRange(result.selection.start, result.selection.end);
+    requestAnimationFrame(restoreSelection);
   } else {
-    textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+    textarea.value = result.text;
+    restoreSelection();
   }
 }
 function createKeyboardHandler(getText, getSelection, applyResult) {
@@ -214,5 +219,5 @@ function createKeyboardHandler(getText, getSelection, applyResult) {
 }
 
 export { ALL_COMMON_EMOJIS, COMMON_EMOJIS, applyToTextarea, createKeyboardHandler, getSelectionFromTextarea, insertBlockquote, insertBold, insertBulletList, insertCodeBlock, insertEmoji, insertGif, insertH1, insertH2, insertH3, insertH4, insertH5, insertH6, insertHeader, insertHorizontalRule, insertImage, insertInlineCode, insertItalic, insertLink, insertMention, insertNumberedList, insertSpoiler, insertStrikethrough, insertTable, insertUnderline };
-//# sourceMappingURL=chunk-EPR6YJQY.mjs.map
-//# sourceMappingURL=chunk-EPR6YJQY.mjs.map
+//# sourceMappingURL=chunk-3DQAWNI6.mjs.map
+//# sourceMappingURL=chunk-3DQAWNI6.mjs.map

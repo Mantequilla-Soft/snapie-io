@@ -399,17 +399,28 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     const handleTable = () => toolbar.table(2, 2);
     const handleSpoiler = () => toolbar.spoiler('Hidden Spoiler Text');
     
+    // Chakra's Menu unconditionally refocuses its own trigger button when it
+    // closes (no config prop for this in the installed Chakra version), which
+    // races with — and can beat — applyToTextarea's own textarea.focus()
+    // call, leaving focus stuck on the "H"/emoji button instead of back in
+    // the editor. Re-focusing one macrotask later guarantees this runs after
+    // Chakra's own focus-restore has already happened.
+    const refocusEditor = () => {
+        setTimeout(() => textareaRef.current?.focus(), 0);
+    };
+
     // Header actions using SDK
-    const handleHeader1 = () => toolbar.header(1);
-    const handleHeader2 = () => toolbar.header(2);
-    const handleHeader3 = () => toolbar.header(3);
-    const handleHeader4 = () => toolbar.header(4);
-    const handleHeader5 = () => toolbar.header(5);
-    const handleHeader6 = () => toolbar.header(6);
+    const handleHeader1 = () => { toolbar.header(1); refocusEditor(); };
+    const handleHeader2 = () => { toolbar.header(2); refocusEditor(); };
+    const handleHeader3 = () => { toolbar.header(3); refocusEditor(); };
+    const handleHeader4 = () => { toolbar.header(4); refocusEditor(); };
+    const handleHeader5 = () => { toolbar.header(5); refocusEditor(); };
+    const handleHeader6 = () => { toolbar.header(6); refocusEditor(); };
 
     // Handle emoji selection using SDK
     const handleEmojiClick = (emoji: string) => {
         toolbar.emoji(emoji);
+        refocusEditor();
     };
 
     // Handle video selection and upload to 3Speak (not marked as short)

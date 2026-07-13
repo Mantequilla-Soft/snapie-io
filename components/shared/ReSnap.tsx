@@ -88,6 +88,23 @@ export default function ReSnap({ comment }: ReSnapProps) {
                         "& ul": { paddingLeft: "1.5em", marginBottom: 2, listStyleType: "disc" },
                         "& ol": { paddingLeft: "1.5em", marginBottom: 2, listStyleType: "decimal" },
                         "& li": { marginBottom: "0.15em", lineHeight: "1.6" },
+                        "& blockquote": {
+                            borderLeft: "3px solid",
+                            borderColor: "border",
+                            marginTop: "0.5em",
+                            marginBottom: "0.5em",
+                            marginLeft: 0,
+                            paddingLeft: "0.75em",
+                            paddingRight: "0.75em",
+                            paddingTop: "0.25em",
+                            paddingBottom: "0.25em",
+                            fontStyle: "italic",
+                            color: "secondary",
+                            bg: "muted",
+                            borderRadius: "0 6px 6px 0",
+                        },
+                        "& blockquote p": { marginBottom: "0.25em" },
+                        "& blockquote p:last-child": { marginBottom: 0 },
                     }}
                 />
             )}

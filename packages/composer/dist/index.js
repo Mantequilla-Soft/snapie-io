@@ -169,15 +169,20 @@ function getSelectionFromTextarea(textarea) {
   };
 }
 function applyToTextarea(textarea, result, onChange) {
-  textarea.value = result.text;
+  const restoreSelection = () => {
+    textarea.focus();
+    if (result.selection) {
+      textarea.setSelectionRange(result.selection.start, result.selection.end);
+    } else {
+      textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+    }
+  };
   if (onChange) {
     onChange(result.text);
-  }
-  textarea.focus();
-  if (result.selection) {
-    textarea.setSelectionRange(result.selection.start, result.selection.end);
+    requestAnimationFrame(restoreSelection);
   } else {
-    textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+    textarea.value = result.text;
+    restoreSelection();
   }
 }
 function createKeyboardHandler(getText, getSelection, applyResult) {

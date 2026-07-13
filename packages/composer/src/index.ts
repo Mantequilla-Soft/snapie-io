@@ -429,21 +429,33 @@ export function applyToTextarea(
     result: InsertResult,
     onChange?: (value: string) => void
 ): void {
-    // Update the value
-    textarea.value = result.text;
-    
-    // Trigger onChange if provided
+    const restoreSelection = () => {
+        textarea.focus();
+        if (result.selection) {
+            textarea.setSelectionRange(result.selection.start, result.selection.end);
+        } else {
+            textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+        }
+    };
+
     if (onChange) {
+        // Controlled-input case: let the framework own `.value` via its own
+        // re-render instead of also writing it here directly. A direct write
+        // followed by onChange racy re-render would set `.value` a second
+        // time on commit, and the textarea/input `value` IDL setter resets
+        // the native cursor to the end whenever it's invoked — some engines
+        // skip that reset if the string happens to be unchanged, some don't,
+        // so this only surfaced as an intermittent, browser-dependent "cursor
+        // jumps to the end" bug. Restoring selection on the next frame runs
+        // after that commit has already happened, so it's always the last
+        // word regardless of engine-specific same-value optimizations.
         onChange(result.text);
-    }
-    
-    // Restore focus and cursor position
-    textarea.focus();
-    
-    if (result.selection) {
-        textarea.setSelectionRange(result.selection.start, result.selection.end);
+        requestAnimationFrame(restoreSelection);
     } else {
-        textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+        // Uncontrolled usage — nothing else will write `.value`, so this
+        // function owns the DOM directly and can restore selection inline.
+        textarea.value = result.text;
+        restoreSelection();
     }
 }
 
