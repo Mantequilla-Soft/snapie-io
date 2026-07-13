@@ -9,6 +9,7 @@ import NextLink from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { FaTh, FaBars } from 'react-icons/fa';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
+import JoinCommunityButton from '@/components/explore/JoinCommunityButton';
 
 const SORT_OPTIONS = [
   { label: 'Trending', value: 'trending', icon: '📈' },
@@ -124,6 +125,7 @@ export default function ExploreTagPage({ params }: { params: { tag: string } }) 
         <Text fontWeight="bold" fontSize="lg" color="text" noOfLines={1}>
           {displayName}
         </Text>
+        {isCommunity && <JoinCommunityButton communityId={tag} />}
       </Flex>
 
       {/* Sort + view mode bar */}

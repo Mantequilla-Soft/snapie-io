@@ -14,6 +14,7 @@ import { useDropzone } from 'react-dropzone';
 import { compressImage } from '@/lib/utils/composeUtils';
 import BeneficiariesInput, { Beneficiary } from '@/components/compose/BeneficiariesInput';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
 
 // SDK import for markdown editing utilities
 import { useEditorToolbar, ALL_COMMON_EMOJIS } from '@snapie/composer/react';
@@ -207,6 +208,8 @@ interface EditorProps {
 const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hashtagInput, setHashtagInput, hashtags, setHashtags, beneficiaries, setBeneficiaries, lockedAccounts, onSubmit, isSubmitting = false, onVideoEmbedUrlChange, onAudioEmbedUrlChange, onVideoThumbnailChange, initialVideoEmbedUrl, initialVideoThumbnail, selectedCommunity, onCommunityChange, communityOptions, draftRestored, onDiscardDraft }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const toast = useToast();
+    const wordCount = useMemo(() => getWordCount(markdown), [markdown]);
+    const readingTime = useMemo(() => getReadingTimeMinutes(wordCount), [wordCount]);
     const isMobile = useBreakpointValue({ base: true, sm: false }, { ssr: false });
     const [viewMode, setViewMode] = useState<'editor' | 'preview' | 'split'>(isMobile ? 'editor' : 'split');
     const [spoilerStates, setSpoilerStates] = useState<{[key: string]: boolean}>({});
@@ -1016,8 +1019,20 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                 </Flex>
                             )}
                         </Box>
+                        <Flex
+                            px={3}
+                            py={1}
+                            borderTop="1px solid"
+                            borderColor="border"
+                            justify="flex-end"
+                            flexShrink={0}
+                        >
+                            <Text fontSize="xs" color="gray.500">
+                                {wordCount.toLocaleString()} {wordCount === 1 ? 'word' : 'words'} · {readingTime} min read
+                            </Text>
+                        </Flex>
                         </Box>
-                        
+
                         {/* Media Attachments */}
                         {(selectedVideo || videoEmbedUrl || audioEmbedUrl) && (
                             <VStack spacing={2} align="stretch">

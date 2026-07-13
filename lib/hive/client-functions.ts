@@ -1083,6 +1083,37 @@ export async function setUserRelationship(
   }
 }
 
+/**
+ * Join or leave a Hive community using aioha.
+ */
+export async function setCommunitySubscription(
+  username: string,
+  community: string,
+  subscribe: boolean
+): Promise<boolean> {
+  try {
+    const json = JSON.stringify([
+      subscribe ? 'subscribe' : 'unsubscribe',
+      { community },
+    ]);
+    const overlayTitle = subscribe
+      ? `Approve joining ${community}`
+      : `Approve leaving ${community}`;
+    const result = await customJsonWithAioha(
+      KeyTypes.Posting,
+      'community',
+      json,
+      subscribe ? 'Join community' : 'Leave community',
+      overlayTitle,
+    );
+    console.log('Community subscription update success:', result);
+    return true;
+  } catch (error) {
+    console.error('Error setting community subscription:', error);
+    return false;
+  }
+}
+
 export async function getFollowing(
   username: string,
   startFollowing: string = '',

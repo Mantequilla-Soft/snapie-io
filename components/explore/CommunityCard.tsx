@@ -2,6 +2,7 @@
 import { Box, Flex, Text, Image, Badge } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import JoinCommunityButton from '@/components/explore/JoinCommunityButton';
 
 interface CommunityCardProps {
   tag: string;
@@ -64,19 +65,27 @@ export default function CommunityCard({ tag, title, about, subscribers, topPosts
               {about}
             </Text>
           )}
-          <Flex gap={4}>
-            <Text fontSize="xs" color="overlay.400">
-              <Text as="span" color="overlay.700" fontWeight="semibold">
-                {subscribers?.toLocaleString()}
-              </Text>{' '}
-              subscribers
-            </Text>
-            <Text fontSize="xs" color="overlay.400">
-              <Text as="span" color="overlay.700" fontWeight="semibold">
-                {topPosts?.toLocaleString()}
-              </Text>{' '}
-              posts
-            </Text>
+          <Flex gap={4} align="center" justify="space-between">
+            <Flex gap={4}>
+              <Text fontSize="xs" color="overlay.400">
+                <Text as="span" color="overlay.700" fontWeight="semibold">
+                  {subscribers?.toLocaleString()}
+                </Text>{' '}
+                subscribers
+              </Text>
+              <Text fontSize="xs" color="overlay.400">
+                <Text as="span" color="overlay.700" fontWeight="semibold">
+                  {topPosts?.toLocaleString()}
+                </Text>{' '}
+                posts
+              </Text>
+            </Flex>
+            {/* Stop the click from bubbling to the card's NextLink navigation,
+                and prevent the anchor's default navigation too since stopping
+                propagation skips Link's own preventDefault call. */}
+            <Box onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+              <JoinCommunityButton communityId={tag} size="xs" />
+            </Box>
           </Flex>
         </Box>
       </Flex>

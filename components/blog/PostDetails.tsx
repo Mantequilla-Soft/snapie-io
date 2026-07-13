@@ -16,6 +16,7 @@ import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
+import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -52,18 +53,6 @@ const bodySx = {
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
-function extractPlainText(markdown: string): string {
-    return markdown
-        .replace(/!\[.*?\]\(.*?\)/g, '')
-        .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/https?:\/\/\S+/g, '')
-        .replace(/#{1,6}\s/g, '')
-        .replace(/[*_~`]/g, '')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-}
-
 export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
@@ -81,6 +70,12 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
     const isNsfw = !isEmbedMode && (postData?.is_nsfw ?? false);
     const sentiment = postData && Math.abs(postData.sentiment_score) > 0.2 ? postData.sentiment : null;
 
+    // Word count / reading time only make sense for actual articles (top-level
+    // posts), not snap/wave replies which are comments under a container post.
+    const isArticle = post.depth === 0;
+    const wordCount = useMemo(() => (isArticle ? getWordCount(body) : 0), [body, isArticle]);
+    const readingTime = getReadingTimeMinutes(wordCount);
+
     async function handleTranslate() {
         if (isTranslating) return;
         setIsTranslating(true);
@@ -89,7 +84,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
             const res = await fetch('/api/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: extractPlainText(body), targetLang }),
+                body: JSON.stringify({ text: stripMarkdownToPlainText(body), targetLang }),
             });
             const data = await res.json();
             if (data.translatedText) {
@@ -280,6 +275,19 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                 zIndex: -1,
             }}
         >
+            {isArticle && !isEmbedMode && (
+                <Text
+                    position="absolute"
+                    top={{ base: 3, md: 4 }}
+                    right={{ base: 3, md: 5 }}
+                    fontSize="xs"
+                    fontWeight="medium"
+                    color="secondary"
+                    whiteSpace="nowrap"
+                >
+                    {wordCount.toLocaleString()} words · {readingTime} min read
+                </Text>
+            )}
             <Flex align="center" justify="center" gap={2} mb={1} wrap="wrap">
                 <Text fontSize="2xl" fontWeight="bold" textAlign="center">
                     {title}
