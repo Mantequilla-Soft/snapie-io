@@ -118,7 +118,7 @@ export default function InterestPicker({ onDone, mode = 'onboarding' }: Interest
           <Button variant="ghost" mr={3} onClick={isEdit ? handleCancel : handleSkip}>
             {isEdit ? 'Cancel' : 'Skip for now'}
           </Button>
-          <Button colorScheme="blue" onClick={handleSave} isDisabled={selected.size === 0}>
+          <Button colorScheme="blue" onClick={handleSave}>
             {isEdit ? 'Save changes' : 'Save interests'}
           </Button>
         </ModalFooter>
