@@ -9,7 +9,27 @@
       "Bash(pnpm update *)",
       "Bash(node *)",
       "Read(//home/meno/.pm2/logs/**)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(gh auth *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api *)",
+      "Bash(npx tsc *)",
+      "Bash(node_modules/typescript/bin/tsc --noEmit -p tsconfig.json)",
+      "Bash(npx --no-install next lint --file components/shared/InteractionBar.tsx)",
+      "Bash(npm -v)",
+      "Bash(pnpm -v)",
+      "Bash(npm install *)",
+      "Bash(npx --yes pnpm@9 install --frozen-lockfile)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(echo \"TSC_EXIT=$?\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3310/blog)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3310/)",
+      "mcp__visualize__read_me",
+      "mcp__visualize__show_widget",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3310/changelog)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3310/settings)"
     ]
   }
 }

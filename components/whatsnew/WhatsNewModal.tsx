@@ -10,8 +10,6 @@ import {
   Button,
   Text,
   Box,
-  Flex,
-  Badge,
   Link,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
@@ -20,59 +18,9 @@ import {
   LATEST_CHANGELOG_ID,
   getUnseenEntries,
   ChangelogEntry,
-  ChangelogItemType,
 } from '@/lib/changelog';
 import { useUserSettings, readUserSettings } from '@/hooks/useUserSettings';
-
-const TYPE_META: Record<ChangelogItemType, { label: string; colorScheme: string }> = {
-  feature: { label: 'New', colorScheme: 'blue' },
-  improvement: { label: 'Improved', colorScheme: 'green' },
-  fix: { label: 'Fixed', colorScheme: 'orange' },
-};
-
-function formatDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function EntryList({ entries }: { entries: ChangelogEntry[] }) {
-  return (
-    <>
-      {entries.map((entry, i) => (
-        <Box
-          key={entry.id}
-          pt={i === 0 ? 0 : 4}
-          mt={i === 0 ? 0 : 4}
-          borderTop={i === 0 ? undefined : '1px solid'}
-          borderColor="overlay.200"
-        >
-          <Text fontSize="xs" fontWeight="bold" color="overlay.500" mb={2}>
-            {formatDate(entry.date)}
-            {entry.title ? ` · ${entry.title}` : ''}
-          </Text>
-          {entry.items.map((item, j) => {
-            const meta = TYPE_META[item.type];
-            return (
-              <Flex key={j} gap={2} mb={j === entry.items.length - 1 ? 0 : 2} align="flex-start">
-                <Badge
-                  colorScheme={meta.colorScheme}
-                  flexShrink={0}
-                  textTransform="none"
-                  borderRadius="md"
-                  px={2}
-                  mt="1px"
-                >
-                  {meta.label}
-                </Badge>
-                <Text fontSize="sm">{item.text}</Text>
-              </Flex>
-            );
-          })}
-        </Box>
-      ))}
-    </>
-  );
-}
+import ChangelogEntries from '@/components/changelog/ChangelogEntries';
 
 /** Auto-surfacing "What's new" modal. Mounted once (see app/LayoutContent.tsx),
  *  it shows on load when there are changelog entries the user hasn't
@@ -129,7 +77,7 @@ export default function WhatsNewModal() {
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <EntryList entries={entries} />
+          <ChangelogEntries entries={entries} />
         </ModalBody>
         <ModalFooter justifyContent="space-between">
           {!showAll && CHANGELOG.length > unseen.length ? (
