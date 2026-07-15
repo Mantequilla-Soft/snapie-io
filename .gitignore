@@ -57,3 +57,7 @@ packages/*/dist/*.d.ts
 # Playwright MCP test artifacts (screenshots, traces)
 .playwright-mcp/
 
+# Claude Code local config (machine-specific permissions, dev-server launch)
+.claude/settings.local.json
+.claude/launch.json
+
