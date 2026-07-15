@@ -419,6 +419,29 @@ export async function changeFollow(follower: string, following: string) {
   }
 }
 
+// A Hive reblog (aka resteem) is a custom_json under the SAME 'follow' id the
+// changeFollow op above uses — the blockchain distinguishes them purely by the
+// action string inside the JSON array ('reblog' vs 'follow'). Routed through
+// customJsonWithAioha so it works identically for custodial Snapie users and
+// every Aioha wallet (Keychain/PeakVault/HiveAuth/…). Unlike changeFollow this
+// deliberately does NOT swallow errors — the caller needs to know whether the
+// broadcast succeeded so it can roll back its optimistic UI. Note: the chain
+// rejects reblogging your own post and reblogging the same post twice, so
+// callers should guard those cases before calling.
+export async function reblogPost(account: string, author: string, permlink: string) {
+  const json = JSON.stringify([
+    'reblog',
+    { account, author, permlink },
+  ]);
+  return customJsonWithAioha(
+    KeyTypes.Posting,
+    'follow',
+    json,
+    'Reblog',
+    `Approve reblog of @${author}/${permlink}`,
+  );
+}
+
 export async function witnessVoteWithKeychain(username: string, witness: string) {
   const op = [
     'account_witness_vote',

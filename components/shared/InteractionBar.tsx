@@ -4,7 +4,7 @@ import { Discussion } from '@hiveio/dhive';
 import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { vote } from '@/lib/hive/client-functions';
+import { vote, reblogPost } from '@/lib/hive/client-functions';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 
@@ -26,6 +26,9 @@ export default function InteractionBar({
     const [showSlider, setShowSlider] = useState(false);
     const [voted, setVoted] = useState(false);
     const [voteCount, setVoteCount] = useState(post.active_votes?.length || 0);
+    const [reblogCount, setReblogCount] = useState<number>((post as any).reblogs || 0);
+    const [reblogged, setReblogged] = useState(false);
+    const [reblogPending, setReblogPending] = useState(false);
     const [optimisticDeltaHBD, setOptimisticDeltaHBD] = useState(0);
     const { calculateDelta } = useVoteCalculator(user ?? null);
     const payoutDisplay = useCurrencyDisplay(post, optimisticDeltaHBD);
@@ -66,6 +69,48 @@ export default function InteractionBar({
         const postUrl = `${window.location.origin}/@${post.author}/${post.permlink}`;
         const tweet = `${postUrl}\n\nCrossposted from snapie.io`;
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}`, '_blank', 'noopener,noreferrer');
+    }
+
+    async function handleReblog() {
+        if (!user) {
+            toast({
+                title: 'Login Required',
+                description: 'Please login to reblog.',
+                status: 'warning',
+                duration: 3000,
+            });
+            return;
+        }
+        // The chain rejects both of these, so guard before broadcasting.
+        if (user === post.author || reblogged || reblogPending) return;
+
+        setReblogPending(true);
+        // Optimistic update
+        setReblogged(true);
+        setReblogCount(prev => prev + 1);
+
+        try {
+            const result = await reblogPost(user, post.author, post.permlink);
+            if (!result?.success) throw new Error('Reblog failed');
+            toast({
+                title: 'Reblogged!',
+                description: 'This post now shows on your blog.',
+                status: 'success',
+                duration: 3000,
+            });
+        } catch (error) {
+            // Rollback on failure
+            setReblogged(false);
+            setReblogCount(prev => Math.max(0, prev - 1));
+            toast({
+                title: 'Reblog Failed',
+                description: 'Could not reblog this post. You may have already reblogged it.',
+                status: 'error',
+                duration: 3000,
+            });
+        } finally {
+            setReblogPending(false);
+        }
     }
 
     async function handleVote() {
@@ -166,12 +211,23 @@ export default function InteractionBar({
                         />
                         <Text ml={2} fontSize="sm">{post.children}</Text>
 
-                        {(post as any).reblogs > 0 && (
-                            <>
-                                <Icon as={FaRetweet} ml={4} />
-                                <Text ml={2} fontSize="sm">{(post as any).reblogs}</Text>
-                            </>
-                        )}
+                        {(() => {
+                            const isOwnPost = user === post.author;
+                            return (
+                                <>
+                                    <Icon
+                                        as={FaRetweet}
+                                        ml={4}
+                                        cursor={isOwnPost ? 'default' : 'pointer'}
+                                        color={reblogged ? 'green.400' : undefined}
+                                        opacity={isOwnPost ? 0.4 : reblogPending ? 0.6 : 1}
+                                        onClick={isOwnPost ? undefined : handleReblog}
+                                        title={isOwnPost ? "You can't reblog your own post" : reblogged ? 'Reblogged' : 'Reblog'}
+                                    />
+                                    {reblogCount > 0 && <Text ml={2} fontSize="sm">{reblogCount}</Text>}
+                                </>
+                            );
+                        })()}
                         
                         {showShare && (
                             <>
