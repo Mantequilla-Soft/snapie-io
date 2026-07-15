@@ -17,6 +17,11 @@ export interface UserSettings {
      *  means "never shown/finished yet", which is also treated as cold-start
      *  for ranking purposes regardless of interestTags. */
     interestsOnboardedAt: number | null;
+    /** id of the newest changelog entry the user has acknowledged (see
+     *  lib/changelog.ts + WhatsNewModal). null means "never seen any" — a
+     *  brand-new visitor, who gets marked caught-up silently rather than shown
+     *  the whole history. */
+    lastSeenChangelogId: string | null;
 }
 
 const defaults: UserSettings = {
@@ -24,6 +29,7 @@ const defaults: UserSettings = {
     colorMode: 'dark',
     interestTags: [],
     interestsOnboardedAt: null,
+    lastSeenChangelogId: null,
 };
 
 function load(): UserSettings {
@@ -35,6 +41,14 @@ function load(): UserSettings {
     } catch {
         return defaults;
     }
+}
+
+/** Reads the persisted settings synchronously, bypassing the async store
+ *  hydration. Use this when you must distinguish a genuinely-absent value from
+ *  the store's pre-hydration default (e.g. WhatsNewModal deciding whether a
+ *  null lastSeenChangelogId means "brand-new visitor" vs "not loaded yet"). */
+export function readUserSettings(): UserSettings {
+    return load();
 }
 
 // Module-level store shared by every useUserSettings() call in the tree, so
