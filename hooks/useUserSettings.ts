@@ -51,6 +51,20 @@ export function readUserSettings(): UserSettings {
     return load();
 }
 
+/** Whether this device has ever persisted settings — i.e. the user has used
+ *  the app before. Lets a caller tell a genuinely first-time visitor (no key)
+ *  apart from an existing user who simply predates a newly-added field (key
+ *  present, field defaulted). See WhatsNewModal: the latter should still see
+ *  the changelog, the former shouldn't get history dumped on them. */
+export function hasStoredUserSettings(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+        return localStorage.getItem(SETTINGS_KEY) !== null;
+    } catch {
+        return false;
+    }
+}
+
 // Module-level store shared by every useUserSettings() call in the tree, so
 // a change made by one component (e.g. the Settings page) is seen immediately
 // by every other consumer (e.g. Providers picking the theme) — without this,

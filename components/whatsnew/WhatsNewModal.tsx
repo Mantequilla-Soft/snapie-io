@@ -19,7 +19,7 @@ import {
   getUnseenEntries,
   ChangelogEntry,
 } from '@/lib/changelog';
-import { useUserSettings, readUserSettings } from '@/hooks/useUserSettings';
+import { useUserSettings, readUserSettings, hasStoredUserSettings } from '@/hooks/useUserSettings';
 import ChangelogEntries from '@/components/changelog/ChangelogEntries';
 
 /** Auto-surfacing "What's new" modal. Mounted once (see app/LayoutContent.tsx),
@@ -40,9 +40,18 @@ export default function WhatsNewModal() {
     // couldn't tell a returning user apart from a brand-new one.
     const { lastSeenChangelogId } = readUserSettings();
     if (lastSeenChangelogId == null) {
-      // Brand-new visitor: don't replay history, just mark them current so the
-      // modal starts working from their next visit onward.
-      update({ lastSeenChangelogId: LATEST_CHANGELOG_ID });
+      // Two very different "never seen a changelog" cases share a null here:
+      if (!hasStoredUserSettings()) {
+        // Genuinely first-time visitor (no settings at all): don't replay
+        // history — mark them current so the modal works from next visit on.
+        update({ lastSeenChangelogId: LATEST_CHANGELOG_ID });
+        return;
+      }
+      // Existing user who predates this feature (has settings, but the field
+      // defaulted to null): show them everything this once. Not marked caught
+      // up until they dismiss, same as any other reader.
+      setUnseen(CHANGELOG);
+      setIsOpen(true);
       return;
     }
     const entries = getUnseenEntries(lastSeenChangelogId);
