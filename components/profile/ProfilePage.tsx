@@ -10,7 +10,7 @@ import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { Comment } from '@hiveio/dhive';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import { FaGlobe } from 'react-icons/fa';
-import { getProfile, findPosts } from '@/lib/hive/client-functions';
+import { getProfile, findPosts, getAccountPosts } from '@/lib/hive/client-functions';
 import PostGrid from '../blog/PostGrid';
 import InfiniteScroll from 'react-infinite-scroll-component';
 import UserActionButtons from './UserActionButtons';
@@ -52,6 +52,19 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     limit: 12,
   });
 
+  // Reblogs tab state — lazily loaded the first time the tab is opened (see
+  // handleTabChange) so we don't hit the blog-feed API for visitors who never
+  // look at it. The cursor tracks the last RAW blog-feed item (own post or
+  // reblog) so paging advances through the whole feed even when a page happens
+  // to contain no reblogs after filtering.
+  const REBLOG_PAGE_LIMIT = 20;
+  const [reblogs, setReblogs] = useState<any[]>([]);
+  const [hasMoreReblogs, setHasMoreReblogs] = useState(true);
+  const [isLoadingReblogs, setIsLoadingReblogs] = useState(false);
+  const isFetchingReblogs = useRef(false);
+  const reblogsLoaded = useRef(false);
+  const reblogParams = useRef({ start_author: '', start_permlink: '' });
+
   // Followers modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'followers' | 'following'>('followers');
@@ -92,6 +105,48 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     }
   }
 
+  async function fetchReblogs() {
+    if (isFetchingReblogs.current) return;
+    isFetchingReblogs.current = true;
+    setIsLoadingReblogs(true);
+    try {
+      const batch = await getAccountPosts(
+        username,
+        REBLOG_PAGE_LIMIT,
+        user || '',
+        reblogParams.current.start_author,
+        reblogParams.current.start_permlink,
+      );
+      if (Array.isArray(batch) && batch.length > 0) {
+        // A reblog is someone else's post surfaced on this account's blog.
+        const onlyReblogs = batch.filter((p: any) => p.author !== username);
+        setReblogs(prev => {
+          const seen = new Set(prev.map((p: any) => `${p.author}/${p.permlink}`));
+          return [...prev, ...onlyReblogs.filter((p: any) => !seen.has(`${p.author}/${p.permlink}`))];
+        });
+        const last = batch[batch.length - 1];
+        reblogParams.current = { start_author: last.author, start_permlink: last.permlink };
+        // Fewer than a full page means we've reached the end of the blog feed.
+        if (batch.length < REBLOG_PAGE_LIMIT) setHasMoreReblogs(false);
+      } else {
+        setHasMoreReblogs(false);
+      }
+    } catch (err) {
+      console.error('Failed to fetch reblogs', err);
+    } finally {
+      isFetchingReblogs.current = false;
+      setIsLoadingReblogs(false);
+    }
+  }
+
+  // Load reblogs the first time the Reblogs tab (index 2) is opened.
+  function handleTabChange(index: number) {
+    if (index === 2 && !reblogsLoaded.current) {
+      reblogsLoaded.current = true;
+      fetchReblogs();
+    }
+  }
+
   // Reset posts when username changes
   useEffect(() => {
     setPosts([]);
@@ -103,6 +158,12 @@ export default function ProfilePage({ username }: ProfilePageProps) {
       before_date: new Date().toISOString().split('.')[0],
       limit: 12,
     };
+    // Reset reblogs too, so switching profiles re-fetches on next tab open.
+    setReblogs([]);
+    setHasMoreReblogs(true);
+    isFetchingReblogs.current = false;
+    reblogsLoaded.current = false;
+    reblogParams.current = { start_author: '', start_permlink: '' };
   }, [username]);
 
   useEffect(() => {
@@ -296,10 +357,11 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
       {/* Tabs */}
       <Container maxW="container.lg" mt={3} px={0}>
-        <Tabs defaultIndex={0} colorScheme="blue" isLazy>
+        <Tabs defaultIndex={0} colorScheme="blue" isLazy onChange={handleTabChange}>
           <TabList px={4}>
             <Tab>Snaps</Tab>
             <Tab>Posts</Tab>
+            <Tab>Reblogs</Tab>
           </TabList>
 
           <TabPanels>
@@ -344,6 +406,28 @@ export default function ProfilePage({ username }: ProfilePageProps) {
                 }
               >
                 {posts && <PostGrid posts={posts} columns={3} />}
+              </InfiniteScroll>
+            </TabPanel>
+
+            {/* Reblogs tab */}
+            <TabPanel px={0}>
+              {!isLoadingReblogs && reblogs.length === 0 && !hasMoreReblogs && (
+                <Box textAlign="center" mt={8} color="gray.500">
+                  <Text fontSize="lg">No reblogs yet.</Text>
+                </Box>
+              )}
+              <InfiniteScroll
+                dataLength={reblogs.length}
+                next={fetchReblogs}
+                hasMore={hasMoreReblogs}
+                scrollableTarget="scrollableDiv"
+                loader={
+                  <Box display="flex" justifyContent="center" alignItems="center" py={8}>
+                    <Spinner size="xl" color="primary" />
+                  </Box>
+                }
+              >
+                {reblogs && <PostGrid posts={reblogs} columns={3} />}
               </InfiniteScroll>
             </TabPanel>
           </TabPanels>

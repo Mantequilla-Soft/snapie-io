@@ -899,12 +899,23 @@ export async function getProfile(username: string, observer?: string) {
   return profile;
 }
 
-export async function getAccountPosts(account: string, limit: number, observer: string) {
+// Bridge 'blog' sort returns the account's own posts AND the posts it has
+// reblogged, interleaved by the time each hit the account's blog. Reblogged
+// items carry a `reblogged_by: [account]` marker and their `author` is the
+// original author (!== account). Pass the last returned item's author/permlink
+// as the cursor to page through the feed.
+export async function getAccountPosts(
+  account: string,
+  limit: number,
+  observer: string,
+  startAuthor = '',
+  startPermlink = '',
+) {
   return HiveClient.call('bridge', 'get_account_posts', {
     sort: 'blog',
     account,
-    start_author: '',
-    start_permlink: '',
+    start_author: startAuthor,
+    start_permlink: startPermlink,
     limit,
     observer,
   });
