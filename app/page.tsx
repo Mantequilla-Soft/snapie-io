@@ -39,7 +39,7 @@ export default function Home() {
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
-  const [activeFilter, setActiveFilter] = useState<SnapFilterType>('community');
+  const [activeFilter, setActiveFilter] = useState<SnapFilterType>('all');
   const [communityName, setCommunityName] = useState<string>('Community');
 
   const { username: user, isLoggedIn } = useCurrentUser();
@@ -185,7 +185,7 @@ export default function Home() {
   // without needing direct access to our state setters.
   useEffect(() => {
     const handler = () => {
-      setActiveFilter('community');
+      setActiveFilter('all');
       setConversation(undefined);
       document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
     };
