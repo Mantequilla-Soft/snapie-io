@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { prepareImageArray, validateTitle, validateContent, generatePermlink } from '@/lib/utils/composeUtils'
 import { createComposer, type Beneficiary } from '@snapie/operations'
+import { awardPoints } from '@/lib/points/client'
 import { useUserSettings } from '@/hooks/useUserSettings'
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput'
 
@@ -270,6 +271,9 @@ export default function Home() {
 
       // Check if submission was successful
       if (result.success) {
+        // Snapie Points: reward the freshly-published blog (own author/permlink).
+        awardPoints('blog', username, username, composerResult.permlink)
+
         toast({
           title: 'Success!',
           description: 'Your post has been published to Hive blockchain',

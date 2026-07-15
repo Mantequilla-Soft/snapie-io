@@ -17,6 +17,7 @@ import MemePickerModal from './MemePickerModal';
 
 // SDK imports
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
+import { awardPoints } from '@/lib/points/client';
 import { 
     uploadVideoTo3Speak, 
     extractVideoThumbnail, 
@@ -315,6 +316,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             );
             
             if (commentResponse.success) {
+                // Snapie Points: a top-level snap (parent is the snaps container)
+                // earns 'snap'; anything else here is a reply, i.e. a 'comment'.
+                awardPoints(pp === 'snaps' ? 'snap' : 'comment', user, user, result.permlink);
+
                 // Cleanup preview URLs
                 uploadingImages.forEach(img => {
                     if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);

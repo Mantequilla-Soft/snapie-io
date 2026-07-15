@@ -5,6 +5,7 @@ import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/
 import { FaXTwitter } from 'react-icons/fa6';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote, reblogPost } from '@/lib/hive/client-functions';
+import { awardPoints } from '@/lib/points/client';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 
@@ -92,6 +93,7 @@ export default function InteractionBar({
         try {
             const result = await reblogPost(user, post.author, post.permlink);
             if (!result?.success) throw new Error('Reblog failed');
+            awardPoints('reblog', user, post.author, post.permlink);
             toast({
                 title: 'Reblogged!',
                 description: 'This post now shows on your blog.',
@@ -148,6 +150,11 @@ export default function InteractionBar({
                     status: 'error',
                     duration: 3000,
                 });
+            } else if (!wasVoted) {
+                // Only award on a fresh upvote, not on re-votes (weight changes).
+                // The server also dedupes by target, so this is just to avoid a
+                // needless call.
+                awardPoints('vote', user, post.author, post.permlink);
             }
         } catch (error) {
             // Rollback on error

@@ -13,12 +13,14 @@ import { useHangout } from '@/contexts/HangoutContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
+import { isPointsEnabledFor } from '@/lib/points/config';
 
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
 const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHandler'), { ssr: false });
 const InterestPicker = dynamic(() => import('@/components/onboarding/InterestPicker'), { ssr: false });
 const WhatsNewModal = dynamic(() => import('@/components/whatsnew/WhatsNewModal'), { ssr: false });
+const PointsToaster = dynamic(() => import('@/components/points/PointsToaster'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -178,6 +180,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       {/* "What's new" changelog — everyone, not just the discovery allowlist,
           but never stacked on top of the onboarding picker. */}
       {!isEmbedMode && !isChatPopoutMode && !showInterestPicker && <WhatsNewModal />}
+      {/* Snapie Points earn-toaster — allowlist-gated dogfood (Stage 1). */}
+      {!isEmbedMode && !isChatPopoutMode && isPointsEnabledFor(currentUsername) && <PointsToaster />}
     </Box>
   );
 }
