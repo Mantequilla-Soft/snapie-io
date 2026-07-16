@@ -9,6 +9,10 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useLoginModal } from '@/contexts/LoginModalContext'
 import { recurrentTransferWithAioha } from '@/lib/hive/aioha'
 import { delegateWithKeychain, getCryptoPrices, witnessVoteWithKeychain } from '@/lib/hive/client-functions'
+import {
+  PATRON_MAX_EXECUTIONS,
+  PATRON_RECURRENCE_HOURS,
+} from '@/lib/hive/patronRecurrentTransfer'
 import useHiveAccount from '@/hooks/useHiveAccount'
 import PatronBadge from '@/components/shared/PatronBadge'
 import WitnessBadge from '@/components/shared/WitnessBadge'
@@ -20,13 +24,11 @@ import SupportersSection from '@/components/support/SupportersSection'
 const PATRON_MEMO_TAG = 'snapiepatron'
 const PATRON_ACCOUNT = 'snapie'
 
-// Monthly cadence: recurrence is in hours, executions is how many times it
-// repeats. Hive rejects recurrent transfers whose final trigger is more than
-// HIVE_MAX_RECURRENT_TRANSFER_END_DATE (730 days) out — so at ~30-day
-// recurrence the safe max is 24 executions (~720 days). Renew before then,
-// or cancel anytime by sending another recurrent_transfer for 0.
-const RECURRENCE_HOURS = 24 * 30
-const MAX_EXECUTIONS = 24
+// Monthly cadence + execution count capped for Hive's 730-day end-date limit
+// (see lib/hive/patronRecurrentTransfer.ts). Renew before then, or cancel
+// anytime by sending another recurrent_transfer for 0.
+const RECURRENCE_HOURS = PATRON_RECURRENCE_HOURS
+const MAX_EXECUTIONS = PATRON_MAX_EXECUTIONS
 
 const SUBSCRIPTION_PRESETS: { tier: PatronTier; amount: number }[] = [
   { tier: 'snaperino', amount: 0.5 },
