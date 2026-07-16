@@ -77,15 +77,26 @@ export interface PointsSummary {
   username: string;
   balance: number;
   lifetimeEarned: number;
+  /** Leaderboard position by lifetimeEarned. null if the user has never
+   *  earned anything (matches getLeaderboard's $gt: 0 exclusion — there's no
+   *  rank to hold among people who haven't earned). Ties share a rank (dense
+   *  by "how many people rank strictly above you," not by row order). */
+  rank: number | null;
 }
 
 export async function getPointsSummary(username: string): Promise<PointsSummary> {
   await connectDB();
   const acct = await PointsAccount.findById(username).lean();
+  const lifetimeEarned = acct?.lifetimeEarned ?? 0;
+  const rank =
+    lifetimeEarned > 0
+      ? (await PointsAccount.countDocuments({ lifetimeEarned: { $gt: lifetimeEarned } })) + 1
+      : null;
   return {
     username,
     balance: acct?.balance ?? 0,
-    lifetimeEarned: acct?.lifetimeEarned ?? 0,
+    lifetimeEarned,
+    rank,
   };
 }
 

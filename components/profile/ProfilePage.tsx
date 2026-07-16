@@ -347,6 +347,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
                 <Icon as={FiAward} boxSize={4} color="primary" />
                 <Text fontSize="sm" fontWeight="medium" color="text">
                   {profilePoints.lifetimeEarned.toLocaleString()} Snapie Points
+                  {profilePoints.rank != null && ` · #${profilePoints.rank}`}
                 </Text>
               </Flex>
             )}

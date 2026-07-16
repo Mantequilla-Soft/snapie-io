@@ -79,6 +79,8 @@ vi.mock('@/lib/db/models/PointsAccount', () => ({
                 return { _id: username, ...next };
             },
         }),
+        countDocuments: async (filter: { lifetimeEarned: { $gt: number } }) =>
+            [...accountStore.values()].filter(v => v.lifetimeEarned > filter.lifetimeEarned.$gt).length,
         find: (filter: { lifetimeEarned: { $gt: number } }) => {
             let rows = [...accountStore.entries()]
                 .map(([_id, v]) => ({ _id, ...v }))
@@ -118,7 +120,7 @@ describe('awardForAction', () => {
         expect(result).toEqual({ status: 'awarded', awarded: 10, balance: 10 });
 
         const { getPointsSummary } = await import('./awardService');
-        expect(await getPointsSummary('alice')).toEqual({ username: 'alice', balance: 10, lifetimeEarned: 10 });
+        expect(await getPointsSummary('alice')).toEqual({ username: 'alice', balance: 10, lifetimeEarned: 10, rank: 1 });
     });
 
     it('is idempotent: the same action on the same target only ever pays once', async () => {
@@ -195,9 +197,37 @@ describe('awardForAction', () => {
 });
 
 describe('getPointsSummary', () => {
-    it('returns zeros for a user who has never earned anything', async () => {
+    it('returns zeros and a null rank for a user who has never earned anything', async () => {
         const { getPointsSummary } = await import('./awardService');
-        expect(await getPointsSummary('nobody')).toEqual({ username: 'nobody', balance: 0, lifetimeEarned: 0 });
+        expect(await getPointsSummary('nobody')).toEqual({ username: 'nobody', balance: 0, lifetimeEarned: 0, rank: null });
+    });
+
+    it('computes rank as 1 more than the number of accounts strictly ahead', async () => {
+        accountStore.set('gold', { balance: 100, lifetimeEarned: 100 });
+        accountStore.set('silver', { balance: 50, lifetimeEarned: 50 });
+        accountStore.set('bronze', { balance: 10, lifetimeEarned: 10 });
+        const { getPointsSummary } = await import('./awardService');
+        expect((await getPointsSummary('gold')).rank).toBe(1);
+        expect((await getPointsSummary('silver')).rank).toBe(2);
+        expect((await getPointsSummary('bronze')).rank).toBe(3);
+    });
+
+    it('gives tied accounts the same rank', async () => {
+        accountStore.set('alice', { balance: 50, lifetimeEarned: 50 });
+        accountStore.set('bob', { balance: 50, lifetimeEarned: 50 });
+        accountStore.set('carol', { balance: 10, lifetimeEarned: 10 });
+        const { getPointsSummary } = await import('./awardService');
+        expect((await getPointsSummary('alice')).rank).toBe(1);
+        expect((await getPointsSummary('bob')).rank).toBe(1);
+        expect((await getPointsSummary('carol')).rank).toBe(3); // 2 accounts rank strictly above
+    });
+
+    it('ranks by lifetimeEarned even when balance says otherwise (spending never demotes you)', async () => {
+        accountStore.set('bigspender', { balance: 1, lifetimeEarned: 200 });
+        accountStore.set('hoarder', { balance: 150, lifetimeEarned: 150 });
+        const { getPointsSummary } = await import('./awardService');
+        expect((await getPointsSummary('bigspender')).rank).toBe(1);
+        expect((await getPointsSummary('hoarder')).rank).toBe(2);
     });
 });
 
