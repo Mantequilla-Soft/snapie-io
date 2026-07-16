@@ -419,6 +419,22 @@ export async function changeFollow(follower: string, following: string) {
   }
 }
 
+// Accounts that have reblogged this post, per the chain — used to seed the
+// reblog button's initial state (see InteractionBar) so it correctly shows
+// "already reblogged" for a reblog made via ANY app, not just Snapie. Unlike
+// vote (whose active_votes ride along on the post object we already have),
+// reblog status isn't embedded in a normal post payload, so this is a
+// separate call. Never throws — a lookup failure just means "unknown," which
+// callers should treat as "not reblogged" rather than blocking the UI.
+export async function getRebloggedBy(author: string, permlink: string): Promise<string[]> {
+  try {
+    const res = await HiveClient.database.call('get_reblogged_by', [author, permlink]);
+    return Array.isArray(res) ? res : [];
+  } catch {
+    return [];
+  }
+}
+
 // A Hive reblog (aka resteem) is a custom_json under the SAME 'follow' id the
 // changeFollow op above uses — the blockchain distinguishes them purely by the
 // action string inside the JSON array ('reblog' vs 'follow'). Routed through

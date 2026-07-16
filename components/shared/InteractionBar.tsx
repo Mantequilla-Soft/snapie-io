@@ -4,7 +4,7 @@ import { Discussion } from '@hiveio/dhive';
 import { FaHeart, FaComment, FaRegHeart, FaShare, FaRetweet } from 'react-icons/fa';
 import { FaXTwitter } from 'react-icons/fa6';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { vote, reblogPost } from '@/lib/hive/client-functions';
+import { vote, reblogPost, getRebloggedBy } from '@/lib/hive/client-functions';
 import { awardPoints } from '@/lib/points/client';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
@@ -41,6 +41,25 @@ export default function InteractionBar({
             setVoted(post.active_votes.some(item => item.voter === user));
         }
     }, [user, post.active_votes]);
+
+    // Seed "already reblogged" from the chain — unlike active_votes, reblog
+    // status isn't embedded in the post payload, so this needs its own call.
+    // Without this, a reblog made via ANY app (including Snapie in a past
+    // session) wouldn't show here, and clicking would re-broadcast a
+    // redundant reblog (harmless — points are still idempotent per user/post
+    // — but the button lying about its own state is a bug worth fixing).
+    // Skipped for the author (can't reblog your own post) and while logged
+    // out (reblog is unavailable either way).
+    useEffect(() => {
+        if (!user || user === post.author) return;
+        let cancelled = false;
+        getRebloggedBy(post.author, post.permlink).then(accounts => {
+            if (!cancelled && accounts.some(a => a.toLowerCase() === user.toLowerCase())) {
+                setReblogged(true);
+            }
+        });
+        return () => { cancelled = true; };
+    }, [user, post.author, post.permlink]);
 
     function handleHeartClick() {
         if (!user) {
