@@ -82,19 +82,39 @@ vi.mock('@/lib/db/models/PointsAccount', () => ({
         countDocuments: async (filter: { lifetimeEarned: { $gt: number } }) =>
             [...accountStore.values()].filter(v => v.lifetimeEarned > filter.lifetimeEarned.$gt).length,
         find: (filter: { lifetimeEarned: { $gt: number } }) => {
-            let rows = [...accountStore.entries()]
+            const base = [...accountStore.entries()]
                 .map(([_id, v]) => ({ _id, ...v }))
                 .filter(r => r.lifetimeEarned > filter.lifetimeEarned.$gt);
+            // Mirrors real Mongoose semantics: sort/skip/limit only compose the
+            // query, they don't apply until execution — so the fake must apply
+            // them in the logical order (sort, then skip, then limit) regardless
+            // of what order the caller chained the methods in.
+            let sortSpec: { lifetimeEarned: -1 | 1 } | null = null;
+            let skipN = 0;
+            let limitN: number | null = null;
             const chain = {
                 sort(spec: { lifetimeEarned: -1 | 1 }) {
-                    rows = rows.sort((a, b) => (spec.lifetimeEarned === -1 ? b.lifetimeEarned - a.lifetimeEarned : a.lifetimeEarned - b.lifetimeEarned));
+                    sortSpec = spec;
+                    return chain;
+                },
+                skip(n: number) {
+                    skipN = n;
                     return chain;
                 },
                 limit(n: number) {
-                    rows = rows.slice(0, n);
+                    limitN = n;
                     return chain;
                 },
-                lean: async () => rows,
+                lean: async () => {
+                    let rows = base;
+                    if (sortSpec) {
+                        const spec = sortSpec as { lifetimeEarned: -1 | 1 };
+                        rows = [...rows].sort((a, b) => (spec.lifetimeEarned === -1 ? b.lifetimeEarned - a.lifetimeEarned : a.lifetimeEarned - b.lifetimeEarned));
+                    }
+                    rows = rows.slice(skipN);
+                    if (limitN != null) rows = rows.slice(0, limitN);
+                    return rows;
+                },
             };
             return chain;
         },
@@ -239,25 +259,65 @@ describe('getLeaderboard', () => {
         accountStore.set('alice', { balance: 5, lifetimeEarned: 100 });
         accountStore.set('bob', { balance: 50, lifetimeEarned: 50 });
         const { getLeaderboard } = await import('./awardService');
-        const board = await getLeaderboard(10);
-        expect(board.map(e => e.username)).toEqual(['alice', 'bob']);
-        expect(board[0].rank).toBe(1);
-        expect(board[1].rank).toBe(2);
+        const { entries } = await getLeaderboard(10);
+        expect(entries.map(e => e.username)).toEqual(['alice', 'bob']);
+        expect(entries[0].rank).toBe(1);
+        expect(entries[1].rank).toBe(2);
     });
 
     it('excludes accounts that have never earned anything', async () => {
         accountStore.set('alice', { balance: 0, lifetimeEarned: 0 });
         accountStore.set('bob', { balance: 10, lifetimeEarned: 10 });
         const { getLeaderboard } = await import('./awardService');
-        const board = await getLeaderboard(10);
-        expect(board.map(e => e.username)).toEqual(['bob']);
+        const { entries } = await getLeaderboard(10);
+        expect(entries.map(e => e.username)).toEqual(['bob']);
     });
 
     it('respects the limit', async () => {
         for (let i = 0; i < 10; i++) accountStore.set(`user${i}`, { balance: i + 1, lifetimeEarned: i + 1 });
         const { getLeaderboard } = await import('./awardService');
-        const board = await getLeaderboard(3);
-        expect(board).toHaveLength(3);
-        expect(board.map(e => e.lifetimeEarned)).toEqual([10, 9, 8]);
+        const { entries } = await getLeaderboard(3);
+        expect(entries).toHaveLength(3);
+        expect(entries.map(e => e.lifetimeEarned)).toEqual([10, 9, 8]);
+    });
+
+    it('caps page size even if a huge limit is requested', async () => {
+        for (let i = 0; i < 150; i++) accountStore.set(`user${i}`, { balance: i + 1, lifetimeEarned: i + 1 });
+        const { getLeaderboard } = await import('./awardService');
+        const { entries } = await getLeaderboard(10_000);
+        expect(entries).toHaveLength(100); // hard cap, not the requested 10,000
+    });
+
+    it('paginates with offset, and ranks continue correctly across pages', async () => {
+        for (let i = 0; i < 30; i++) accountStore.set(`user${i}`, { balance: i + 1, lifetimeEarned: i + 1 });
+        const { getLeaderboard } = await import('./awardService');
+
+        const page1 = await getLeaderboard(10, 0);
+        expect(page1.entries).toHaveLength(10);
+        expect(page1.entries.map(e => e.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        expect(page1.entries[0].lifetimeEarned).toBe(30); // user29, the top earner
+        expect(page1.hasMore).toBe(true);
+
+        const page2 = await getLeaderboard(10, 10);
+        expect(page2.entries).toHaveLength(10);
+        expect(page2.entries.map(e => e.rank)).toEqual([11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+        expect(page2.hasMore).toBe(true);
+
+        // No overlap between pages.
+        const page1Usernames = new Set(page1.entries.map(e => e.username));
+        expect(page2.entries.some(e => page1Usernames.has(e.username))).toBe(false);
+
+        const page3 = await getLeaderboard(10, 20);
+        expect(page3.entries).toHaveLength(10);
+        expect(page3.hasMore).toBe(false); // exactly 30 accounts, nothing left after this page
+    });
+
+    it('reports hasMore: false once every earner has been returned', async () => {
+        accountStore.set('alice', { balance: 1, lifetimeEarned: 1 });
+        accountStore.set('bob', { balance: 2, lifetimeEarned: 2 });
+        const { getLeaderboard } = await import('./awardService');
+        const { entries, hasMore } = await getLeaderboard(10, 0);
+        expect(entries).toHaveLength(2);
+        expect(hasMore).toBe(false);
     });
 });

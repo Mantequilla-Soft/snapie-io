@@ -3,8 +3,11 @@ import { getLeaderboard } from '@/lib/points/awardService';
 
 // Public read — the leaderboard is a public stat.
 export async function GET(req: NextRequest) {
-  const limitParam = new URL(req.url).searchParams.get('limit');
-  const limit = limitParam ? parseInt(limitParam, 10) : 50;
-  const entries = await getLeaderboard(Number.isFinite(limit) ? limit : 50);
-  return NextResponse.json({ entries });
+  const params = new URL(req.url).searchParams;
+  const limitParam = parseInt(params.get('limit') ?? '', 10);
+  const offsetParam = parseInt(params.get('offset') ?? '', 10);
+  const limit = Number.isFinite(limitParam) ? limitParam : 50;
+  const offset = Number.isFinite(offsetParam) ? offsetParam : 0;
+  const page = await getLeaderboard(limit, offset);
+  return NextResponse.json(page);
 }

@@ -107,17 +107,39 @@ export interface LeaderboardEntry {
   balance: number;
 }
 
-/** Top earners, ranked by all-time earnings (spending never demotes you). */
-export async function getLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
+export interface LeaderboardPage {
+  entries: LeaderboardEntry[];
+  hasMore: boolean;
+}
+
+const LEADERBOARD_PAGE_SIZE_MAX = 100;
+
+/** Top earners, ranked by all-time earnings (spending never demotes you),
+ *  one page at a time. `offset` is a plain row count, not a cursor — fine at
+ *  leaderboard scale (thousands of rows, not millions) and it's what lets
+ *  `rank` be computed as `offset + index + 1` without an extra query. Caps
+ *  page size at 100 regardless of what's requested, so a caller can't force
+ *  an unbounded single-page fetch. */
+export async function getLeaderboard(limit = 50, offset = 0): Promise<LeaderboardPage> {
   await connectDB();
+  const pageSize = Math.min(Math.max(limit, 1), LEADERBOARD_PAGE_SIZE_MAX);
+  const safeOffset = Math.max(offset, 0);
+  // Fetch one extra row to learn whether another page exists without a
+  // separate countDocuments query.
   const rows = await PointsAccount.find({ lifetimeEarned: { $gt: 0 } })
     .sort({ lifetimeEarned: -1 })
-    .limit(Math.min(Math.max(limit, 1), 100))
+    .skip(safeOffset)
+    .limit(pageSize + 1)
     .lean();
-  return rows.map((r, i) => ({
-    rank: i + 1,
-    username: String(r._id),
-    lifetimeEarned: r.lifetimeEarned ?? 0,
-    balance: r.balance ?? 0,
-  }));
+  const hasMore = rows.length > pageSize;
+  const page = rows.slice(0, pageSize);
+  return {
+    entries: page.map((r, i) => ({
+      rank: safeOffset + i + 1,
+      username: String(r._id),
+      lifetimeEarned: r.lifetimeEarned ?? 0,
+      balance: r.balance ?? 0,
+    })),
+    hasMore,
+  };
 }
