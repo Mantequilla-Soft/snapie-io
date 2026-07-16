@@ -88,3 +88,25 @@ export async function getPointsSummary(username: string): Promise<PointsSummary>
     lifetimeEarned: acct?.lifetimeEarned ?? 0,
   };
 }
+
+export interface LeaderboardEntry {
+  rank: number;
+  username: string;
+  lifetimeEarned: number;
+  balance: number;
+}
+
+/** Top earners, ranked by all-time earnings (spending never demotes you). */
+export async function getLeaderboard(limit = 50): Promise<LeaderboardEntry[]> {
+  await connectDB();
+  const rows = await PointsAccount.find({ lifetimeEarned: { $gt: 0 } })
+    .sort({ lifetimeEarned: -1 })
+    .limit(Math.min(Math.max(limit, 1), 100))
+    .lean();
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    username: String(r._id),
+    lifetimeEarned: r.lifetimeEarned ?? 0,
+    balance: r.balance ?? 0,
+  }));
+}

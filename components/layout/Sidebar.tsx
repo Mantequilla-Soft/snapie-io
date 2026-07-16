@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward } from 'react-icons/fi';
+import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
@@ -197,6 +198,25 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Button>
                         </Box>
                     </Tooltip>
+                    {POINTS_FEATURE_FLAG && (
+                        <Tooltip label="Leaderboard" placement="right" hasArrow isDisabled={!isCompactMode}>
+                            <Box w="full">
+                                <Button
+                                    as={NextLink}
+                                    href="/leaderboard"
+                                    variant="ghost"
+                                    w="full"
+                                    justifyContent={iconJustify}
+                                    leftIcon={<Icon as={FiAward} boxSize={4} />}
+                                    px={3}
+                                    borderRadius="10px"
+                                    _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                                >
+                                    <Text display={textDisplay}>Leaderboard</Text>
+                                </Button>
+                            </Box>
+                        </Tooltip>
+                    )}
                     <Tooltip label="Shorts" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button

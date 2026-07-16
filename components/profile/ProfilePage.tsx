@@ -5,7 +5,10 @@ import {
   Flex, Icon, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel,
   Button, useDisclosure,
 } from '@chakra-ui/react';
-import { FiEdit2 } from 'react-icons/fi';
+import { FiEdit2, FiAward } from 'react-icons/fi';
+import NextLink from 'next/link';
+import { usePointsSummary } from '@/hooks/usePointsSummary';
+import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { Comment } from '@hiveio/dhive';
 import useHiveAccount from '@/hooks/useHiveAccount';
@@ -68,6 +71,9 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   // Followers modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'followers' | 'following'>('followers');
+
+  // Points badge (Stage 2) — a profile's all-time earnings, gated on the flag.
+  const profilePoints = usePointsSummary(POINTS_FEATURE_FLAG ? username : null);
 
   // Snaps tab state
   const profileSnaps = useProfileSnaps(username);
@@ -319,6 +325,31 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               {memberSince && <>{' | '}Member since {memberSince}</>}
               {about && <><br />{about}</>}
             </Text>
+
+            {POINTS_FEATURE_FLAG && profilePoints && profilePoints.lifetimeEarned > 0 && (
+              <Flex
+                as={NextLink}
+                href="/leaderboard"
+                display="inline-flex"
+                alignItems="center"
+                gap={2}
+                mt={2}
+                px={3}
+                py={1}
+                borderRadius="full"
+                bg="rgba(28, 161, 241, 0.1)"
+                border="1px solid"
+                borderColor="rgba(28, 161, 241, 0.3)"
+                w="fit-content"
+                _hover={{ bg: 'rgba(28, 161, 241, 0.16)' }}
+                transition="background 0.15s"
+              >
+                <Icon as={FiAward} boxSize={4} color="primary" />
+                <Text fontSize="sm" fontWeight="medium" color="text">
+                  {profilePoints.lifetimeEarned.toLocaleString()} Snapie Points
+                </Text>
+              </Flex>
+            )}
 
             {hasWebsite && (
               <Flex alignItems="center">

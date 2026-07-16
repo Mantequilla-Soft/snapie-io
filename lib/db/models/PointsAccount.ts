@@ -21,5 +21,8 @@ const PointsAccountSchema = new Schema<IPointsAccount>(
   { timestamps: false },
 );
 
+// Ranks the leaderboard by all-time earnings (see getLeaderboard).
+PointsAccountSchema.index({ lifetimeEarned: -1 });
+
 export const PointsAccount: Model<IPointsAccount> =
   mongoose.models.PointsAccount || mongoose.model<IPointsAccount>('PointsAccount', PointsAccountSchema);
