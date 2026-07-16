@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward,
 } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -13,6 +13,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import HiveActivityWidget from './HiveActivityWidget';
 
 interface MeSheetProps {
@@ -77,6 +78,9 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
               to reach any secondary page at all — only a Log in button. */}
           <VStack spacing={0} py={2}>
             <SheetLink href="/explore" icon={FiCompass} label="Explore" onClose={onClose} />
+            {POINTS_FEATURE_FLAG && (
+              <SheetLink href="/leaderboard" icon={FiAward} label="Leaderboard" onClose={onClose} />
+            )}
             {isLoggedIn && user && (
               <>
                 <SheetLink href={`/@${user}`} icon={FiUser} label="My Profile" onClose={onClose} />
