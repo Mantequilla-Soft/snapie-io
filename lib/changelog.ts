@@ -25,6 +25,16 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-15',
+    date: '2026-07-15',
+    title: 'Introducing Snapie Points',
+    items: [
+      { type: 'feature', text: 'Earn Snapie Points for snapping, blogging, commenting, voting, and reblogging — right here in the app.' },
+      { type: 'feature', text: 'Check the new Leaderboard to see the top earners, and find your own rank on your profile.' },
+      { type: 'fix', text: 'The reblog button now correctly shows when you’ve already reblogged a post.' },
+    ],
+  },
+  {
     id: '2026-07-14',
     date: '2026-07-14',
     title: 'Reblogs and a cleaner feed',
