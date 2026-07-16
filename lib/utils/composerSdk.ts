@@ -63,7 +63,7 @@ export {
  * Pre-configured composer instance for Snapie.io
  */
 export const snapieComposer = createComposer({
-    appName: 'mycommunity',
+    appName: 'snapie',
     defaultTags: [process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || '', 'snaps'].filter(Boolean),
 });
 
@@ -71,7 +71,7 @@ export const snapieComposer = createComposer({
  * Composer with 10% beneficiaries for video posts
  */
 export const snapieVideoComposer = createComposer({
-    appName: 'mycommunity',
+    appName: 'snapie',
     defaultTags: [process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || '', 'snaps'].filter(Boolean),
     beneficiaries: [{ account: 'snapie', weight: 1000 }], // 10%
 });
