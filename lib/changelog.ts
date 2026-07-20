@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-19',
+    date: '2026-07-19',
+    items: [
+      { type: 'fix', text: 'Fixed profile avatars looking stretched in the sidebar.' },
+      { type: 'fix', text: 'Fixed the Hive Keychain approval popup showing up more than it should when voting or commenting.' },
+    ],
+  },
+  {
     id: '2026-07-15',
     date: '2026-07-15',
     title: 'Introducing Snapie Points',

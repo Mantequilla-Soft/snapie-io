@@ -324,9 +324,16 @@ class ChatService {
     const res = await fetch(url, { ...opts, headers });
 
     if (res.status === 401 && auth && retry) {
-      // Token expired — caller should re-authenticate
-      this.token = null;
-      localStorage.removeItem(TOKEN_KEY);
+      // Token expired — caller should re-authenticate. Only clear it for
+      // mutations (explicit user actions): GETs back passive/interval polling
+      // (unread badge, typing status, message deltas) that runs continuously
+      // in the background, and a stray 401 there shouldn't nuke a token that's
+      // shared with points — that silently re-triggers the Keychain "Enable
+      // Snapie Points" prompt on the user's next unrelated vote/comment.
+      if (opts.method !== 'GET') {
+        this.token = null;
+        localStorage.removeItem(TOKEN_KEY);
+      }
       throw new Error('CHAT_UNAUTHORIZED');
     }
 
