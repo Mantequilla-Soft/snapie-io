@@ -37,7 +37,7 @@ export default function ShortsCommentContent({ author, permlink, commentCount, o
         flexShrink={0}
       >
         <Text fontSize="md" fontWeight="semibold" color="white">
-          {commentCount} Comments
+          {isLoading ? commentCount : comments.length} Comments
         </Text>
         <IconButton
           aria-label="Close comments"

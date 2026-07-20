@@ -28,6 +28,8 @@ type BodySegment =
 interface PostDetailsProps {
     post: Discussion;
     isEmbedMode?: boolean;
+    /** Muted-filtered top-level comment count, once loaded — see InteractionBar. */
+    commentCount?: number;
 }
 
 const bodySx = {
@@ -71,7 +73,7 @@ const bodySx = {
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
-export default function PostDetails({ post, isEmbedMode = false }: PostDetailsProps) {
+export default function PostDetails({ post, isEmbedMode = false, commentCount }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
     const { username: user } = useCurrentUser();
@@ -470,7 +472,7 @@ export default function PostDetails({ post, isEmbedMode = false }: PostDetailsPr
                     <Text fontSize="xs">{isTranslating ? 'Translating...' : 'Translate'}</Text>
                 </HStack>
             )}
-            <InteractionBar post={post} isEmbedMode={isEmbedMode} showShare={true} />
+            <InteractionBar post={post} isEmbedMode={isEmbedMode} showShare={true} commentCountOverride={commentCount} />
         </Box>
     );
 }

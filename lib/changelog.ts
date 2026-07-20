@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-20',
+    date: '2026-07-20',
+    items: [
+      { type: 'fix', text: 'Muted accounts no longer throw off the comment count on posts — the number now matches what you actually see.' },
+    ],
+  },
+  {
     id: '2026-07-19',
     date: '2026-07-19',
     items: [

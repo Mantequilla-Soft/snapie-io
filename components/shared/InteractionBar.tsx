@@ -14,13 +14,17 @@ interface InteractionBarProps {
     showShare?: boolean;
     onCommentClick?: () => void;
     isEmbedMode?: boolean;
+    /** Overrides post.children — pass a muted-filtered comment count once it's
+     *  available so the badge matches what's actually rendered below it. */
+    commentCountOverride?: number;
 }
 
-export default function InteractionBar({ 
-    post, 
-    showShare = true, 
+export default function InteractionBar({
+    post,
+    showShare = true,
     onCommentClick,
-    isEmbedMode = false 
+    isEmbedMode = false,
+    commentCountOverride,
 }: InteractionBarProps) {
     const { username: user } = useCurrentUser();
     const [sliderValue, setSliderValue] = useState(100);
@@ -235,7 +239,7 @@ export default function InteractionBar({
                             cursor={onCommentClick ? "pointer" : "default"}
                             onClick={onCommentClick}
                         />
-                        <Text ml={2} fontSize="sm">{post.children}</Text>
+                        <Text ml={2} fontSize="sm">{commentCountOverride ?? post.children}</Text>
 
                         {(() => {
                             const isOwnPost = user === post.author;

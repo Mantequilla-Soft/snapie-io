@@ -101,7 +101,11 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     <Box bg="background" color="text" minH="100vh" p={isEmbedMode ? 2 : 4}>
       <Flex gap={6} align="flex-start">
         <Box flex="1" minW={0}>
-          <PostDetails post={post} isEmbedMode={isEmbedMode} />
+          <PostDetails
+            post={post}
+            isEmbedMode={isEmbedMode}
+            commentCount={commentsData.isLoading ? undefined : commentsData.comments.length}
+          />
           {!isEmbedMode && !conversation ? (
             <>
               <SnapComposer pa={author} pp={permlink} onNewComment={handleTopLevelComment} post={true} onClose={() => {}} />
