@@ -424,6 +424,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             src={getHiveAvatarUrl(user!, 'small')}
                                             alt={user!}
                                             boxSize="32px"
+                                            objectFit="cover"
                                             borderRadius="full"
                                             flexShrink={0}
                                             border="1px solid rgba(28, 161, 241, 0.3)"
@@ -466,6 +467,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                                 src={getHiveAvatarUrl(user!, 'small')}
                                                 alt={user!}
                                                 boxSize={6}
+                                                objectFit="cover"
                                                 borderRadius="full"
                                                 border="1px solid rgba(28, 161, 241, 0.3)"
                                             />
