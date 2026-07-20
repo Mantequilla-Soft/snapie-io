@@ -28,6 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     id: '2026-07-20',
     date: '2026-07-20',
     items: [
+      { type: 'feature', text: 'New "Prediction Markets" widget on desktop — see trending HivePredict markets right from the sidebar.' },
       { type: 'fix', text: 'Muted accounts no longer throw off the comment count on posts — the number now matches what you actually see.' },
     ],
   },

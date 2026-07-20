@@ -7,6 +7,7 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 import SidebarEventsWidget from '@/components/hangouts/SidebarEventsWidget';
+import TrendingMarketsWidget from '@/components/layout/TrendingMarketsWidget';
 import WhoToFollowWidget from '@/components/layout/WhoToFollowWidget';
 import { Divider as ChakraDivider } from '@chakra-ui/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -275,6 +276,8 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       <WhoToFollowWidget engagedAuthors={engagedAuthors} />
 
       <SidebarEventsWidget />
+
+      <TrendingMarketsWidget />
 
       <Box px={2}>
         <Text
