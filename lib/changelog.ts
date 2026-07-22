@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'feature', text: 'New Governance section in Settings — vote for Hive witnesses and Decentralized Hive Fund proposals right from Snapie, with avatars and a clear flag for witnesses that have gone inactive.' },
       { type: 'improvement', text: 'Proposal voting now shows each proposal’s voting power and funding status, clearly marks the funding cutoff, and opens proposal posts right inside Snapie instead of sending you to hive.blog.' },
+      { type: 'fix', text: 'Witness and proposal voting now work for everyone, including accounts using Snapie’s built-in login — no external wallet required.' },
     ],
   },
   {

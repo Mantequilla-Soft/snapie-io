@@ -184,6 +184,14 @@ export async function getAccountProposalVotes(username: string): Promise<Set<num
 }
 
 export async function proposalVoteBroadcast(username: string, proposalIds: number[], approve: boolean) {
+  const { isSnapieMode, emitNeedsWallet } = await import('./signing');
+  if (isSnapieMode()) {
+    const { proposalVote } = await import('../snapie-auth/client');
+    const res = await proposalVote(proposalIds, approve);
+    if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to vote on proposals'), { code: 'needs_client_signing' }); }
+    if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'));
+    return { success: true as const, result: res.txId };
+  }
   const op = ['update_proposal_votes', { voter: username, proposal_ids: proposalIds, approve, extensions: [] }];
   const out = await broadcastOps([op], KeyTypes.Active, `${approve ? 'Approve' : 'Remove'} proposal vote`);
   return { success: true as const, result: out.result };

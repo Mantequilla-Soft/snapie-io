@@ -171,6 +171,14 @@ export function delegate(delegatee: string, vestingShares: string) {
   return req<BroadcastResult>('POST', '/hive/delegate', { delegatee, amount: vestingShares })
 }
 
+export function witnessVote(witness: string, approve: boolean) {
+  return req<BroadcastResult>('POST', '/hive/witness-vote', { witness, approve })
+}
+
+export function proposalVote(proposalIds: number[], approve: boolean) {
+  return req<BroadcastResult>('POST', '/hive/proposal-vote', { proposalIds, approve })
+}
+
 export function transferToSavings(amount: string, to?: string, memo = '') {
   return req<BroadcastResult>('POST', '/hive/transfer-to-savings', { amount, ...(to ? { to } : {}), memo })
 }

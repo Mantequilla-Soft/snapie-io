@@ -459,6 +459,14 @@ export async function reblogPost(account: string, author: string, permlink: stri
 }
 
 export async function witnessVoteWithKeychain(username: string, witness: string, approve: boolean = true) {
+  const { isSnapieMode, emitNeedsWallet } = await import('@/lib/hive/signing');
+  if (isSnapieMode()) {
+    const { witnessVote } = await import('@/lib/snapie-auth/client');
+    const res = await witnessVote(witness, approve);
+    if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to vote for witnesses'), { code: 'needs_client_signing' }); }
+    if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'));
+    return { success: true as const, result: res.txId };
+  }
   const op = [
     'account_witness_vote',
     { account: username, witness, approve },
