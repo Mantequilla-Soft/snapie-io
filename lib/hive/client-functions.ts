@@ -458,18 +458,12 @@ export async function reblogPost(account: string, author: string, permlink: stri
   );
 }
 
-export async function witnessVoteWithKeychain(username: string, witness: string) {
+export async function witnessVoteWithKeychain(username: string, witness: string, approve: boolean = true) {
   const op = [
     'account_witness_vote',
-    {
-      account: username,
-      witness: witness || 'skatehive',
-      approve: true,
-    },
+    { account: username, witness, approve },
   ];
-  const result = await aiohaBroadcast([op], KeyTypes.Active, `Approve witness vote for @${witness}`);
-  console.log({ witnessvote: result });
-  return result;
+  return aiohaBroadcast([op], KeyTypes.Active, `${approve ? 'Approve' : 'Remove'} witness vote for @${witness}`);
 }
 
 /**

@@ -5,7 +5,7 @@ import {
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import NextLink from 'next/link';
-import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward } from 'react-icons/fi';
+import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward, FiCheckSquare, FiFileText } from 'react-icons/fi';
 import { useUserSettings, type PayoutType, type ColorMode } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
@@ -430,6 +430,94 @@ export default function SettingsPage() {
                     </Flex>
                 </Box>
             )}
+
+            {/* Governance — witness & proposal voting, tucked away here rather
+                than in main nav since only a small slice of users care. */}
+            <Box
+                bg="surface"
+                borderRadius="16px"
+                border="1px solid"
+                borderColor="surfaceBorder"
+                backdropFilter="blur(18px)"
+                overflow="hidden"
+                mt={6}
+            >
+                <Box px={6} py={4}>
+                    <Text fontSize="xs" fontWeight="semibold" color="overlay.500" textTransform="uppercase" letterSpacing="0.08em">
+                        Governance
+                    </Text>
+                </Box>
+
+                <Divider borderColor="surfaceBorder" />
+
+                <Flex
+                    as={NextLink}
+                    href="/settings/witnesses"
+                    align="center"
+                    gap={4}
+                    px={6}
+                    py={5}
+                    cursor="pointer"
+                    transition="all 0.15s"
+                    _hover={{ bg: 'rgba(28, 161, 241, 0.06)' }}
+                >
+                    <Flex
+                        flexShrink={0}
+                        w="36px"
+                        h="36px"
+                        borderRadius="10px"
+                        bg="rgba(28, 161, 241, 0.15)"
+                        align="center"
+                        justify="center"
+                    >
+                        <Icon as={FiCheckSquare} boxSize={4} color="primary" />
+                    </Flex>
+                    <Box flex={1}>
+                        <Text color="text" fontWeight="medium" fontSize="sm" mb={1}>
+                            Witness Voting
+                        </Text>
+                        <Text color="overlay.500" fontSize="xs">
+                            Approve the witnesses that run the Hive blockchain.
+                        </Text>
+                    </Box>
+                    <Icon as={FiChevronRight} boxSize={5} color="overlay.400" flexShrink={0} />
+                </Flex>
+
+                <Divider borderColor="surfaceBorder" />
+
+                <Flex
+                    as={NextLink}
+                    href="/settings/proposals"
+                    align="center"
+                    gap={4}
+                    px={6}
+                    py={5}
+                    cursor="pointer"
+                    transition="all 0.15s"
+                    _hover={{ bg: 'rgba(28, 161, 241, 0.06)' }}
+                >
+                    <Flex
+                        flexShrink={0}
+                        w="36px"
+                        h="36px"
+                        borderRadius="10px"
+                        bg="rgba(28, 161, 241, 0.15)"
+                        align="center"
+                        justify="center"
+                    >
+                        <Icon as={FiFileText} boxSize={4} color="primary" />
+                    </Flex>
+                    <Box flex={1}>
+                        <Text color="text" fontWeight="medium" fontSize="sm" mb={1}>
+                            Proposal Voting
+                        </Text>
+                        <Text color="overlay.500" fontSize="xs">
+                            Vote on Decentralized Hive Fund proposals.
+                        </Text>
+                    </Box>
+                    <Icon as={FiChevronRight} boxSize={5} color="overlay.400" flexShrink={0} />
+                </Flex>
+            </Box>
 
             {/* What's new / changelog */}
             <Box
