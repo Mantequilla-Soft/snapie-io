@@ -9,7 +9,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { witnessVoteWithKeychain } from '@/lib/hive/client-functions';
-import { getWitnessesByVote, WitnessInfo } from '@/lib/hive/governance';
+import { getWitnessesByVote, formatHp, WitnessInfo } from '@/lib/hive/governance';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 const MAX_WITNESS_VOTES = 30;
@@ -137,7 +137,10 @@ export default function WitnessVotingPage() {
                           </Badge>
                         )}
                       </HStack>
-                      <Box mt={1.5} h="4px" w="100%" bg="overlay.100" borderRadius="full" overflow="hidden">
+                      <Text fontSize="11px" color="overlay.400" noOfLines={1}>
+                        {formatHp(witness.supportHp)} supporting
+                      </Text>
+                      <Box mt={1} h="4px" w="100%" bg="overlay.100" borderRadius="full" overflow="hidden">
                         <Box h="100%" bg={witness.isActive ? 'primary' : 'overlay.400'} borderRadius="full" width={`${barPercent}%`} />
                       </Box>
                     </Box>
