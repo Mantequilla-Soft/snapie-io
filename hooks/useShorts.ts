@@ -2,7 +2,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { ShortItem } from '@/lib/shorts/types';
 
-const CHECKER_URL = process.env.NEXT_PUBLIC_CHECKER_URL || 'https://3speak-checker.okinoko.io';
+// 3speak-checker.okinoko.io was retired — 3Speak's own frontend now points
+// this at checker.3speak.tv (confirmed via their production JS bundle);
+// same API, same response shape, just a different host.
+const CHECKER_URL = process.env.NEXT_PUBLIC_CHECKER_URL || 'https://checker.3speak.tv';
 const SHORTS_API = `${CHECKER_URL}/shortssorted`;
 
 let seed = Math.floor(Math.random() * 1_000_000);

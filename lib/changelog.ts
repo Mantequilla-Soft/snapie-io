@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-23',
+    date: '2026-07-23',
+    items: [
+      { type: 'fix', text: 'Fixed Shorts showing an empty feed — the video service it was pulling from had moved to a new address.' },
+    ],
+  },
+  {
     id: '2026-07-22',
     date: '2026-07-22',
     items: [
