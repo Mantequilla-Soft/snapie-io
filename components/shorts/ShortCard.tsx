@@ -18,6 +18,7 @@ import { ShortItem } from '@/lib/shorts/types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote, getPost } from '@/lib/hive/client-functions';
+import { awardPoints } from '@/lib/points/client';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { useRouter } from 'next/navigation';
 import { chatService, Conversation } from '@/lib/chat/ChatService';
@@ -225,6 +226,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         toast({ title: 'Vote failed', status: 'error', duration: 2000 });
       } else {
         if (navigator.vibrate) navigator.vibrate(20);
+        awardPoints('vote', user, short.author, short.hivePermlink);
       }
     } catch {
       setLiked(false);
@@ -249,6 +251,8 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         setLiked(false);
         setLikeCount(prev);
         toast({ title: 'Vote failed', status: 'error', duration: 2000 });
+      } else {
+        awardPoints('vote', user, short.author, short.hivePermlink);
       }
     } catch {
       setLiked(false);

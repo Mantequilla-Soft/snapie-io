@@ -17,6 +17,7 @@ import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
+import { awardPoints } from '@/lib/points/client';
 import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
 import PatronBadge from '@/components/shared/PatronBadge';
@@ -136,7 +137,15 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
             permlink: comment.permlink,
             weight: weight * 100
         });
-        
+
+        // Points, not just the on-chain vote — VoteControls only calls this on
+        // a genuinely new vote (see VoteSlider.tsx's `wasVoted` guard), and the
+        // server itself dedupes by (user, 'vote', author/permlink) besides, so
+        // this is safe even if that ever changes.
+        if (voteResult.success) {
+            awardPoints('vote', user, comment.author, comment.permlink);
+        }
+
         return voteResult;
     }
 
