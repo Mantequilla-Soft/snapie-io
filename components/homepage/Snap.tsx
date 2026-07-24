@@ -1,4 +1,5 @@
-import { Box, Text, HStack, Button, Avatar, Link, VStack, Flex, Wrap, WrapItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Link, VStack, Flex, Wrap, WrapItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
@@ -255,13 +256,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                 <Flex gap={3} align="flex-start">
                     {/* Left column: avatar */}
                     <Avatar
-                        size="sm"
-                        w="36px"
-                        h="36px"
-                        name={comment.author}
-                        src={`https://images.hive.blog/u/${comment.author}/avatar/sm`}
+                        username={comment.author}
+                        size="36px"
                         flexShrink={0}
-                        mt="-2px"
+                        sx={{ marginTop: '-2px' }}
                     />
 
                     {/* Right column: header + content + actions */}

@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import NextLink from 'next/link';
 import InfiniteScroll from 'react-infinite-scroll-component';
-import { Box, Flex, Heading, Text, Avatar, Spinner, Icon } from '@chakra-ui/react';
+import { Box, Flex, Heading, Text, Spinner, Icon } from '@chakra-ui/react';
 import { FiAward } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 
 interface LeaderboardEntry {
@@ -146,7 +146,7 @@ export default function LeaderboardPage() {
                   >
                     {e.rank}
                   </Text>
-                  <Avatar size="sm" name={e.username} src={getHiveAvatarUrl(e.username, 'small')} />
+                  <Avatar size="sm" username={e.username} />
                   <Box flex={1} minW={0}>
                     <Text fontWeight="medium" fontSize="sm" color="text" isTruncated>
                       @{e.username}

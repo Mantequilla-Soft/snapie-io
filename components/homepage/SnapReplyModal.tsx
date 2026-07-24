@@ -1,4 +1,5 @@
-import { Modal, ModalBody, ModalContent, ModalHeader, ModalOverlay, HStack, Avatar, Link, IconButton, Box, Text, Spinner } from '@chakra-ui/react';
+import { Modal, ModalBody, ModalContent, ModalHeader, ModalOverlay, HStack, Link, IconButton, Box, Text, Spinner } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import React, { useRef, useMemo, useState } from 'react';
 import SnapComposer from './SnapComposer';
 import { Comment } from '@hiveio/dhive';
@@ -77,7 +78,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                 />
                 <ModalHeader>
                     <HStack mb={2}>
-                        <Avatar size="sm" name={comment.author} src={`https://images.hive.blog/u/${comment.author}/avatar/sm`} />
+                        <Avatar size="sm" username={comment.author} />
                         <Box ml={3}>
                             <Text fontWeight="medium" fontSize="sm">
                                 <Link as={NextLink} href={`/@${comment.author}`}>@{comment.author}</Link>

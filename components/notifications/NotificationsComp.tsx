@@ -2,7 +2,7 @@
 
 import { ReactNode, useMemo, useState } from 'react';
 import {
-  Avatar,
+  Avatar as ChakraAvatar,
   Badge,
   Box,
   Button,
@@ -47,6 +47,7 @@ import {
 } from '@/lib/utils/notificationHelpers';
 import { groupNotifications, NotificationGroup } from '@/lib/utils/notificationGrouping';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { useNotificationContext } from '@/hooks/useNotificationContext';
 
 interface NotificationCompProps {
@@ -596,7 +597,7 @@ function SingleNotificationRow({
 
   return (
     <NotificationShell unread={unread} onClick={onClick} nested={nested}>
-      <Avatar size="sm" src={actor ? getHiveAvatarUrl(actor, 'small') : undefined} name={actor || undefined} />
+      {actor ? <Avatar size="sm" username={actor} /> : <ChakraAvatar size="sm" />}
       <Box flex="1" minW={0}>
         <Text fontWeight="semibold">{notification.msg || getNotificationTypeLabel(notification.type)}</Text>
         <HStack fontSize="sm" opacity={0.72} spacing={2} flexWrap="wrap">
@@ -679,11 +680,14 @@ function NotificationShell({
   );
 }
 
+// Intentionally raw Chakra Avatar, not the shared Avatar component — the
+// overlapping stack uses manual negative margin + a border ring, which a
+// wrapper component's own layout box would interfere with.
 function AvatarStack({ actors, remaining }: { actors: string[]; remaining: number }) {
   return (
     <HStack spacing={0} minW={`${Math.min(actors.length, MAX_STACKED_AVATARS) * 22 + (remaining > 0 ? 28 : 0)}px`}>
       {actors.map((actor, index) => (
-        <Avatar
+        <ChakraAvatar
           key={actor}
           size="sm"
           src={getHiveAvatarUrl(actor, 'small')}

@@ -15,7 +15,6 @@ import {
   Textarea,
   VStack,
   HStack,
-  Avatar,
   Box,
   Image,
   Text,
@@ -25,6 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { FaCamera } from 'react-icons/fa';
 import { updateProfile, uploadImageWithKeychain } from '@/lib/hive/client-functions';
+import { Avatar } from '@/components/shared/Avatar';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -135,24 +135,21 @@ export default function EditProfileModal({
               <HStack spacing={3} align="center">
                 <Box position="relative" flexShrink={0}>
                   <Avatar
+                    username={username}
                     src={profileImage || undefined}
-                    name={username}
-                    boxSize="64px"
-                    borderRadius="full"
-                    border="2px solid"
-                    borderColor="primary"
-                  />
-                  <IconButton
-                    aria-label="Upload avatar"
-                    icon={<FaCamera />}
-                    size="xs"
-                    borderRadius="full"
-                    position="absolute"
-                    bottom="-2px"
-                    right="-2px"
-                    colorScheme="blue"
-                    onClick={() => avatarInputRef.current?.click()}
-                    isLoading={avatarUploadProgress !== null}
+                    size="64px"
+                    sx={{ border: '2px solid', borderColor: 'primary' }}
+                    overlay={
+                      <IconButton
+                        aria-label="Upload avatar"
+                        icon={<FaCamera />}
+                        size="xs"
+                        borderRadius="full"
+                        colorScheme="blue"
+                        onClick={() => avatarInputRef.current?.click()}
+                        isLoading={avatarUploadProgress !== null}
+                      />
+                    }
                   />
                   <input
                     ref={avatarInputRef}

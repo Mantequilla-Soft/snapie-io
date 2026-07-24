@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Text, Avatar, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Badge, Tag, TagLabel, Button } from '@chakra-ui/react';
+import { Box, Text, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Badge, Tag, TagLabel, Button } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import React, { useMemo, useState } from 'react';
 import { MdTranslate } from 'react-icons/md';
 import { Discussion } from '@hiveio/dhive';
@@ -348,7 +349,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
             )}
             <Flex justifyContent="space-between" alignItems="center" mb={4}>
                 <Flex alignItems="center">
-                    <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/sm`} />
+                    <Avatar size="sm" username={author} />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
                             {isEmbedMode ? `@${author}` : <Link as={NextLink} href={`/@${author}`}>@{author}</Link>}

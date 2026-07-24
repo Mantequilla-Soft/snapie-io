@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Avatar,
+  Avatar as ChakraAvatar,
   AvatarGroup,
   Badge,
   Box,
@@ -45,6 +45,7 @@ import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { transferEncryptedMemoWithAioha } from '@/lib/hive/aioha';
 import GiphySelector from '@/components/homepage/GiphySelector';
 import type { IGif } from '@giphy/js-types';
@@ -298,10 +299,14 @@ function avatarNameForConversation(conv: Conversation): string {
 
 function ConversationAvatar({ conv }: { conv: Conversation }) {
   if (conv.type === 'group' && conv.members && conv.members.length > 1) {
+    // Intentionally raw Chakra Avatar/AvatarGroup, not the shared Avatar
+    // component — AvatarGroup clones mr/size/borderColor onto its direct
+    // children via cloneElement, which a wrapper component would silently
+    // swallow (no stacking, no ring, no error).
     return (
       <AvatarGroup size="xs" max={2}>
         {conv.members.slice(0, 2).map(member => (
-          <Avatar key={member} name={member} src={getHiveAvatarUrl(member, 'small')} />
+          <ChakraAvatar key={member} name={member} src={getHiveAvatarUrl(member, 'small')} />
         ))}
       </AvatarGroup>
     );
@@ -322,7 +327,7 @@ function ConversationAvatar({ conv }: { conv: Conversation }) {
     );
   }
   const username = avatarNameForConversation(conv);
-  return <Avatar size="xs" name={username} src={getHiveAvatarUrl(username, 'small')} />;
+  return <Avatar size="xs" username={username} />;
 }
 
 function ForwardButton({
@@ -568,7 +573,7 @@ function MessageBubble({
           title={canOpenDm ? 'Double-click to open DM' : undefined}
           pt="2px"
         >
-          <Avatar size="2xs" name={msg.sender} src={getHiveAvatarUrl(msg.sender, 'small')} />
+          <Avatar size="2xs" username={msg.sender} />
         </Box>
         <Box minW={0}>
           <Text
@@ -1949,7 +1954,7 @@ export default function ChatPanel({
                     <HStack spacing={2} flexWrap="wrap">
                       {groupMembers.map(member => (
                         <HStack key={member} spacing={1} bg="overlay.100" px={2} py={1} borderRadius="full">
-                          <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
+                          <Avatar size="2xs" username={member} />
                           <Text fontSize="10px" color="overlay.700">@{member}</Text>
                           <IconButton
                             aria-label={`Remove ${member}`}
@@ -2017,7 +2022,7 @@ export default function ChatPanel({
                   <HStack spacing={2} flexWrap="wrap">
                     {(activeConversation?.members || []).map(member => (
                       <HStack key={member} spacing={1} bg="overlay.100" px={2} py={1} borderRadius="full">
-                        <Avatar size="2xs" name={member} src={getHiveAvatarUrl(member, 'small')} />
+                        <Avatar size="2xs" username={member} />
                         <Text fontSize="10px" color="overlay.700">@{member}</Text>
                         {member === activeConversation.owner && (
                           <Badge colorScheme="purple" variant="solid" fontSize="8px" borderRadius="full">Owner</Badge>

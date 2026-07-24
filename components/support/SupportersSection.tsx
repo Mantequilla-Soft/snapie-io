@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Avatar, Box, Divider, Heading, Link, Skeleton, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
+import { Box, Divider, Heading, Link, Skeleton, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import NextLink from 'next/link';
 import PatronBadge from '@/components/shared/PatronBadge';
 import type { PatronTier } from '@/hooks/usePatronStatus';
@@ -69,11 +70,7 @@ export default function SupportersSection() {
                   w="108px"
                   align="center"
                 >
-                  <Avatar
-                    size="md"
-                    name={account}
-                    src={`https://images.hive.blog/u/${account}/avatar/sm`}
-                  />
+                  <Avatar size="md" username={account} />
                   <Text fontSize="xs" fontWeight="bold" color="overlay.900" noOfLines={1} w="full" textAlign="center">
                     @{account}
                   </Text>

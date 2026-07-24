@@ -1,5 +1,6 @@
 'use client';
-import { Box, HStack, VStack, Text, Avatar, Badge, Image } from '@chakra-ui/react';
+import { Box, HStack, VStack, Text, Badge, Image } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import { useState, useEffect } from 'react';
 import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -85,11 +86,7 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       )}
       <Box p={4}>
       <HStack spacing={3}>
-        <Avatar
-          size="md"
-          name={room.host}
-          src={`https://images.hive.blog/u/${room.host}/avatar/sm`}
-        />
+        <Avatar size="md" username={room.host} />
         <VStack align="start" spacing={0} flex={1}>
           <HStack>
             <Text fontWeight="bold" fontSize="md">{room.title}</Text>

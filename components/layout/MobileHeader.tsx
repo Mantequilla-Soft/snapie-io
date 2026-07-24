@@ -1,5 +1,5 @@
 'use client';
-import { Box, Flex, Text, Image, Icon, IconButton, Button } from '@chakra-ui/react';
+import { Box, Flex, Text, Icon, IconButton, Button } from '@chakra-ui/react';
 import { FiBell, FiMenu } from 'react-icons/fi';
 import { FaMicrophone } from 'react-icons/fa';
 import { keyframes } from '@emotion/react';
@@ -7,7 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { usePathname } from 'next/navigation';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import NextLink from 'next/link';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
@@ -113,7 +113,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               transition="box-shadow 0.15s"
               _hover={{ boxShadow: '0 0 16px rgba(28, 161, 241, 0.4)' }}
             >
-              <Image src={getHiveAvatarUrl(user, 'small')} alt={user} w="full" h="full" objectFit="cover" />
+              <Avatar username={user} size="34px" />
             </Box>
           </>
         ) : (

@@ -1,13 +1,13 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Avatar, Text, Heading, HStack, VStack, Flex, Link, Spinner,
+  Box, Text, Heading, HStack, VStack, Flex, Link, Spinner,
   Image, Icon,
 } from '@chakra-ui/react';
 import { FaGlobe, FaMapMarkerAlt } from 'react-icons/fa';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProfile, getAccountPosts, getSimilarPosts } from '@/lib/hive/client-functions';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import UserActionButtons from '@/components/profile/UserActionButtons';
 import CurationQualityCard from '@/components/profile/CurationQualityCard';
 
@@ -112,12 +112,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
       <SidebarBlock title="About the author">
         <Link href={`/@${author}`} _hover={{ textDecoration: 'none' }}>
           <Flex align="center" gap={3} mb={3} _hover={{ opacity: 0.85 }} transition="opacity 0.15s">
-            <Avatar
-              src={getHiveAvatarUrl(author, 'large')}
-              name={author}
-              boxSize="52px"
-              flexShrink={0}
-            />
+            <Avatar username={author} size="52px" flexShrink={0} />
             <Box minW={0}>
               <Flex align="center" gap={1}>
                 <Heading as="h3" size="sm" color="primary" isTruncated>

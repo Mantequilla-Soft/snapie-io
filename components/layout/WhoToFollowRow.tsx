@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Avatar, Button, HStack, Link, Text } from '@chakra-ui/react';
+import { Button, HStack, Link, Text } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import NextLink from 'next/link';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
@@ -53,7 +54,7 @@ export default function WhoToFollowRow({ account, onResolved }: WhoToFollowRowPr
     <HStack justify="space-between" px={2} py={1.5}>
       <Link as={NextLink} href={`/@${account}`} _hover={{ textDecoration: 'none' }} minW={0} flex={1}>
         <HStack spacing={2} minW={0}>
-          <Avatar size="sm" name={account} src={`https://images.hive.blog/u/${account}/avatar/small`} />
+          <Avatar size="sm" username={account} />
           <Text fontSize="sm" color="text" isTruncated>@{account}</Text>
           <PatronBadge tier={getTier(account)} />
         </HStack>

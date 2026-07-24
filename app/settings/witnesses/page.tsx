@@ -1,6 +1,6 @@
 'use client';
 import {
-  Box, Heading, Text, Flex, VStack, HStack, Button, Input, Spinner, Link as ChakraLink, Image, Badge, useToast,
+  Box, Heading, Text, Flex, VStack, HStack, Button, Input, Spinner, Link as ChakraLink, Badge, useToast,
 } from '@chakra-ui/react';
 import { useEffect, useMemo, useState } from 'react';
 import NextLink from 'next/link';
@@ -10,7 +10,7 @@ import useHiveAccount from '@/hooks/useHiveAccount';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { witnessVoteWithKeychain } from '@/lib/hive/client-functions';
 import { getWitnessesByVote, formatHp, WitnessInfo } from '@/lib/hive/governance';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 
 const MAX_WITNESS_VOTES = 30;
 
@@ -113,15 +113,11 @@ export default function WitnessVotingPage() {
                 <Flex key={witness.owner} align="center" gap={3} px={5} py={3}>
                   <Flex align="center" gap={3} flex={1} minW={0} opacity={witness.isActive ? 1 : 0.55}>
                     <Text fontSize="xs" color="overlay.400" w="28px" flexShrink={0}>#{witness.rank}</Text>
-                    <Image
-                      src={getHiveAvatarUrl(witness.owner, 'small')}
-                      alt={witness.owner}
-                      boxSize="32px"
-                      objectFit="cover"
-                      borderRadius="full"
+                    <Avatar
+                      username={witness.owner}
+                      size="32px"
                       flexShrink={0}
-                      border="1px solid rgba(28, 161, 241, 0.3)"
-                      fallback={<Box boxSize="32px" borderRadius="full" bg="overlay.100" flexShrink={0} />}
+                      sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
                     />
                     <Box flex={1} minW={0}>
                       <HStack spacing={1.5}>

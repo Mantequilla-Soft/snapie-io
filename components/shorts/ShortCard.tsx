@@ -4,8 +4,9 @@ import {
   Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Menu, MenuButton, MenuList, MenuItem, Spinner,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
-  Avatar, Input,
+  Avatar as ChakraAvatar, Input,
 } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import { CloseIcon } from '@chakra-ui/icons';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
 import {
@@ -20,7 +21,6 @@ import { vote, getPost } from '@/lib/hive/client-functions';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { useRouter } from 'next/navigation';
 import { chatService, Conversation } from '@/lib/chat/ChatService';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -370,17 +370,16 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
       {/* Author + title */}
       <Box position="absolute" bottom={8} left={4} right="80px" zIndex={2}>
         <Flex align="center" mb={2} gap={2}>
-          <Image
-            src={`https://images.hive.blog/u/${short.author}/avatar/sm`}
-            borderRadius="full"
-            boxSize="34px"
-            border="2px solid white"
-            alt={short.author}
+          <Avatar
+            username={short.author}
+            size="34px"
             fallbackSrc="https://images.hive.blog/DQmb2DQKTTRSZ8vNn5yppkcMbNnsSHzPeLsz5H5Kzgh2KuM/user.png"
-            cursor="pointer"
             onClick={() => router.push(`/@${short.author}`)}
-            _hover={{ opacity: 0.85 }}
-            transition="opacity 0.15s ease"
+            sx={{
+              border: '2px solid white',
+              _hover: { opacity: 0.85 },
+              transition: 'opacity 0.15s ease',
+            }}
           />
           <Text
             color="white"
@@ -610,7 +609,6 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
                 <VStack align="stretch" spacing={1} maxH="300px" overflowY="auto">
                   {filteredConvs.map(conv => {
                     const name = conv.type === 'dm' ? (conv.peer ?? conv.name) : conv.name;
-                    const avatarSrc = conv.type === 'dm' && conv.peer ? getHiveAvatarUrl(conv.peer, 'small') : undefined;
                     return (
                       <HStack
                         key={conv._id}
@@ -621,7 +619,9 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
                         onClick={() => handleSendToConversation(conv)}
                         opacity={sendingTo && sendingTo !== conv._id ? 0.5 : 1}
                       >
-                        <Avatar size="sm" name={name} src={avatarSrc} />
+                        {conv.type === 'dm' && conv.peer
+                          ? <Avatar size="sm" username={conv.peer} />
+                          : <ChakraAvatar size="sm" name={name} />}
                         <Text color="white" fontSize="sm" flex={1} noOfLines={1}>{name}</Text>
                         {sendingTo === conv._id && <Spinner size="xs" color="whiteAlpha.600" />}
                       </HStack>

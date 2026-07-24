@@ -1,8 +1,8 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Avatar, Spinner } from '@chakra-ui/react';
+import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Spinner } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import type { SwapDirection } from '@/lib/hive/client-functions';
 import HiveClient from '@/lib/hive/hiveclient';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 
 interface WalletModalSwapConfig {
     enabled: boolean;
@@ -51,7 +51,6 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
     const [usernameLookupStatus, setUsernameLookupStatus] = useState<UsernameLookupStatus>('idle');
-    const [usernameAvatarUrl, setUsernameAvatarUrl] = useState<string>('');
 
     const amount = parseFloat(amountText) || 0;
 
@@ -65,7 +64,6 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
             setCustomSlippage('');
             setSelectedSlippage('');
             setUsernameLookupStatus('idle');
-            setUsernameAvatarUrl('');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
@@ -78,7 +76,6 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
         const trimmed = username.trim().toLowerCase();
         if (!trimmed) {
             setUsernameLookupStatus('idle');
-            setUsernameAvatarUrl('');
             return;
         }
         // Hive account names are capped at 16 chars — the RPC node throws
@@ -87,7 +84,6 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
         // it lands on the same not-found feedback instead of the catch
         // block below quietly resetting to no verdict shown.
         if (trimmed.length > 16) {
-            setUsernameAvatarUrl('');
             setUsernameLookupStatus('not-found');
             return;
         }
@@ -95,17 +91,10 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
         const timeoutId = setTimeout(async () => {
             try {
                 const accounts = await HiveClient.database.getAccounts([trimmed]);
-                if (accounts.length > 0) {
-                    setUsernameAvatarUrl(getHiveAvatarUrl(trimmed, 'small'));
-                    setUsernameLookupStatus('found');
-                } else {
-                    setUsernameAvatarUrl('');
-                    setUsernameLookupStatus('not-found');
-                }
+                setUsernameLookupStatus(accounts.length > 0 ? 'found' : 'not-found');
             } catch {
                 // Network hiccup — don't block sending on a failed check,
                 // just drop back to no verdict shown.
-                setUsernameAvatarUrl('');
                 setUsernameLookupStatus('idle');
             }
         }, USERNAME_LOOKUP_DEBOUNCE_MS);
@@ -245,7 +234,7 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                                 />
                                 {usernameLookupStatus === 'checking' && <Spinner size="sm" flexShrink={0} />}
                                 {usernameLookupStatus === 'found' && (
-                                    <Avatar size="sm" src={usernameAvatarUrl} name={username} flexShrink={0} />
+                                    <Avatar size="sm" username={username} flexShrink={0} />
                                 )}
                             </HStack>
                             {usernameLookupStatus === 'not-found' && (

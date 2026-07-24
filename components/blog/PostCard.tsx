@@ -1,4 +1,5 @@
-import { Box, Image, Text, Avatar, Flex, Link, Spinner } from '@chakra-ui/react';
+import { Box, Image, Text, Flex, Link, Spinner } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -136,7 +137,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             )}
             <Flex justifyContent="space-between" alignItems="center">
                 <Flex alignItems="center">
-                    <Avatar size="sm" name={author} src={`https://images.hive.blog/u/${author}/avatar/sm`} />
+                    <Avatar size="sm" username={author} />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
                             <Link as={NextLink} href={`/@${author}`}>@{author}</Link>

@@ -1,5 +1,6 @@
 'use client';
-import { Box, Text, HStack, Avatar, Badge } from '@chakra-ui/react';
+import { Box, Text, HStack, Badge } from '@chakra-ui/react';
+import { Avatar } from '@/components/shared/Avatar';
 import { Comment } from '@hiveio/dhive';
 import { useMemo } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -53,11 +54,7 @@ export default function ReSnap({ comment }: ReSnapProps) {
             </Badge>
 
             <HStack mb={2} align="start">
-                <Avatar 
-                    size="sm" 
-                    name={comment.author} 
-                    src={`https://images.hive.blog/u/${comment.author}/avatar/sm`}
-                />
+                <Avatar size="sm" username={comment.author} />
                 <Box>
                     <Text fontWeight="medium" fontSize="sm">
                         @{comment.author}

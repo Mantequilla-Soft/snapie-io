@@ -11,6 +11,7 @@ import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
@@ -123,6 +124,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         src={getHiveAvatarUrl(communityTag, 'medium')}
                                         alt="Profile Image"
                                         boxSize="50px"
+                                        objectFit="cover"
                                         borderRadius="full"
                                         mr={2}
                                     />
@@ -420,14 +422,11 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         overflow="hidden"
                                         _hover={{ textDecoration: 'none' }}
                                     >
-                                        <Image
-                                            src={getHiveAvatarUrl(user!, 'small')}
-                                            alt={user!}
-                                            boxSize="32px"
-                                            objectFit="cover"
-                                            borderRadius="full"
+                                        <Avatar
+                                            username={user!}
+                                            size="32px"
                                             flexShrink={0}
-                                            border="1px solid rgba(28, 161, 241, 0.3)"
+                                            sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
                                         />
                                         <Box overflow="hidden">
                                             <Text fontSize="10px" color="overlay.500" lineHeight={1} mb="2px">Logged in as</Text>
@@ -463,13 +462,10 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             borderRadius="10px"
                                             _hover={{ bg: 'rgba(28, 161, 241, 0.14)' }}
                                         >
-                                            <Image
-                                                src={getHiveAvatarUrl(user!, 'small')}
-                                                alt={user!}
-                                                boxSize={6}
-                                                objectFit="cover"
-                                                borderRadius="full"
-                                                border="1px solid rgba(28, 161, 241, 0.3)"
+                                            <Avatar
+                                                username={user!}
+                                                size="24px"
+                                                sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
                                             />
                                         </Button>
                                     </Box>

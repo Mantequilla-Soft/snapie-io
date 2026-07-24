@@ -9,7 +9,6 @@ import {
   ModalCloseButton,
   VStack,
   HStack,
-  Avatar,
   Text,
   Box,
   Spinner,
@@ -17,6 +16,7 @@ import {
   Link,
 } from '@chakra-ui/react';
 import { getFollowers, getFollowing } from '@/lib/hive/client-functions';
+import { Avatar } from '@/components/shared/Avatar';
 import NextLink from 'next/link';
 
 interface FollowersModalProps {
@@ -121,11 +121,7 @@ export default function FollowersModal({ isOpen, onClose, username, type }: Foll
                     transition="all 0.2s"
                     cursor="pointer"
                   >
-                    <Avatar
-                      size="sm"
-                      name={user}
-                      src={`https://images.hive.blog/u/${user}/avatar/small`}
-                    />
+                    <Avatar size="sm" username={user} />
                     <Text fontWeight="medium" color="text">@{user}</Text>
                   </HStack>
                 </Link>

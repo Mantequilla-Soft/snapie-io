@@ -11,7 +11,6 @@ import {
   Image,
   Flex,
   Icon,
-  Avatar,
   Grid,
   Button,
   HStack,
@@ -46,7 +45,7 @@ import WalletModal from '@/components/wallet/WalletModal';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import dynamic from 'next/dynamic';
@@ -428,15 +427,15 @@ export default function WalletPage({ username }: WalletPageProps) {
         {/* Avatar + info */}
         <Flex alignItems="center" zIndex={2} position="relative" overflow="hidden">
           <Avatar
-            src={getHiveAvatarUrl(username, 'large')}
-            name={hiveAccount?.name}
-            borderRadius="full"
-            boxSize={{ base: '72px', md: '100px' }}
-            mr={4}
-            border="2px solid"
-            borderColor="primary"
-            boxShadow="0 0 18px rgba(28, 161, 241, 0.25)"
+            username={username}
+            size={{ base: '72px', md: '100px' }}
             flexShrink={0}
+            sx={{
+              marginRight: '16px',
+              border: '2px solid',
+              borderColor: 'primary',
+              boxShadow: '0 0 18px rgba(28, 161, 241, 0.25)',
+            }}
           />
           <Box overflow="hidden">
             <Flex alignItems="center" gap={2} flexWrap="wrap">

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Box, Heading, Text, Spinner, Alert, AlertIcon, Image, Container,
-  Flex, Icon, Avatar, Tabs, TabList, Tab, TabPanels, TabPanel,
+  Flex, Icon, Tabs, TabList, Tab, TabPanels, TabPanel,
   Button, useDisclosure,
 } from '@chakra-ui/react';
 import { FiEdit2, FiAward } from 'react-icons/fi';
@@ -22,7 +22,7 @@ import SnapList from '@/components/homepage/SnapList';
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
 import CurationQualityCard from './CurationQualityCard';
@@ -260,11 +260,9 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
         <Flex alignItems="center" zIndex={2} position="relative">
           <Avatar
-            src={getHiveAvatarUrl(username, 'large')}
-            name={hiveAccount?.name}
-            borderRadius="full"
-            boxSize="100px"
-            mr={4}
+            username={username}
+            size="100px"
+            sx={{ marginRight: '16px' }}
           />
           <Box>
             <Flex alignItems="center" gap={2} flexWrap="wrap">

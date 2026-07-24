@@ -1,7 +1,7 @@
 'use client';
 import {
   Drawer, DrawerOverlay, DrawerContent, DrawerBody,
-  Flex, Box, Text, Image, Icon, Button, VStack, Divider, Badge,
+  Flex, Box, Text, Icon, Button, VStack, Divider, Badge,
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
@@ -12,7 +12,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
-import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { Avatar } from '@/components/shared/Avatar';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import HiveActivityWidget from './HiveActivityWidget';
 
@@ -50,14 +50,14 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
             <>
               {/* Identity card */}
               <Flex align="center" gap={3} px={5} pt={2} pb={4}>
-                <Image
-                  src={getHiveAvatarUrl(user, 'medium')}
-                  alt={user}
-                  boxSize="60px"
-                  borderRadius="full"
-                  border="2px solid rgba(28, 161, 241, 0.4)"
-                  boxShadow="0 0 20px rgba(28, 161, 241, 0.22)"
+                <Avatar
+                  username={user}
+                  size="60px"
                   flexShrink={0}
+                  sx={{
+                    border: '2px solid rgba(28, 161, 241, 0.4)',
+                    boxShadow: '0 0 20px rgba(28, 161, 241, 0.22)',
+                  }}
                 />
                 <Box overflow="hidden">
                   <Text color="text" fontWeight="bold" fontSize="lg" noOfLines={1}>
