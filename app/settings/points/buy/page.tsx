@@ -115,7 +115,7 @@ export default function BuyPointsPage() {
         Buy Points
       </Heading>
       <Text color="overlay.500" fontSize="sm" mb={1}>
-        {POINTS_PER_HBD} points per HBD. Paid via a normal Hive transfer — you'll be asked to approve it.
+        {POINTS_PER_HBD} points per HBD. Paid via a normal Hive transfer — you&apos;ll be asked to approve it.
       </Text>
       {isLoggedIn && (
         <Text color="overlay.400" fontSize="xs" mb={6}>
@@ -131,8 +131,8 @@ export default function BuyPointsPage() {
             {isResuming
               ? "Finishing a purchase from earlier — confirming your transfer…"
               : <>
-                  We couldn't confirm a recent transfer yet (txid: <Text as="span" fontFamily="mono">{pendingTxid}</Text>).
-                  We'll keep retrying automatically. If HBD left your wallet and this doesn't clear, contact support with that transaction ID.
+                  We couldn&apos;t confirm a recent transfer yet (txid: <Text as="span" fontFamily="mono">{pendingTxid}</Text>).
+                  We&apos;ll keep retrying automatically. If HBD left your wallet and this doesn&apos;t clear, contact support with that transaction ID.
                 </>
             }
           </Box>
@@ -181,7 +181,7 @@ export default function BuyPointsPage() {
         <Flex align="center" justify="space-between" bg="rgba(28, 161, 241, 0.06)" borderRadius="10px" px={4} py={3} mb={5}>
           <HStack spacing={2}>
             <FiAward color="var(--chakra-colors-primary)" />
-            <Text fontSize="sm" color="text">You'll receive</Text>
+            <Text fontSize="sm" color="text">You&apos;ll receive</Text>
           </HStack>
           <Text fontSize="lg" fontWeight="bold" color="text">
             {isValidAmount ? pointsPreview.toLocaleString() : '—'} points
@@ -200,7 +200,7 @@ export default function BuyPointsPage() {
         </Button>
 
         <Text fontSize="xs" color="overlay.400" mt={4}>
-          Hive transfers can't be reversed — double-check the amount before confirming.
+          Hive transfers can&apos;t be reversed — double-check the amount before confirming.
           Points are non-refundable and can only be spent inside Snapie.
         </Text>
       </Box>

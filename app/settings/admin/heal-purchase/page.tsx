@@ -67,7 +67,7 @@ export default function HealPurchasePage() {
       </Heading>
       <Text color="overlay.500" fontSize="sm" mb={6}>
         Manually re-runs purchase verification for a reported transaction ID. Safe to run on an
-        already-credited txid — it will just report "duplicate".
+        already-credited txid — it will just report &quot;duplicate&quot;.
       </Text>
 
       {forbidden ? (
