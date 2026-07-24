@@ -21,15 +21,47 @@ export interface PointsEarnedDetail {
 // user switch doesn't reuse a stale in-flight promise for the wrong account.
 let tokenMintInFlight: { username: string; promise: Promise<string | null> } | null = null;
 
+// The cached token is a 7-day JWT (signChatJWT in lib/chat/auth.ts). Refresh
+// a bit before actual expiry rather than exactly at it, so a request that's
+// in flight right at the boundary doesn't land server-side a moment too late.
+const TOKEN_EXPIRY_BUFFER_MS = 60_000;
+
+/** Reads a JWT's `exp` claim without verifying the signature — this is a
+ *  client-side freshness hint only, never a trust decision (the server
+ *  verifies for real). Returns null if the token isn't a well-formed JWT or
+ *  has no exp claim, in which case the caller should treat it as "unknown,
+ *  trust it for now" — a genuinely dead token still gets caught by the
+ *  401-retry in authenticatedFetch below. */
+function jwtExpiryMs(token: string): number | null {
+  try {
+    const payload = token.split('.')[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Returns a usable session token, minting one via the same signed-challenge
  *  flow ChatPanel uses if the user doesn't already have one — previously,
  *  awardPoints() silently gave up here, so anyone who'd never opened Chat
  *  never earned a single point no matter what they did. Custodial (Snapie
  *  auth) users sign silently server-side; wallet users see one Keychain-style
- *  approval prompt, same as opening Chat for the first time would ask for. */
+ *  approval prompt, same as opening Chat for the first time would ask for.
+ *
+ *  Also the fix for a real bug: a cached token whose 7-day JWT has expired
+ *  used to be returned as-is forever (no expiry check existed at all), so
+ *  every authenticated call — points, purchases, chat unread — silently
+ *  401'd from that point on with zero recovery until the user happened to
+ *  clear storage or log out. Now an expired cached token is treated the same
+ *  as "no token" and a fresh one is minted. */
 export async function ensureSessionToken(username: string): Promise<string | null> {
   const existing = localStorage.getItem(SESSION_TOKEN_KEY);
-  if (existing) return existing;
+  if (existing) {
+    const exp = jwtExpiryMs(existing);
+    if (exp === null || exp > Date.now() + TOKEN_EXPIRY_BUFFER_MS) return existing;
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+  }
 
   if (tokenMintInFlight?.username === username) return tokenMintInFlight.promise;
 
@@ -52,6 +84,33 @@ export async function ensureSessionToken(username: string): Promise<string | nul
   return promise;
 }
 
+/** Authenticated fetch with a single retry on 401: the client-side expiry
+ *  check above catches the common case (token just aged out), but a token
+ *  can still be rejected server-side for reasons the client can't predict
+ *  (e.g. a secret rotation) — this is the fallback for that. Clears the
+ *  stale token and mints a fresh one before retrying once. Returns the raw
+ *  Response either way (even a failing one) rather than throwing, so callers
+ *  keep their existing ok-check/error-handling shape; returns null only when
+ *  no token could be obtained at all (e.g. signature declined). */
+export async function authenticatedFetch(username: string, url: string, init: RequestInit): Promise<Response | null> {
+  const token = await ensureSessionToken(username);
+  if (!token) return null;
+
+  const withAuth = (t: string): RequestInit => ({
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${t}` },
+  });
+
+  const res = await fetch(url, withAuth(token));
+  if (res.status !== 401) return res;
+
+  localStorage.removeItem(SESSION_TOKEN_KEY);
+  const freshToken = await ensureSessionToken(username);
+  if (!freshToken) return res;
+
+  return fetch(url, withAuth(freshToken));
+}
+
 /** Fire-and-forget award report. Points must NEVER disrupt the underlying user
  *  action, so this is gated, non-blocking, and swallows every error. On a real
  *  award it dispatches POINTS_EARNED_EVENT so the toaster + any balance display
@@ -70,15 +129,12 @@ export function awardPoints(
 
   void (async () => {
     try {
-      const token = await ensureSessionToken(username!);
-      if (!token) return; // e.g. user declined the signature prompt — skip silently
-
-      const res = await fetch('/api/points/award', {
+      const res = await authenticatedFetch(username!, '/api/points/award', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ actionType, author: targetAuthor, permlink: targetPermlink }),
       });
-      if (!res.ok) return;
+      if (!res || !res.ok) return; // no token (e.g. signature declined), or the server rejected the request
       const data = (await res.json()) as { status?: string; awarded?: number; balance?: number };
       if (data?.status === 'awarded' && (data.awarded ?? 0) > 0) {
         window.dispatchEvent(
@@ -110,14 +166,12 @@ export interface PurchaseVerifyResult {
  *  restart share the exact same clearing logic — no duplication, no risk of
  *  one path forgetting to clean up. */
 export async function verifyPointsPurchase(username: string, txid: string): Promise<PurchaseVerifyResult> {
-  const token = await ensureSessionToken(username);
-  if (!token) throw new Error('Could not start a session to verify this purchase. Please try again.');
-
-  const res = await fetch('/api/points/purchase/verify', {
+  const res = await authenticatedFetch(username, '/api/points/purchase/verify', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ txid }),
   });
+  if (!res) throw new Error('Could not start a session to verify this purchase. Please try again.');
   if (!res.ok) throw new Error('Could not verify this purchase. Please try again.');
 
   const data = (await res.json()) as PurchaseVerifyResult;

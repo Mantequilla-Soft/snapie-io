@@ -62,6 +62,21 @@ const TOKEN_KEY = 'hive-chat-token';
 const TOKEN_USER_KEY = 'hive-chat-token-user';
 const BASE = '/api/chat';
 
+// Duplicated from lib/points/client.ts's jwtExpiryMs (not imported — that
+// module imports chatService from here, so importing back would be
+// circular). Same tiny, deliberately-not-trust-bearing freshness check: the
+// server verifies for real, this just avoids sending a request with a token
+// we can already tell is dead.
+function jwtExpiryMs(token: string): number | null {
+  try {
+    const payload = token.split('.')[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 class ChatService {
   private token: string | null = null;
   private tokenUsername: string | null = null;
@@ -73,8 +88,27 @@ class ChatService {
     }
   }
 
+  /** Current token, re-read from localStorage rather than trusting the
+   *  in-memory field — another module (lib/points/client.ts's
+   *  ensureSessionToken, shared session token) can refresh the same
+   *  localStorage key independently of this class, and without this,
+   *  ChatService kept using its own stale in-memory copy until a full page
+   *  reload, even after a fresh token existed. Also treats an expired token
+   *  as absent, so a doomed request is never even attempted (this is what
+   *  was producing the repeated /api/chat/unread 401 spam — a token expired
+   *  mid-session and nothing ever reloaded it here). */
+  private currentToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return null;
+    const exp = jwtExpiryMs(stored);
+    if (exp !== null && exp <= Date.now()) return null;
+    this.token = stored;
+    return stored;
+  }
+
   isAuthenticated(): boolean {
-    return !!this.token;
+    return !!this.currentToken();
   }
 
   getTokenUsername(): string | null {
@@ -285,7 +319,7 @@ class ChatService {
   }
 
   async getUnreadCount(): Promise<number> {
-    if (!this.token) return 0;
+    if (!this.currentToken()) return 0;
     try {
       const { unread } = await this.get<{ unread: number }>(`${BASE}/unread`, true);
       return unread;
@@ -319,7 +353,8 @@ class ChatService {
     const headers: Record<string, string> = {
       ...(opts.headers as Record<string, string>),
     };
-    if (auth && this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    const token = auth ? this.currentToken() : null;
+    if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const res = await fetch(url, { ...opts, headers });
 
