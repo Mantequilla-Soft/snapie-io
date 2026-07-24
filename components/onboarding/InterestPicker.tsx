@@ -16,6 +16,8 @@ import {
 import { useState } from 'react';
 import { INTEREST_TOPICS } from '@/lib/discovery/interestTopics';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { saveInterestsOnboarding } from '@/lib/discovery/client';
 
 interface InterestPickerProps {
   onDone: () => void;
@@ -36,6 +38,7 @@ interface InterestPickerProps {
  *  got that way (skipped onboarding vs. edited down to nothing). */
 export default function InterestPicker({ onDone, mode = 'onboarding' }: InterestPickerProps) {
   const { settings, update } = useUserSettings();
+  const { username } = useCurrentUser();
   const isEdit = mode === 'edit';
 
   const [selected, setSelected] = useState<Set<number>>(() => {
@@ -59,6 +62,9 @@ export default function InterestPicker({ onDone, mode = 'onboarding' }: Interest
 
   const finish = (tags: string[]) => {
     update({ interestTags: tags, interestsOnboardedAt: Date.now() });
+    // Only the onboarding flow drives whether this modal shows again — edit-mode
+    // saves (reopened from Settings) don't touch that decision at all.
+    if (!isEdit && username) saveInterestsOnboarding(username, tags);
     onDone();
   };
 

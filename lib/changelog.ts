@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-24',
+    date: '2026-07-24',
+    items: [
+      { type: 'fix', text: 'Fixed Snapie Points not being awarded for votes on Snaps and Shorts — voting on a blog post always worked, but the app\'s two most common feeds were silently missing it.' },
+      { type: 'fix', text: 'The "what are you into?" interest prompt no longer reappears every time you switch devices or browsers — and now only shows to brand-new accounts, not longtime Hive users just discovering Snapie. Still editable anytime from Settings.' },
+    ],
+  },
+  {
     id: '2026-07-23',
     date: '2026-07-23',
     items: [
