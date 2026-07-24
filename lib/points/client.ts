@@ -27,7 +27,7 @@ let tokenMintInFlight: { username: string; promise: Promise<string | null> } | n
  *  never earned a single point no matter what they did. Custodial (Snapie
  *  auth) users sign silently server-side; wallet users see one Keychain-style
  *  approval prompt, same as opening Chat for the first time would ask for. */
-async function ensureSessionToken(username: string): Promise<string | null> {
+export async function ensureSessionToken(username: string): Promise<string | null> {
   const existing = localStorage.getItem(SESSION_TOKEN_KEY);
   if (existing) return existing;
 
@@ -91,4 +91,125 @@ export function awardPoints(
       // Swallow — nothing about points should ever surface to the user.
     }
   })();
+}
+
+export interface PurchaseVerifyResult {
+  status: 'credited' | 'duplicate' | 'unverified' | 'out_of_range';
+  pointsCredited: number;
+  balance: number;
+}
+
+/** Verifies a just-broadcast HBD transfer and credits points for it. Unlike
+ *  awardPoints(), this is NOT fire-and-forget — the user just spent real
+ *  money and is actively waiting on this screen, so errors must surface
+ *  rather than swallow silently.
+ *
+ *  Also owns the pending-purchase lifecycle (see recordPendingPurchase
+ *  below): any terminal result (anything but 'unverified') clears it, so
+ *  both a normal in-page verify and a resumePendingPurchase() call after a
+ *  restart share the exact same clearing logic — no duplication, no risk of
+ *  one path forgetting to clean up. */
+export async function verifyPointsPurchase(username: string, txid: string): Promise<PurchaseVerifyResult> {
+  const token = await ensureSessionToken(username);
+  if (!token) throw new Error('Could not start a session to verify this purchase. Please try again.');
+
+  const res = await fetch('/api/points/purchase/verify', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ txid }),
+  });
+  if (!res.ok) throw new Error('Could not verify this purchase. Please try again.');
+
+  const data = (await res.json()) as PurchaseVerifyResult;
+  if (data.status !== 'unverified') clearPendingPurchase();
+  if (data.status === 'credited' && data.pointsCredited > 0) {
+    window.dispatchEvent(
+      new CustomEvent<PointsEarnedDetail>(POINTS_EARNED_EVENT, {
+        detail: { awarded: data.pointsCredited, balance: data.balance },
+      }),
+    );
+  }
+  return data;
+}
+
+// --- Pending-purchase persistence -------------------------------------
+//
+// A Buy Points broadcast can succeed on-chain (real HBD moved) and then
+// never reach verifyPointsPurchase() — tab closed, phone locked, network
+// dropped — leaving the user with no points and no record the app can act
+// on. Persisting the txid the moment the broadcast succeeds, before
+// verification is even attempted, means the next time this user loads the
+// Buy Points page we can resume and finish the job automatically.
+
+const PENDING_PURCHASE_KEY = 'snapie-pending-points-purchase';
+const MAX_AUTO_RETRY_ATTEMPTS = 3;
+const PENDING_PURCHASE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface PendingPurchase {
+  txid: string;
+  username: string;
+  createdAt: number;
+  attempts: number;
+}
+
+function readPendingPurchase(): PendingPurchase | null {
+  try {
+    const raw = localStorage.getItem(PENDING_PURCHASE_KEY);
+    return raw ? (JSON.parse(raw) as PendingPurchase) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingPurchase(pending: PendingPurchase | null): void {
+  try {
+    if (pending) localStorage.setItem(PENDING_PURCHASE_KEY, JSON.stringify(pending));
+    else localStorage.removeItem(PENDING_PURCHASE_KEY);
+  } catch {
+    // Storage unavailable (private mode, quota) — the resume feature just
+    // won't work this session, nothing else about the purchase depends on it.
+  }
+}
+
+/** Call immediately after a Buy Points transfer broadcasts successfully,
+ *  before calling verifyPointsPurchase() — so a crash during verification
+ *  itself still leaves a record to resume from. */
+export function recordPendingPurchase(username: string, txid: string): void {
+  writePendingPurchase({ txid, username, createdAt: Date.now(), attempts: 0 });
+}
+
+export function clearPendingPurchase(): void {
+  writePendingPurchase(null);
+}
+
+/** Returns the txid of an unresolved purchase for this user, if any —
+ *  for surfacing "we're still trying to confirm a purchase" in the UI. */
+export function getPendingPurchaseTxid(username: string): string | null {
+  const pending = readPendingPurchase();
+  return pending && pending.username === username ? pending.txid : null;
+}
+
+/** Resumes a purchase left pending by a previous page load, if one exists
+ *  for this user. Bounded to a few auto-retries and 24h so a genuinely dead
+ *  transfer doesn't hammer the verify endpoint forever — after that it's
+ *  left in place (still readable via getPendingPurchaseTxid) for the user to
+ *  copy into a support request, matching the existing 'unverified' error
+ *  copy. Returns null if there was nothing to resume or it wasn't attempted. */
+export async function resumePendingPurchase(username: string): Promise<PurchaseVerifyResult | null> {
+  const pending = readPendingPurchase();
+  if (!pending || pending.username !== username) return null;
+
+  if (Date.now() - pending.createdAt > PENDING_PURCHASE_MAX_AGE_MS) {
+    clearPendingPurchase();
+    return null;
+  }
+  if (pending.attempts >= MAX_AUTO_RETRY_ATTEMPTS) return null;
+
+  writePendingPurchase({ ...pending, attempts: pending.attempts + 1 });
+
+  try {
+    return await verifyPointsPurchase(username, pending.txid);
+  } catch {
+    return null; // leave it pending — network hiccup on the resume attempt itself
+  }
 }

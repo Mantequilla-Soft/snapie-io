@@ -1,18 +1,19 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-import { PointsActionType, POINTS_ACTION_TYPES } from '@/lib/points/constants';
+import { LedgerActionType, LEDGER_ACTION_TYPES } from '@/lib/points/constants';
 
 export interface IPointsLedger extends Document {
   username: string;
-  actionType: PointsActionType;
+  actionType: LedgerActionType;
   points: number;
-  /** `${targetAuthor}/${targetPermlink}` — the thing the action was about. */
+  /** `${targetAuthor}/${targetPermlink}` for earned actions; the transfer's
+   *  txid for a purchase. Whatever makes the action idempotent. */
   refKey: string;
   createdAt: Date;
 }
 
 const PointsLedgerSchema = new Schema<IPointsLedger>({
   username: { type: String, required: true, index: true },
-  actionType: { type: String, required: true, enum: POINTS_ACTION_TYPES },
+  actionType: { type: String, required: true, enum: LEDGER_ACTION_TYPES },
   points: { type: Number, required: true },
   refKey: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },

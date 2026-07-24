@@ -19,7 +19,8 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera, FaAward, FaTrophy } from 'react-icons/fa';
+import { usePointsSummary } from '@/hooks/usePointsSummary';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -103,6 +104,11 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isClaimingInterest, setIsClaimingInterest] = useState(false);
   const { pendingInterest, annualRatePct, isLoading: isInterestLoading } = useHbdSavingsInterest(hiveAccount);
+  // Called unconditionally here, before any early returns below (loading/error
+  // states) — a Hooks-order bug bit this exact page once already: putting this
+  // call after those early returns meant it fired on some renders and not
+  // others, which React's Rules of Hooks correctly treats as a crash.
+  const pointsSummary = usePointsSummary(username);
 
   const textMuted = 'overlay.500';
   const successColor = 'success';
@@ -773,6 +779,53 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HBD', description: 'Send HBD to another account', showMemoField: true, showUsernameField: true })} variant="outline" colorScheme="blue">Send</Button>
                 <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HBD', description: 'Fast market swap HBD -> HIVE (immediate-or-cancel)', swapDirection: 'HBD_TO_HIVE' })} variant="outline" colorScheme="yellow">Swap</Button>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HBD Savings', description: 'Send HBD to Savings' })} variant="outline" colorScheme="teal">To Savings</Button>
+              </Flex>
+            )}
+          </Box>
+
+          {/* Snapie Points */}
+          <Box
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
+            sx={{ border: '1px solid rgba(167, 139, 250, 0.25)', borderLeft: '3px solid #a78bfa' }}
+          >
+            <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
+              <Flex alignItems="center" gap={3}>
+                <Flex w={10} h={10} borderRadius="full" bg="rgba(167, 139, 250, 0.12)" border="1px solid" borderColor="rgba(167, 139, 250, 0.3)" alignItems="center" justifyContent="center">
+                  <Icon as={FaAward} color="#a78bfa" boxSize={4} />
+                </Flex>
+                <Box>
+                  <Heading size="md">Snapie Points</Heading>
+                  <Text fontSize="xs" color={textMuted}>Earn, buy, and (soon) spend inside Snapie</Text>
+                </Box>
+              </Flex>
+              <Box textAlign="right" flexShrink={0}>
+                <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold">
+                  {pointsSummary ? pointsSummary.balance.toLocaleString() : '—'}
+                </Text>
+                <Text fontSize="xs" color={textMuted}>spendable</Text>
+              </Box>
+            </Flex>
+            <Flex justifyContent="space-between" alignItems="center" px={5} pb={4}>
+              <HStack spacing={1.5} color={textMuted} fontSize="xs">
+                <Icon as={FaTrophy} boxSize={3} />
+                <Text>
+                  {pointsSummary ? pointsSummary.lifetimeEarned.toLocaleString() : '—'} lifetime
+                  {pointsSummary?.rank ? ` · #${pointsSummary.rank} on the leaderboard` : ''}
+                  {' — spending or buying never lowers this'}
+                </Text>
+              </HStack>
+            </Flex>
+            {isOwnWallet && (
+              <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
+                <Button
+                  size="sm"
+                  leftIcon={<FaShoppingCart />}
+                  onClick={() => router.push('/settings/points/buy')}
+                  variant="outline"
+                  colorScheme="purple"
+                >
+                  Buy Points
+                </Button>
               </Flex>
             )}
           </Box>

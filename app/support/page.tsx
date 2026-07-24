@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import NextLink from 'next/link'
 import {
   Box, Button, Divider, Heading, HStack, Input, InputGroup, InputRightAddon,
-  Table, Tbody, Td, Text, Th, Thead, Tr, VStack, useToast,
+  Link as ChakraLink, Table, Tbody, Td, Text, Th, Thead, Tr, VStack, useToast,
 } from '@chakra-ui/react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import { useLoginModal } from '@/contexts/LoginModalContext'
@@ -148,6 +149,13 @@ export default function SupportPage() {
             Snapie stays free and open for everyone — nothing here is ever paywalled. If you&apos;d
             like to help keep it running, supporting the platform earns you a patron badge next
             to your name and a spot on the Patrons feed tab. Pure recognition, no strings.
+          </Text>
+          <Text color="overlay.500" fontSize="xs">
+            You can also support Snapie by{' '}
+            <ChakraLink as={NextLink} href="/settings/points/buy" color="primary" textDecoration="underline">
+              buying Points
+            </ChakraLink>
+            {' '}— and get something for it.
           </Text>
         </VStack>
 

@@ -2,6 +2,15 @@ export type PointsActionType = 'blog' | 'snap' | 'comment' | 'reblog' | 'vote';
 
 export const POINTS_ACTION_TYPES: PointsActionType[] = ['blog', 'snap', 'comment', 'reblog', 'vote'];
 
+// Ledger action types are a superset of the earn types: 'purchase' also
+// writes a PointsLedger row (for one shared audit trail), but has no fixed
+// POINTS/DAILY_CAP entry — a purchase's point value is derived from the
+// verified on-chain transfer amount, not a per-action constant, so it's kept
+// out of the earn-only maps below rather than forcing an unused dummy entry.
+export type LedgerActionType = PointsActionType | 'purchase';
+
+export const LEDGER_ACTION_TYPES: LedgerActionType[] = [...POINTS_ACTION_TYPES, 'purchase'];
+
 // Award values. Server-authoritative — the client never sends an amount, it only
 // names the action, and the server resolves the points here.
 export const POINTS: Record<PointsActionType, number> = {

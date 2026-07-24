@@ -1,7 +1,7 @@
 'use client';
 import { Box, Flex, Text, Icon, useToast } from '@chakra-ui/react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { getLastSnapsContainer, getPost, vote } from '@/lib/hive/client-functions';
@@ -19,12 +19,25 @@ export default function ContainerVoteWidget() {
   const [container, setContainer] = useState<{ author: string; permlink: string } | null>(null);
   const [voted, setVoted] = useState(false);
   const [isVoting, setIsVoting] = useState(false);
+  // Tracks the last-seen container permlink outside React state so the
+  // polling loop can cheaply tell "still the same post" from "peak.snaps
+  // rolled over to a new one" without re-rendering on every tick.
+  const knownPermlinkRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+
+    // force=true always re-checks vote state even if the container didn't
+    // change — needed on mount/login since the voter identity itself changed.
+    // The polling tick passes force=false so it only pays for the heavier
+    // getPost() call when peak.snaps has actually posted a new container.
+    async function refresh(force: boolean) {
       try {
         const { author, permlink } = await getLastSnapsContainer();
+        if (cancelled) return;
+        const isNewContainer = knownPermlinkRef.current !== permlink;
+        if (!isNewContainer && !force) return;
+        knownPermlinkRef.current = permlink;
         const post = await getPost(author, permlink);
         if (cancelled) return;
         setContainer({ author, permlink });
@@ -33,8 +46,14 @@ export default function ContainerVoteWidget() {
         // Container lookup failed — just hide the widget rather than show
         // something broken.
       }
-    })();
-    return () => { cancelled = true; };
+    }
+
+    refresh(true);
+    // peak.snaps rolls over to a new container multiple times a day — poll
+    // so a long-lived tab doesn't keep showing stale vote state against a
+    // container that's since been replaced.
+    const interval = setInterval(() => refresh(false), 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [username]);
 
   async function handleClick() {

@@ -5,7 +5,7 @@ import {
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import NextLink from 'next/link';
-import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward, FiCheckSquare, FiFileText } from 'react-icons/fi';
+import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward, FiCheckSquare, FiFileText, FiShoppingCart } from 'react-icons/fi';
 import { useUserSettings, type PayoutType, type ColorMode } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
@@ -427,6 +427,41 @@ export default function SettingsPage() {
                             </Text>
                             <Text color="overlay.500" fontSize="xs">points</Text>
                         </Box>
+                    </Flex>
+
+                    <Divider borderColor="surfaceBorder" />
+
+                    <Flex
+                        as={NextLink}
+                        href="/settings/points/buy"
+                        align="center"
+                        gap={4}
+                        px={6}
+                        py={5}
+                        cursor="pointer"
+                        transition="all 0.15s"
+                        _hover={{ bg: 'rgba(28, 161, 241, 0.06)' }}
+                    >
+                        <Flex
+                            flexShrink={0}
+                            w="36px"
+                            h="36px"
+                            borderRadius="10px"
+                            bg="rgba(28, 161, 241, 0.15)"
+                            align="center"
+                            justify="center"
+                        >
+                            <Icon as={FiShoppingCart} boxSize={4} color="primary" />
+                        </Flex>
+                        <Box flex={1}>
+                            <Text color="text" fontWeight="medium" fontSize="sm" mb={1}>
+                                Buy Points
+                            </Text>
+                            <Text color="overlay.500" fontSize="xs">
+                                Top up with HBD — spend points on things to come.
+                            </Text>
+                        </Box>
+                        <Icon as={FiChevronRight} boxSize={5} color="overlay.400" flexShrink={0} />
                     </Flex>
                 </Box>
             )}

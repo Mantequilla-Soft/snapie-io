@@ -30,6 +30,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'fix', text: 'Fixed Shorts showing an empty feed — the video service it was pulling from had moved to a new address.' },
       { type: 'feature', text: 'New "vote the daily Snaps post" nudge in the sidebar — a bigger payout on that post means bigger reward payouts for everyone’s replies, on every Hive frontend.' },
+      { type: 'feature', text: 'You can now buy Snapie Points with HBD from Settings — handy if you\'d rather support Snapie directly than grind for points.' },
+      { type: 'improvement', text: 'Your Wallet now shows a Snapie Points card, with both your spendable balance and your all-time (leaderboard) total in one place.' },
     ],
   },
   {
