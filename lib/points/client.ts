@@ -15,6 +15,15 @@ export interface PointsEarnedDetail {
   balance: number;
 }
 
+// Deliberately separate from POINTS_EARNED_EVENT — that event's listener
+// adds `awarded` to lifetimeEarned, which must never move for a spend.
+export const POINTS_SPENT_EVENT = 'snapie:points-spent';
+
+export interface PointsSpentDetail {
+  spent: number;
+  balance: number;
+}
+
 // Guards against firing two parallel authenticate() calls (and, for wallet
 // users, two stacked signature prompts) if two point-earning actions happen
 // in quick succession before the first mint finishes. Keyed by username so a

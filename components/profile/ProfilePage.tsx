@@ -23,6 +23,8 @@ import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
 import CurationQualityCard from './CurationQualityCard';
@@ -193,6 +195,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const presence = useUserPresence(username);
   const { getTier } = usePatronStatus();
+  const { getEquippedBadge } = useMoodBadges();
   const { openRoom } = useHangout();
 
   const profileMeta = profileInfo?.metadata?.profile || {};
@@ -263,6 +266,11 @@ export default function ProfilePage({ username }: ProfilePageProps) {
             username={username}
             size="100px"
             sx={{ marginRight: '16px' }}
+            overlay={
+              getEquippedBadge(username)
+                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} size="28px" />
+                : undefined
+            }
           />
           <Box>
             <Flex alignItems="center" gap={2} flexWrap="wrap">

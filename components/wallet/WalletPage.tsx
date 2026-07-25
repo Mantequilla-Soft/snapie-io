@@ -46,6 +46,8 @@ import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import dynamic from 'next/dynamic';
@@ -108,6 +110,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   // call after those early returns meant it fired on some renders and not
   // others, which React's Rules of Hooks correctly treats as a crash.
   const pointsSummary = usePointsSummary(username);
+  const { getEquippedBadge } = useMoodBadges();
 
   const textMuted = 'overlay.500';
   const successColor = 'success';
@@ -436,6 +439,11 @@ export default function WalletPage({ username }: WalletPageProps) {
               borderColor: 'primary',
               boxShadow: '0 0 18px rgba(28, 161, 241, 0.25)',
             }}
+            overlay={
+              getEquippedBadge(username)
+                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} size="24px" />
+                : undefined
+            }
           />
           <Box overflow="hidden">
             <Flex alignItems="center" gap={2} flexWrap="wrap">

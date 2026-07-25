@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { POINTS_EARNED_EVENT, PointsEarnedDetail } from '@/lib/points/client';
+import { POINTS_EARNED_EVENT, PointsEarnedDetail, POINTS_SPENT_EVENT, PointsSpentDetail } from '@/lib/points/client';
 
 export interface PointsSummary {
   balance: number;
@@ -52,6 +52,18 @@ export function usePointsSummary(username: string | null | undefined): PointsSum
     window.addEventListener(POINTS_EARNED_EVENT, onEarned);
     return () => window.removeEventListener(POINTS_EARNED_EVENT, onEarned);
   }, [refetch]);
+
+  useEffect(() => {
+    // Spending must never move lifetimeEarned — only balance changes here,
+    // unlike the POINTS_EARNED_EVENT listener above.
+    const onSpent = (e: Event) => {
+      const detail = (e as CustomEvent<PointsSpentDetail>).detail;
+      if (!detail) return;
+      setSummary(prev => (prev ? { ...prev, balance: detail.balance } : prev));
+    };
+    window.addEventListener(POINTS_SPENT_EVENT, onSpent);
+    return () => window.removeEventListener(POINTS_SPENT_EVENT, onSpent);
+  }, []);
 
   return summary;
 }

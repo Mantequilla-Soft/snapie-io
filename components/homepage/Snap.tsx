@@ -1,5 +1,7 @@
 import { Box, Text, HStack, Button, Link, VStack, Flex, Wrap, WrapItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
 import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "react-icons/fa";
@@ -57,6 +59,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
     const { postData } = useCombflowPost(comment.author, comment.permlink, false);
     const { calculateDelta } = useVoteCalculator(user ?? null);
     const { getTier } = usePatronStatus();
+    const { getEquippedBadge } = useMoodBadges();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
     const toast = useToast();
     
@@ -269,6 +272,11 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         size="36px"
                         flexShrink={0}
                         sx={{ marginTop: '-2px' }}
+                        overlay={
+                            getEquippedBadge(comment.author)
+                                ? <MoodBadgeIcon sku={getEquippedBadge(comment.author)!} size="16px" />
+                                : undefined
+                        }
                     />
 
                     {/* Right column: header + content + actions */}

@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-25',
+    date: '2026-07-25',
+    title: 'Mood Badges',
+    items: [
+      { type: 'feature', text: 'New Mood Badges — spend Snapie Points on a bull or bear badge that shows next to your avatar everywhere on Snapie. Buy and switch anytime from Settings.' },
+    ],
+  },
+  {
     id: '2026-07-24',
     date: '2026-07-24',
     items: [
