@@ -441,7 +441,7 @@ export default function WalletPage({ username }: WalletPageProps) {
             }}
             overlay={
               getEquippedBadge(username)
-                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} size="24px" />
+                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} username={username} size="28px" />
                 : undefined
             }
           />

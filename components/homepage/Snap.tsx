@@ -274,7 +274,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                         sx={{ marginTop: '-2px' }}
                         overlay={
                             getEquippedBadge(comment.author)
-                                ? <MoodBadgeIcon sku={getEquippedBadge(comment.author)!} size="16px" />
+                                ? <MoodBadgeIcon sku={getEquippedBadge(comment.author)!} username={comment.author} size="20px" />
                                 : undefined
                         }
                     />
