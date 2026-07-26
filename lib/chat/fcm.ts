@@ -107,6 +107,48 @@ export async function sendDirectMessageToTokens(tokens: string[], data: FCMData)
   await Promise.all(tokens.map(token => sendDirectMessage(token, data)));
 }
 
+export interface GenericNotification {
+  title: string;
+  body: string;
+  tag: string;
+  /** Path to open on click, e.g. '/settings/points'. */
+  link?: string;
+}
+
+/** Non-chat push, same FCM plumbing as the chat sends above (reused rather
+ *  than duplicated) — for platform-side notices like an admin points grant.
+ *  Best-effort: a user with no registered fcmTokens (push never enabled)
+ *  just doesn't get one, same graceful-degradation as chat DMs. */
+export async function sendGenericNotification(token: string, data: GenericNotification): Promise<void> {
+  const app = getFirebaseAdmin();
+  if (!app) return;
+
+  try {
+    const { getMessaging } = require('firebase-admin/messaging');
+    await getMessaging(app).send({
+      token,
+      notification: { title: data.title, body: data.body },
+      webpush: {
+        headers: { Urgency: 'high' },
+        notification: {
+          title: data.title,
+          body: data.body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: data.tag,
+          renotify: true,
+        },
+        fcmOptions: { link: data.link || '/' },
+      },
+    });
+  } catch {}
+}
+
+export async function sendGenericNotificationToTokens(tokens: string[], data: GenericNotification): Promise<void> {
+  if (!tokens.length) return;
+  await Promise.all(tokens.map(token => sendGenericNotification(token, data)));
+}
+
 export async function subscribeToChannels(fcmToken: string, channelIds: string[]): Promise<void> {
   const app = getFirebaseAdmin();
   if (!app) return;

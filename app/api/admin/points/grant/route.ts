@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { isAdminUsername } from '@/lib/admin';
 import { grantPoints } from '@/lib/points/adminGrantService';
+import { ChatUser } from '@/lib/db/models/ChatUser';
+import { sendGenericNotificationToTokens } from '@/lib/chat/fcm';
 
 export const maxDuration = 20;
 
@@ -33,6 +35,25 @@ export const POST = withChatAuth(async (req, { username }) => {
 
   const trimmedReason = typeof reason === 'string' ? reason.trim().slice(0, 280) || undefined : undefined;
 
-  const result = await grantPoints(username, targetUsername.trim().toLowerCase(), points, trimmedReason, idempotencyKey.trim());
+  const target = targetUsername.trim().toLowerCase();
+  const result = await grantPoints(username, target, points, trimmedReason, idempotencyKey.trim());
+
+  // Best-effort push — same non-blocking, errors-swallowed shape as the
+  // chat DM send this reuses. A user with push never enabled (no
+  // fcmTokens) just doesn't get one; that's an existing, accepted gap in
+  // the chat notifications this borrows from, not a new failure mode.
+  if (result.status === 'granted') {
+    ChatUser.findById(target).lean().then(peer => {
+      if (peer?.fcmTokens?.length) {
+        sendGenericNotificationToTokens(peer.fcmTokens, {
+          title: '🎁 You got Snapie Points!',
+          body: trimmedReason ? `+${result.pointsGranted.toLocaleString()} points — ${trimmedReason}` : `+${result.pointsGranted.toLocaleString()} points`,
+          tag: 'points-grant',
+          link: '/settings',
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
+
   return NextResponse.json(result);
 });
