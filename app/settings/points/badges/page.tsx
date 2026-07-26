@@ -37,7 +37,12 @@ export default function MoodBadgesPage() {
       if (result.status === 'purchased') {
         setOwned(result.owned);
         setEquipped(result.equipped);
-        toast({ status: 'success', title: `${MOOD_BADGES[sku].label} badge unlocked!` });
+        toast({
+          status: 'success',
+          title: `${MOOD_BADGES[sku].label} badge unlocked!`,
+          description: 'It can take a couple minutes to show up on your avatar everywhere — that\'s expected, not a failed purchase.',
+          duration: 6000,
+        });
       } else if (result.status === 'already_owned') {
         setOwned(result.owned);
         setEquipped(result.equipped);
@@ -60,6 +65,12 @@ export default function MoodBadgesPage() {
       const result = await equipMoodBadge(username, isEquipped ? null : sku);
       if (result.status === 'equipped') {
         setEquipped(result.equipped);
+        toast({
+          status: 'success',
+          title: result.equipped ? `${MOOD_BADGES[sku].label} equipped` : 'Badge unequipped',
+          description: 'It can take a couple minutes to show up on your avatar everywhere.',
+          duration: 6000,
+        });
       } else {
         toast({ status: 'error', title: 'Could not update your badge' });
       }
@@ -149,7 +160,9 @@ export default function MoodBadgesPage() {
       </SimpleGrid>
 
       <Text fontSize="xs" color="overlay.400" mt={6}>
-        Badges are non-refundable and don&apos;t affect your leaderboard rank.
+        Badges are non-refundable and don&apos;t affect your leaderboard rank. After buying or
+        switching, it can take a couple minutes to show up on your avatar everywhere — that&apos;s
+        normal, not a failed purchase.
       </Text>
     </Box>
   );
