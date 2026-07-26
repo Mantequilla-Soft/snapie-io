@@ -36,7 +36,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   // discovery flag (see hooks/useShowInterestPicker.ts), and only to brand-new
   // Hive accounts, server-authoritative so it doesn't reappear on a new
   // device/browser once dismissed.
-  const { shouldShow: showInterestPicker } = useShowInterestPicker(currentUsername);
+  const { shouldShow: showInterestPicker, dismiss: dismissInterestPicker } = useShowInterestPicker(currentUsername);
   const baseGradient = settings.colorMode === 'light'
     ? 'radial(circle at 18% 8%, rgba(3, 105, 161, 0.08), transparent 34%), radial(circle at 78% 0%, rgba(3, 105, 161, 0.05), transparent 30%), linear(to-br, #ffffff, #f8fafc 48%, #f1f5f9)'
     : 'radial(circle at 18% 8%, rgba(28, 161, 241, 0.12), transparent 34%), radial(circle at 78% 0%, rgba(28, 161, 241, 0.07), transparent 30%), linear(to-br, #080f1e, #0d1525 48%, #070d1a)';
@@ -172,10 +172,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
         <HangoutModal isOpen onClose={closeRoom} roomName={activeRoom} />
       )}
       {!isEmbedMode && !isChatPopoutMode && showInterestPicker && (
-        // No-op: saving/skipping updates interestsOnboardedAt via
-        // useUserSettings, which flips showInterestPicker false and
-        // unmounts this on its own — no separate close handler needed.
-        <InterestPicker onDone={() => {}} />
+        <InterestPicker onDone={dismissInterestPicker} />
       )}
       {/* "What's new" changelog — everyone, not just the discovery allowlist,
           but never stacked on top of the onboarding picker. */}

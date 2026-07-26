@@ -13,7 +13,7 @@ interface InterestsState {
  *  the old localStorage-only check) and gated to brand-new Hive accounts only.
  *  Defaults to false while loading or on any fetch failure — never show the
  *  prompt due to an infra hiccup. */
-export function useShowInterestPicker(username: string | null | undefined): { shouldShow: boolean } {
+export function useShowInterestPicker(username: string | null | undefined): { shouldShow: boolean; dismiss: () => void } {
   const [shouldShow, setShouldShow] = useState(false);
 
   useEffect(() => {
@@ -37,5 +37,15 @@ export function useShowInterestPicker(username: string | null | undefined): { sh
     return () => { cancelled = true; };
   }, [username]);
 
-  return { shouldShow };
+  // Called from InterestPicker's onDone — this hook's own state is the only
+  // thing gating whether the modal renders at all (see LayoutContent.tsx),
+  // so completing/skipping onboarding MUST flip this immediately, or the
+  // modal just sits there with no way to close it (no X button, no
+  // overlay-click, in onboarding mode). A real bug shipped once already:
+  // this used to be a derived value off useUserSettings() that updated
+  // reactively for free; moving it server-side dropped that for-free
+  // reactivity without anyone wiring up the replacement.
+  const dismiss = () => setShouldShow(false);
+
+  return { shouldShow, dismiss };
 }
