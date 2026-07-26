@@ -1,6 +1,6 @@
-export type MoodBadgeSku = 'bull' | 'bear' | 'excited' | 'sleepy' | 'salty' | 'grouchy';
+export type MoodBadgeSku = 'bull' | 'bear' | 'excited' | 'sleepy' | 'salty' | 'grouchy' | 'caffeinated';
 
-export const MOOD_BADGE_SKUS: MoodBadgeSku[] = ['bull', 'bear', 'excited', 'sleepy', 'salty', 'grouchy'];
+export const MOOD_BADGE_SKUS: MoodBadgeSku[] = ['bull', 'bear', 'excited', 'sleepy', 'salty', 'grouchy', 'caffeinated'];
 
 export interface MoodBadgeCatalogItem {
   label: string;
@@ -17,6 +17,7 @@ export const MOOD_BADGES: Record<MoodBadgeSku, MoodBadgeCatalogItem> = {
   sleepy: { label: 'Sleepy', price: 500, imageSrc: '/badges/sleepy.png', feeling: 'sleepy' },
   salty: { label: 'Salty', price: 500, imageSrc: '/badges/salty.png', feeling: 'salty' },
   grouchy: { label: 'Grouchy', price: 500, imageSrc: '/badges/grouchy.png', feeling: 'grouchy' },
+  caffeinated: { label: 'Caffeinated', price: 500, imageSrc: '/badges/caffeinated.png', feeling: 'caffeinated' },
 };
 
 export function isMoodBadgeSku(value: unknown): value is MoodBadgeSku {
