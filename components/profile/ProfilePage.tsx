@@ -268,7 +268,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
             sx={{ marginRight: '16px' }}
             overlay={
               getEquippedBadge(username)
-                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} username={username} size="32px" />
+                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} username={username} size="44px" />
                 : undefined
             }
           />
