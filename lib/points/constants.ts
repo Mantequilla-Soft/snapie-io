@@ -2,14 +2,22 @@ export type PointsActionType = 'blog' | 'snap' | 'comment' | 'reblog' | 'vote';
 
 export const POINTS_ACTION_TYPES: PointsActionType[] = ['blog', 'snap', 'comment', 'reblog', 'vote'];
 
-// Ledger action types are a superset of the earn types: 'purchase' also
-// writes a PointsLedger row (for one shared audit trail), but has no fixed
-// POINTS/DAILY_CAP entry — a purchase's point value is derived from the
-// verified on-chain transfer amount, not a per-action constant, so it's kept
-// out of the earn-only maps below rather than forcing an unused dummy entry.
-export type LedgerActionType = PointsActionType | 'purchase';
+// Ledger action types are a superset of the earn types: 'purchase' and
+// 'admin_grant' also write a PointsLedger row (for one shared audit trail),
+// but have no fixed POINTS/DAILY_CAP entry — their point value is derived
+// per-transaction (verified transfer amount, or an admin's typed amount),
+// not a per-action constant, so they're kept out of the earn-only maps below
+// rather than forcing an unused dummy entry.
+export type LedgerActionType = PointsActionType | 'purchase' | 'admin_grant';
 
-export const LEDGER_ACTION_TYPES: LedgerActionType[] = [...POINTS_ACTION_TYPES, 'purchase'];
+export const LEDGER_ACTION_TYPES: LedgerActionType[] = [...POINTS_ACTION_TYPES, 'purchase', 'admin_grant'];
+
+// Per-grant ceiling for the admin "points cannon" — generous enough for a
+// real customer-service comp, low enough that a fat-fingered extra zero
+// can't mint a game-breaking amount. Not a rate limit (an admin can grant
+// this many, to as many users, as often as they want) — just a single-typo
+// guardrail.
+export const MAX_ADMIN_GRANT_POINTS = 5000;
 
 // Award values. Server-authoritative — the client never sends an amount, it only
 // names the action, and the server resolves the points here.
