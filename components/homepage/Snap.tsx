@@ -269,7 +269,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                     {/* Left column: avatar */}
                     <Avatar
                         username={comment.author}
-                        size="36px"
+                        size="42px"
                         flexShrink={0}
                         sx={{ marginTop: '-2px' }}
                         overlay={
