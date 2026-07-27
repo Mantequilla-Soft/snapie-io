@@ -4,6 +4,14 @@ import { Channel } from '@/lib/db/models/Channel';
 import { withChatAuth } from '@/lib/chat/auth';
 import { seedDefaultChannels } from '@/lib/chat/seedChannels';
 
+// force-dynamic is load-bearing: this GET takes no params and calls no
+// dynamic request API, so without it Next statically caches the handler
+// itself at build/first-request time and never reruns the Channel.find()
+// again in production — a newly created channel would never appear for
+// anyone. Same bug and fix as app/api/mood-badges/equipped/route.ts.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   await connectDB();
   await seedDefaultChannels();
