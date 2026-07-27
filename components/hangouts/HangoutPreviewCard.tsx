@@ -1,6 +1,8 @@
 'use client';
 import { Box, HStack, VStack, Text, Badge, Image } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useState, useEffect } from 'react';
 import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -11,6 +13,7 @@ interface HangoutPreviewCardProps {
 
 export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps) {
   const { openRoom } = useHangout();
+  const { getEquippedBadge } = useMoodBadges();
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +89,15 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       )}
       <Box p={4}>
       <HStack spacing={3}>
-        <Avatar size="md" username={room.host} />
+        <Avatar
+          size="md"
+          username={room.host}
+          overlay={
+            getEquippedBadge(room.host)
+              ? <MoodBadgeIcon sku={getEquippedBadge(room.host)!} username={room.host} size="22px" />
+              : undefined
+          }
+        />
         <VStack align="start" spacing={0} flex={1}>
           <HStack>
             <Text fontWeight="bold" fontSize="md">{room.title}</Text>

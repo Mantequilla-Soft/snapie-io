@@ -1,6 +1,8 @@
 'use client';
 import { Box, Text, HStack, Badge } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { Comment } from '@hiveio/dhive';
 import { useMemo } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -17,6 +19,7 @@ interface ReSnapProps {
  * Similar to Twitter's quote tweet or retweet display
  */
 export default function ReSnap({ comment }: ReSnapProps) {
+    const { getEquippedBadge } = useMoodBadges();
     const commentDate = getPostDate(comment.created);
     
     // Separate media from text using SkateHive's pattern
@@ -54,7 +57,15 @@ export default function ReSnap({ comment }: ReSnapProps) {
             </Badge>
 
             <HStack mb={2} align="start">
-                <Avatar size="sm" username={comment.author} />
+                <Avatar
+                    size="sm"
+                    username={comment.author}
+                    overlay={
+                        getEquippedBadge(comment.author)
+                            ? <MoodBadgeIcon sku={getEquippedBadge(comment.author)!} username={comment.author} size="16px" />
+                            : undefined
+                    }
+                />
                 <Box>
                     <Text fontWeight="medium" fontSize="sm">
                         @{comment.author}

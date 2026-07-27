@@ -7,6 +7,8 @@ import {
   Avatar as ChakraAvatar, Input,
 } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { CloseIcon } from '@chakra-ui/icons';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
 import {
@@ -176,6 +178,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const toast = useToast();
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
+  const { getEquippedBadge } = useMoodBadges();
 
   const {
     isFollowing, isMuted: isAuthorMuted,
@@ -384,6 +387,11 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
               _hover: { opacity: 0.85 },
               transition: 'opacity 0.15s ease',
             }}
+            overlay={
+              getEquippedBadge(short.author)
+                ? <MoodBadgeIcon sku={getEquippedBadge(short.author)!} username={short.author} size="18px" />
+                : undefined
+            }
           />
           <Text
             color="white"
@@ -624,7 +632,17 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
                         opacity={sendingTo && sendingTo !== conv._id ? 0.5 : 1}
                       >
                         {conv.type === 'dm' && conv.peer
-                          ? <Avatar size="sm" username={conv.peer} />
+                          ? (
+                            <Avatar
+                              size="sm"
+                              username={conv.peer}
+                              overlay={
+                                getEquippedBadge(conv.peer)
+                                  ? <MoodBadgeIcon sku={getEquippedBadge(conv.peer)!} username={conv.peer} size="16px" />
+                                  : undefined
+                              }
+                            />
+                          )
                           : <ChakraAvatar size="sm" name={name} />}
                         <Text color="white" fontSize="sm" flex={1} noOfLines={1}>{name}</Text>
                         {sendingTo === conv._id && <Spinner size="xs" color="whiteAlpha.600" />}

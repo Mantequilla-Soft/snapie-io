@@ -6,6 +6,8 @@ import NextLink from 'next/link';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import PatronBadge from '@/components/shared/PatronBadge';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 
 interface WhoToFollowRowProps {
   account: string;
@@ -26,6 +28,7 @@ export default function WhoToFollowRow({ account, onResolved }: WhoToFollowRowPr
   const { isFollowing, isBlacklisted, isProcessing, fetchRelationship, handleFollow } =
     useUserRelationship(account);
   const { getTier } = usePatronStatus();
+  const { getEquippedBadge } = useMoodBadges();
   // useUserRelationship's own isLoading starts false until its effect runs,
   // so relying on it alone would flash a "Follow" button (default state)
   // for already-followed accounts for one frame. Track our own resolved
@@ -54,7 +57,15 @@ export default function WhoToFollowRow({ account, onResolved }: WhoToFollowRowPr
     <HStack justify="space-between" px={2} py={1.5}>
       <Link as={NextLink} href={`/@${account}`} _hover={{ textDecoration: 'none' }} minW={0} flex={1}>
         <HStack spacing={2} minW={0}>
-          <Avatar size="sm" username={account} />
+          <Avatar
+            size="sm"
+            username={account}
+            overlay={
+              getEquippedBadge(account)
+                ? <MoodBadgeIcon sku={getEquippedBadge(account)!} username={account} size="16px" />
+                : undefined
+            }
+          />
           <Text fontSize="sm" color="text" isTruncated>@{account}</Text>
           <PatronBadge tier={getTier(account)} />
         </HStack>

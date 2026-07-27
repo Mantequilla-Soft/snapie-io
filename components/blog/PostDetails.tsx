@@ -2,6 +2,8 @@
 
 import { Box, Text, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Badge, Tag, TagLabel, Button } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import React, { useMemo, useState } from 'react';
 import { MdTranslate } from 'react-icons/md';
 import { Discussion } from '@hiveio/dhive';
@@ -85,6 +87,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
     const [isTranslating, setIsTranslating] = useState(false);
     const [nsfwRevealed, setNsfwRevealed] = useState(false);
     const { postData } = useCombflowPost(author, post.permlink);
+    const { getEquippedBadge } = useMoodBadges();
 
     const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
     const showTranslate = !translatedText && (!postData || postData.primary_language !== browserLang);
@@ -349,7 +352,15 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
             )}
             <Flex justifyContent="space-between" alignItems="center" mb={4}>
                 <Flex alignItems="center">
-                    <Avatar size="sm" username={author} />
+                    <Avatar
+                        size="sm"
+                        username={author}
+                        overlay={
+                            getEquippedBadge(author)
+                                ? <MoodBadgeIcon sku={getEquippedBadge(author)!} username={author} size="16px" />
+                                : undefined
+                        }
+                    />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
                             {isEmbedMode ? `@${author}` : <Link as={NextLink} href={`/@${author}`}>@{author}</Link>}

@@ -1,6 +1,9 @@
-import { Box, Avatar, Text, HStack, IconButton, Link } from '@chakra-ui/react';
+import { Box, Text, HStack, IconButton, Link } from '@chakra-ui/react';
 import { ExternalLinkIcon } from '@chakra-ui/icons'; // Import the external link icon
 import { Notifications } from '@hiveio/dhive';
+import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 
 interface NotificationItemProps {
   notification: Notifications;
@@ -9,6 +12,7 @@ interface NotificationItemProps {
 export default function NotificationItem({ notification }: NotificationItemProps) {
   
   const author = notification.msg.trim().split(' ')[0].slice(1);
+  const { getEquippedBadge } = useMoodBadges();
 
   const formattedDate = new Date(notification.date + 'Z').toLocaleString('en-US', {
     year: 'numeric',
@@ -30,7 +34,15 @@ export default function NotificationItem({ notification }: NotificationItemProps
       w="full"
       align="stretch"
     >
-      <Avatar src={`https://images.hive.blog/u/${author}/avatar/sm`} name='' />
+      <Avatar
+        username={author}
+        size="sm"
+        overlay={
+          getEquippedBadge(author)
+            ? <MoodBadgeIcon sku={getEquippedBadge(author)!} username={author} size="16px" />
+            : undefined
+        }
+      />
       <Box flex="1">
         <Text fontWeight="semibold">{author}</Text>
         <Text>{notification.msg}</Text>

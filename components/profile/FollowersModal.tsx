@@ -17,6 +17,8 @@ import {
 } from '@chakra-ui/react';
 import { getFollowers, getFollowing } from '@/lib/hive/client-functions';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import NextLink from 'next/link';
 
 interface FollowersModalProps {
@@ -31,6 +33,7 @@ export default function FollowersModal({ isOpen, onClose, username, type }: Foll
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const { getEquippedBadge } = useMoodBadges();
 
   const loadUsers = useCallback(async (startFrom: string = '', append: boolean = false) => {
     try {
@@ -121,7 +124,15 @@ export default function FollowersModal({ isOpen, onClose, username, type }: Foll
                     transition="all 0.2s"
                     cursor="pointer"
                   >
-                    <Avatar size="sm" username={user} />
+                    <Avatar
+                      size="sm"
+                      username={user}
+                      overlay={
+                        getEquippedBadge(user)
+                          ? <MoodBadgeIcon sku={getEquippedBadge(user)!} username={user} size="16px" />
+                          : undefined
+                      }
+                    />
                     <Text fontWeight="medium" color="text">@{user}</Text>
                   </HStack>
                 </Link>

@@ -11,6 +11,8 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { witnessVoteWithKeychain } from '@/lib/hive/client-functions';
 import { getWitnessesByVote, formatHp, WitnessInfo } from '@/lib/hive/governance';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 
 const MAX_WITNESS_VOTES = 30;
 
@@ -24,6 +26,7 @@ export default function WitnessVotingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('');
   const [pendingWitness, setPendingWitness] = useState<string | null>(null);
+  const { getEquippedBadge } = useMoodBadges();
 
   useEffect(() => {
     getWitnessesByVote(100)
@@ -118,6 +121,11 @@ export default function WitnessVotingPage() {
                       size="32px"
                       flexShrink={0}
                       sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
+                      overlay={
+                        getEquippedBadge(witness.owner)
+                          ? <MoodBadgeIcon sku={getEquippedBadge(witness.owner)!} username={witness.owner} size="16px" />
+                          : undefined
+                      }
                     />
                     <Box flex={1} minW={0}>
                       <HStack spacing={1.5}>

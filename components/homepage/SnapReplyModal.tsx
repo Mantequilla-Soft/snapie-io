@@ -1,5 +1,7 @@
 import { Modal, ModalBody, ModalContent, ModalHeader, ModalOverlay, HStack, Link, IconButton, Box, Text, Spinner } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import React, { useRef, useMemo, useState } from 'react';
 import SnapComposer from './SnapComposer';
 import { Comment } from '@hiveio/dhive';
@@ -25,6 +27,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
         () => (comment?.permlink ? translationCache.get(comment.permlink) ?? null : null)
     );
     const [isTranslating, setIsTranslating] = useState(false);
+    const { getEquippedBadge } = useMoodBadges();
 
     // Split body into text and media so ThreeSpeak videos use the Mantequilla
     // player (via MediaRenderer) instead of a plain iframe from markdownRenderer.
@@ -78,7 +81,15 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                 />
                 <ModalHeader>
                     <HStack mb={2}>
-                        <Avatar size="sm" username={comment.author} />
+                        <Avatar
+                            size="sm"
+                            username={comment.author}
+                            overlay={
+                                getEquippedBadge(comment.author)
+                                    ? <MoodBadgeIcon sku={getEquippedBadge(comment.author)!} username={comment.author} size="16px" />
+                                    : undefined
+                            }
+                        />
                         <Box ml={3}>
                             <Text fontWeight="medium" fontSize="sm">
                                 <Link as={NextLink} href={`/@${comment.author}`}>@{comment.author}</Link>

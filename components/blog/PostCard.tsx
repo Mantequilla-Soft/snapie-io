@@ -1,5 +1,7 @@
 import { Box, Image, Text, Flex, Link, Spinner } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { Swiper, SwiperSlide } from 'swiper/react';
@@ -35,6 +37,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
     const postHref = `/@${encodeURIComponent(author || '')}/${encodeURIComponent(post.permlink || '')}`;
     const router = useRouter();
     const [isNavigating, setIsNavigating] = useState(false);
+    const { getEquippedBadge } = useMoodBadges();
 
     function navigateToPost(e: React.MouseEvent) {
         e.preventDefault();
@@ -137,7 +140,15 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             )}
             <Flex justifyContent="space-between" alignItems="center">
                 <Flex alignItems="center">
-                    <Avatar size="sm" username={author} />
+                    <Avatar
+                        size="sm"
+                        username={author}
+                        overlay={
+                            getEquippedBadge(author)
+                                ? <MoodBadgeIcon sku={getEquippedBadge(author)!} username={author} size="16px" />
+                                : undefined
+                        }
+                    />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
                             <Link as={NextLink} href={`/@${author}`}>@{author}</Link>

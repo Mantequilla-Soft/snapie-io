@@ -46,6 +46,8 @@ import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { transferEncryptedMemoWithAioha } from '@/lib/hive/aioha';
 import GiphySelector from '@/components/homepage/GiphySelector';
 import type { IGif } from '@giphy/js-types';
@@ -298,6 +300,7 @@ function avatarNameForConversation(conv: Conversation): string {
 }
 
 function ConversationAvatar({ conv }: { conv: Conversation }) {
+  const { getEquippedBadge } = useMoodBadges();
   if (conv.type === 'group' && conv.members && conv.members.length > 1) {
     // Intentionally raw Chakra Avatar/AvatarGroup, not the shared Avatar
     // component — AvatarGroup clones mr/size/borderColor onto its direct
@@ -327,7 +330,17 @@ function ConversationAvatar({ conv }: { conv: Conversation }) {
     );
   }
   const username = avatarNameForConversation(conv);
-  return <Avatar size="xs" username={username} />;
+  return (
+    <Avatar
+      size="xs"
+      username={username}
+      overlay={
+        getEquippedBadge(username)
+          ? <MoodBadgeIcon sku={getEquippedBadge(username)!} username={username} size="14px" />
+          : undefined
+      }
+    />
+  );
 }
 
 function ForwardButton({

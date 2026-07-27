@@ -12,6 +12,8 @@ import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
@@ -48,6 +50,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useNotifications();
     const hasUnclaimed = useUnclaimedRewards();
+    const { getEquippedBadge } = useMoodBadges();
 
     function handleHomeClick(e: React.MouseEvent) {
         if (pathname === '/') {
@@ -427,6 +430,11 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                             size="32px"
                                             flexShrink={0}
                                             sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
+                                            overlay={
+                                                getEquippedBadge(user!)
+                                                    ? <MoodBadgeIcon sku={getEquippedBadge(user!)!} username={user!} size="16px" />
+                                                    : undefined
+                                            }
                                         />
                                         <Box overflow="hidden">
                                             <Text fontSize="10px" color="overlay.500" lineHeight={1} mb="2px">Logged in as</Text>
@@ -466,6 +474,11 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                                 username={user!}
                                                 size="24px"
                                                 sx={{ border: '1px solid rgba(28, 161, 241, 0.3)' }}
+                                                overlay={
+                                                    getEquippedBadge(user!)
+                                                        ? <MoodBadgeIcon sku={getEquippedBadge(user!)!} username={user!} size="14px" />
+                                                        : undefined
+                                                }
                                             />
                                         </Button>
                                     </Box>

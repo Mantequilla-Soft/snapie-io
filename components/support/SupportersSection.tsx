@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Box, Divider, Heading, Link, Skeleton, Text, VStack, Wrap, WrapItem } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import NextLink from 'next/link';
 import PatronBadge from '@/components/shared/PatronBadge';
 import type { PatronTier } from '@/hooks/usePatronStatus';
@@ -17,6 +19,7 @@ const TIER_ORDER: Record<PatronTier, number> = { 'snap-master': 0, 'snapian': 1,
 export default function SupportersSection() {
   const [supporters, setSupporters] = useState<Supporter[]>([]);
   const [loading, setLoading] = useState(true);
+  const { getEquippedBadge } = useMoodBadges();
 
   useEffect(() => {
     fetch('/api/patrons')
@@ -70,7 +73,15 @@ export default function SupportersSection() {
                   w="108px"
                   align="center"
                 >
-                  <Avatar size="md" username={account} />
+                  <Avatar
+                    size="md"
+                    username={account}
+                    overlay={
+                      getEquippedBadge(account)
+                        ? <MoodBadgeIcon sku={getEquippedBadge(account)!} username={account} size="22px" />
+                        : undefined
+                    }
+                  />
                   <Text fontSize="xs" fontWeight="bold" color="overlay.900" noOfLines={1} w="full" textAlign="center">
                     @{account}
                   </Text>

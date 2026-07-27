@@ -1,6 +1,8 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
 import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Spinner } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import type { SwapDirection } from '@/lib/hive/client-functions';
 import HiveClient from '@/lib/hive/hiveclient';
 
@@ -48,6 +50,7 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
     const [memo, setMemo] = useState<string>(initialMemo ?? '');
     const [username, setUsername] = useState<string>(initialTo ?? '');
     const [isLoading, setIsLoading] = useState(false);
+    const { getEquippedBadge } = useMoodBadges();
     const [customSlippage, setCustomSlippage] = useState<string>('');
     const [selectedSlippage, setSelectedSlippage] = useState<string>('');
     const [usernameLookupStatus, setUsernameLookupStatus] = useState<UsernameLookupStatus>('idle');
@@ -234,7 +237,16 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                                 />
                                 {usernameLookupStatus === 'checking' && <Spinner size="sm" flexShrink={0} />}
                                 {usernameLookupStatus === 'found' && (
-                                    <Avatar size="sm" username={username} flexShrink={0} />
+                                    <Avatar
+                                        size="sm"
+                                        username={username}
+                                        flexShrink={0}
+                                        overlay={
+                                            getEquippedBadge(username)
+                                                ? <MoodBadgeIcon sku={getEquippedBadge(username)!} username={username} size="16px" />
+                                                : undefined
+                                        }
+                                    />
                                 )}
                             </HStack>
                             {usernameLookupStatus === 'not-found' && (

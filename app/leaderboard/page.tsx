@@ -6,6 +6,8 @@ import { Box, Flex, Heading, Text, Spinner, Icon } from '@chakra-ui/react';
 import { FiAward } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 
 interface LeaderboardEntry {
@@ -30,6 +32,7 @@ export default function LeaderboardPage() {
   // to the render that scheduled it, not later invocations of the same
   // memoized function. The ref is always current the instant it's written.
   const offsetRef = useRef(0);
+  const { getEquippedBadge } = useMoodBadges();
 
   const fetchNext = useCallback(async () => {
     if (isFetching.current) return;
@@ -146,7 +149,15 @@ export default function LeaderboardPage() {
                   >
                     {e.rank}
                   </Text>
-                  <Avatar size="sm" username={e.username} />
+                  <Avatar
+                    size="sm"
+                    username={e.username}
+                    overlay={
+                      getEquippedBadge(e.username)
+                        ? <MoodBadgeIcon sku={getEquippedBadge(e.username)!} username={e.username} size="16px" />
+                        : undefined
+                    }
+                  />
                   <Box flex={1} minW={0}>
                     <Text fontWeight="medium" fontSize="sm" color="text" isTruncated>
                       @{e.username}

@@ -8,6 +8,8 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { usePathname } from 'next/navigation';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import NextLink from 'next/link';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
@@ -27,6 +29,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
   const { unreadCount } = useNotifications();
   const pathname = usePathname();
   const openPodsCount = useOpenPodsCount();
+  const { getEquippedBadge } = useMoodBadges();
 
   // Immersive pages manage their own chrome
   if (pathname === '/shorts') return null;
@@ -105,7 +108,6 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               as="button"
               onClick={onMePress}
               borderRadius="full"
-              overflow="hidden"
               boxSize="34px"
               border="2px solid rgba(28, 161, 241, 0.35)"
               boxShadow="0 0 12px rgba(28, 161, 241, 0.2)"
@@ -113,7 +115,15 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               transition="box-shadow 0.15s"
               _hover={{ boxShadow: '0 0 16px rgba(28, 161, 241, 0.4)' }}
             >
-              <Avatar username={user} size="34px" />
+              <Avatar
+                username={user}
+                size="34px"
+                overlay={
+                  getEquippedBadge(user)
+                    ? <MoodBadgeIcon sku={getEquippedBadge(user)!} username={user} size="18px" />
+                    : undefined
+                }
+              />
             </Box>
           </>
         ) : (

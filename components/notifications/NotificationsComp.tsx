@@ -48,6 +48,8 @@ import {
 import { groupNotifications, NotificationGroup } from '@/lib/utils/notificationGrouping';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useNotificationContext } from '@/hooks/useNotificationContext';
 
 interface NotificationCompProps {
@@ -594,10 +596,21 @@ function SingleNotificationRow({
   const postKey = getNotificationPostKey(notification);
   const permlink = postKey ? postKey.split('/')[1] : null;
   const readableTitle = permlink ? permlink.replace(/-/g, ' ') : null;
+  const { getEquippedBadge } = useMoodBadges();
 
   return (
     <NotificationShell unread={unread} onClick={onClick} nested={nested}>
-      {actor ? <Avatar size="sm" username={actor} /> : <ChakraAvatar size="sm" />}
+      {actor ? (
+        <Avatar
+          size="sm"
+          username={actor}
+          overlay={
+            getEquippedBadge(actor)
+              ? <MoodBadgeIcon sku={getEquippedBadge(actor)!} username={actor} size="16px" />
+              : undefined
+          }
+        />
+      ) : <ChakraAvatar size="sm" />}
       <Box flex="1" minW={0}>
         <Text fontWeight="semibold">{notification.msg || getNotificationTypeLabel(notification.type)}</Text>
         <HStack fontSize="sm" opacity={0.72} spacing={2} flexWrap="wrap">

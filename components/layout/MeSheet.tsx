@@ -13,6 +13,8 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { Avatar } from '@/components/shared/Avatar';
+import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
+import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
 import HiveActivityWidget from './HiveActivityWidget';
 
@@ -28,6 +30,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
   const { openLoginModal } = useLoginModal();
   const { unreadCount } = useNotifications();
   const openPodsCount = useOpenPodsCount();
+  const { getEquippedBadge } = useMoodBadges();
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} placement="bottom">
@@ -58,6 +61,11 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                     border: '2px solid rgba(28, 161, 241, 0.4)',
                     boxShadow: '0 0 20px rgba(28, 161, 241, 0.22)',
                   }}
+                  overlay={
+                    getEquippedBadge(user)
+                      ? <MoodBadgeIcon sku={getEquippedBadge(user)!} username={user} size="26px" />
+                      : undefined
+                  }
                 />
                 <Box overflow="hidden">
                   <Text color="text" fontWeight="bold" fontSize="lg" noOfLines={1}>
