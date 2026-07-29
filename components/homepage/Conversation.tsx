@@ -1,6 +1,6 @@
 import { Box, Text, HStack, Button, Avatar, Divider, VStack, Spinner } from '@chakra-ui/react';
 import { Comment } from '@hiveio/dhive';
-import { useComments } from '@/hooks/useComments';
+import { useComments, ExtendedComment } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
 import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
@@ -17,12 +17,28 @@ interface ConversationProps {
     onOpen: () => void;
     setReply: (reply: Comment) => void;
     refreshTrigger?: number;
+    /** A reply just posted to this thread's top snap, for instant local
+     *  display — see handleReply in app/page.tsx for why this only covers
+     *  replies to the top snap, not nested replies within the thread. */
+    pendingReply?: ExtendedComment | null;
+    /** Fired once pendingReply has been added locally, so the parent can
+     *  clear it — otherwise closing and reopening this same thread later
+     *  would re-inject (and duplicate) an already-confirmed reply. */
+    onConsumedPendingReply?: () => void;
 }
 
-const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigger }: ConversationProps) => {
+const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigger, pendingReply, onConsumedPendingReply }: ConversationProps) => {
     const { hiveUser } = useHiveUser();
     const router = useRouter();
-    const { comments, isLoading, error, updateComments } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
+    const { comments, isLoading, error, updateComments, addComment } = useComments(comment.author, comment.permlink, true, hiveUser?.name);
+
+    useEffect(() => {
+        if (pendingReply) {
+            addComment(pendingReply);
+            onConsumedPendingReply?.();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendingReply]);
     // A "top snap" (or top wave) replies directly to its container; hide its parent
     // link so users can't open the container and load hundreds of replies at once.
     const isTopLevel = !comment.parent_author ||

@@ -5,6 +5,7 @@ import SnapList from '@/components/homepage/SnapList';
 import RightSidebar from '@/components/layout/RightSideBar';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
+import { ExtendedComment } from '@/hooks/useComments';
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
@@ -39,6 +40,13 @@ export default function Home() {
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
+  // Optimistic reply feedback (no full feed refetch — see handleReply):
+  // per-snap reply-count deltas, keyed by "author/permlink", applied when
+  // rendering the feed list; and a just-posted reply to inject straight into
+  // an open conversation's thread, when the reply target is that thread's
+  // top snap (the common case — see handleReply for the nested-reply cutoff).
+  const [replyCountBumps, setReplyCountBumps] = useState<Map<string, number>>(new Map());
+  const [pendingConversationReply, setPendingConversationReply] = useState<ExtendedComment | null>(null);
   const [activeFilter, setActiveFilter] = useState<SnapFilterType>('all');
   const [communityName, setCommunityName] = useState<string>('Community');
 
@@ -81,9 +89,47 @@ export default function Home() {
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
 
-  const handleReply = (_partial: Partial<Comment>) => {
+  // Deliberately does NOT call activeFeedData.refresh() — replying to an
+  // existing snap doesn't change which snaps are in the feed, and a full
+  // refetch there used to blow away the whole loaded list (and the user's
+  // scroll position) for zero benefit. Instead: bump the replied-to snap's
+  // count locally, and — when replying to the top snap of a currently-open
+  // conversation — inject the real new comment straight into that thread,
+  // instantly, no chain read needed (mirrors the optimistic pattern
+  // useComments.addComment/updateComments already supports for exactly this).
+  const handleReply = (newComment: Partial<Comment>) => {
+    if (reply) {
+      const parentKey = `${reply.author}/${reply.permlink}`;
+      setReplyCountBumps(prev => {
+        const next = new Map(prev);
+        next.set(parentKey, (next.get(parentKey) ?? 0) + 1);
+        return next;
+      });
+
+      // A reply to a nested comment within an open thread (not the thread's
+      // top snap) intentionally skips instant injection here — it still
+      // gets a real, chain-confirmed update via the refreshTrigger below,
+      // just not the instant path. Keeps this fix scoped to the common case
+      // (replying from the feed list, or to a thread's top snap) rather than
+      // reworking the whole nested-reply tree.
+      if (conversation && conversation.author === reply.author && conversation.permlink === reply.permlink) {
+        setPendingConversationReply({
+          ...newComment,
+          parent_author: reply.author,
+          parent_permlink: reply.permlink,
+          children: 0,
+          active_votes: [],
+          json_metadata: newComment.json_metadata ?? '{}',
+          replies: [],
+          title: '',
+        } as ExtendedComment);
+      }
+    }
+
+    // Still gives an open thread a real, chain-confirmed refresh a few
+    // seconds later — useComments merges rather than replaces, so this can't
+    // duplicate or flash the comment already injected instantly above.
     setTimeout(() => {
-      activeFeedData.refresh?.();
       setConversationRefreshTrigger(t => t + 1);
     }, 3000);
   };
@@ -141,6 +187,17 @@ export default function Home() {
   const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery });
   const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery });
   const activeFeedData = showBlendedForAll ? blendedFeed : isTrendingTab ? trendingFeed : isForYouWarm ? forYouWarmFeed : isForYouCold ? forYouColdFeed : snaps;
+
+  // Applies the optimistic reply-count bumps from handleReply on top of
+  // whichever feed source is active, without any of the 5 feed-fetching
+  // hooks needing their own patch/setter — just an overlay at render time.
+  const feedComments = useMemo(() => {
+    if (replyCountBumps.size === 0) return activeFeedData.comments;
+    return activeFeedData.comments.map(c => {
+      const bump = replyCountBumps.get(`${c.author}/${c.permlink}`);
+      return bump ? { ...c, children: (c.children ?? 0) + bump } : c;
+    });
+  }, [activeFeedData.comments, replyCountBumps]);
 
   // Interleaving into the normal feed only makes sense for 'all' — 'For You'
   // is now itself an engagement-ranked pool for allowlisted accounts (no
@@ -258,7 +315,7 @@ export default function Home() {
               setConversation={setConversation}
               onOpen={onOpen}
               setReply={setReply}
-              data={{...activeFeedData, refresh: activeFeedData.refresh}}
+              data={{...activeFeedData, comments: feedComments, refresh: activeFeedData.refresh}}
               emptyMessage={
                 activeFilter === 'patrons' ? 'No patrons yet — be the first to support Snapie!' :
                 isTrendingTab ? 'Nothing trending right now — check back soon.' :
@@ -271,7 +328,15 @@ export default function Home() {
             />
           </>
         ) : (
-          <Conversation comment={conversation} setConversation={setConversation} onOpen={onOpen} setReply={setReply} refreshTrigger={conversationRefreshTrigger} />
+          <Conversation
+            comment={conversation}
+            setConversation={setConversation}
+            onOpen={onOpen}
+            setReply={setReply}
+            refreshTrigger={conversationRefreshTrigger}
+            pendingReply={pendingConversationReply}
+            onConsumedPendingReply={() => setPendingConversationReply(null)}
+          />
         )}
       </Box>
       <RightSidebar engagedAuthors={engagedAuthors} />
