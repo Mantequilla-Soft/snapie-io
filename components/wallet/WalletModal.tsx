@@ -1,5 +1,5 @@
 import { useState, useEffect, type ChangeEvent } from 'react';
-import { Box, Button, Input, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Spinner } from '@chakra-ui/react';
+import { Box, Button, Input, InputGroup, InputRightElement, Modal, ModalBody, ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalOverlay, Text, HStack, Select, Spinner } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -25,6 +25,12 @@ interface WalletModalProps {
     initialTo?: string;
     initialAmount?: number;
     initialMemo?: string;
+    /** Spendable balance for whichever this modal is moving (liquid HIVE/HBD,
+     *  savings, or HP) — shown next to the amount field and filled in by the
+     *  MAX button, so confirming an amount no longer requires closing the
+     *  modal to go check the real balance elsewhere on the page. */
+    maxAmount?: number;
+    maxLabel?: string;
     onConfirm: (amount: number, username?: string, memo?: string, swapDirection?: SwapDirection, slippagePercent?: number) => Promise<void>;
 }
 
@@ -37,7 +43,7 @@ type UsernameLookupStatus = 'idle' | 'checking' | 'found' | 'not-found';
 // seconds" so they're clearly done typing before we spend a network call.
 const USERNAME_LOOKUP_DEBOUNCE_MS = 1000;
 
-export default function WalletModal ({ isOpen, onClose, title, description, showMemoField = false, showUsernameField = false, swapConfig, initialTo, initialAmount, initialMemo, onConfirm }: WalletModalProps) {
+export default function WalletModal ({ isOpen, onClose, title, description, showMemoField = false, showUsernameField = false, swapConfig, initialTo, initialAmount, initialMemo, maxAmount, maxLabel, onConfirm }: WalletModalProps) {
     // Raw typed text, not a parsed number — a controlled number input whose
     // value is a number React re-renders as a string, but React deliberately
     // skips re-syncing the DOM when the current text already parses to the
@@ -108,6 +114,11 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
         setAmountText(e.target.value);
     };
 
+    const handleMax = () => {
+        if (maxAmount === undefined) return;
+        setAmountText(maxAmount.toFixed(3));
+    };
+
     const handleMemoChange = (e: ChangeEvent<HTMLInputElement>) => {
         setMemo(e.target.value);
     };
@@ -161,13 +172,28 @@ export default function WalletModal ({ isOpen, onClose, title, description, show
                 <ModalBody>
                     {description && <Text fontSize={'small'} mb={4}>{description}</Text>}
                     <Box mb={4}>
-                        <Input
-                            type="number"
-                            placeholder="Enter amount"
-                            value={amountText}
-                            onChange={handleAmountChange}
-                            min={0}
-                        />
+                        {maxAmount !== undefined && (
+                            <Text fontSize="xs" color="gray.500" mb={1} textAlign="right">
+                                Available: {maxAmount.toFixed(3)}{maxLabel ? ` ${maxLabel}` : ''}
+                            </Text>
+                        )}
+                        <InputGroup>
+                            <Input
+                                type="number"
+                                placeholder="Enter amount"
+                                value={amountText}
+                                onChange={handleAmountChange}
+                                min={0}
+                                pr={maxAmount !== undefined ? '4rem' : undefined}
+                            />
+                            {maxAmount !== undefined && (
+                                <InputRightElement width="4rem">
+                                    <Button size="xs" variant="ghost" colorScheme="blue" onClick={handleMax}>
+                                        MAX
+                                    </Button>
+                                </InputRightElement>
+                            )}
+                        </InputGroup>
                     </Box>
                     {isSwapMode && (
                         <Box mb={4}>
