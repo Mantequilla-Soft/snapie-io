@@ -25,6 +25,31 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-28',
+    date: '2026-07-28',
+    items: [
+      { type: 'improvement', text: 'Replying to a Snap no longer reloads your whole feed — your reply shows up instantly and you stay right where you were scrolled to.' },
+      { type: 'improvement', text: 'Wallet actions (Send, Power Up, Swap, Savings, and more) now show your available balance and a MAX button, so you don\'t have to close the window to go check.' },
+      { type: 'feature', text: 'Requesting a payment via QR code now notifies you the instant it\'s paid — no more manually refreshing your wallet to check.' },
+    ],
+  },
+  {
+    id: '2026-07-27',
+    date: '2026-07-27',
+    items: [
+      { type: 'feature', text: 'Equipped Mood Badges now show up next to your avatar practically everywhere on Snapie — not just the home feed, profile, and wallet.' },
+    ],
+  },
+  {
+    id: '2026-07-26',
+    date: '2026-07-26',
+    items: [
+      { type: 'feature', text: '6 new Mood Badges: Excited, Sleepy, Salty, Grouchy, Caffeinated, and Amused — 8 total to collect now.' },
+      { type: 'improvement', text: 'Bigger avatars in the home feed.' },
+      { type: 'improvement', text: 'You\'ll now get notified right away if you receive bonus Snapie Points.' },
+    ],
+  },
+  {
     id: '2026-07-25',
     date: '2026-07-25',
     title: 'Mood Badges',
