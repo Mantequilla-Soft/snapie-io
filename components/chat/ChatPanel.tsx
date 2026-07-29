@@ -43,6 +43,9 @@ import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiE
 import { FaPlay } from 'react-icons/fa';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
+// Same parser the server uses to decide what mentions you, so highlighting and
+// the badge can never disagree about what counts as a mention.
+import { MENTION_REGEX, MENTION_INPUT_REGEX, normalizeMentionToken, messageMentionsUser } from '@/lib/chat/mentions';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
@@ -60,6 +63,9 @@ interface ChatPanelProps {
   onRestore?: () => void;
   onPopout?: () => void;
   isPopoutWindow?: boolean;
+  /** Server-recomputed badge total, pushed up whenever this panel marks a
+   *  conversation read so the sidebar clears without waiting for its poll. */
+  onUnreadChange?: (total: number) => void;
 }
 
 const POLL_INTERVAL = 15000;
@@ -71,8 +77,6 @@ const DESKTOP_PANEL_DEFAULT = { width: 460, height: 680 };
 const DESKTOP_PANEL_MIN = { width: 400, height: 520 };
 const CHAT_IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const CHAT_IMAGE_ACCEPT = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-const MENTION_REGEX = /@[a-z0-9.-]+/gi;
-const MENTION_INPUT_REGEX = /(?:^|\s)@([a-z0-9.-]{0,32})$/i;
 const INITIAL_MESSAGE_LIMIT = 50;
 const DELTA_MESSAGE_LIMIT = 50;
 const MAX_ACTIVE_MESSAGES = 600;
@@ -170,17 +174,6 @@ function stripInlineImageUrls(content: string, imageUrls: string[]): string {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
-}
-
-function normalizeMentionToken(value: string): string {
-  return value.replace(/^@/, '').trim().toLowerCase();
-}
-
-function messageMentionsUser(content: string, username?: string | null): boolean {
-  if (!content || !username) return false;
-  const target = normalizeMentionToken(username);
-  const matches = content.match(MENTION_REGEX) || [];
-  return matches.some(token => normalizeMentionToken(token) === target);
 }
 
 type ActiveMentionDraft = {
@@ -712,7 +705,22 @@ function ConversationRow({ conv, isActive, onClick }: { conv: Conversation; isAc
           </Text>
         </Box>
       </HStack>
-      {conv.unread && <Box w="7px" h="7px" borderRadius="full" bg="blue.300" />}
+      {(conv.unreadCount || 0) > 0 && (
+        <Box
+          minW="18px"
+          h="18px"
+          px="5px"
+          borderRadius="full"
+          bg="blue.400"
+          color="white"
+          fontSize="10px"
+          fontWeight="700"
+          lineHeight="18px"
+          textAlign="center"
+        >
+          {conv.unreadCount! > 99 ? '99+' : conv.unreadCount}
+        </Box>
+      )}
     </Flex>
   );
 }
@@ -725,6 +733,7 @@ export default function ChatPanel({
   onRestore,
   onPopout,
   isPopoutWindow,
+  onUnreadChange,
 }: ChatPanelProps) {
   const { username: user } = useCurrentUser();
   const isMobile = useBreakpointValue({ base: true, md: false });
@@ -1003,6 +1012,41 @@ export default function ChatPanel({
       }
     }
   }, [fetchMessagesForConversation]);
+
+  // ── Read receipts ──────────────────────────────────────────────────────
+  //  Fetching a conversation no longer marks it read server-side: a background
+  //  poll behind a minimized panel used to clear the badge for messages nobody
+  //  had looked at. The panel now says so explicitly, and only while the thread
+  //  is genuinely on screen — open, not minimized, tab visible, and on mobile
+  //  (where the list and thread are separate screens) actually in the thread.
+  const markActiveConversationRead = useCallback(async () => {
+    if (!isOpen || isMinimized || !isAuthed || !activeConversationId) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (isMobile && mobileView !== 'thread') return;
+    const snapshot = await chatService.markRead(activeConversationId);
+    if (!snapshot) return;
+    onUnreadChange?.(snapshot.total);
+    setConversations(prev => prev.map(c => (
+      c._id === activeConversationId ? { ...c, unread: false, unreadCount: 0 } : c
+    )));
+  }, [activeConversationId, isAuthed, isMinimized, isMobile, isOpen, mobileView, onUnreadChange]);
+
+  // Re-marks on every genuine message change — refreshMessageDeltas bails out
+  // when there is nothing new, so this does not fire on an idle poll tick.
+  useEffect(() => { markActiveConversationRead(); }, [markActiveConversationRead, messages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onReturn = () => {
+      if (document.visibilityState === 'visible') markActiveConversationRead();
+    };
+    document.addEventListener('visibilitychange', onReturn);
+    window.addEventListener('focus', onReturn);
+    return () => {
+      document.removeEventListener('visibilitychange', onReturn);
+      window.removeEventListener('focus', onReturn);
+    };
+  }, [markActiveConversationRead]);
 
   useEffect(() => {
     if (!isOpen || isMinimized) return;

@@ -14,4 +14,5 @@ export type {
   TypingStatusInfo,
   ChatPreferences,
   StorageAdapter,
+  UnreadSnapshot,
 } from './types';

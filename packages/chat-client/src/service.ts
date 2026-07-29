@@ -7,6 +7,7 @@ import type {
   TypingStatusInfo,
   ChatPreferences,
   StorageAdapter,
+  UnreadSnapshot,
 } from './types';
 
 const TOKEN_KEY = 'snapie-chat-token';
@@ -186,13 +187,36 @@ export class ChatService {
     return group;
   }
 
-  async getUnreadCount(): Promise<number> {
-    if (!this.token) return 0;
+  async getUnread(): Promise<UnreadSnapshot> {
+    if (!this.token) return { total: 0, byConversation: {} };
     try {
-      const { unread } = await this.get<{ unread: number }>(`${this.base}/unread`, true);
-      return unread;
+      const { unread, conversations } = await this.get<{
+        unread: number;
+        conversations: Record<string, number>;
+      }>(`${this.base}/unread`, true);
+      return { total: unread || 0, byConversation: conversations || {} };
     } catch {
-      return 0;
+      return { total: 0, byConversation: {} };
+    }
+  }
+
+  async getUnreadCount(): Promise<number> {
+    return (await this.getUnread()).total;
+  }
+
+  /** Mark a conversation read. Returns the recomputed unread snapshot, or null
+   *  if the call failed — callers must leave the badge alone rather than
+   *  assume zero. */
+  async markRead(conversationId: string): Promise<UnreadSnapshot | null> {
+    if (!this.token) return null;
+    try {
+      const { unread, conversations } = await this.post<{
+        unread: number;
+        conversations: Record<string, number>;
+      }>(`${this.base}/read`, { conversationId }, true);
+      return { total: unread || 0, byConversation: conversations || {} };
+    } catch {
+      return null;
     }
   }
 
@@ -287,7 +311,13 @@ export class ChatService {
   }
 
   async request<T>(url: string, opts: RequestInit, auth: boolean): Promise<T> {
-    const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
+    const headers: Record<string, string> = {
+      // Declares that this client calls markRead() itself. Without it the
+      // server falls back to marking a conversation read when its messages are
+      // fetched, which is what pre-0.3 builds relied on.
+      'X-Snapie-Chat-Read-Mode': 'explicit',
+      ...(opts.headers as Record<string, string>),
+    };
     if (auth && this.token) headers['Authorization'] = `Bearer ${this.token}`;
 
     const res = await fetch(url, { ...opts, headers });

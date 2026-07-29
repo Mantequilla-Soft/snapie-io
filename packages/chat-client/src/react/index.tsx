@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ChatClient } from '../client';
-import type { Conversation, Message, TypingStatusInfo } from '../types';
+import type { Conversation, Message, TypingStatusInfo, UnreadSnapshot } from '../types';
 
 // ── Context ──────────────────────────────────────────────────────────────────
 
@@ -113,22 +113,37 @@ export function useChatMessages(
 }
 
 /**
- * Subscribe to the unread message count badge.
+ * Subscribe to the unread message count badge, its per-conversation breakdown,
+ * and the call that clears it.
+ *
+ * `unreadCount` is a message total: DMs and private groups count everything the
+ * other side sent since you last read it, public channels only count messages
+ * that mention you or reply to you. Call `markRead(conversationId)` when a
+ * thread is actually on screen — fetching messages does not clear it.
  *
  * @example
- * const { unreadCount } = useUnreadCount();
+ * const { unreadCount, byConversation, markRead } = useUnreadCount();
  */
 export function useUnreadCount(clientOverride?: ChatClient) {
   const client = clientOverride ?? useChatClient();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [snapshot, setSnapshot] = useState<UnreadSnapshot>({ total: 0, byConversation: {} });
 
   useEffect(() => {
     if (!client.isAuthenticated()) return;
-    const unsub = client.subscribeToUnreadCount(setUnreadCount);
+    const unsub = client.subscribeToUnread(setSnapshot);
     return unsub;
   }, [client]);
 
-  return { unreadCount };
+  const markRead = useCallback(async (conversationId: string) => {
+    const next = await client.markRead(conversationId);
+    if (next) setSnapshot(next);
+  }, [client]);
+
+  return {
+    unreadCount: snapshot.total,
+    byConversation: snapshot.byConversation,
+    markRead,
+  };
 }
 
 /**

@@ -145,10 +145,20 @@ const unsub = client.subscribeToConversations((conversations) => {
   setConversations(conversations);
 });
 
-// Unread badge count
+// Unread badge count (a message total)
 const unsub = client.subscribeToUnreadCount((count) => {
   setBadge(count);
 });
+
+// ...or the total plus its per-conversation breakdown
+const unsub = client.subscribeToUnread(({ total, byConversation }) => {
+  setBadge(total);
+  setDots(byConversation); // { 'dm:alice:bob': 3, 'general': 1 }
+});
+
+// Clearing it: fetching messages does NOT mark them read. Call this when the
+// thread is actually on screen.
+await client.markRead(conversationId);
 
 // Stop any subscription
 unsub();
@@ -311,6 +321,19 @@ function ChatButton() {
   return <Button badge={unreadCount}>Chat</Button>;
 }
 ```
+
+Also returns `byConversation` (a `{ conversationId: count }` map) and
+`markRead(conversationId)`.
+
+**What counts as unread:** a DM or a private group counts every message the
+other side sent since you last read it. A public channel or public group only
+counts messages that **mention you** or **reply to something you wrote** — so
+ambient chatter in a busy channel never raises the badge. Your own messages and
+anything from a muted or blocked user are excluded, matching what the message
+list actually shows you.
+
+**Clearing it:** loading a conversation's messages does not mark them read —
+call `markRead(conversationId)` when the thread is genuinely on screen.
 
 ### `useTyping`
 

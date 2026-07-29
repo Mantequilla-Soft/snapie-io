@@ -10,11 +10,13 @@ import type {
   ChatPreferences,
   TypingStatusInfo,
   DmDeliveryInfo,
+  UnreadSnapshot,
 } from './types';
 
 type ConversationsCallback = (conversations: Conversation[]) => void;
 type MessagesCallback = (messages: Message[]) => void;
 type UnreadCallback = (count: number) => void;
+type UnreadSnapshotCallback = (snapshot: UnreadSnapshot) => void;
 
 /**
  * High-level Snapie chat client.
@@ -225,14 +227,28 @@ export class ChatClient {
   /**
    * Subscribe to the unread message count, refreshed on every poll tick.
    * Returns an unsubscribe function.
+   *
+   * The count is a message total. A DM (or private group) counts everything the
+   * other side sent since you last read it; a public channel only counts
+   * messages that mention you or reply to you, so ambient chatter in a busy
+   * channel never badges. Use `subscribeToUnread` for the per-conversation
+   * breakdown.
    */
   subscribeToUnreadCount(callback: UnreadCallback): () => void {
+    return this.subscribeToUnread(snapshot => callback(snapshot.total));
+  }
+
+  /**
+   * Subscribe to the unread total *and* its per-conversation breakdown,
+   * refreshed on every poll tick. Returns an unsubscribe function.
+   */
+  subscribeToUnread(callback: UnreadSnapshotCallback): () => void {
     const fetch = async () => {
       try {
-        const count = await this.service.getUnreadCount();
-        callback(count);
+        callback(await this.service.getUnread());
       } catch {
-        callback(0);
+        // Leave the last known snapshot in place — reporting zero on a failed
+        // request makes the badge flicker away and back on every hiccup.
       }
     };
 
@@ -266,6 +282,17 @@ export class ChatClient {
 
   getUnreadCount(): Promise<number> {
     return this.service.getUnreadCount();
+  }
+
+  getUnread(): Promise<UnreadSnapshot> {
+    return this.service.getUnread();
+  }
+
+  /** Mark a conversation read. Call this when the thread is actually on screen
+   *  — fetching messages no longer implies reading them. Returns the recomputed
+   *  snapshot, or null if the call failed. */
+  markRead(conversationId: string): Promise<UnreadSnapshot | null> {
+    return this.service.markRead(conversationId);
   }
 
   // ── Preferences ──────────────────────────────────────────────────────────

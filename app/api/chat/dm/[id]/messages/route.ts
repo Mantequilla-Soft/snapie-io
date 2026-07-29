@@ -3,7 +3,15 @@ import { withChatAuth } from '@/lib/chat/auth';
 import { Message } from '@/lib/db/models/Message';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { getDmPeer, isDmParticipant } from '@/lib/chat/conversations';
-import { isRateLimited, validateMessageBody } from '@/lib/chat/messages';
+import {
+  isRateLimited,
+  validateMessageBody,
+  resolveReplyToSender,
+  markConversationRead,
+  usesExplicitReadReceipts,
+  newestCreatedAt,
+} from '@/lib/chat/messages';
+import { extractMentions } from '@/lib/chat/mentions';
 import { sendDirectMessageToTokens } from '@/lib/chat/fcm';
 import mongoose from 'mongoose';
 
@@ -42,11 +50,16 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
   const onlineWindowMs = 2 * 60 * 1000;
   const peer = getDmPeer(id, username);
 
-  await ChatUser.findOneAndUpdate(
-    { _id: username },
-    { $set: { [`conversationSeen.${id}`]: new Date(), lastSeen: new Date() } },
-    { upsert: true, returnDocument: 'after' }
-  );
+  // Current clients write the receipt via POST /api/chat/read once the thread
+  // is genuinely on screen. Legacy clients don't call it, and here that costs
+  // more than a stale badge — the stored receipt is also what the *peer* sees
+  // as "seen", so without this their read indicator would freeze permanently.
+  // Opening the conversation only; cursor fetches never stamp. Remove with the
+  // shim in lib/chat/messages.ts.
+  if (!before && !after && !usesExplicitReadReceipts(req)) {
+    const floor = newestCreatedAt(messages);
+    if (floor) await markConversationRead(username, id, floor);
+  }
 
   let status: {
     meSeenAt: string;
@@ -108,7 +121,11 @@ export const POST = withChatAuth(async (req, { username, params }) => {
     sender: username,
     content: validated.value,
     replyTo: replyTo || null,
+    mentions: extractMentions(validated.value),
+    replyToSender: await resolveReplyToSender(replyTo, id),
   });
+
+  await markConversationRead(username, id, message.createdAt);
 
   const now = Date.now();
   const cooldownMs = 3 * 60 * 1000;
@@ -161,7 +178,13 @@ export const PATCH = withChatAuth(async (req, { username, params }) => {
 
   const message = await Message.findOneAndUpdate(
     { _id: messageId, type: 'dm', target: id, sender: username },
-    { $set: { content: validated.value, editedAt: new Date() } },
+    {
+      $set: {
+        content: validated.value,
+        editedAt: new Date(),
+        mentions: extractMentions(validated.value),
+      },
+    },
     { returnDocument: 'after' }
   );
   if (!message) return NextResponse.json({ error: 'Message not found or not editable' }, { status: 404 });

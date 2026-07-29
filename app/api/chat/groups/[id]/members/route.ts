@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { Channel } from '@/lib/db/models/Channel';
 import { ChatUser } from '@/lib/db/models/ChatUser';
-import { normalizeHiveUser } from '@/lib/chat/conversations';
+import { conversationSeenPath, normalizeHiveUser } from '@/lib/chat/conversations';
 import { unsubscribeFromChannel } from '@/lib/chat/fcm';
 
 async function getOwnedGroup(id: string, username: string) {
@@ -36,6 +36,15 @@ export const POST = withChatAuth(async (req: NextRequest, { username, params }) 
     { $setOnInsert: { _id: normalizedMember }, $addToSet: { channels: groupId } },
     { upsert: true }
   );
+  // Their history in this group starts now — a private group notifies on every
+  // message, so without a floor the entire backlog would arrive as unread.
+  const seenPath = conversationSeenPath(groupId);
+  if (seenPath) {
+    await ChatUser.updateOne(
+      { _id: normalizedMember, [seenPath]: { $exists: false } },
+      { $set: { [seenPath]: new Date() } }
+    );
+  }
   return NextResponse.json({ group: updated });
 });
 

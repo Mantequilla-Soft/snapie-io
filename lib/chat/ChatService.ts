@@ -19,6 +19,10 @@ export interface Message {
   replyTo?: string | null;
   editedAt?: string | null;
   createdAt: string;
+  /** Usernames mentioned in `content`, extracted server-side at write time. */
+  mentions?: string[];
+  /** Sender of the message this replies to, denormalized server-side. */
+  replyToSender?: string | null;
 }
 
 export interface DmDeliveryInfo {
@@ -51,7 +55,18 @@ export interface Conversation {
   peer?: string;
   lastMessage?: Message | null;
   unread?: boolean;
+  /** Unread messages in this conversation. Sums across conversations to the
+   *  badge count — both come from the same server-side counter. */
+  unreadCount?: number;
 }
+
+/** Badge total plus its per-conversation breakdown. */
+export interface UnreadSnapshot {
+  total: number;
+  byConversation: Record<string, number>;
+}
+
+export const EMPTY_UNREAD_SNAPSHOT: UnreadSnapshot = { total: 0, byConversation: {} };
 
 export interface ChatPreferences {
   mutedUsers: string[];
@@ -318,13 +333,37 @@ class ChatService {
     await this.post(`${BASE}/register-device`, { fcmToken }, true);
   }
 
-  async getUnreadCount(): Promise<number> {
-    if (!this.currentToken()) return 0;
+  async getUnread(): Promise<UnreadSnapshot> {
+    if (!this.currentToken()) return EMPTY_UNREAD_SNAPSHOT;
     try {
-      const { unread } = await this.get<{ unread: number }>(`${BASE}/unread`, true);
-      return unread;
+      const { unread, conversations } = await this.get<{
+        unread: number;
+        conversations: Record<string, number>;
+      }>(`${BASE}/unread`, true);
+      return { total: unread || 0, byConversation: conversations || {} };
     } catch {
-      return 0;
+      return EMPTY_UNREAD_SNAPSHOT;
+    }
+  }
+
+  async getUnreadCount(): Promise<number> {
+    return (await this.getUnread()).total;
+  }
+
+  /** Tell the server this conversation has actually been read, and get the
+   *  recomputed badge back in the same round trip so it clears immediately
+   *  instead of on the next poll tick. Null on failure — the caller must leave
+   *  the badge alone rather than assume zero. */
+  async markRead(conversationId: string): Promise<UnreadSnapshot | null> {
+    if (!this.currentToken()) return null;
+    try {
+      const { unread, conversations } = await this.post<{
+        unread: number;
+        conversations: Record<string, number>;
+      }>(`${BASE}/read`, { conversationId }, true);
+      return { total: unread || 0, byConversation: conversations || {} };
+    } catch {
+      return null;
     }
   }
 
@@ -351,6 +390,10 @@ class ChatService {
 
   private async request<T>(url: string, opts: RequestInit, auth: boolean, retry = true): Promise<T> {
     const headers: Record<string, string> = {
+      // Declares that this client posts its own read receipts, so the server
+      // skips the legacy "fetching a conversation marks it read" behaviour it
+      // still applies for older @snapie/chat-client builds.
+      'X-Snapie-Chat-Read-Mode': 'explicit',
       ...(opts.headers as Record<string, string>),
     };
     const token = auth ? this.currentToken() : null;

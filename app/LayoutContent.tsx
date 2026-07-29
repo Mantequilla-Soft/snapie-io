@@ -56,15 +56,23 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     return () => { document.body.classList.remove('embed-mode'); };
   }, [isEmbedMode]);
 
-  useEffect(() => {
-    if (isEmbedMode || isChatOpen) return;
-    const poll = async () => { setChatUnreadCount(await chatService.getUnreadCount()); };
-    poll();
-    const id = setInterval(poll, 30000);
-    return () => clearInterval(id);
-  }, [isChatOpen, isEmbedMode]);
+  //  Polls unconditionally, including while the panel is open or minimized.
+  //  It used to pause whenever isChatOpen — which stays true when the panel is
+  //  minimized — and zero the count locally on open, so the badge was a local
+  //  guess that read 0 through arriving DMs and then snapped back on close.
+  //  Clearing is now the server's job: ChatPanel marks a conversation read and
+  //  hands us the recomputed total.
+  const refreshChatUnread = useCallback(async () => {
+    if (isEmbedMode) return;
+    setChatUnreadCount(await chatService.getUnreadCount());
+  }, [isEmbedMode]);
 
-  useEffect(() => { if (isChatOpen) setChatUnreadCount(0); }, [isChatOpen]);
+  useEffect(() => {
+    if (isEmbedMode) return;
+    refreshChatUnread();
+    const id = setInterval(refreshChatUnread, 30000);
+    return () => clearInterval(id);
+  }, [isEmbedMode, refreshChatUnread]);
 
   useEffect(() => {
     if (!isChatPopoutMode) return;
@@ -154,6 +162,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             onMinimize={() => setIsChatMinimized(true)}
             onRestore={() => { setIsChatMinimized(false); setIsChatOpen(true); }}
             onPopout={handlePopoutChat}
+            onUnreadChange={setChatUnreadCount}
           />
         </>
       )}

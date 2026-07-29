@@ -74,13 +74,21 @@ function useChatMessages(conversationId, type, clientOverride) {
 }
 function useUnreadCount(clientOverride) {
   const client = clientOverride ?? useChatClient();
-  const [unreadCount, setUnreadCount] = react.useState(0);
+  const [snapshot, setSnapshot] = react.useState({ total: 0, byConversation: {} });
   react.useEffect(() => {
     if (!client.isAuthenticated()) return;
-    const unsub = client.subscribeToUnreadCount(setUnreadCount);
+    const unsub = client.subscribeToUnread(setSnapshot);
     return unsub;
   }, [client]);
-  return { unreadCount };
+  const markRead = react.useCallback(async (conversationId) => {
+    const next = await client.markRead(conversationId);
+    if (next) setSnapshot(next);
+  }, [client]);
+  return {
+    unreadCount: snapshot.total,
+    byConversation: snapshot.byConversation,
+    markRead
+  };
 }
 function useTyping(conversationId, clientOverride) {
   const client = clientOverride ?? useChatClient();

@@ -107,6 +107,50 @@ export async function sendDirectMessageToTokens(tokens: string[], data: FCMData)
   await Promise.all(tokens.map(token => sendDirectMessage(token, data)));
 }
 
+/** A channel message pushed to specific devices instead of the channel topic.
+ *  A topic reaches every subscriber, which is right for a private group but not
+ *  for a public channel — there, only the people a message actually mentions or
+ *  replies to should be interrupted, matching what the unread badge counts. */
+export async function sendChannelMessageToToken(token: string, data: FCMData): Promise<void> {
+  const app = getFirebaseAdmin();
+  if (!app) return;
+
+  try {
+    const { getMessaging } = require('firebase-admin/messaging');
+    const title = `#${data.channelId}`;
+    const body = `${data.sender}: ${data.content.slice(0, 200)}`;
+    await getMessaging(app).send({
+      token,
+      notification: { title, body },
+      data: {
+        messageId: data.messageId,
+        channelId: data.channelId,
+        sender: data.sender,
+        content: data.content.slice(0, 200),
+      },
+      webpush: {
+        headers: { Urgency: 'high' },
+        notification: {
+          title,
+          body,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: `chat-${data.channelId}`,
+          renotify: true,
+        },
+        fcmOptions: { link: '/' },
+      },
+    });
+  } catch {
+    // FCM delivery failure is non-fatal
+  }
+}
+
+export async function sendChannelMessageToTokens(tokens: string[], data: FCMData): Promise<void> {
+  if (!tokens.length) return;
+  await Promise.all(tokens.map(token => sendChannelMessageToToken(token, data)));
+}
+
 export interface GenericNotification {
   title: string;
   body: string;

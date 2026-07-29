@@ -5,7 +5,8 @@ var ChatService = class {
   constructor(baseUrl, storage) {
     this.token = null;
     this.tokenUsername = null;
-    this.base = `${baseUrl.replace(/\/$/, "")}/api/chat`;
+    this.rootUrl = baseUrl.replace(/\/$/, "");
+    this.base = `${this.rootUrl}/api/chat`;
     this.storage = storage;
     this.token = storage.getItem(TOKEN_KEY);
     this.tokenUsername = storage.getItem(TOKEN_USER_KEY);
@@ -132,13 +133,28 @@ var ChatService = class {
     );
     return group;
   }
-  async getUnreadCount() {
-    if (!this.token) return 0;
+  async getUnread() {
+    if (!this.token) return { total: 0, byConversation: {} };
     try {
-      const { unread } = await this.get(`${this.base}/unread`, true);
-      return unread;
+      const { unread, conversations } = await this.get(`${this.base}/unread`, true);
+      return { total: unread || 0, byConversation: conversations || {} };
     } catch {
-      return 0;
+      return { total: 0, byConversation: {} };
+    }
+  }
+  async getUnreadCount() {
+    return (await this.getUnread()).total;
+  }
+  /** Mark a conversation read. Returns the recomputed unread snapshot, or null
+   *  if the call failed — callers must leave the badge alone rather than
+   *  assume zero. */
+  async markRead(conversationId) {
+    if (!this.token) return null;
+    try {
+      const { unread, conversations } = await this.post(`${this.base}/read`, { conversationId }, true);
+      return { total: unread || 0, byConversation: conversations || {} };
+    } catch {
+      return null;
     }
   }
   async setTyping(conversationId, isTyping) {
@@ -169,6 +185,30 @@ var ChatService = class {
   async markDmMemoFallbackSent(conversationId) {
     await this.post(`${this.base}/dm/${conversationId}/memo-fallback`, { success: true }, true);
   }
+  /**
+   * Upload an image to the Snapie image server.
+   * `signMessage` should sign the filename string with the user's posting key
+   * (same signing function used for authentication).
+   * Returns the public URL of the uploaded image.
+   */
+  async uploadImage(file, username, signMessage) {
+    const signature = await signMessage(file.name);
+    const form = new FormData();
+    form.append("file", file);
+    form.append("username", username);
+    form.append("signature", signature);
+    const res = await fetch(`${this.rootUrl}/api/upload-image`, {
+      method: "POST",
+      body: form
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.url) throw new Error("Upload failed: no URL returned");
+    return data.url;
+  }
   buildQS(opts) {
     const p = new URLSearchParams();
     if (opts.before) p.set("before", opts.before);
@@ -188,7 +228,13 @@ var ChatService = class {
     );
   }
   async request(url, opts, auth) {
-    const headers = { ...opts.headers };
+    const headers = {
+      // Declares that this client calls markRead() itself. Without it the
+      // server falls back to marking a conversation read when its messages are
+      // fetched, which is what pre-0.3 builds relied on.
+      "X-Snapie-Chat-Read-Mode": "explicit",
+      ...opts.headers
+    };
     if (auth && this.token) headers["Authorization"] = `Bearer ${this.token}`;
     const res = await fetch(url, { ...opts, headers });
     if (res.status === 401 && auth) {
@@ -393,14 +439,25 @@ var ChatClient = class {
   /**
    * Subscribe to the unread message count, refreshed on every poll tick.
    * Returns an unsubscribe function.
+   *
+   * The count is a message total. A DM (or private group) counts everything the
+   * other side sent since you last read it; a public channel only counts
+   * messages that mention you or reply to you, so ambient chatter in a busy
+   * channel never badges. Use `subscribeToUnread` for the per-conversation
+   * breakdown.
    */
   subscribeToUnreadCount(callback) {
+    return this.subscribeToUnread((snapshot) => callback(snapshot.total));
+  }
+  /**
+   * Subscribe to the unread total *and* its per-conversation breakdown,
+   * refreshed on every poll tick. Returns an unsubscribe function.
+   */
+  subscribeToUnread(callback) {
     const fetch2 = async () => {
       try {
-        const count = await this.service.getUnreadCount();
-        callback(count);
+        callback(await this.service.getUnread());
       } catch {
-        callback(0);
       }
     };
     fetch2();
@@ -432,6 +489,15 @@ var ChatClient = class {
   getUnreadCount() {
     return this.service.getUnreadCount();
   }
+  getUnread() {
+    return this.service.getUnread();
+  }
+  /** Mark a conversation read. Call this when the thread is actually on screen
+   *  — fetching messages no longer implies reading them. Returns the recomputed
+   *  snapshot, or null if the call failed. */
+  markRead(conversationId) {
+    return this.service.markRead(conversationId);
+  }
   // ── Preferences ──────────────────────────────────────────────────────────
   getPreferences() {
     return this.service.getPreferences();
@@ -455,6 +521,18 @@ var ChatClient = class {
   markDmMemoFallbackSent(conversationId) {
     return this.service.markDmMemoFallbackSent(conversationId);
   }
+  // ── Image uploads ─────────────────────────────────────────────────────────
+  /**
+   * Upload an image and get back a public URL to embed in a message.
+   * After uploading, pass the URL as the message content (or append it to text).
+   *
+   * @example
+   * const url = await client.uploadImage(file, username, challenge => keychain.sign(challenge));
+   * await client.sendMessage(convId, 'dm', url);
+   */
+  uploadImage(file, username, signMessage) {
+    return this.service.uploadImage(file, username, signMessage);
+  }
   // ── Cleanup ───────────────────────────────────────────────────────────────
   destroy() {
     this.poller.destroy();
@@ -462,6 +540,25 @@ var ChatClient = class {
   }
 };
 
-export { ChatClient, ChatService, PollingManager, createDefaultStorage };
+// src/utils.ts
+var IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"];
+function isImageUrl(url) {
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    if (!["http:", "https:"].includes(parsed.protocol)) return false;
+    const pathname = parsed.pathname.toLowerCase();
+    return IMAGE_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+function extractImageUrls(content) {
+  if (!content) return [];
+  const urls = content.match(/https?:\/\/[^\s)]+/gi) ?? [];
+  return urls.filter(isImageUrl);
+}
+
+export { ChatClient, ChatService, PollingManager, createDefaultStorage, extractImageUrls, isImageUrl };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map

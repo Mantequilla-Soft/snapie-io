@@ -1,6 +1,6 @@
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import { ReactNode } from 'react';
-import { C as ChatClient, d as Conversation, M as Message } from './client-Bztyx_3e.mjs';
+import { C as ChatClient, d as Conversation, M as Message } from './client-C8OuYUK4.mjs';
 
 interface ChatProviderProps {
     client: ChatClient;
@@ -33,13 +33,21 @@ declare function useChatMessages(conversationId: string | null, type: 'channel' 
     editMessage: (messageId: string, content: string) => Promise<void>;
 };
 /**
- * Subscribe to the unread message count badge.
+ * Subscribe to the unread message count badge, its per-conversation breakdown,
+ * and the call that clears it.
+ *
+ * `unreadCount` is a message total: DMs and private groups count everything the
+ * other side sent since you last read it, public channels only count messages
+ * that mention you or reply to you. Call `markRead(conversationId)` when a
+ * thread is actually on screen — fetching messages does not clear it.
  *
  * @example
- * const { unreadCount } = useUnreadCount();
+ * const { unreadCount, byConversation, markRead } = useUnreadCount();
  */
 declare function useUnreadCount(clientOverride?: ChatClient): {
     unreadCount: number;
+    byConversation: Record<string, number>;
+    markRead: (conversationId: string) => Promise<void>;
 };
 /**
  * Typing indicator for a conversation.
