@@ -25,6 +25,24 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-30',
+    date: '2026-07-30',
+    items: [
+      { type: 'feature', text: 'Your home feed now shows a banner when you have pending rewards to claim — with the exact amount, and a direct link to your wallet. Dismissible, and it only comes back once there\'s something new to claim.' },
+      { type: 'improvement', text: 'Pending Rewards now sits right at the top of your wallet, above your account balance — since that\'s usually why you opened it.' },
+      { type: 'feature', text: 'Added quick "what is this?" explanations in your wallet for the more confusing stuff — Liquid HIVE, HBD, Convert, Swap, and Delegate.' },
+      { type: 'fix', text: 'Fixed chat read receipts (and typing indicators) getting permanently stuck for conversations with usernames containing a dot.' },
+    ],
+  },
+  {
+    id: '2026-07-29',
+    date: '2026-07-29',
+    items: [
+      { type: 'improvement', text: 'Chat unread badges are smarter now — public channels only notify you when someone mentions you or replies to you, not on every single message.' },
+      { type: 'fix', text: 'Fixed chat sometimes showing an unread badge when there was nothing new to actually read.' },
+    ],
+  },
+  {
     id: '2026-07-28',
     date: '2026-07-28',
     items: [
