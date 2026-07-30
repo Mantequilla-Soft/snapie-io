@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { ChatUser } from '@/lib/db/models/ChatUser';
-import { getDmPeer, isDmParticipant } from '@/lib/chat/conversations';
+import { conversationKeyPath, getDmPeer, isDmParticipant } from '@/lib/chat/conversations';
 
 const memoMarkRateLimit = new Map<string, number[]>();
 function isMemoMarkRateLimited(username: string): boolean {
@@ -32,7 +32,7 @@ export const POST = withChatAuth(async (req: NextRequest, { username, params }) 
 
   await ChatUser.updateOne(
     { _id: peer },
-    { $set: { [`memoNotifyAt.${id}`]: new Date() } },
+    { $set: { [conversationKeyPath('memoNotifyAt', id)]: new Date() } },
     { upsert: true }
   );
 

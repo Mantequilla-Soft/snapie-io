@@ -24,18 +24,58 @@ export function isDmParticipant(dmId: string, username: string): boolean {
   return parsed[0] === normalized || parsed[1] === normalized;
 }
 
-/** Conversation ids are used as Mongo Map keys (`conversationSeen.<id>`), where
- *  a dot would silently create a nested path instead of one key and a `$` would
- *  be read as an operator — so a read receipt for such an id would never be
- *  stored and its unread count could never clear. Channel ids are caller-chosen
- *  (POST /api/chat/channels), so this is validated at both ends. */
-export function isSafeConversationKey(id: string): boolean {
-  return typeof id === 'string' && id.length > 0 && !id.includes('.') && !id.includes('$');
+/** Read receipts live in a Mongo map keyed by conversation id
+ *  (`conversationSeen.<id>`), and an update path cannot carry a `.`, which
+ *  addresses a nested field rather than one key, or a `$`, which reads as an
+ *  operator. A DM id embeds two Hive usernames and dots are legal in those, so
+ *  `dm:rashed.ifte:tibfox` is an ordinary conversation whose receipt was simply
+ *  unstorable: every write was rejected, so its unread count could never clear,
+ *  and neither could the one for the person on the other side of it. Escaping
+ *  those characters makes every id storable as exactly one key.
+ *
+ *  `~` escapes itself, which keeps the mapping injective. An id containing none
+ *  of the three encodes to itself, so receipts written before this existed
+ *  still resolve and there is nothing to migrate. */
+const SEEN_KEY_ESCAPES: Record<string, string> = { '~': '~7e', '.': '~2e', '$': '~24' };
+
+export function encodeConversationKey(id: string): string {
+  return id.replace(/[~.$]/g, (c) => SEEN_KEY_ESCAPES[c]);
 }
 
-/** Read-receipt path for a conversation, or null when the id can't hold one. */
-export function conversationSeenPath(id: string): string | null {
-  return isSafeConversationKey(id) ? `conversationSeen.${id}` : null;
+/** Update path into one of the ChatUser maps keyed by conversation id
+ *  (`conversationSeen`, `memoNotifyAt`, `typingAt`). Every id has one. */
+export function conversationKeyPath(field: string, id: string): string {
+  return `${field}.${encodeConversationKey(id)}`;
+}
+
+/** Read-receipt update path for a conversation. */
+export function conversationSeenPath(id: string): string {
+  return conversationKeyPath('conversationSeen', id);
+}
+
+type ConversationMap = { get?(key: string): Date | string | null | undefined } | null | undefined;
+
+/** Timestamp held for a conversation in one of those maps, or null. Reads have
+ *  to use the same encoding as the writes above or they miss the key. */
+export function conversationMapValue(map: ConversationMap, id: string): Date | null {
+  const value = map?.get?.(encodeConversationKey(id));
+  return value ? new Date(value) : null;
+}
+
+/** When this user last read a conversation, or null if they never have. */
+export function conversationSeenAt(
+  chatUser: { conversationSeen?: ConversationMap } | null | undefined,
+  id: string
+): Date | null {
+  return conversationMapValue(chatUser?.conversationSeen, id);
+}
+
+/** Channel ids are caller-chosen (POST /api/chat/channels) and travel through
+ *  URL paths and FCM topic names, so they stay restricted to what is safe
+ *  there. DM ids are not caller-chosen: they are built from usernames, and take
+ *  whatever Hive allows in one. */
+export function isValidChannelId(id: string): boolean {
+  return typeof id === 'string' && id.length > 0 && !id.includes('.') && !id.includes('$');
 }
 
 export function getDmPeer(dmId: string, username: string): string | null {

@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { Message } from '@/lib/db/models/Message';
 import { ChatUser } from '@/lib/db/models/ChatUser';
-import { getDmPeer, isDmParticipant } from '@/lib/chat/conversations';
+import {
+  conversationMapValue,
+  conversationSeenAt,
+  getDmPeer,
+  isDmParticipant,
+} from '@/lib/chat/conversations';
 import {
   isRateLimited,
   validateMessageBody,
@@ -70,7 +75,7 @@ export const GET = withChatAuth(async (req: NextRequest, { username, params }) =
 
   if (peer) {
     const peerUser = await ChatUser.findById(peer);
-    const peerSeenAtDate = peerUser?.conversationSeen?.get?.(id) || null;
+    const peerSeenAtDate = conversationSeenAt(peerUser, id);
     const peerLastSeenDate = peerUser?.lastSeen || null;
     const peerLastActiveTs = Math.max(
       peerSeenAtDate ? new Date(peerSeenAtDate).getTime() : 0,
@@ -129,13 +134,9 @@ export const POST = withChatAuth(async (req, { username, params }) => {
 
   const now = Date.now();
   const cooldownMs = 3 * 60 * 1000;
-  const lastMemoAt = peerUser?.memoNotifyAt?.get?.(id)
-    ? new Date(peerUser.memoNotifyAt.get(id) as Date).getTime()
-    : 0;
+  const lastMemoAt = conversationMapValue(peerUser?.memoNotifyAt, id)?.getTime() || 0;
   const hasFcm = !!peerUser?.fcmTokens?.length;
-  const peerConversationSeenAt = peerUser?.conversationSeen?.get?.(id)
-    ? new Date(peerUser.conversationSeen.get(id) as Date).getTime()
-    : 0;
+  const peerConversationSeenAt = conversationSeenAt(peerUser, id)?.getTime() || 0;
   const peerLastSeenAt = peerUser?.lastSeen ? new Date(peerUser.lastSeen).getTime() : 0;
   const peerLastActiveAt = Math.max(peerConversationSeenAt, peerLastSeenAt);
   const activeWindowMs = 10 * 60 * 1000;
