@@ -5,31 +5,49 @@ import HiveClient from '@/lib/hive/hiveclient';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
-// Module-level singleton keyed by username — Sidebar and BottomTabBar share one fetch.
-const cache = new Map<string, boolean>();
-const subscribers = new Map<string, Set<(v: boolean) => void>>();
+export interface UnclaimedRewardsDetail {
+  has: boolean;
+  /** Liquid HIVE portion of the pending reward. */
+  hive: number;
+  /** HBD portion of the pending reward. */
+  hbd: number;
+  /** HP-equivalent of the pending vesting-shares reward — reward_vesting_hive
+   *  is precomputed by the node, so no manual VESTS math is needed here. */
+  hp: number;
+}
+
+const EMPTY_DETAIL: UnclaimedRewardsDetail = { has: false, hive: 0, hbd: 0, hp: 0 };
+
+// Module-level singleton keyed by username — every consumer (Sidebar LED,
+// BottomTabBar dot, PendingRewardsBanner) shares one fetch/poll.
+const cache = new Map<string, UnclaimedRewardsDetail>();
+const subscribers = new Map<string, Set<(v: UnclaimedRewardsDetail) => void>>();
 const intervals = new Map<string, ReturnType<typeof setInterval>>();
 
-function hasNonZeroReward(val: unknown): boolean {
-  return parseFloat(String(val ?? '0')) > 0;
+function toNumber(val: unknown): number {
+  const n = parseFloat(String(val ?? '0'));
+  return Number.isFinite(n) ? n : 0;
 }
 
 async function fetchRewards(username: string) {
   try {
     const [account] = await HiveClient.database.getAccounts([username]);
     if (!account) return;
-    const has =
-      hasNonZeroReward(account.reward_hive_balance) ||
-      hasNonZeroReward(account.reward_hbd_balance) ||
-      hasNonZeroReward(account.reward_vesting_balance);
-    cache.set(username, has);
-    subscribers.get(username)?.forEach(cb => cb(has));
+    const detail: UnclaimedRewardsDetail = {
+      hive: toNumber(account.reward_hive_balance),
+      hbd: toNumber(account.reward_hbd_balance),
+      hp: toNumber(account.reward_vesting_hive),
+      has: false,
+    };
+    detail.has = detail.hive > 0 || detail.hbd > 0 || detail.hp > 0;
+    cache.set(username, detail);
+    subscribers.get(username)?.forEach(cb => cb(detail));
   } catch {
     // silently ignore — stale value stays
   }
 }
 
-function subscribe(username: string, cb: (v: boolean) => void): () => void {
+function subscribe(username: string, cb: (v: UnclaimedRewardsDetail) => void): () => void {
   if (!subscribers.has(username)) subscribers.set(username, new Set());
   subscribers.get(username)!.add(cb);
 
@@ -63,22 +81,29 @@ export async function refreshAfterClaim(username: string, attempts = 5, delayMs 
   for (let i = 0; i < attempts; i++) {
     await new Promise(resolve => setTimeout(resolve, delayMs));
     await fetchRewards(username);
-    if (cache.get(username) === false) return;
+    if (cache.get(username)?.has === false) return;
   }
 }
 
 export function useUnclaimedRewards(): boolean {
+  return useUnclaimedRewardsDetail().has;
+}
+
+/** Same shared signal as useUnclaimedRewards, with the actual amounts —
+ *  for anywhere that wants to say "0.3 HIVE pending" instead of just showing
+ *  a dot. */
+export function useUnclaimedRewardsDetail(): UnclaimedRewardsDetail {
   const { username } = useCurrentUser();
-  const [hasRewards, setHasRewards] = useState(() => cache.get(username ?? '') ?? false);
+  const [detail, setDetail] = useState<UnclaimedRewardsDetail>(() => cache.get(username ?? '') ?? EMPTY_DETAIL);
 
   useEffect(() => {
     if (!username) {
-      setHasRewards(false);
+      setDetail(EMPTY_DETAIL);
       return;
     }
-    setHasRewards(cache.get(username) ?? false);
-    return subscribe(username, setHasRewards);
+    setDetail(cache.get(username) ?? EMPTY_DETAIL);
+    return subscribe(username, setDetail);
   }, [username]);
 
-  return hasRewards;
+  return detail;
 }

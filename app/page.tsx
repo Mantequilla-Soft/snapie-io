@@ -12,6 +12,7 @@ import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import { useBlendedFeed } from '@/hooks/useBlendedFeed';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import NewSnapsBanner from '@/components/homepage/NewSnapsBanner';
+import PendingRewardsBanner from '@/components/homepage/PendingRewardsBanner';
 import { useNewSnapsAvailable } from '@/hooks/useNewSnapsAvailable';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
 import UpcomingEventsStrip from '@/components/hangouts/UpcomingEventsStrip';
@@ -308,6 +309,7 @@ export default function Home() {
         </Box>
         {!conversation ? (
           <>
+            <PendingRewardsBanner />
             <NewSnapsBanner count={newCount} onClick={handleViewNewSnaps} top={tabFilterHeight} />
             <SnapList
               author={thread_author}
