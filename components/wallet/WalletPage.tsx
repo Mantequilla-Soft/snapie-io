@@ -536,6 +536,73 @@ export default function WalletPage({ username }: WalletPageProps) {
       {/* Wallet Content */}
       <Container maxW="container.lg" mt={8}>
 
+        {/* Pending Rewards — the section people open the wallet to act on,
+            ahead of even the account value hero. */}
+        {(hasPendingRewards || isOwnWallet) && (
+          <Box
+            mb={6}
+            bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
+            sx={{ border: '1px solid rgba(255, 200, 80, 0.25)', borderLeft: '3px solid #f6c90e' }}
+          >
+            <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
+              <Flex alignItems="center" gap={3}>
+                <Flex w={10} h={10} borderRadius="full" bg="rgba(246, 201, 14, 0.12)" border="1px solid" borderColor="rgba(246, 201, 14, 0.3)" alignItems="center" justifyContent="center">
+                  <Icon as={FaGift} color="yellow.400" boxSize={4} />
+                </Flex>
+                <Box>
+                  <Heading size="md">Pending Rewards</Heading>
+                  <Text fontSize="xs" color={textMuted}>Unclaimed author &amp; curation rewards</Text>
+                </Box>
+              </Flex>
+              {!hasPendingRewards && (
+                <Text fontSize="sm" color={textMuted}>No pending rewards</Text>
+              )}
+            </Flex>
+
+            {hasPendingRewards && (
+              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={3} px={5} pb={isOwnWallet ? 3 : 5}>
+                {rewardHiveNum > 0 && (
+                  <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                    <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE</Text>
+                    <Text fontSize="lg" fontWeight="bold">{rewardHiveNum.toFixed(3)}</Text>
+                    {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHiveNum * prices.hive).toFixed(2)}</Text>}
+                  </Box>
+                )}
+                {rewardHbdNum > 0 && (
+                  <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                    <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD</Text>
+                    <Text fontSize="lg" fontWeight="bold">{rewardHbdNum.toFixed(3)}</Text>
+                    {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHbdNum * prices.hbd).toFixed(2)}</Text>}
+                  </Box>
+                )}
+                {rewardVestsNum > 0 && (
+                  <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
+                    <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HP</Text>
+                    <Text fontSize="lg" fontWeight="bold">{rewardVestingHiveNum.toFixed(3)}</Text>
+                    {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardVestingHiveNum * prices.hive).toFixed(2)}</Text>}
+                  </Box>
+                )}
+              </Grid>
+            )}
+
+            {isOwnWallet && hasPendingRewards && (
+              <Flex px={5} pb={4}>
+                <Button
+                  size="sm"
+                  leftIcon={<FaGift />}
+                  colorScheme="yellow"
+                  variant="outline"
+                  isLoading={isClaiming}
+                  loadingText="Claiming..."
+                  onClick={handleClaimRewards}
+                >
+                  Claim Rewards
+                </Button>
+              </Flex>
+            )}
+          </Box>
+        )}
+
         {/* Estimated Account Value Hero */}
         {prices && (
           <Box
@@ -695,72 +762,6 @@ export default function WalletPage({ username }: WalletPageProps) {
                   </Box>
                 </Flex>
               </Box>
-            </Box>
-          )}
-
-          {/* Pending Rewards — first in the stack: the section people open the
-              wallet to act on shouldn't sit behind four balance cards. */}
-          {(hasPendingRewards || isOwnWallet) && (
-            <Box
-              bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
-              sx={{ border: '1px solid rgba(255, 200, 80, 0.25)', borderLeft: '3px solid #f6c90e' }}
-            >
-              <Flex justifyContent="space-between" alignItems="center" p={5} pb={isOwnWallet ? 3 : 5}>
-                <Flex alignItems="center" gap={3}>
-                  <Flex w={10} h={10} borderRadius="full" bg="rgba(246, 201, 14, 0.12)" border="1px solid" borderColor="rgba(246, 201, 14, 0.3)" alignItems="center" justifyContent="center">
-                    <Icon as={FaGift} color="yellow.400" boxSize={4} />
-                  </Flex>
-                  <Box>
-                    <Heading size="md">Pending Rewards</Heading>
-                    <Text fontSize="xs" color={textMuted}>Unclaimed author &amp; curation rewards</Text>
-                  </Box>
-                </Flex>
-                {!hasPendingRewards && (
-                  <Text fontSize="sm" color={textMuted}>No pending rewards</Text>
-                )}
-              </Flex>
-
-              {hasPendingRewards && (
-                <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={3} px={5} pb={isOwnWallet ? 3 : 5}>
-                  {rewardHiveNum > 0 && (
-                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
-                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HIVE</Text>
-                      <Text fontSize="lg" fontWeight="bold">{rewardHiveNum.toFixed(3)}</Text>
-                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHiveNum * prices.hive).toFixed(2)}</Text>}
-                    </Box>
-                  )}
-                  {rewardHbdNum > 0 && (
-                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
-                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HBD</Text>
-                      <Text fontSize="lg" fontWeight="bold">{rewardHbdNum.toFixed(3)}</Text>
-                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardHbdNum * prices.hbd).toFixed(2)}</Text>}
-                    </Box>
-                  )}
-                  {rewardVestsNum > 0 && (
-                    <Box p={3} bg="rgba(246, 201, 14, 0.05)" borderRadius="10px" border="1px solid rgba(246, 201, 14, 0.15)">
-                      <Text fontSize="xs" color={textMuted} textTransform="uppercase" letterSpacing="wide" mb={1}>HP</Text>
-                      <Text fontSize="lg" fontWeight="bold">{rewardVestingHiveNum.toFixed(3)}</Text>
-                      {prices && <Text fontSize="xs" color={textMuted}>≈ ${(rewardVestingHiveNum * prices.hive).toFixed(2)}</Text>}
-                    </Box>
-                  )}
-                </Grid>
-              )}
-
-              {isOwnWallet && hasPendingRewards && (
-                <Flex px={5} pb={4}>
-                  <Button
-                    size="sm"
-                    leftIcon={<FaGift />}
-                    colorScheme="yellow"
-                    variant="outline"
-                    isLoading={isClaiming}
-                    loadingText="Claiming..."
-                    onClick={handleClaimRewards}
-                  >
-                    Claim Rewards
-                  </Button>
-                </Flex>
-              )}
             </Box>
           )}
 
