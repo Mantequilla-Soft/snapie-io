@@ -1,5 +1,6 @@
 'use client';
 import { Box, Text, HStack, Badge } from '@chakra-ui/react';
+import { useRouter } from 'next/navigation';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -19,8 +20,20 @@ interface ReSnapProps {
  * Similar to Twitter's quote tweet or retweet display
  */
 export default function ReSnap({ comment }: ReSnapProps) {
+    const router = useRouter();
     const { getEquippedBadge } = useMoodBadges();
     const commentDate = getPostDate(comment.created);
+
+    // The card as a whole opens the original snap, but its own body is
+    // rendered markdown that can contain real links (mentions, URLs) — those
+    // need to keep working on their own terms, not get swallowed by the
+    // card's navigation. Bailing out whenever the click lands on (or inside)
+    // an <a> keeps both intents working without nesting an anchor inside
+    // another one, which the resulting HTML would otherwise do.
+    function handleOpen(e: React.MouseEvent<HTMLDivElement>) {
+        if ((e.target as HTMLElement).closest('a')) return;
+        router.push(`/@${comment.author}/${comment.permlink}`);
+    }
     
     // Separate media from text using SkateHive's pattern
     const { text, media } = useMemo(
@@ -44,6 +57,10 @@ export default function ReSnap({ comment }: ReSnapProps) {
             my={2}
             maxW="full"
             position="relative"
+            cursor="pointer"
+            transition="transform 0.15s, box-shadow 0.15s"
+            _hover={{ transform: 'translateY(-2px)', boxShadow: 'md' }}
+            onClick={handleOpen}
         >
             {/* Re-Snap Badge */}
             <Badge 

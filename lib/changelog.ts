@@ -32,6 +32,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'improvement', text: 'Pending Rewards now sits right at the top of your wallet, above your account balance — since that\'s usually why you opened it.' },
       { type: 'feature', text: 'Added quick "what is this?" explanations in your wallet for the more confusing stuff — Liquid HIVE, HBD, Convert, Swap, and Delegate.' },
       { type: 'fix', text: 'Fixed chat read receipts (and typing indicators) getting permanently stuck for conversations with usernames containing a dot.' },
+      { type: 'improvement', text: 'A shared Re-Snap is now clickable — tap it to open the original snap it\'s quoting.' },
     ],
   },
   {
