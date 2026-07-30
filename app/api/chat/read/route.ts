@@ -25,7 +25,6 @@ export const POST = withChatAuth(async (req: NextRequest, { username }) => {
   }
 
   const path = conversationSeenPath(conversationId);
-  if (!path) return NextResponse.json({ error: 'Invalid conversationId' }, { status: 400 });
 
   const isDm = conversationId.startsWith('dm:');
   if (isDm && !isDmParticipant(conversationId, username)) {

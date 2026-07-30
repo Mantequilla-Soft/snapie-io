@@ -82,7 +82,6 @@ export async function markConversationRead(
   seenAt: Date
 ): Promise<void> {
   const path = conversationSeenPath(conversationId);
-  if (!path) return;
   await ChatUser.updateOne(
     { _id: username },
     { $setOnInsert: { _id: username }, $set: { [path]: seenAt } },

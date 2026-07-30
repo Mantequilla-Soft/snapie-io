@@ -13,6 +13,7 @@ vi.mock('@/lib/db/models/Channel', () => ({
 }));
 
 import { computeUnread } from '@/lib/chat/unread';
+import { encodeConversationKey } from '@/lib/chat/conversations';
 
 /** Minimal stand-in for the Mongoose doc — computeUnread only reads these. */
 function chatUser(overrides: Partial<{
@@ -108,6 +109,22 @@ describe('computeUnread', () => {
     expect(branchFor('general').createdAt).toEqual({ $gt: seenAt });
     // Never read — no floor, so the whole thread is fair game.
     expect(branchFor('dm:alice:me').createdAt).toBeUndefined();
+  });
+
+  it('honours the receipt for a DM whose id contains a dot', async () => {
+    // A dot is legal in a Hive username, so `dm:me:rashed.ifte` is an ordinary
+    // conversation. Its receipt is stored under an escaped key, and reading it
+    // back with the raw id would find nothing: the floor would vanish and the
+    // whole thread would count as unread forever.
+    const seenAt = new Date('2026-07-01T00:00:00Z');
+    const id = 'dm:me:rashed.ifte';
+
+    await computeUnread(chatUser({
+      channels: [id],
+      seen: { [encodeConversationKey(id)]: seenAt },
+    }));
+
+    expect(branchFor(id).createdAt).toEqual({ $gt: seenAt });
   });
 
   it('totals the per-conversation counts', async () => {

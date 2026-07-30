@@ -3,7 +3,7 @@ import { withChatAuth } from '@/lib/chat/auth';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { Channel } from '@/lib/db/models/Channel';
 import { subscribeToChannels } from '@/lib/chat/fcm';
-import { conversationSeenPath } from '@/lib/chat/conversations';
+import { conversationSeenAt, conversationSeenPath } from '@/lib/chat/conversations';
 
 export const POST = withChatAuth(async (_req, { username, params }) => {
   const channelId = params?.id;
@@ -26,9 +26,9 @@ export const POST = withChatAuth(async (_req, { username, params }) => {
   // channel's entire backlog counts as unread the moment you enter it, and
   // there is no honest floor to compare against. Only on a genuinely new join —
   // re-opening a channel you are already in must not silently clear it.
-  const alreadySeen = chatUser?.conversationSeen?.get?.(channelId);
+  const alreadySeen = conversationSeenAt(chatUser, channelId);
   const seenPath = conversationSeenPath(channelId);
-  if (!alreadySeen && seenPath) {
+  if (!alreadySeen) {
     await ChatUser.updateOne({ _id: username }, { $set: { [seenPath]: new Date() } });
   }
 

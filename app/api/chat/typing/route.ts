@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { ChatUser } from '@/lib/db/models/ChatUser';
 import { Channel } from '@/lib/db/models/Channel';
-import { isDmParticipant } from '@/lib/chat/conversations';
+import { conversationKeyPath, encodeConversationKey, isDmParticipant } from '@/lib/chat/conversations';
 
 const TYPING_TTL_MS = 6000;
 const TYPING_CLEANUP_MS = 5 * 60 * 1000;
@@ -37,13 +37,13 @@ export const POST = withChatAuth(async (req: NextRequest, { username }) => {
   if (isTyping) {
     await ChatUser.findOneAndUpdate(
       { _id: username },
-      { $set: { [`typingAt.${convId}`]: new Date() } },
+      { $set: { [conversationKeyPath('typingAt', convId)]: new Date() } },
       { upsert: true, returnDocument: 'after' }
     );
   } else {
     await ChatUser.findOneAndUpdate(
       { _id: username },
-      { $unset: { [`typingAt.${convId}`]: 1 } },
+      { $unset: { [conversationKeyPath('typingAt', convId)]: 1 } },
       { upsert: true, returnDocument: 'after' }
     );
   }
@@ -73,7 +73,7 @@ export const GET = withChatAuth(async (req: NextRequest, { username }) => {
   }
 
   const users = await ChatUser.find(
-    { _id: { $ne: username }, [`typingAt.${convId}`]: { $exists: true } },
+    { _id: { $ne: username }, [conversationKeyPath('typingAt', convId)]: { $exists: true } },
     { _id: 1, typingAt: 1 }
   ).lean();
 
@@ -83,7 +83,7 @@ export const GET = withChatAuth(async (req: NextRequest, { username }) => {
 
   for (const u of users) {
     const rawMap = u.typingAt as unknown as Record<string, string | Date> | undefined;
-    const ts = rawMap?.[convId];
+    const ts = rawMap?.[encodeConversationKey(convId)];
     if (!ts) continue;
     const age = now - new Date(ts).getTime();
     if (age <= TYPING_TTL_MS) typingUsers.push(String(u._id));
@@ -93,7 +93,7 @@ export const GET = withChatAuth(async (req: NextRequest, { username }) => {
   if (staleUsers.length > 0) {
     await ChatUser.updateMany(
       { _id: { $in: staleUsers } },
-      { $unset: { [`typingAt.${convId}`]: 1 } }
+      { $unset: { [conversationKeyPath('typingAt', convId)]: 1 } }
     );
   }
 

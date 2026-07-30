@@ -1,6 +1,7 @@
 import type { IChatUser } from '@/lib/db/models/ChatUser';
 import { Message } from '@/lib/db/models/Message';
 import { Channel } from '@/lib/db/models/Channel';
+import { conversationSeenAt } from '@/lib/chat/conversations';
 
 /**
  *  The single definition of "unread" for chat. Both the badge (/api/chat/unread)
@@ -27,11 +28,6 @@ export interface UnreadSummary {
   byConversation: Map<string, number>;
   /** Total unread messages across all conversations. */
   total: number;
-}
-
-function seenAtFor(chatUser: IChatUser, conversationId: string): Date | null {
-  const seen = chatUser.conversationSeen?.get?.(conversationId);
-  return seen ? new Date(seen) : null;
 }
 
 export async function computeUnread(chatUser: IChatUser | null): Promise<UnreadSummary> {
@@ -65,7 +61,7 @@ export async function computeUnread(chatUser: IChatUser | null): Promise<UnreadS
   // addressed to this user.
   const branches: Record<string, unknown>[] = [];
   for (const id of ids) {
-    const seenAt = seenAtFor(chatUser, id);
+    const seenAt = conversationSeenAt(chatUser, id);
     const isDm = id.startsWith('dm:');
     const branch: Record<string, unknown> = {
       target: id,
