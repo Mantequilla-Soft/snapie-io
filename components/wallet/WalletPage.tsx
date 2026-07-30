@@ -42,6 +42,7 @@ import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
 import { refreshAfterClaim } from '@/hooks/useUnclaimedRewards';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
+import WalletTermInfo from '@/components/wallet/WalletTermInfo';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -674,7 +675,10 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Flex w={9} h={9} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaCoins} color="primary" boxSize={4} />
                 </Flex>
-                <Text fontSize="sm" color={textMuted} fontWeight="semibold">Total HIVE</Text>
+                <Flex alignItems="center" gap={1}>
+                  <Text fontSize="sm" color={textMuted} fontWeight="semibold">Total HIVE</Text>
+                  <WalletTermInfo term="liquidHive" />
+                </Flex>
               </Flex>
               <Text fontSize="2xl" fontWeight="bold" color="primary" mb={0.5}>{balance}</Text>
               <Text fontSize="xs" color={textMuted}>
@@ -690,7 +694,10 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Flex w={9} h={9} borderRadius="full" bg="rgba(28, 161, 241, 0.12)" border="1px solid" borderColor="rgba(28, 161, 241, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaChartLine} color={accentColor} boxSize={4} />
                 </Flex>
-                <Text fontSize="sm" color={textMuted} fontWeight="semibold">Hive Power</Text>
+                <Flex alignItems="center" gap={1}>
+                  <Text fontSize="sm" color={textMuted} fontWeight="semibold">Hive Power</Text>
+                  <WalletTermInfo term="hivePower" />
+                </Flex>
               </Flex>
               <Text fontSize="2xl" fontWeight="bold" color={accentColor} mb={0.5}>{hivePower || '...'}</Text>
               <Text fontSize="xs" color={textMuted}>
@@ -706,7 +713,10 @@ export default function WalletPage({ username }: WalletPageProps) {
                 <Flex w={9} h={9} borderRadius="full" bg="rgba(66, 231, 162, 0.12)" border="1px solid" borderColor="rgba(66, 231, 162, 0.25)" alignItems="center" justifyContent="center">
                   <Icon as={FaDollarSign} color={successColor} boxSize={4} />
                 </Flex>
-                <Text fontSize="sm" color={textMuted} fontWeight="semibold">HBD Balance</Text>
+                <Flex alignItems="center" gap={1}>
+                  <Text fontSize="sm" color={textMuted} fontWeight="semibold">HBD Balance</Text>
+                  <WalletTermInfo term="hbd" />
+                </Flex>
               </Flex>
               <Text fontSize="2xl" fontWeight="bold" color={successColor} mb={0.5}>{hbdBalance}</Text>
               <Text fontSize="xs" color={textMuted}>
@@ -789,8 +799,14 @@ export default function WalletPage({ username }: WalletPageProps) {
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
                 <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HIVE', description: 'Send Hive to another account', showMemoField: true, showUsernameField: true, maxAmount: parseFloat(balance), maxLabel: 'HIVE' })} variant="outline" colorScheme="blue">Send</Button>
                 <Button size="sm" leftIcon={<FaArrowUp />} onClick={() => handleModalOpen({ title: 'Power Up', description: 'Power Up your HIVE to HP', maxAmount: parseFloat(balance), maxLabel: 'HIVE' })} variant="outline" colorScheme="purple">Power Up</Button>
-                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HBD → HIVE', description: 'Burn HBD to receive HIVE at a 3.5-day average price', maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="orange">Convert</Button>
-                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HIVE', description: 'Fast market swap HIVE -> HBD (immediate-or-cancel)', swapDirection: 'HIVE_TO_HBD', maxAmount: parseFloat(balance), maxLabel: 'HIVE' })} variant="outline" colorScheme="yellow">Swap</Button>
+                <Flex align="center" gap="1px">
+                  <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Convert HBD → HIVE', description: 'Burn HBD to receive HIVE at a 3.5-day average price', maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="orange">Convert</Button>
+                  <WalletTermInfo term="convert" />
+                </Flex>
+                <Flex align="center" gap="1px">
+                  <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HIVE', description: 'Fast market swap HIVE -> HBD (immediate-or-cancel)', swapDirection: 'HIVE_TO_HBD', maxAmount: parseFloat(balance), maxLabel: 'HIVE' })} variant="outline" colorScheme="yellow">Swap</Button>
+                  <WalletTermInfo term="swap" />
+                </Flex>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HIVE Savings', description: 'Transfer to HIVE savings', maxAmount: parseFloat(balance), maxLabel: 'HIVE' })} variant="outline" colorScheme="teal">To Savings</Button>
                 <Button
                   size="sm"
@@ -829,7 +845,10 @@ export default function WalletPage({ username }: WalletPageProps) {
             {isOwnWallet && (
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
                 <Button size="sm" leftIcon={<FaArrowDown />} onClick={() => handleModalOpen({ title: 'Power Down', description: 'Unstake Hive Power', maxAmount: parseFloat(hivePower || '0'), maxLabel: 'HIVE' })} variant="outline" colorScheme="red">Power Down</Button>
-                <Button size="sm" leftIcon={<FaShareAlt />} onClick={() => handleModalOpen({ title: 'Delegate', description: 'Delegate HP to another user', showMemoField: false, showUsernameField: true, maxAmount: parseFloat(hivePower || '0'), maxLabel: 'HIVE' })} variant="outline" colorScheme="cyan">Delegate</Button>
+                <Flex align="center" gap="1px">
+                  <Button size="sm" leftIcon={<FaShareAlt />} onClick={() => handleModalOpen({ title: 'Delegate', description: 'Delegate HP to another user', showMemoField: false, showUsernameField: true, maxAmount: parseFloat(hivePower || '0'), maxLabel: 'HIVE' })} variant="outline" colorScheme="cyan">Delegate</Button>
+                  <WalletTermInfo term="delegate" />
+                </Flex>
               </Flex>
             )}
           </Box>
@@ -857,7 +876,10 @@ export default function WalletPage({ username }: WalletPageProps) {
             {isOwnWallet && (
               <Flex gap={2} flexWrap="wrap" px={5} pb={4}>
                 <Button size="sm" leftIcon={<FaPaperPlane />} onClick={() => handleModalOpen({ title: 'Send HBD', description: 'Send HBD to another account', showMemoField: true, showUsernameField: true, maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="blue">Send</Button>
-                <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HBD', description: 'Fast market swap HBD -> HIVE (immediate-or-cancel)', swapDirection: 'HBD_TO_HIVE', maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="yellow">Swap</Button>
+                <Flex align="center" gap="1px">
+                  <Button size="sm" leftIcon={<FaExchangeAlt />} onClick={() => handleModalOpen({ title: 'Swap HBD', description: 'Fast market swap HBD -> HIVE (immediate-or-cancel)', swapDirection: 'HBD_TO_HIVE', maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="yellow">Swap</Button>
+                  <WalletTermInfo term="swap" />
+                </Flex>
                 <Button size="sm" leftIcon={<FaPiggyBank />} onClick={() => handleModalOpen({ title: 'HBD Savings', description: 'Send HBD to Savings', maxAmount: parseFloat(hbdBalance), maxLabel: 'HBD' })} variant="outline" colorScheme="teal">To Savings</Button>
               </Flex>
             )}
