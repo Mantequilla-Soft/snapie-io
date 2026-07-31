@@ -8,6 +8,7 @@ import { ExtendedComment } from "@/hooks/useComments";
 import {
   getAioha,
   KeyTypes,
+  Providers,
   broadcastOps,
   voteWithAioha,
   transferWithAioha,
@@ -732,7 +733,17 @@ export async function uploadImageWithKeychain(
   }
 
   // Snapie Auth users can't sign the Hive image challenge — route to 3speak instead.
-  if (isSnapieMode()) {
+  // HiveAuth gets the same treatment: the challenge below is the ENTIRE file's
+  // bytes, JSON-stringified. Keychain/PeakVault sign it locally (same process,
+  // no size limit that matters) — HiveAuth has to AES-encrypt that string and
+  // relay it over a websocket to a phone, and aioha's own AES step spreads the
+  // ciphertext into String.fromCharCode(...bytes), which blows the JS
+  // call-stack limit for anything past a tiny image (confirmed: a 237KB image
+  // produces ~1MB of JSON text and a guaranteed `RangeError`). There's no
+  // trimming this down without breaking the signature — the server
+  // independently reconstructs sha256('ImageSigningChallenge' + the file it
+  // received), so the challenge is inherently exactly as large as the file.
+  if (isSnapieMode() || aioha.getCurrentProvider() === Providers.HiveAuth) {
     return uploadTo3Speak(file, options);
   }
 
