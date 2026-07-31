@@ -53,6 +53,30 @@
   100% { transform: rotate(360deg); }
 }
 
+.hiveauth-qr {
+  background-color: #fff;
+  padding: 1rem;
+  width: 196px;
+  height: 196px;
+  margin: 1rem auto;
+  border-radius: 8px;
+}
+
+.hiveauth-cancel {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.hiveauth-cancel:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
 /* AiohaModal layout tweaks — grid of providers + hide "Popular" badge */
 #aioha-modal ul li a span.bg-gray-200 {
   display: none !important;
