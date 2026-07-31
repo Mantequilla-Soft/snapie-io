@@ -60,6 +60,11 @@ async function run() {
   console.log('[chat-backfill] users matched/modified:', userRes.matchedCount, userRes.modifiedCount);
 
   const messageCollection = mongoose.connection.collection('messages');
+  // Repair first: a document with a leftover nested key fails Mongoose's
+  // Map-of-Date cast entirely on load, so every OTHER backfill step below that
+  // touches ChatUser via the model (not the raw driver) would silently see an
+  // empty conversationSeen for these users otherwise.
+  await repairNestedConversationKeys(chatUserCollection);
   // Order matters: floors first. A user with no read receipt has no lower bound
   // to measure against, so every historical mention counts as unread — if the
   // mentions land first, that burst is live for however long the rest of the
@@ -121,6 +126,82 @@ async function backfillMessageMentions(messages) {
   await flush();
 
   console.log('[chat-backfill] messages backfilled with mentions/replyToSender:', processed);
+}
+
+// Kept in sync with encodeConversationKey in lib/chat/conversations.ts.
+const CONVERSATION_KEY_ESCAPES = { '~': '~7e', '.': '~2e', '$': '~24' };
+function encodeConversationKey(id) {
+  return id.replace(/[~.$]/g, (c) => CONVERSATION_KEY_ESCAPES[c]);
+}
+
+/** Depth-first walk of a nested map value, rebuilding the original dotted id
+ *  one path segment at a time. A leaf is anything that isn't a plain object —
+ *  a Date, an ISO string, or (for a stale typingAt entry) an empty object,
+ *  which yields no leaves and is just discarded. */
+function flattenNestedEntry(value, pathParts) {
+  if (!value || typeof value !== 'object' || value instanceof Date) {
+    return [{ id: pathParts.join('.'), value }];
+  }
+  const leaves = [];
+  for (const [key, child] of Object.entries(value)) {
+    leaves.push(...flattenNestedEntry(child, [...pathParts, key]));
+  }
+  return leaves;
+}
+
+/** Before either fix in this file's history existed, a raw (unescaped) write
+ *  for a conversation id containing a dot — legal in a Hive username, e.g.
+ *  rashed.ifte — split into a nested subdocument instead of one flat key:
+ *  `dm:ksuccess:rashed.ifte` became `{ "dm:ksuccess:rashed": { ifte: <date> } }`.
+ *  Mongoose's `Map of Date` schema fails to cast that ONE nested value, and
+ *  that single bad key discards the ENTIRE map on load — every read receipt
+ *  that user has, not just the broken one, silently disappears every time
+ *  their document loads. Reconstructs each dotted id from its nested path,
+ *  re-encodes it the correct way, and keeps whichever timestamp — the
+ *  reconstructed one or an already-correct sibling, if one coexists — is
+ *  newer, since a still-broken deploy could have kept writing the nested
+ *  form after a correct one already existed. */
+async function repairNestedConversationKeys(chatUsers) {
+  const cursor = chatUsers.find({});
+  let usersRepaired = 0;
+  let keysRepaired = 0;
+
+  while (await cursor.hasNext()) {
+    const doc = await cursor.next();
+    const $set = {};
+    const $unset = {};
+
+    for (const field of ['conversationSeen', 'typingAt', 'memoNotifyAt']) {
+      const map = doc[field];
+      if (!map || typeof map !== 'object') continue;
+
+      for (const [topKey, value] of Object.entries(map)) {
+        if (!value || typeof value !== 'object' || value instanceof Date) continue; // already fine
+
+        for (const leaf of flattenNestedEntry(value, [topKey])) {
+          if (leaf.value === undefined) continue; // stale empty-object entry, nothing to keep
+          const properKey = encodeConversationKey(leaf.id);
+          const existing = map[properKey];
+          const reconstructed = new Date(leaf.value);
+          if (!existing || new Date(existing) < reconstructed) {
+            $set[`${field}.${properKey}`] = reconstructed;
+          }
+        }
+        $unset[`${field}.${topKey}`] = 1;
+        keysRepaired++;
+      }
+    }
+
+    if (Object.keys($set).length || Object.keys($unset).length) {
+      const update = {};
+      if (Object.keys($set).length) update.$set = $set;
+      if (Object.keys($unset).length) update.$unset = $unset;
+      await chatUsers.updateOne({ _id: doc._id }, update);
+      usersRepaired += 1;
+    }
+  }
+
+  console.log('[chat-backfill] nested-key corruption repaired — users:', usersRepaired, 'keys:', keysRepaired);
 }
 
 /** Every channel a user is in needs a read receipt to measure "new" against.
