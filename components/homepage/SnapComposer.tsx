@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Box, Textarea, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
+import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
+import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
 import ImageUploader from './ImageUploader';
@@ -70,6 +71,11 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             const { url } = (e as CustomEvent<{ url: string }>).detail;
             if (!postBodyRef.current) return;
             postBodyRef.current.value = url;
+            // A direct .value write doesn't fire a native input event — the
+            // mention-highlight overlay mirrors its own text off that event,
+            // so without this its backdrop silently keeps showing the old,
+            // pre-resnap content underneath the now-changed real textarea.
+            postBodyRef.current.dispatchEvent(new Event('input', { bubbles: true }));
             postBodyRef.current.focus();
         }
         document.addEventListener('resnap', onReSnap);
@@ -91,6 +97,9 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             if (postBodyRef.current) {
                 const cur = postBodyRef.current.value;
                 postBodyRef.current.value = cur ? `${cur}\n\n![meme](${hostedUrl})` : `![meme](${hostedUrl})`;
+                // See the resnap handler above — direct .value writes need a
+                // manual input event for the highlight overlay to notice.
+                postBodyRef.current.dispatchEvent(new Event('input', { bubbles: true }));
             }
 
             // Aggregate beneficiaries (comment slot, since snaps are comments)
@@ -327,6 +336,9 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 
                 // Reset form
                 postBodyRef.current!.value = '';
+                // See the resnap handler above — direct .value writes need a
+                // manual input event for the highlight overlay to notice.
+                postBodyRef.current!.dispatchEvent(new Event('input', { bubbles: true }));
                 setUploadingImages([]);
                 setSelectedGif(null);
                 setSelectedVideo(null);
@@ -383,15 +395,14 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             boxShadow="lg"
             backdropFilter="blur(18px)"
         >
-            <Textarea
+            <MentionHighlightedTextarea
                 placeholder={!user ? "Please log in to post..." : "What's happening?"}
                 bg="muted"
                 border="1px solid"
                 borderColor="surfaceBorder"
                 borderRadius="10px"
-                mb={3}
+                wrapperProps={{ mb: 3, minH: '92px' }}
                 ref={postBodyRef}
-                minH="92px"
                 _placeholder={{ color: 'overlay.600' }}
                 _focus={{ borderColor: 'primary', boxShadow: '0 0 0 1px rgba(28, 161, 241, 0.42), 0 0 34px rgba(28, 161, 241, 0.16)' }}
                 isDisabled={!user || isLoading}

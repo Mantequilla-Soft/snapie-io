@@ -45,7 +45,7 @@ import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 // Same parser the server uses to decide what mentions you, so highlighting and
 // the badge can never disagree about what counts as a mention.
-import { MENTION_REGEX, MENTION_INPUT_REGEX, normalizeMentionToken, messageMentionsUser } from '@/lib/chat/mentions';
+import { MENTION_REGEX, normalizeMentionToken, messageMentionsUser, getActiveMentionDraft } from '@/lib/chat/mentions';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
@@ -174,26 +174,6 @@ function stripInlineImageUrls(content: string, imageUrls: string[]): string {
     .replace(/\n{3,}/g, '\n\n')
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
-}
-
-type ActiveMentionDraft = {
-  start: number;
-  end: number;
-  query: string;
-};
-
-function getActiveMentionDraft(content: string, cursorPos: number): ActiveMentionDraft | null {
-  if (!content || cursorPos < 0 || cursorPos > content.length) return null;
-  const beforeCursor = content.slice(0, cursorPos);
-  const match = beforeCursor.match(MENTION_INPUT_REGEX);
-  if (!match) return null;
-  const atIdx = beforeCursor.lastIndexOf('@');
-  if (atIdx < 0) return null;
-  return {
-    start: atIdx,
-    end: cursorPos,
-    query: (match[1] || '').toLowerCase(),
-  };
 }
 
 function contentWithMentions(content: string, activeUsername?: string | null): Array<{ text: string; highlighted: boolean }> {

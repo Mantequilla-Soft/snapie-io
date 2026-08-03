@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractMentions, messageMentionsUser, normalizeMentionToken } from '@/lib/chat/mentions';
+import { extractMentions, messageMentionsUser, normalizeMentionToken, getActiveMentionDraft } from '@/lib/chat/mentions';
 
 describe('normalizeMentionToken', () => {
   it('strips the @ and lowercases', () => {
@@ -43,5 +43,35 @@ describe('messageMentionsUser', () => {
 
   it('is false without a username', () => {
     expect(messageMentionsUser('ping @alice', null)).toBe(false);
+  });
+});
+
+describe('getActiveMentionDraft', () => {
+  it('finds the partial mention the cursor is inside of', () => {
+    const text = 'hey @bo';
+    expect(getActiveMentionDraft(text, text.length)).toEqual({ start: 4, end: 7, query: 'bo' });
+  });
+
+  it('is null when the cursor is not touching an @-partial', () => {
+    expect(getActiveMentionDraft('just talking, no mentions here', 10)).toBeNull();
+  });
+
+  it('is null for a mention elsewhere in the text, cursor not adjacent to it', () => {
+    // Cursor sits right after "and", nowhere near the earlier @alice.
+    const text = 'hey @alice and ';
+    expect(getActiveMentionDraft(text, 'hey @alice and'.length)).toBeNull();
+  });
+
+  it('requires the @ to start at a word boundary (start-of-string or whitespace)', () => {
+    expect(getActiveMentionDraft('email@bo', 8)).toBeNull();
+  });
+
+  it('works mid-way through multi-line text, not just at the very end', () => {
+    const text = 'first line\nhey @bo';
+    expect(getActiveMentionDraft(text, text.length)).toEqual({ start: 15, end: 18, query: 'bo' });
+  });
+
+  it('is null past the end of the content', () => {
+    expect(getActiveMentionDraft('hey @bo', 999)).toBeNull();
   });
 });

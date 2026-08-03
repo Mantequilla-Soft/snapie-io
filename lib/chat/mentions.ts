@@ -44,3 +44,30 @@ export function messageMentionsUser(content: string, username?: string | null): 
   if (!target) return false;
   return extractMentions(content).includes(target);
 }
+
+export interface ActiveMentionDraft {
+  /** Index of the `@` that starts this draft. */
+  start: number;
+  /** Cursor position — where the replacement text ends. */
+  end: number;
+  /** Text typed so far after the `@`, lowercased. */
+  query: string;
+}
+
+/** The `@partial` a caret is currently sitting inside of, if any — for driving
+ *  a live suggestion dropdown. Anchored to content *before* the cursor only,
+ *  so a mention elsewhere in the text (before or after) is never mistaken for
+ *  the one being actively typed. */
+export function getActiveMentionDraft(content: string, cursorPos: number): ActiveMentionDraft | null {
+  if (!content || cursorPos < 0 || cursorPos > content.length) return null;
+  const beforeCursor = content.slice(0, cursorPos);
+  const match = beforeCursor.match(MENTION_INPUT_REGEX);
+  if (!match) return null;
+  const atIdx = beforeCursor.lastIndexOf('@');
+  if (atIdx < 0) return null;
+  return {
+    start: atIdx,
+    end: cursorPos,
+    query: (match[1] || '').toLowerCase(),
+  };
+}

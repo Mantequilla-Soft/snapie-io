@@ -1,7 +1,8 @@
 'use client';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
 import { FC, useRef, useState, useCallback, useEffect, useMemo } from "react";
-import { Box, Flex, Button, useToast, Textarea, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
+import { Box, Flex, Button, useToast, IconButton, HStack, Menu, MenuButton, MenuList, MenuItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Input, Tag, TagLabel, TagCloseButton, Wrap, WrapItem, useBreakpointValue, Text, Progress, VStack, Image } from '@chakra-ui/react';
+import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
@@ -969,17 +970,17 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         </Box>
                         <Box {...getRootProps()} position="relative" flex="1">
                             <input {...getInputProps()} />
-                            <Textarea
+                            <MentionHighlightedTextarea
                                 ref={textareaRef}
                                 value={markdown}
                                 onChange={(e) => setMarkdown(e.target.value)}
                                 onPaste={handlePaste}
                                 placeholder="Write your markdown here... (or drag & drop images)"
                                 className="markdown-editor"
+                                wrapperProps={{ h: '100%' }}
                                 border="none"
                                 borderRadius="0"
                                 resize="none"
-                                h="100%"
                                 fontFamily="mono"
                                 fontSize="sm"
                                 p={4}

@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-03',
+    date: '2026-08-03',
+    items: [
+      { type: 'feature', text: 'Typing @ in the blog or snap composer now suggests real Hive usernames as you type, and colors a finished mention blue once it\'s confirmed to be a real account.' },
+    ],
+  },
+  {
     id: '2026-07-30',
     date: '2026-07-30',
     items: [
