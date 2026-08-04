@@ -246,10 +246,27 @@ function transform3SpeakContent(content: string): string {
         }
     );
 
+    // An <a> tag matched below is only a candidate for auto-embedding when its
+    // visible text IS the URL — i.e. the markdown source was a bare link the
+    // parser auto-linked, not `[some label](url)`. A deliberately labeled
+    // link (e.g. "▶ Watch on 3speak.tv", used as a fallback right next to a
+    // separate bare embed URL — a common, even self-referential, pattern) is
+    // the author choosing to keep it as a plain clickable link; forcing it
+    // into a second video-container overrides that choice, and if it's the
+    // *first* such link the dedup logic sees, it wins the slot and shadows
+    // the real embed, leaving the intended bare URL as stray link text
+    // instead of the video the author actually meant to show inline.
+    const isAutoLinkedUrl = (fullUrl: string, innerHtml: string): boolean => {
+        const textOnly = innerHtml.replace(/<[^>]*>/g, '').trim();
+        const clean = fullUrl.replace(/&amp;/gi, '&').trim();
+        return textOnly === clean || textOnly === fullUrl.trim();
+    };
+
     // Handle LEGACY 3speak.tv URLs (without play. subdomain)
     content = content.replace(
-        /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-        (match, fullUrl, videoId) => {
+        /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+        (match, fullUrl, videoId, innerHtml) => {
+            if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
@@ -259,8 +276,9 @@ function transform3SpeakContent(content: string): string {
 
     // Handle 3Speak watch URLs (with play. subdomain)
     content = content.replace(
-        /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-        (match, fullUrl, videoId) => {
+        /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+        (match, fullUrl, videoId, innerHtml) => {
+            if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
@@ -270,8 +288,9 @@ function transform3SpeakContent(content: string): string {
 
     // Handle 3Speak embed URLs
     content = content.replace(
-        /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/embed\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-        (match, fullUrl, videoId) => {
+        /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/embed\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+        (match, fullUrl, videoId, innerHtml) => {
+            if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
             if (embeddedVideos.has(videoId)) return match;
             embeddedVideos.add(videoId);
             const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe&captions=0&layout=desktop`;

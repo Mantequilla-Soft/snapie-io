@@ -287,6 +287,28 @@ function extractTwitterId(url: string): string | null {
 }
 
 /**
+ * True when `line`'s occurrence of `urlPattern` is the target of a markdown
+ * link with its own descriptive label — e.g. 3Speak's own timestamped
+ * live-stream reply convention, `said at [00:42](https://3speak.tv/watch?v=...)
+ * during the live stream`. Every other Hive frontend (PeakD, Ecency) renders
+ * that as plain text with a clickable "00:42" link; it must not get
+ * force-converted into a full video embed just because the tracked URL
+ * appears somewhere on the line.
+ */
+function isLabeledMediaLink(line: string, urlPattern: RegExp): boolean {
+  const linkPattern = /\[([^\]]*)\]\(([^)]+)\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = linkPattern.exec(line)) !== null) {
+    const [, label, url] = match;
+    if (!urlPattern.test(url)) continue;
+    const cleanLabel = label.trim();
+    const cleanUrl = url.replace(/&amp;/gi, '&').trim();
+    if (cleanLabel !== cleanUrl && cleanLabel !== url.trim()) return true;
+  }
+  return false;
+}
+
+/**
  * Separate content into media and text parts
  * This is the foundation of SkateHive's media/text separation pattern
  */
@@ -295,17 +317,26 @@ export const separateContent = (body: string) => {
   const textParts: string[] = [];
   const mediaParts: string[] = [];
   const lines = body.split("\n");
-  
+
   lines.forEach((line: string) => {
     // Check if line contains markdown image, iframe, 3Speak URLs (watch or embed), YouTube URL, Instagram URL, Twitter/X URL, or 3Speak Audio URL
-    if (line.match(/!\[.*?\]\(.*\)/) || 
+    // — but only as a bare URL, not as the target of a deliberately labeled
+    // markdown link (see isLabeledMediaLink above).
+    const trackedUrlPatterns = [
+      /https?:\/\/(play\.)?3speak\.tv\/(watch|embed)\?v=/,
+      /https?:\/\/audio\.3speak\.tv\/play\?a=/,
+      /https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/,
+      /https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//,
+      /https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/,
+      /https?:\/\/(www\.)?reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i,
+    ];
+    const hasBareTrackedUrl = trackedUrlPatterns.some(
+      (pattern) => pattern.test(line) && !isLabeledMediaLink(line, pattern)
+    );
+
+    if (line.match(/!\[.*?\]\(.*\)/) ||
         line.match(/<iframe.*<\/iframe>/) ||
-        line.match(/https?:\/\/(play\.)?3speak\.tv\/(watch|embed)\?v=/) ||
-        line.match(/https?:\/\/audio\.3speak\.tv\/play\?a=/) ||
-        line.match(/https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/) ||
-        line.match(/https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//) ||
-        line.match(/https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/) ||
-        line.match(/https?:\/\/(www\.)?reddit\.com\/r\/[^/]+\/comments\/[a-z0-9]+/i)) {
+        hasBareTrackedUrl) {
       mediaParts.push(line);
     } else {
       textParts.push(line);

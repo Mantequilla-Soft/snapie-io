@@ -224,9 +224,15 @@ function transform3SpeakContent(content) {
       return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
     }
   );
+  const isAutoLinkedUrl = (fullUrl, innerHtml) => {
+    const textOnly = innerHtml.replace(/<[^>]*>/g, "").trim();
+    const clean = fullUrl.replace(/&amp;/gi, "&").trim();
+    return textOnly === clean || textOnly === fullUrl.trim();
+  };
   content = content.replace(
-    /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-    (match, fullUrl, videoId) => {
+    /<a[^>]*href="(https?:\/\/3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+    (match, fullUrl, videoId, innerHtml) => {
+      if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
@@ -234,8 +240,9 @@ function transform3SpeakContent(content) {
     }
   );
   content = content.replace(
-    /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-    (match, fullUrl, videoId) => {
+    /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/watch\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+    (match, fullUrl, videoId, innerHtml) => {
+      if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/watch?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
@@ -243,8 +250,9 @@ function transform3SpeakContent(content) {
     }
   );
   content = content.replace(
-    /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/embed\?v=([^"&]+)[^"]*)"[^>]*>.*?<\/a>/g,
-    (match, fullUrl, videoId) => {
+    /<a[^>]*href="(https?:\/\/play\.3speak\.tv\/embed\?v=([^"&]+)[^"]*)"[^>]*>(.*?)<\/a>/g,
+    (match, fullUrl, videoId, innerHtml) => {
+      if (!isAutoLinkedUrl(fullUrl, innerHtml)) return match;
       if (embeddedVideos.has(videoId)) return match;
       embeddedVideos.add(videoId);
       const embedUrl = `https://play.3speak.tv/embed?v=${videoId}&mode=iframe&captions=0&layout=desktop`;
