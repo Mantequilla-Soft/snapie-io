@@ -149,14 +149,23 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
     // Typing itself, and any direct `.value =` write elsewhere (the snap
     // composer's resnap-prefill, meme insertion, and post-submit clear) that
     // dispatches a synthetic 'input' event afterward, both flow through here —
-    // one listener covers controlled, uncontrolled, and programmatic writes.
+    // but only in uncontrolled mode. In controlled mode (the blog composer),
+    // this listener's setText fires as a raw DOM callback outside React's
+    // event handling, synchronously re-rendering this component with the
+    // *stale* `value` prop mid-bubble — before the real onChange (which would
+    // update the parent's state to the new value) ever runs. React then
+    // resets the controlled textarea's DOM value back to that stale prop
+    // right then, wiping out the keystroke before onChange even sees it
+    // (every character, silently — this is what broke typing entirely in the
+    // blog composer). Controlled mode already syncs `text` correctly via the
+    // effect above, once the parent's state update flows back down.
     useEffect(() => {
       const el = innerRef.current;
-      if (!el) return;
+      if (!el || value !== undefined) return;
       const handleInput = () => setText(el.value);
       el.addEventListener('input', handleInput);
       return () => el.removeEventListener('input', handleInput);
-    }, []);
+    }, [value]);
 
     const validity = useMentionValidation(text);
     const mention = useMentionAutocomplete();

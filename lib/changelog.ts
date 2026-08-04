@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'fix', text: 'Fixed 3Speak videos sometimes embedding with the wrong link, or duplicating across the page — a labeled link (like "Watch on 3speak.tv") was being force-converted into a video player instead of staying a plain link.' },
       { type: 'fix', text: 'Fixed livestream comments with a timestamp (3Speak\'s "said at 00:42 during the live stream" replies) rendering as broken, duplicated video players instead of plain text with a clickable timestamp link.' },
+      { type: 'fix', text: 'Fixed the blog composer eating keystrokes — typing (including the space bar) silently did nothing after a recent change.' },
     ],
   },
   {
