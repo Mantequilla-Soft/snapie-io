@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack } from '@chakra-ui/react';
+import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem } from '@chakra-ui/react';
 import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
@@ -8,8 +8,9 @@ import VideoUploader from './VideoUploader';
 import AudioRecorder from './AudioRecorder';
 import { IGif } from '@giphy/js-types';
 import { CloseIcon } from '@chakra-ui/icons';
-import { FaImage, FaVideo, FaMicrophone } from 'react-icons/fa';
-import { MdGif, MdOutlineMood } from 'react-icons/md';
+import { FaImage, FaVideo, FaMicrophone, FaSmile } from 'react-icons/fa';
+import { MdGif } from 'react-icons/md';
+import { ALL_COMMON_EMOJIS, insertEmoji, getSelectionFromTextarea } from '@snapie/composer';
 import { Comment } from '@hiveio/dhive';
 import { getLastSnapsContainer, uploadImageWithKeychain, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -124,6 +125,18 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
         window.addEventListener('message', onMessage);
         return () => window.removeEventListener('message', onMessage);
     }, []);
+
+    const handleEmojiClick = (emoji: string) => {
+        const el = postBodyRef.current;
+        if (!el) return;
+        const result = insertEmoji(el.value, getSelectionFromTextarea(el), emoji);
+        el.value = result.text;
+        // See the resnap handler above — direct .value writes need a manual
+        // input event for the highlight overlay to notice.
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.focus();
+        requestAnimationFrame(() => el.setSelectionRange(result.cursorPosition, result.cursorPosition));
+    };
 
     const buttonText = post ? "Reply" : "Post";
     const hasVideo = selectedVideo !== null;
@@ -426,6 +439,34 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     >
                         <MdGif size={44} />
                     </Button>
+                    <Menu>
+                        <MenuButton
+                            as={Button}
+                            variant="ghost" borderRadius="full"
+                            color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
+                            isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
+                            aria-label="Emoji"
+                        >
+                            <FaSmile size={20} />
+                        </MenuButton>
+                        <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="surface" borderColor="surfaceBorder">
+                            {ALL_COMMON_EMOJIS.map((emoji, index) => (
+                                <MenuItem
+                                    key={index}
+                                    onClick={() => handleEmojiClick(emoji)}
+                                    minH="32px"
+                                    w="32px"
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="center"
+                                    fontSize="lg"
+                                    p={1}
+                                >
+                                    {emoji}
+                                </MenuItem>
+                            ))}
+                        </MenuList>
+                    </Menu>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
@@ -451,7 +492,25 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         size={{ base: 'sm', md: 'md' }}
                         title={hasVideoInProgress ? 'Remove video to add a meme' : 'Add a meme'}
                     >
-                        {isMemeUploading ? <Spinner size="xs" /> : <MdOutlineMood size={22} />}
+                        {isMemeUploading ? <Spinner size="xs" /> : (
+                            <Box
+                                as="span"
+                                display="inline-flex"
+                                alignItems="center"
+                                justifyContent="center"
+                                minW="34px"
+                                h="20px"
+                                px={1}
+                                border="1.5px solid currentColor"
+                                borderRadius="4px"
+                                fontSize="9px"
+                                fontWeight="800"
+                                letterSpacing="0.3px"
+                                lineHeight="1"
+                            >
+                                MEME
+                            </Box>
+                        )}
                     </Button>
                 </HStack>
                 <Button
