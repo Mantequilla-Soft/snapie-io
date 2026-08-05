@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExtendedComment } from './useComments';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
+import { useUserSettings } from './useUserSettings';
 
 interface FeedApiItem {
   source: 'snap' | 'wave';
@@ -39,6 +41,7 @@ function toExtendedComment(item: FeedApiItem): ExtendedComment {
  * internal-docs/hive-activity-sidecar-feed.md for the server-side design.
  */
 export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps = {}) => {
+  const { settings } = useUserSettings();
   const lastCreatedRef = useRef<string | null>(null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const isFetchingRef = useRef(false);
@@ -70,7 +73,8 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     const mutedList = await mutedAccountsManager.getMutedList(username);
     const items = data.items
       .filter(item => !fetchedPermlinksRef.current.has(item.permlink))
-      .filter(item => !mutedList.has(item.author.toLowerCase()));
+      .filter(item => !mutedList.has(item.author.toLowerCase()))
+      .filter(item => !hasMutedTag(item.json_metadata, settings.mutedTags));
 
     for (const item of items) {
       fetchedPermlinksRef.current.add(item.permlink);

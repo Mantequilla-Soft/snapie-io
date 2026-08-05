@@ -3,6 +3,8 @@ import HiveClient from "@/lib/hive/hiveclient"
 import { useCallback, useEffect, useState } from "react"
 import { Comment } from "@hiveio/dhive"
 import { mutedAccountsManager } from "@/lib/hive/muted-accounts"
+import { hasMutedTag } from "@/lib/hive/mutedTags"
+import { useUserSettings } from "./useUserSettings"
 
 interface ActiveVote {
     percent: number;
@@ -84,6 +86,7 @@ export function useComments(
     recursive: boolean = false,
     username?: string
 ) {
+    const { settings } = useUserSettings()
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -103,6 +106,7 @@ export function useComments(
             const filterMuted = (comments: ExtendedComment[]): ExtendedComment[] => {
                 return comments
                     .filter((c) => !mutedList.has(c.author.toLowerCase()))
+                    .filter((c) => !hasMutedTag(c.json_metadata, settings.mutedTags))
                     .map((c) => {
                         if (c.replies && c.replies.length > 0) {
                             return { ...c, replies: filterMuted(c.replies as ExtendedComment[]) };
@@ -128,7 +132,7 @@ export function useComments(
             console.error(err);
             if (showLoader) setIsLoading(false);
         }
-    }, [author, permlink, recursive, username]);
+    }, [author, permlink, recursive, username, settings.mutedTags]);
 
     useEffect(() => {
         fetchAndUpdateComments();

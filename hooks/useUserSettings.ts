@@ -22,6 +22,10 @@ export interface UserSettings {
      *  brand-new visitor, who gets marked caught-up silently rather than shown
      *  the whole history. */
     lastSeenChangelogId: string | null;
+    /** Hashtags (lowercase, no leading #) the user never wants to see —
+     *  any blog post, snap, or comment tagged with one of these is filtered
+     *  out of feeds. See lib/hive/mutedTags.ts for where this is applied. */
+    mutedTags: string[];
 }
 
 const defaults: UserSettings = {
@@ -30,6 +34,7 @@ const defaults: UserSettings = {
     interestTags: [],
     interestsOnboardedAt: null,
     lastSeenChangelogId: null,
+    mutedTags: [],
 };
 
 function load(): UserSettings {

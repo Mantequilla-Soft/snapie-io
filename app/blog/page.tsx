@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, findFeedPosts, searchPosts } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useHiveUser } from '@/contexts/UserContext';
 import TopBar, { FeedSource } from '@/components/blog/TopBar';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
@@ -47,6 +48,7 @@ export default function Blog() {
     // feature appears (see lib/discovery/config.ts).
     const showForYouTab = isDiscoveryEnabledFor(username);
     const interestTagsKey = settings.interestTags.join(',');
+    const mutedTagsKey = settings.mutedTags.join(',');
     const isForYouCold = feedSource === 'foryou' && settings.interestTags.length === 0;
     const hasSetDefaultTab = useRef(false);
 
@@ -111,6 +113,7 @@ export default function Blog() {
                     const body = typeof post.body === 'string' ? post.body.trim() : '';
                     const isTopLevel = !post.parent_author;
                     const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
+                    const isMutedTag = hasMutedTag(post.json_metadata, settings.mutedTags);
                     const author = post.author || '';
                     const permlink = post.permlink || '';
                     const dedupeKey = `${author}/${permlink}`;
@@ -121,6 +124,7 @@ export default function Blog() {
                     return (
                         isTopLevel &&
                         !isMuted &&
+                        !isMutedTag &&
                         !isDuplicate &&
                         Boolean(author && permlink) &&
                         hasRenderableContent &&
@@ -160,7 +164,9 @@ export default function Blog() {
                 const res = await fetch(`/api/discovery/blog-foryou?${qs.toString()}`, { cache: 'no-store' });
                 const data: { items: Discussion[]; hasMore: boolean } = await res.json();
                 const topLevelPosts = data.items.filter((post: Discussion) =>
-                    !mutedSetRef.current.has(post.author.toLowerCase()) && !seenKeysRef.current.has(postKey(post)),
+                    !mutedSetRef.current.has(post.author.toLowerCase()) &&
+                    !hasMutedTag(post.json_metadata, settings.mutedTags) &&
+                    !seenKeysRef.current.has(postKey(post)),
                 );
                 topLevelPosts.forEach((post: Discussion) => seenKeysRef.current.add(postKey(post)));
                 setAllPosts(prevPosts => [...prevPosts, ...topLevelPosts]);
@@ -187,8 +193,9 @@ export default function Blog() {
             const topLevelPosts = posts.filter((post: Discussion) => {
                 const isTopLevel = !post.parent_author;
                 const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
+                const isMutedTag = hasMutedTag(post.json_metadata, settings.mutedTags);
                 const isDuplicate = seenKeysRef.current.has(postKey(post));
-                return isTopLevel && !isMuted && !isDuplicate;
+                return isTopLevel && !isMuted && !isMutedTag && !isDuplicate;
             });
             topLevelPosts.forEach((post: Discussion) => seenKeysRef.current.add(postKey(post)));
 
@@ -248,7 +255,7 @@ export default function Blog() {
         seenKeysRef.current.clear();
         fetchPosts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, feedSource, mutedLoaded, tag, activeSearchTerm, hiveUser?.name, interestTagsKey]); // fetchPosts excluded - callback identity changes each render
+    }, [query, feedSource, mutedLoaded, tag, activeSearchTerm, hiveUser?.name, interestTagsKey, mutedTagsKey]); // fetchPosts excluded - callback identity changes each render
 
     const handleFeedSourceChange = (source: FeedSource) => {
         hasSetDefaultTab.current = true; // any manual switch cancels the auto-default effect

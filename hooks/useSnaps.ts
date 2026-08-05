@@ -3,7 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExtendedComment } from './useComments';
 import { getFollowing } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { usePatronStatus } from './usePatronStatus';
+import { useUserSettings } from './useUserSettings';
 
 interface lastContainerInfo {
   permlink: string;
@@ -26,6 +28,12 @@ interface UseSnapsProps {
 }
 
 export const useSnaps = ({ filterType = 'community', username, skip = false }: UseSnapsProps = {}) => {
+  const { settings } = useUserSettings();
+  // A stable, value-compared key (not the array reference) for the reset
+  // effect below — same pattern as the blog feed's interestTagsKey, so
+  // muting a tag in Settings refetches this feed immediately rather than
+  // waiting for a manual refresh.
+  const mutedTagsKey = settings.mutedTags.join(',');
   const lastContainerRef = useRef<lastContainerInfo | null>(null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const followingListRef = useRef<string[]>([]);
@@ -194,7 +202,9 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
           filteredComments = filterCommentsByPatrons(comments);
         }
 
-        filteredComments = filteredComments.filter(c => !mutedList.has(c.author.toLowerCase()));
+        filteredComments = filteredComments
+          .filter(c => !mutedList.has(c.author.toLowerCase()))
+          .filter(c => !hasMutedTag(c.json_metadata, settings.mutedTags));
 
         allFilteredComments.push(...filteredComments);
 
@@ -225,7 +235,7 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     setHasFetchedOnce(false);
     setCurrentPage(1);
     setFetchTrigger(prev => prev + 1);
-  }, [filterType, username]);
+  }, [filterType, username, mutedTagsKey]);
 
   // Fetch posts when `currentPage` changes (or when followingListLoaded changes for following filter)
   useEffect(() => {
