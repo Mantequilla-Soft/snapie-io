@@ -21,6 +21,7 @@ const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHa
 const InterestPicker = dynamic(() => import('@/components/onboarding/InterestPicker'), { ssr: false });
 const WhatsNewModal = dynamic(() => import('@/components/whatsnew/WhatsNewModal'), { ssr: false });
 const PointsToaster = dynamic(() => import('@/components/points/PointsToaster'), { ssr: false });
+const DebugConsole = dynamic(() => import('@/components/debug/DebugConsole'), { ssr: false });
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -188,6 +189,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       {!isEmbedMode && !isChatPopoutMode && !showInterestPicker && <WhatsNewModal />}
       {/* Snapie Points earn-toaster — allowlist-gated dogfood (Stage 1). */}
       {!isEmbedMode && !isChatPopoutMode && isPointsEnabledFor(currentUsername) && <PointsToaster />}
+      {/* Opt-in mobile debug console (?debug=1) — see components/debug/DebugConsole.tsx. */}
+      <DebugConsole />
     </Box>
   );
 }
