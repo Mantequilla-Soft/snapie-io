@@ -24,6 +24,7 @@ async function waitForVideoReady(owner, videoId) {
 var bufferedFiles = /* @__PURE__ */ new WeakSet();
 var MAX_BUFFER_BYTES = 200 * 1024 * 1024;
 async function warmUpVideoFile(file) {
+  const t0 = Date.now();
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const video = document.createElement("video");
@@ -36,17 +37,18 @@ async function warmUpVideoFile(file) {
     video.style.width = "1px";
     video.style.height = "1px";
     let done = false;
-    const finish = () => {
+    const finish = (reason) => {
       if (done) return;
       done = true;
       clearTimeout(timeout);
       URL.revokeObjectURL(url);
       video.remove();
+      console.log(`[video-buffer] warm-up finished: ${reason} after ${Date.now() - t0}ms`);
       resolve();
     };
-    const timeout = setTimeout(finish, 5e3);
-    video.addEventListener("loadedmetadata", finish, { once: true });
-    video.addEventListener("error", finish, { once: true });
+    const timeout = setTimeout(() => finish("timeout"), 5e3);
+    video.addEventListener("loadedmetadata", () => finish("loadedmetadata"), { once: true });
+    video.addEventListener("error", () => finish("error"), { once: true });
     video.src = url;
     document.body.appendChild(video);
   });
@@ -55,9 +57,15 @@ var READ_CHUNK_BYTES = 2 * 1024 * 1024;
 var READ_RETRIES = 2;
 async function readChunkWithRetry(file, start, end) {
   for (let attempt = 0; ; attempt++) {
+    const t0 = Date.now();
     try {
-      return await file.slice(start, end).arrayBuffer();
+      const buf = await file.slice(start, end).arrayBuffer();
+      console.log(`[video-buffer] chunk ${start}-${end} ok on attempt ${attempt + 1} (${Date.now() - t0}ms, ${buf.byteLength}B)`);
+      return buf;
     } catch (err) {
+      const name = err instanceof DOMException ? err.name : err instanceof Error ? err.constructor.name : typeof err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`[video-buffer] chunk ${start}-${end} FAILED attempt ${attempt + 1} after ${Date.now() - t0}ms: ${name}: ${msg}`);
       if (attempt >= READ_RETRIES) throw err;
       await new Promise((r) => setTimeout(r, 300));
     }
@@ -65,14 +73,18 @@ async function readChunkWithRetry(file, start, end) {
 }
 async function bufferFileInMemory(file) {
   if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
+  console.log(`[video-buffer] start: name=${file.name} size=${file.size} type=${JSON.stringify(file.type)} lastModified=${file.lastModified}`);
   await warmUpVideoFile(file);
   const chunks = [];
+  const t0 = Date.now();
   try {
     for (let start = 0; start < file.size; start += READ_CHUNK_BYTES) {
       chunks.push(await readChunkWithRetry(file, start, Math.min(start + READ_CHUNK_BYTES, file.size)));
     }
     if (chunks.length === 0 && file.size > 0) throw new Error("no chunks read");
-  } catch {
+    console.log(`[video-buffer] all ${chunks.length} chunks read in ${Date.now() - t0}ms`);
+  } catch (err) {
+    console.log(`[video-buffer] gave up after ${Date.now() - t0}ms, ${chunks.length} chunks read:`, err);
     throw new Error(
       "Couldn't read the selected video. On Android this usually means the file lives in cloud storage (Google Photos, Drive) rather than on the device \u2014 open it in your gallery to download it locally first, then try again."
     );
