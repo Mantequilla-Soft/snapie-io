@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed video uploads silently stalling on mobile when using Snapie Auth — a race where the upload could start just before your session finished loading now fails fast with a clear message instead of stalling forever with nothing to show for it.' },
       { type: 'fix', text: 'Fixed video uploads that appeared to finish but never actually played — we were treating "bytes finished sending" as "video ready," when 3Speak still needed to process it afterward. Now we wait for confirmation it\'s actually playable before calling it done, and show a clear message if processing is taking unusually long.' },
       { type: 'fix', text: 'Fixed larger video uploads failing on Android — picking a video from your gallery only makes a limited portion of it reliably readable, enough for short clips but not longer ones. We now scrub through the entire video first to make sure all of it is accessible before reading it into memory and uploading.' },
+      { type: 'fix', text: 'Fixed the root cause of Android video upload failures — the video picker now requests a proper, persistent permission to read the file instead of the temporary one Android was only partly honoring for larger files. Falls back to the previous behavior on browsers that don\'t support the newer picker.' },
     ],
   },
   {

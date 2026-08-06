@@ -6,6 +6,7 @@ import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTe
 import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, FaQuoteLeft, FaUnderline, FaStrikethrough, FaHeading, FaChevronDown, FaTable, FaEyeSlash, FaSmile, FaCloudUploadAlt, FaVideo, FaMicrophone, FaTimes } from 'react-icons/fa';
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
+import { pickVideoFile } from '@/lib/utils/pickVideoFile';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { SpoilerComponent } from '@/lib/utils/SpoilerRenderer';
@@ -425,58 +426,52 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
     };
 
     // Handle video selection and upload to 3Speak (not marked as short)
-    const handleVideoClick = () => {
+    const handleVideoClick = async () => {
         if (!user) {
             toast({ title: 'Not Logged In', description: 'Please log in to upload videos.', status: 'error', duration: 3000, isClosable: true });
             return;
         }
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'video/mp4,video/webm,video/quicktime';
-        input.onchange = async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-            if (file.size > 500 * 1024 * 1024) {
-                toast({ title: 'File Too Large', description: 'Maximum video size is 500 MB.', status: 'error', duration: 3000, isClosable: true });
-                return;
-            }
-            const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
-            if (!apiKey) {
-                toast({ title: 'Config Error', description: '3Speak API key not configured.', status: 'error', duration: 3000, isClosable: true });
-                return;
-            }
-            setSelectedVideo(file);
-            setVideoUploadProgress(1);
-            try {
-                const result = await uploadVideoWithThumbnail(file, {
-                    apiKey,
-                    owner: user,
-                    appName: 'snapie',
-                    isShort: false,
-                    onProgress: (progress) => setVideoUploadProgress(progress),
-                    uploadThumbnail: async (blob) => {
-                        try {
-                            const thumbFile = new File([blob], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
-                            return await uploadImageWithKeychain(thumbFile, user);
-                        } catch {
-                            return uploadToIPFS(blob);
-                        }
-                    },
-                });
-                setVideoEmbedUrl(result.embedUrl);
-                setVideoId(result.videoId);
-                setVideoThumbnailUrl(result.thumbnailUrl ?? null);
-                onVideoThumbnailChange?.(result.thumbnailUrl ?? null);
-                onVideoEmbedUrlChange?.(result.embedUrl);
-                toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
-            } catch (error) {
-                console.error('Video upload failed:', error);
-                toast({ title: 'Video Upload Failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 4000, isClosable: true });
-                setSelectedVideo(null);
-                setVideoUploadProgress(0);
-            }
-        };
-        input.click();
+        const file = await pickVideoFile();
+        if (!file) return;
+        if (file.size > 500 * 1024 * 1024) {
+            toast({ title: 'File Too Large', description: 'Maximum video size is 500 MB.', status: 'error', duration: 3000, isClosable: true });
+            return;
+        }
+        const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
+        if (!apiKey) {
+            toast({ title: 'Config Error', description: '3Speak API key not configured.', status: 'error', duration: 3000, isClosable: true });
+            return;
+        }
+        setSelectedVideo(file);
+        setVideoUploadProgress(1);
+        try {
+            const result = await uploadVideoWithThumbnail(file, {
+                apiKey,
+                owner: user,
+                appName: 'snapie',
+                isShort: false,
+                onProgress: (progress) => setVideoUploadProgress(progress),
+                uploadThumbnail: async (blob) => {
+                    try {
+                        const thumbFile = new File([blob], `${file.name}_thumb.jpg`, { type: 'image/jpeg' });
+                        return await uploadImageWithKeychain(thumbFile, user);
+                    } catch {
+                        return uploadToIPFS(blob);
+                    }
+                },
+            });
+            setVideoEmbedUrl(result.embedUrl);
+            setVideoId(result.videoId);
+            setVideoThumbnailUrl(result.thumbnailUrl ?? null);
+            onVideoThumbnailChange?.(result.thumbnailUrl ?? null);
+            onVideoEmbedUrlChange?.(result.embedUrl);
+            toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
+        } catch (error) {
+            console.error('Video upload failed:', error);
+            toast({ title: 'Video Upload Failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 4000, isClosable: true });
+            setSelectedVideo(null);
+            setVideoUploadProgress(0);
+        }
     };
 
     const handleRemoveVideo = () => {
