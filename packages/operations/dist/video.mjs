@@ -23,17 +23,32 @@ async function waitForVideoReady(owner, videoId) {
 }
 var bufferedFiles = /* @__PURE__ */ new WeakSet();
 var MAX_BUFFER_BYTES = 200 * 1024 * 1024;
+var READ_CHUNK_BYTES = 2 * 1024 * 1024;
+var READ_RETRIES = 2;
+async function readChunkWithRetry(file, start, end) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await file.slice(start, end).arrayBuffer();
+    } catch (err) {
+      if (attempt >= READ_RETRIES) throw err;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+}
 async function bufferFileInMemory(file) {
   if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
-  let buffer;
+  const chunks = [];
   try {
-    buffer = await file.arrayBuffer();
+    for (let start = 0; start < file.size; start += READ_CHUNK_BYTES) {
+      chunks.push(await readChunkWithRetry(file, start, Math.min(start + READ_CHUNK_BYTES, file.size)));
+    }
+    if (chunks.length === 0 && file.size > 0) throw new Error("no chunks read");
   } catch {
     throw new Error(
       "Couldn't read the selected video. On Android this usually means the file lives in cloud storage (Google Photos, Drive) rather than on the device \u2014 open it in your gallery to download it locally first, then try again."
     );
   }
-  const copy = new File([buffer], file.name, { type: file.type });
+  const copy = new File(chunks, file.name, { type: file.type });
   bufferedFiles.add(copy);
   return copy;
 }

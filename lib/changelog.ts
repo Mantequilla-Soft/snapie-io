@@ -30,7 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'fix', text: 'Fixed video uploads silently stalling on mobile when using Snapie Auth — a race where the upload could start just before your session finished loading now fails fast with a clear message instead of stalling forever with nothing to show for it.' },
       { type: 'fix', text: 'Fixed video uploads that appeared to finish but never actually played — we were treating "bytes finished sending" as "video ready," when 3Speak still needed to process it afterward. Now we wait for confirmation it\'s actually playable before calling it done, and show a clear message if processing is taking unusually long.' },
-      { type: 'fix', text: 'Fixed video uploads failing on Android — picking a video from your gallery gives the browser a file reference that expires after a single read, so the upload died the moment it tried to read the file a second time. We now copy the video into memory up front, so uploading and thumbnail generation never touch the original again.' },
+      { type: 'fix', text: 'Fixed video uploads failing on Android — picking a video from your gallery gives the browser an unreliable file reference that can fail partway through being read. We now read the video into memory up front in small, retried chunks before uploading or generating a thumbnail, instead of letting the upload touch that fragile reference directly.' },
     ],
   },
   {

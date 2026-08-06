@@ -46,20 +46,28 @@ interface VideoUploadOptions {
     isShort?: boolean;
 }
 /**
- * Copy `file` into an in-memory File, in a single read.
+ * Copy `file` into an in-memory File, read in small chunks.
  *
  * Android hands the browser a `content://` reference for gallery/camera
- * files rather than a real file handle, and that reference routinely goes
- * stale after the first read — a second `.slice().arrayBuffer()` throws
+ * files rather than a real file handle, and reading it is unreliable —
+ * confirmed live on Android Chrome two different ways: (1) a small 1 MB
+ * slice read fine, but a *second* read of the same file threw
  * NotReadableError ("permission problems that have occurred after a
- * reference to a file was acquired"). Confirmed live on Android Chrome: the
- * first 1 MB of a freshly recorded 8.8 MB video read fine, a second read of
- * the same file failed outright.
+ * reference to a file was acquired"); (2) later, even a *single* whole-file
+ * `file.arrayBuffer()` read failed outright on the very first attempt for a
+ * different video. A single long-lived read of the whole file appears to be
+ * the common failure mode — plausibly Android's content provider timing out
+ * or revoking access mid-transfer, more likely the more recently the video
+ * was recorded (MediaStore may still be finalizing it). Several short,
+ * independent reads — proven to work in the first case above — avoid ever
+ * holding one such read open for long, and each gets its own retry in case
+ * the provider is only momentarily busy rather than truly gone.
  *
- * That breaks video upload two ways at once — TUS re-reads the file chunk by
- * chunk, and thumbnail extraction opens it again in parallel — so uploads
- * died at offset 0 with a bare ProgressEvent and no HTTP response at all,
- * while images (read once, small) and desktop (real file handles) were fine.
+ * That unreliability breaks video upload two ways at once regardless of
+ * which failure mode it hits — TUS re-reads the file chunk by chunk, and
+ * thumbnail extraction opens it again in parallel — so uploads died at
+ * offset 0 with a bare ProgressEvent and no HTTP response at all, while
+ * images (read once, small) and desktop (real file handles) were fine.
  *
  * Reading once up front and passing the memory-backed copy to every consumer
  * sidesteps it entirely. Returns a File (not a Blob) so `.name`/`.type`

@@ -114,21 +114,52 @@ const bufferedFiles = new WeakSet<Blob>();
  *  and desktop doesn't have the Android re-read problem this works around. */
 const MAX_BUFFER_BYTES = 200 * 1024 * 1024;
 
+/** Read size for bufferFileInMemory's chunked pass. Small enough that each
+ *  individual read completes quickly rather than holding one long-lived
+ *  stream open — see the function doc for why that distinction matters on
+ *  Android. */
+const READ_CHUNK_BYTES = 2 * 1024 * 1024;
+
+/** A failed chunk read is retried this many times (short delay between
+ *  attempts) before giving up — Android's content provider can be
+ *  momentarily busy (e.g. MediaStore still finalizing a just-recorded
+ *  video) rather than permanently unreadable. */
+const READ_RETRIES = 2;
+
+async function readChunkWithRetry(file: File, start: number, end: number): Promise<ArrayBuffer> {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await file.slice(start, end).arrayBuffer();
+        } catch (err) {
+            if (attempt >= READ_RETRIES) throw err;
+            await new Promise(r => setTimeout(r, 300));
+        }
+    }
+}
+
 /**
- * Copy `file` into an in-memory File, in a single read.
+ * Copy `file` into an in-memory File, read in small chunks.
  *
  * Android hands the browser a `content://` reference for gallery/camera
- * files rather than a real file handle, and that reference routinely goes
- * stale after the first read — a second `.slice().arrayBuffer()` throws
+ * files rather than a real file handle, and reading it is unreliable —
+ * confirmed live on Android Chrome two different ways: (1) a small 1 MB
+ * slice read fine, but a *second* read of the same file threw
  * NotReadableError ("permission problems that have occurred after a
- * reference to a file was acquired"). Confirmed live on Android Chrome: the
- * first 1 MB of a freshly recorded 8.8 MB video read fine, a second read of
- * the same file failed outright.
+ * reference to a file was acquired"); (2) later, even a *single* whole-file
+ * `file.arrayBuffer()` read failed outright on the very first attempt for a
+ * different video. A single long-lived read of the whole file appears to be
+ * the common failure mode — plausibly Android's content provider timing out
+ * or revoking access mid-transfer, more likely the more recently the video
+ * was recorded (MediaStore may still be finalizing it). Several short,
+ * independent reads — proven to work in the first case above — avoid ever
+ * holding one such read open for long, and each gets its own retry in case
+ * the provider is only momentarily busy rather than truly gone.
  *
- * That breaks video upload two ways at once — TUS re-reads the file chunk by
- * chunk, and thumbnail extraction opens it again in parallel — so uploads
- * died at offset 0 with a bare ProgressEvent and no HTTP response at all,
- * while images (read once, small) and desktop (real file handles) were fine.
+ * That unreliability breaks video upload two ways at once regardless of
+ * which failure mode it hits — TUS re-reads the file chunk by chunk, and
+ * thumbnail extraction opens it again in parallel — so uploads died at
+ * offset 0 with a bare ProgressEvent and no HTTP response at all, while
+ * images (read once, small) and desktop (real file handles) were fine.
  *
  * Reading once up front and passing the memory-backed copy to every consumer
  * sidesteps it entirely. Returns a File (not a Blob) so `.name`/`.type`
@@ -138,16 +169,22 @@ const MAX_BUFFER_BYTES = 200 * 1024 * 1024;
 export async function bufferFileInMemory(file: File): Promise<File> {
     if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
 
-    let buffer: ArrayBuffer;
+    const chunks: ArrayBuffer[] = [];
     try {
-        buffer = await file.arrayBuffer();
+        for (let start = 0; start < file.size; start += READ_CHUNK_BYTES) {
+            chunks.push(await readChunkWithRetry(file, start, Math.min(start + READ_CHUNK_BYTES, file.size)));
+        }
+        // An empty/zero-byte selection reads as zero chunks above — still
+        // worth surfacing as the same friendly error rather than silently
+        // uploading nothing.
+        if (chunks.length === 0 && file.size > 0) throw new Error('no chunks read');
     } catch {
         throw new Error(
             "Couldn't read the selected video. On Android this usually means the file lives in cloud storage (Google Photos, Drive) rather than on the device — open it in your gallery to download it locally first, then try again."
         );
     }
 
-    const copy = new File([buffer], file.name, { type: file.type });
+    const copy = new File(chunks, file.name, { type: file.type });
     bufferedFiles.add(copy);
     return copy;
 }
