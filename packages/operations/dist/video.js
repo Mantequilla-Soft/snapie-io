@@ -63,35 +63,61 @@ async function waitForVideoReady(owner, videoId) {
 }
 var bufferedFiles = /* @__PURE__ */ new WeakSet();
 var MAX_BUFFER_BYTES = 200 * 1024 * 1024;
-async function warmUpVideoFile(file) {
-  const t0 = Date.now();
+function seekTo(video, time) {
   return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    video.setAttribute("playsinline", "true");
-    video.setAttribute("webkit-playsinline", "true");
-    video.style.position = "fixed";
-    video.style.top = "-9999px";
-    video.style.width = "1px";
-    video.style.height = "1px";
     let done = false;
-    const finish = (reason) => {
+    const finish = () => {
       if (done) return;
       done = true;
-      clearTimeout(timeout);
-      URL.revokeObjectURL(url);
-      video.remove();
-      console.log(`[video-buffer] warm-up finished: ${reason} after ${Date.now() - t0}ms`);
+      clearTimeout(t);
+      video.removeEventListener("seeked", finish);
+      video.removeEventListener("error", finish);
       resolve();
     };
-    const timeout = setTimeout(() => finish("timeout"), 5e3);
-    video.addEventListener("loadedmetadata", () => finish("loadedmetadata"), { once: true });
-    video.addEventListener("error", () => finish("error"), { once: true });
-    video.src = url;
-    document.body.appendChild(video);
+    const t = setTimeout(finish, 2e3);
+    video.addEventListener("seeked", finish, { once: true });
+    video.addEventListener("error", finish, { once: true });
+    video.currentTime = time;
   });
+}
+async function warmUpVideoFile(file) {
+  const t0 = Date.now();
+  const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.playsInline = true;
+  video.setAttribute("playsinline", "true");
+  video.setAttribute("webkit-playsinline", "true");
+  video.style.position = "fixed";
+  video.style.top = "-9999px";
+  video.style.width = "1px";
+  video.style.height = "1px";
+  const cleanup = () => {
+    URL.revokeObjectURL(url);
+    video.remove();
+  };
+  const loadedOrErrored = new Promise((resolve) => {
+    video.addEventListener("loadedmetadata", () => resolve("loadedmetadata"), { once: true });
+    video.addEventListener("error", () => resolve("error"), { once: true });
+  });
+  const overallTimeout = new Promise((resolve) => setTimeout(() => resolve("timeout"), 3e4));
+  video.src = url;
+  document.body.appendChild(video);
+  const outcome = await Promise.race([loadedOrErrored, overallTimeout]);
+  if (outcome !== "loadedmetadata" || !isFinite(video.duration) || video.duration <= 0) {
+    cleanup();
+    console.log(`[video-buffer] warm-up finished: ${outcome} after ${Date.now() - t0}ms (no scrub \u2014 no usable duration)`);
+    return;
+  }
+  const SEEK_POINTS = 10;
+  const duration = video.duration;
+  for (let i = 0; i <= SEEK_POINTS; i++) {
+    if (Date.now() - t0 > 3e4) break;
+    const target = Math.min(duration * i / SEEK_POINTS, Math.max(duration - 0.05, 0));
+    await seekTo(video, target);
+  }
+  cleanup();
+  console.log(`[video-buffer] warm-up finished: scrubbed ${SEEK_POINTS + 1} points across ${duration.toFixed(1)}s after ${Date.now() - t0}ms`);
 }
 var READ_CHUNK_BYTES = 2 * 1024 * 1024;
 var READ_RETRIES = 2;

@@ -114,53 +114,100 @@ const bufferedFiles = new WeakSet<Blob>();
  *  and desktop doesn't have the Android re-read problem this works around. */
 const MAX_BUFFER_BYTES = 200 * 1024 * 1024;
 
+/** Seeks `video` to `time` and waits for it to land — resolves either way
+ *  (on 'seeked', on 'error', or after a short per-seek timeout) so one bad
+ *  seek point can never hang the whole warm-up. */
+function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
+    return new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(t);
+            video.removeEventListener('seeked', finish);
+            video.removeEventListener('error', finish);
+            resolve();
+        };
+        const t = setTimeout(finish, 2000);
+        video.addEventListener('seeked', finish, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        video.currentTime = time;
+    });
+}
+
 /**
- * Briefly loads `file` into an off-screen <video> element and waits for its
- * metadata, without extracting anything — confirmed live: a user working
- * around the Android read failures found that tapping "Preview" on the
- * video in the system file picker before hitting "Done" reliably fixed the
- * upload, every time. Actually opening/decoding the file appears to force
- * Android to fully materialize the underlying content:// reference, which
- * a plain byte read never does. This does programmatically what that manual
- * preview does, before bufferFileInMemory ever tries to read the bytes.
+ * Loads `file` into an off-screen <video> element and scrubs through its
+ * *entire* duration, without extracting anything.
  *
- * Best-effort: if the video never fires loadedmetadata (or errors), this
- * still resolves after a short timeout rather than blocking the upload —
- * the chunked read + retry in bufferFileInMemory is the real safety net if
- * warming up doesn't fully help.
+ * Confirmed live, twice: (1) a user working around the Android read
+ * failures found that tapping "Preview" on the video in the system file
+ * picker before hitting "Done" reliably fixed a 3-second clip's upload —
+ * "enough of it gets loaded to be pushed to 3Speak's backend"; (2) the same
+ * trick did *not* fix a 36-second, 78 MB clip, which still failed on the
+ * very first chunk. That gap is the key finding: opening/previewing a video
+ * only materializes a limited window of the underlying content:// reference
+ * — plenty to cover a whole tiny clip, nowhere near enough for a large one.
+ * An earlier version of this function only waited for `loadedmetadata`
+ * (just the file's header) for the same reason it didn't help large files
+ * either. Actually seeking across the full duration touches every part of
+ * the file, not just the start, which is what previewing a short clip did
+ * by accident (playback covered its whole length).
+ *
+ * Best-effort: any individual seek that never lands still lets this move on
+ * rather than hanging (see seekTo), and the whole pass is capped by an
+ * overall timeout — the chunked read + retry in bufferFileInMemory is the
+ * real safety net if warming up doesn't fully resolve the file.
  */
 async function warmUpVideoFile(file: File): Promise<void> {
     const t0 = Date.now();
-    return new Promise((resolve) => {
-        const url = URL.createObjectURL(file);
-        const video = document.createElement('video');
-        video.muted = true;
-        video.playsInline = true;
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        video.style.position = 'fixed';
-        video.style.top = '-9999px';
-        video.style.width = '1px';
-        video.style.height = '1px';
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.style.position = 'fixed';
+    video.style.top = '-9999px';
+    video.style.width = '1px';
+    video.style.height = '1px';
 
-        let done = false;
-        const finish = (reason: 'loadedmetadata' | 'error' | 'timeout') => {
-            if (done) return;
-            done = true;
-            clearTimeout(timeout);
-            URL.revokeObjectURL(url);
-            video.remove();
-            // eslint-disable-next-line no-console
-            console.log(`[video-buffer] warm-up finished: ${reason} after ${Date.now() - t0}ms`);
-            resolve();
-        };
-        const timeout = setTimeout(() => finish('timeout'), 5000);
+    const cleanup = () => {
+        URL.revokeObjectURL(url);
+        video.remove();
+    };
 
-        video.addEventListener('loadedmetadata', () => finish('loadedmetadata'), { once: true });
-        video.addEventListener('error', () => finish('error'), { once: true });
-        video.src = url;
-        document.body.appendChild(video);
+    const loadedOrErrored = new Promise<'loadedmetadata' | 'error'>((resolve) => {
+        video.addEventListener('loadedmetadata', () => resolve('loadedmetadata'), { once: true });
+        video.addEventListener('error', () => resolve('error'), { once: true });
     });
+    const overallTimeout = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 30_000));
+
+    video.src = url;
+    document.body.appendChild(video);
+
+    const outcome = await Promise.race([loadedOrErrored, overallTimeout]);
+
+    if (outcome !== 'loadedmetadata' || !isFinite(video.duration) || video.duration <= 0) {
+        cleanup();
+        // eslint-disable-next-line no-console
+        console.log(`[video-buffer] warm-up finished: ${outcome} after ${Date.now() - t0}ms (no scrub — no usable duration)`);
+        return;
+    }
+
+    // Evenly spaced points across the whole file, not just the start —
+    // enough to touch every part of a multi-minute video without seeking
+    // at every single frame.
+    const SEEK_POINTS = 10;
+    const duration = video.duration;
+    for (let i = 0; i <= SEEK_POINTS; i++) {
+        if (Date.now() - t0 > 30_000) break; // overall safety net mid-scrub
+        const target = Math.min((duration * i) / SEEK_POINTS, Math.max(duration - 0.05, 0));
+        await seekTo(video, target);
+    }
+
+    cleanup();
+    // eslint-disable-next-line no-console
+    console.log(`[video-buffer] warm-up finished: scrubbed ${SEEK_POINTS + 1} points across ${duration.toFixed(1)}s after ${Date.now() - t0}ms`);
 }
 
 /** Read size for bufferFileInMemory's chunked pass. Small enough that each
