@@ -62,6 +62,49 @@ interface UploadTokenResponse {
     expires_at: string;
 }
 
+const PLAYBACK_API_BASE = 'https://play.3speak.tv';
+const READY_POLL_INTERVAL_MS = 3000;
+const READY_POLL_TIMEOUT_MS = 120_000;
+
+/**
+ * TUS's onSuccess only means the raw bytes were fully received — 3Speak
+ * transcodes the video into something playable *afterward*, asynchronously.
+ * Treating byte-transfer completion as "the video is ready" is how a video
+ * can finish "uploading" from the client's perspective while never actually
+ * becoming playable (silently stuck processing, or failing to transcode
+ * altogether) — confirmed live: a correctly-sized, on-device video recorded
+ * fresh for testing still hit this. Poll the same metadata endpoint the
+ * player itself uses (play.3speak.tv/api/embed) until a real playable URL
+ * shows up, instead of trusting the TUS callback alone.
+ */
+async function waitForVideoReady(owner: string, videoId: string): Promise<void> {
+    const deadline = Date.now() + READY_POLL_TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+        // A network hiccup mid-poll (fetch throwing, a non-JSON response,
+        // etc.) shouldn't end the whole attempt — only a definitive
+        // processing failure reported by 3Speak itself should.
+        const outcome = await fetch(`${PLAYBACK_API_BASE}/api/embed?v=${owner}/${videoId}`)
+            .then(async (res) => {
+                if (!res.ok) return { ready: false } as const;
+                const data = await res.json();
+                if (!data.error && data.videoUrl) return { ready: true } as const;
+                if (data.status === 'error' || data.status === 'failed') {
+                    return { ready: false, failure: data.error || 'Video processing failed on 3Speak.' } as const;
+                }
+                return { ready: false } as const;
+            })
+            .catch(() => ({ ready: false }) as const);
+
+        if (outcome.ready) return;
+        if ('failure' in outcome) throw new Error(outcome.failure);
+
+        await new Promise(r => setTimeout(r, READY_POLL_INTERVAL_MS));
+    }
+
+    throw new Error('Video is taking longer than usual to process. It may still appear shortly — check back in a minute before trying again.');
+}
+
 async function issueUploadToken(options: VideoUploadOptions): Promise<UploadTokenResponse> {
     const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
         method: 'POST',
@@ -132,11 +175,17 @@ export async function uploadVideoTo3Speak(
                 options.onProgress?.(Math.round(percentage), 'uploading');
             },
             onSuccess: () => {
-                options.onProgress?.(100, 'complete');
-                resolve({
-                    embedUrl: embed_url,
-                    videoId: extractVideoIdFromEmbedUrl(embed_url) ?? '',
-                });
+                options.onProgress?.(100, 'processing');
+                const videoId = extractVideoIdFromEmbedUrl(embed_url) ?? '';
+                waitForVideoReady(options.owner, videoId)
+                    .then(() => {
+                        options.onProgress?.(100, 'complete');
+                        resolve({ embedUrl: embed_url, videoId });
+                    })
+                    .catch((err) => {
+                        options.onProgress?.(0, 'error');
+                        reject(err);
+                    });
             },
         });
 

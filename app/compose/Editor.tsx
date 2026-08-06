@@ -1073,7 +1073,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                                             <Box>
                                                 <Progress value={videoUploadProgress} size="xs" borderRadius="full" sx={{ '& > div': { background: 'var(--chakra-colors-primary)' } }} />
                                                 <Text fontSize="xs" mt={1} color="gray.500">
-                                                    {videoUploadProgress >= 100 ? 'Processing thumbnail...' : `${videoUploadProgress}% uploaded`}
+                                                    {videoUploadProgress >= 100 ? 'Processing video…' : `${videoUploadProgress}% uploaded`}
                                                 </Text>
                                             </Box>
                                         )}

@@ -39,6 +39,27 @@ __export(video_exports, {
 });
 module.exports = __toCommonJS(video_exports);
 var SERVICE_BASE = "https://embed.3speak.tv";
+var PLAYBACK_API_BASE = "https://play.3speak.tv";
+var READY_POLL_INTERVAL_MS = 3e3;
+var READY_POLL_TIMEOUT_MS = 12e4;
+async function waitForVideoReady(owner, videoId) {
+  const deadline = Date.now() + READY_POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const outcome = await fetch(`${PLAYBACK_API_BASE}/api/embed?v=${owner}/${videoId}`).then(async (res) => {
+      if (!res.ok) return { ready: false };
+      const data = await res.json();
+      if (!data.error && data.videoUrl) return { ready: true };
+      if (data.status === "error" || data.status === "failed") {
+        return { ready: false, failure: data.error || "Video processing failed on 3Speak." };
+      }
+      return { ready: false };
+    }).catch(() => ({ ready: false }));
+    if (outcome.ready) return;
+    if ("failure" in outcome) throw new Error(outcome.failure);
+    await new Promise((r) => setTimeout(r, READY_POLL_INTERVAL_MS));
+  }
+  throw new Error("Video is taking longer than usual to process. It may still appear shortly \u2014 check back in a minute before trying again.");
+}
 async function issueUploadToken(options) {
   const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
     method: "POST",
@@ -87,10 +108,14 @@ async function uploadVideoTo3Speak(file, options) {
         options.onProgress?.(Math.round(percentage), "uploading");
       },
       onSuccess: () => {
-        options.onProgress?.(100, "complete");
-        resolve({
-          embedUrl: embed_url,
-          videoId: extractVideoIdFromEmbedUrl(embed_url) ?? ""
+        options.onProgress?.(100, "processing");
+        const videoId = extractVideoIdFromEmbedUrl(embed_url) ?? "";
+        waitForVideoReady(options.owner, videoId).then(() => {
+          options.onProgress?.(100, "complete");
+          resolve({ embedUrl: embed_url, videoId });
+        }).catch((err) => {
+          options.onProgress?.(0, "error");
+          reject(err);
         });
       }
     });

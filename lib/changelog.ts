@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-08-05',
     items: [
       { type: 'fix', text: 'Fixed video uploads silently stalling on mobile when using Snapie Auth — a race where the upload could start just before your session finished loading now fails fast with a clear message instead of stalling forever with nothing to show for it.' },
+      { type: 'fix', text: 'Fixed video uploads that appeared to finish but never actually played — we were treating "bytes finished sending" as "video ready," when 3Speak still needed to process it afterward. Now we wait for confirmation it\'s actually playable before calling it done, and show a clear message if processing is taking unusually long.' },
     ],
   },
   {

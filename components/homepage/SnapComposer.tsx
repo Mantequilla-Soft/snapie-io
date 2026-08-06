@@ -54,6 +54,13 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [selectedGif, setSelectedGif] = useState<IGif | null>(null);
     const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
     const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+    // Distinct from the byte-transfer percentage above — 'processing' covers
+    // the window after TUS finishes sending bytes but before 3Speak confirms
+    // the video actually transcoded into something playable (see
+    // waitForVideoReady in @snapie/operations/video). Without a separate
+    // status the UI would sit at "100% uploaded" for that whole wait with no
+    // explanation.
+    const [videoUploadStatus, setVideoUploadStatus] = useState<'uploading' | 'processing' | 'complete' | 'error' | null>(null);
     const [videoEmbedUrl, setVideoEmbedUrl] = useState<string | null>(null);
     const [thumbnailProcessing, setThumbnailProcessing] = useState<boolean>(false);
     const [audioEmbedUrl, setAudioEmbedUrl] = useState<string | null>(null);
@@ -167,6 +174,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
         }
         setSelectedVideo(file);
         setVideoUploadProgress(1);
+        setVideoUploadStatus('uploading');
         setThumbnailProcessing(true);
         
         const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
@@ -174,6 +182,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             alert('3Speak API key not configured');
             setSelectedVideo(null);
             setVideoUploadProgress(0);
+            setVideoUploadStatus(null);
             setThumbnailProcessing(false);
             return;
         }
@@ -187,7 +196,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     apiKey,
                     owner: user || '',
                     appName: 'snapie',
-                    onProgress: (progress) => setVideoUploadProgress(progress)
+                    onProgress: (progress, status) => {
+                        setVideoUploadProgress(progress);
+                        setVideoUploadStatus(status);
+                    }
                 }),
                 extractVideoThumbnail(file).catch(() => null)
             ]);
@@ -222,9 +234,13 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             }
         } catch (error) {
             console.error('❌ Video upload failed:', error);
-            alert('Failed to upload video. Please try again.');;
+            const message = error instanceof Error && error.message
+                ? error.message
+                : 'Failed to upload video. Please try again.';
+            alert(message);
             setSelectedVideo(null);
             setVideoUploadProgress(0);
+            setVideoUploadStatus(null);
         } finally {
             setThumbnailProcessing(false);
         }
@@ -372,6 +388,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 setSelectedVideo(null);
                 setVideoEmbedUrl(null);
                 setVideoUploadProgress(0);
+                setVideoUploadStatus(null);
                 setThumbnailProcessing(false);
                 setAudioEmbedUrl(null);
                 setMemeBeneficiaries([]);
@@ -596,6 +613,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                                         setSelectedVideo(null);
                                         setVideoEmbedUrl(null);
                                         setVideoUploadProgress(0);
+                                        setVideoUploadStatus(null);
                                     }}
                                     isDisabled={isLoading}
                                 />
@@ -605,8 +623,17 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                             </Text>
                             {videoUploadProgress > 0 && (
                                 <Box w="100%">
-                                    <Progress value={videoUploadProgress} size="sm" colorScheme="blue" />
-                                    <Text fontSize="xs" mt={1} color="text">{videoUploadProgress}% uploaded</Text>
+                                    <Progress
+                                        value={videoUploadProgress}
+                                        size="sm"
+                                        colorScheme="blue"
+                                        isIndeterminate={videoUploadStatus === 'processing'}
+                                    />
+                                    <Text fontSize="xs" mt={1} color="text">
+                                        {videoUploadStatus === 'processing'
+                                            ? 'Processing video… this can take a minute'
+                                            : `${videoUploadProgress}% uploaded`}
+                                    </Text>
                                     {thumbnailProcessing && (
                                         <Text fontSize="xs" color="blue.400">Generating thumbnail...</Text>
                                     )}
