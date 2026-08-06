@@ -23,6 +23,34 @@ async function waitForVideoReady(owner, videoId) {
 }
 var bufferedFiles = /* @__PURE__ */ new WeakSet();
 var MAX_BUFFER_BYTES = 200 * 1024 * 1024;
+async function warmUpVideoFile(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.setAttribute("webkit-playsinline", "true");
+    video.style.position = "fixed";
+    video.style.top = "-9999px";
+    video.style.width = "1px";
+    video.style.height = "1px";
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
+      URL.revokeObjectURL(url);
+      video.remove();
+      resolve();
+    };
+    const timeout = setTimeout(finish, 5e3);
+    video.addEventListener("loadedmetadata", finish, { once: true });
+    video.addEventListener("error", finish, { once: true });
+    video.src = url;
+    document.body.appendChild(video);
+  });
+}
 var READ_CHUNK_BYTES = 2 * 1024 * 1024;
 var READ_RETRIES = 2;
 async function readChunkWithRetry(file, start, end) {
@@ -37,6 +65,7 @@ async function readChunkWithRetry(file, start, end) {
 }
 async function bufferFileInMemory(file) {
   if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
+  await warmUpVideoFile(file);
   const chunks = [];
   try {
     for (let start = 0; start < file.size; start += READ_CHUNK_BYTES) {

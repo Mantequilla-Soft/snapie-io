@@ -114,6 +114,52 @@ const bufferedFiles = new WeakSet<Blob>();
  *  and desktop doesn't have the Android re-read problem this works around. */
 const MAX_BUFFER_BYTES = 200 * 1024 * 1024;
 
+/**
+ * Briefly loads `file` into an off-screen <video> element and waits for its
+ * metadata, without extracting anything — confirmed live: a user working
+ * around the Android read failures found that tapping "Preview" on the
+ * video in the system file picker before hitting "Done" reliably fixed the
+ * upload, every time. Actually opening/decoding the file appears to force
+ * Android to fully materialize the underlying content:// reference, which
+ * a plain byte read never does. This does programmatically what that manual
+ * preview does, before bufferFileInMemory ever tries to read the bytes.
+ *
+ * Best-effort: if the video never fires loadedmetadata (or errors), this
+ * still resolves after a short timeout rather than blocking the upload —
+ * the chunked read + retry in bufferFileInMemory is the real safety net if
+ * warming up doesn't fully help.
+ */
+async function warmUpVideoFile(file: File): Promise<void> {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.style.position = 'fixed';
+        video.style.top = '-9999px';
+        video.style.width = '1px';
+        video.style.height = '1px';
+
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timeout);
+            URL.revokeObjectURL(url);
+            video.remove();
+            resolve();
+        };
+        const timeout = setTimeout(finish, 5000);
+
+        video.addEventListener('loadedmetadata', finish, { once: true });
+        video.addEventListener('error', finish, { once: true });
+        video.src = url;
+        document.body.appendChild(video);
+    });
+}
+
 /** Read size for bufferFileInMemory's chunked pass. Small enough that each
  *  individual read completes quickly rather than holding one long-lived
  *  stream open — see the function doc for why that distinction matters on
@@ -138,7 +184,8 @@ async function readChunkWithRetry(file: File, start: number, end: number): Promi
 }
 
 /**
- * Copy `file` into an in-memory File, read in small chunks.
+ * Copy `file` into an in-memory File: first warm it up by actually opening
+ * it (see warmUpVideoFile), then read it in small chunks.
  *
  * Android hands the browser a `content://` reference for gallery/camera
  * files rather than a real file handle, and reading it is unreliable —
@@ -168,6 +215,8 @@ async function readChunkWithRetry(file: File, start: number, end: number): Promi
  */
 export async function bufferFileInMemory(file: File): Promise<File> {
     if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
+
+    await warmUpVideoFile(file);
 
     const chunks: ArrayBuffer[] = [];
     try {

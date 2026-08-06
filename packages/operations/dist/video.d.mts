@@ -46,7 +46,8 @@ interface VideoUploadOptions {
     isShort?: boolean;
 }
 /**
- * Copy `file` into an in-memory File, read in small chunks.
+ * Copy `file` into an in-memory File: first warm it up by actually opening
+ * it (see warmUpVideoFile), then read it in small chunks.
  *
  * Android hands the browser a `content://` reference for gallery/camera
  * files rather than a real file handle, and reading it is unreliable —
