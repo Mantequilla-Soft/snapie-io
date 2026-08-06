@@ -21,6 +21,22 @@ async function waitForVideoReady(owner, videoId) {
   }
   throw new Error("Video is taking longer than usual to process. It may still appear shortly \u2014 check back in a minute before trying again.");
 }
+var bufferedFiles = /* @__PURE__ */ new WeakSet();
+var MAX_BUFFER_BYTES = 200 * 1024 * 1024;
+async function bufferFileInMemory(file) {
+  if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
+  let buffer;
+  try {
+    buffer = await file.arrayBuffer();
+  } catch {
+    throw new Error(
+      "Couldn't read the selected video. On Android this usually means the file lives in cloud storage (Google Photos, Drive) rather than on the device \u2014 open it in your gallery to download it locally first, then try again."
+    );
+  }
+  const copy = new File([buffer], file.name, { type: file.type });
+  bufferedFiles.add(copy);
+  return copy;
+}
 async function issueUploadToken(options) {
   const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
     method: "POST",
@@ -40,6 +56,7 @@ async function issueUploadToken(options) {
   return response.json();
 }
 async function uploadVideoTo3Speak(file, options) {
+  const source = await bufferFileInMemory(file);
   const { token, upload_url, embed_url } = await issueUploadToken(options);
   const tus = await import("tus-js-client");
   return new Promise((resolve, reject) => {
@@ -47,7 +64,7 @@ async function uploadVideoTo3Speak(file, options) {
     const fileSize = file.size;
     const chunkSize = fileSize < 50 * MB ? 5 * MB : fileSize < 500 * MB ? 10 * MB : 20 * MB;
     const parallelUploads = fileSize < 50 * MB ? 2 : 3;
-    const upload = new tus.Upload(file, {
+    const upload = new tus.Upload(source, {
       endpoint: upload_url,
       chunkSize,
       parallelUploads,
@@ -183,9 +200,10 @@ async function uploadToIPFS(file, endpoint = "http://65.21.201.94:5002/api/v0/ad
   return `https://ipfs.3speak.tv/ipfs/${result.Hash}`;
 }
 async function uploadVideoWithThumbnail(file, options) {
+  const source = await bufferFileInMemory(file);
   const [videoResult, thumbnailBlob] = await Promise.all([
-    uploadVideoTo3Speak(file, options),
-    extractVideoThumbnail(file).catch(() => null)
+    uploadVideoTo3Speak(source, options),
+    extractVideoThumbnail(source).catch(() => null)
   ]);
   let thumbnailUrl;
   if (thumbnailBlob) {
@@ -204,6 +222,7 @@ async function uploadVideoWithThumbnail(file, options) {
   };
 }
 export {
+  bufferFileInMemory,
   extractVideoIdFromEmbedUrl,
   extractVideoThumbnail,
   set3SpeakThumbnail,

@@ -46,6 +46,28 @@ interface VideoUploadOptions {
     isShort?: boolean;
 }
 /**
+ * Copy `file` into an in-memory File, in a single read.
+ *
+ * Android hands the browser a `content://` reference for gallery/camera
+ * files rather than a real file handle, and that reference routinely goes
+ * stale after the first read — a second `.slice().arrayBuffer()` throws
+ * NotReadableError ("permission problems that have occurred after a
+ * reference to a file was acquired"). Confirmed live on Android Chrome: the
+ * first 1 MB of a freshly recorded 8.8 MB video read fine, a second read of
+ * the same file failed outright.
+ *
+ * That breaks video upload two ways at once — TUS re-reads the file chunk by
+ * chunk, and thumbnail extraction opens it again in parallel — so uploads
+ * died at offset 0 with a bare ProgressEvent and no HTTP response at all,
+ * while images (read once, small) and desktop (real file handles) were fine.
+ *
+ * Reading once up front and passing the memory-backed copy to every consumer
+ * sidesteps it entirely. Returns a File (not a Blob) so `.name`/`.type`
+ * survive and callers need no changes; idempotent, so buffering twice on a
+ * shared path costs nothing.
+ */
+declare function bufferFileInMemory(file: File): Promise<File>;
+/**
  * Upload a video to 3Speak using TUS protocol
  *
  * @param file - Video file to upload
@@ -99,4 +121,4 @@ declare function uploadVideoWithThumbnail(file: File, options: VideoUploadOption
     thumbnailUrl?: string;
 }>;
 
-export { type VideoProgressCallback, type VideoUploadOptions, type VideoUploadResult, extractVideoIdFromEmbedUrl, extractVideoThumbnail, set3SpeakThumbnail, uploadToIPFS, uploadVideoTo3Speak, uploadVideoWithThumbnail };
+export { type VideoProgressCallback, type VideoUploadOptions, type VideoUploadResult, bufferFileInMemory, extractVideoIdFromEmbedUrl, extractVideoThumbnail, set3SpeakThumbnail, uploadToIPFS, uploadVideoTo3Speak, uploadVideoWithThumbnail };

@@ -21,11 +21,12 @@ import MemePickerModal from './MemePickerModal';
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
 import { awardPoints } from '@/lib/points/client';
 import { 
-    uploadVideoTo3Speak, 
-    extractVideoThumbnail, 
-    uploadToIPFS, 
+    uploadVideoTo3Speak,
+    extractVideoThumbnail,
+    uploadToIPFS,
     set3SpeakThumbnail,
-    extractVideoIdFromEmbedUrl
+    extractVideoIdFromEmbedUrl,
+    bufferFileInMemory
 } from '@snapie/operations/video';
 
 // Type for tracking image upload state
@@ -190,9 +191,17 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
         console.log('🎬 Starting video upload for:', file.name);
         
         try {
+            // Buffer once before anything reads it — the upload and the
+            // thumbnail extraction below run in parallel against the same
+            // file, and on Android a second read of the original
+            // `content://`-backed File throws NotReadableError (see
+            // bufferFileInMemory). This was the actual cause of video uploads
+            // silently dying at offset 0 on mobile.
+            const source = await bufferFileInMemory(file);
+
             // Upload video and extract thumbnail in parallel using SDK
             const [videoResult, thumbnailBlob] = await Promise.allSettled([
-                uploadVideoTo3Speak(file, {
+                uploadVideoTo3Speak(source, {
                     apiKey,
                     owner: user || '',
                     appName: 'snapie',
@@ -201,7 +210,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         setVideoUploadStatus(status);
                     }
                 }),
-                extractVideoThumbnail(file).catch(() => null)
+                extractVideoThumbnail(source).catch(() => null)
             ]);
 
             if (videoResult.status === 'fulfilled') {

@@ -105,6 +105,53 @@ async function waitForVideoReady(owner: string, videoId: string): Promise<void> 
     throw new Error('Video is taking longer than usual to process. It may still appear shortly — check back in a minute before trying again.');
 }
 
+/** Files this module has already copied into memory — see bufferFileInMemory.
+ *  Weak so a buffered copy going out of scope is still collectable. */
+const bufferedFiles = new WeakSet<Blob>();
+
+/** Above this, don't attempt to hold the whole file in memory. Only desktop
+ *  realistically uploads files this big (the blog composer allows 500 MB),
+ *  and desktop doesn't have the Android re-read problem this works around. */
+const MAX_BUFFER_BYTES = 200 * 1024 * 1024;
+
+/**
+ * Copy `file` into an in-memory File, in a single read.
+ *
+ * Android hands the browser a `content://` reference for gallery/camera
+ * files rather than a real file handle, and that reference routinely goes
+ * stale after the first read — a second `.slice().arrayBuffer()` throws
+ * NotReadableError ("permission problems that have occurred after a
+ * reference to a file was acquired"). Confirmed live on Android Chrome: the
+ * first 1 MB of a freshly recorded 8.8 MB video read fine, a second read of
+ * the same file failed outright.
+ *
+ * That breaks video upload two ways at once — TUS re-reads the file chunk by
+ * chunk, and thumbnail extraction opens it again in parallel — so uploads
+ * died at offset 0 with a bare ProgressEvent and no HTTP response at all,
+ * while images (read once, small) and desktop (real file handles) were fine.
+ *
+ * Reading once up front and passing the memory-backed copy to every consumer
+ * sidesteps it entirely. Returns a File (not a Blob) so `.name`/`.type`
+ * survive and callers need no changes; idempotent, so buffering twice on a
+ * shared path costs nothing.
+ */
+export async function bufferFileInMemory(file: File): Promise<File> {
+    if (bufferedFiles.has(file) || file.size > MAX_BUFFER_BYTES) return file;
+
+    let buffer: ArrayBuffer;
+    try {
+        buffer = await file.arrayBuffer();
+    } catch {
+        throw new Error(
+            "Couldn't read the selected video. On Android this usually means the file lives in cloud storage (Google Photos, Drive) rather than on the device — open it in your gallery to download it locally first, then try again."
+        );
+    }
+
+    const copy = new File([buffer], file.name, { type: file.type });
+    bufferedFiles.add(copy);
+    return copy;
+}
+
 async function issueUploadToken(options: VideoUploadOptions): Promise<UploadTokenResponse> {
     const response = await fetch(`${SERVICE_BASE}/uploads/token`, {
         method: 'POST',
@@ -137,6 +184,11 @@ export async function uploadVideoTo3Speak(
     file: File,
     options: VideoUploadOptions
 ): Promise<VideoUploadResult> {
+    // TUS reads the file repeatedly (chunk by chunk, and in parallel) — on
+    // Android that re-read is exactly what fails. Buffer first; idempotent,
+    // so callers that already buffered pay nothing.
+    const source = await bufferFileInMemory(file);
+
     // Get a token upfront — this binds the permlink and gives us embed_url
     // before a single byte is transferred, eliminating the X-Embed-URL header
     // race that caused duplicate uploads under parallel TUS Concatenation.
@@ -153,7 +205,7 @@ export async function uploadVideoTo3Speak(
                          :                       20 * MB;
         const parallelUploads = fileSize < 50 * MB ? 2 : 3;
 
-        const upload = new tus.Upload(file, {
+        const upload = new tus.Upload(source, {
             endpoint: upload_url,
             chunkSize,
             parallelUploads,
@@ -370,10 +422,17 @@ export async function uploadVideoWithThumbnail(
         uploadThumbnail?: (blob: Blob) => Promise<string>;
     }
 ): Promise<VideoUploadResult & { thumbnailUrl?: string }> {
+    // Buffer once, up front — the upload and the thumbnail extraction below
+    // both read this file, in parallel, and on Android a second read of the
+    // original `content://`-backed File fails outright (see
+    // bufferFileInMemory). Sharing one memory-backed copy means neither
+    // consumer ever touches the original again.
+    const source = await bufferFileInMemory(file);
+
     // Start video upload and thumbnail extraction in parallel
     const [videoResult, thumbnailBlob] = await Promise.all([
-        uploadVideoTo3Speak(file, options),
-        extractVideoThumbnail(file).catch(() => null)
+        uploadVideoTo3Speak(source, options),
+        extractVideoThumbnail(source).catch(() => null)
     ]);
     
     let thumbnailUrl: string | undefined;
