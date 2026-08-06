@@ -150,6 +150,21 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
 
     // Handle video selection and start upload immediately using SDK
     async function handleVideoSelection(file: File) {
+        if (!user) {
+            // Snapie Auth restores its session over the network (unlike Aioha,
+            // which reads synchronously from localStorage) — on a slow mobile
+            // connection there's a real window where the composer looks logged
+            // in but `user` hasn't hydrated yet. Without this guard, the
+            // upload would still fire with owner: '', which 3Speak silently
+            // accepts and produces an orphaned video: the UI shows the upload
+            // as "done" (embedUrl set) but the embed never actually plays
+            // since nothing valid is behind it — no error, just a permanent
+            // stall. Failing fast here with a clear message beats that; same
+            // wording as handleImageSelection's guard below since there's no
+            // way to tell "still hydrating" apart from "genuinely logged out."
+            alert('You must be logged in to upload videos.');
+            return;
+        }
         setSelectedVideo(file);
         setVideoUploadProgress(1);
         setThumbnailProcessing(true);

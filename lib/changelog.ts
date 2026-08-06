@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-05',
+    date: '2026-08-05',
+    items: [
+      { type: 'fix', text: 'Fixed video uploads silently stalling on mobile when using Snapie Auth — a race where the upload could start just before your session finished loading now fails fast with a clear message instead of stalling forever with nothing to show for it.' },
+    ],
+  },
+  {
     id: '2026-08-04',
     date: '2026-08-04',
     items: [
