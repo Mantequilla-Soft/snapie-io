@@ -4,7 +4,6 @@ import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTe
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
 import ImageUploader from './ImageUploader';
-import VideoUploader from './VideoUploader';
 import AudioRecorder from './AudioRecorder';
 import { IGif } from '@giphy/js-types';
 import { CloseIcon } from '@chakra-ui/icons';
@@ -28,6 +27,7 @@ import {
     extractVideoIdFromEmbedUrl,
     bufferFileInMemory
 } from '@snapie/operations/video';
+import { pickVideoFile } from '@/lib/utils/pickVideoFile';
 
 // Type for tracking image upload state
 interface UploadingImage {
@@ -155,6 +155,34 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     // Check if any images are still uploading
     const imagesStillUploading = uploadingImages.some(img => img.uploadedUrl === null && !img.error);
     const isDisabled = !user || isLoading || imagesStillUploading || isMemeUploading;
+
+    // Opens the video picker directly from this button's own onClick — unlike
+    // ImageUploader/GiphySelector, this can't be a separate component with its
+    // own nested clickable element. showOpenFilePicker() (used by
+    // pickVideoFile — see its own doc for why) only works when called as a
+    // direct response to a user gesture, and a click routed through a
+    // wrapping <label> to a nested child's onClick handler doesn't reliably
+    // count as one in every browser — confirmed live: this button did
+    // nothing on Android once VideoUploader stopped rendering a real
+    // wrapped <input> (the case a <label> click normally forwards to) and
+    // started calling pickVideoFile() instead.
+    async function handleVideoButtonClick() {
+        const file = await pickVideoFile();
+        if (!file) return;
+
+        const maxSize = 100 * 1024 * 1024; // 100MB
+        if (file.size > maxSize) {
+            alert('Video file is too large. Maximum size is 100MB.');
+            return;
+        }
+        const validTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+        if (!validTypes.includes(file.type)) {
+            alert('Invalid video format. Please use MP4, WebM, or MOV.');
+            return;
+        }
+
+        handleVideoSelection(file);
+    }
 
     // Handle video selection and start upload immediately using SDK
     async function handleVideoSelection(file: File) {
@@ -509,13 +537,13 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         </MenuList>
                     </Menu>
                     <Button
-                        as="label" variant="ghost" borderRadius="full"
+                        variant="ghost" borderRadius="full"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
+                        onClick={handleVideoButtonClick}
                         isDisabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme} size={{ base: 'sm', md: 'md' }}
                         title={hasMeme ? 'Remove meme to add a video' : undefined}
                     >
                         <FaVideo size={20} />
-                        <VideoUploader onUpload={handleVideoSelection} />
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
