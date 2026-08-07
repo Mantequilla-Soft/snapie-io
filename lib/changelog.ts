@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-07',
+    date: '2026-08-07',
+    items: [
+      { type: 'fix', text: 'Fixed opening a Snap\'s comments sometimes spinning forever ("Loading snaps...") and hammering the network with repeated requests — a recent Muted Tags change was quietly rebuilding the comment-fetch function on every unrelated settings refresh across the page, instead of only when your muted tags actually changed.' },
+      { type: 'fix', text: "Fixed a wallet's Transaction History showing empty for lower-activity accounts — paging back through an account's history could ask the blockchain node for more transactions than were left before the account's very first one, which it rejects outright, silently wiping out everything already found." },
+    ],
+  },
+  {
     id: '2026-08-06',
     date: '2026-08-06',
     items: [

@@ -87,6 +87,12 @@ export function useComments(
     username?: string
 ) {
     const { settings } = useUserSettings()
+    // A .join(',') key, not the raw array — settings.mutedTags gets a fresh
+    // array reference every time the shared settings store re-hydrates (once
+    // per useUserSettings() consumer mounted anywhere on the page), which
+    // would otherwise recreate fetchAndUpdateComments and re-trigger the
+    // fetch effect below on every one of those unrelated mounts.
+    const mutedTagsKey = settings.mutedTags.join(',');
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -132,7 +138,7 @@ export function useComments(
             console.error(err);
             if (showLoader) setIsLoading(false);
         }
-    }, [author, permlink, recursive, username, settings.mutedTags]);
+    }, [author, permlink, recursive, username, mutedTagsKey]);
 
     useEffect(() => {
         fetchAndUpdateComments();

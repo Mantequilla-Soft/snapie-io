@@ -1403,10 +1403,18 @@ export async function getTransactionHistory(
     let exhausted = false;
 
     while (pageItems.length < targetRawOps && !exhausted) {
+      // The node requires start >= limit - 1 (start is a 0-based index) for
+      // any real start index — only the -1 "give me the head" sentinel is
+      // exempt. Once cursor walks back close to genesis, batchSize would
+      // violate that and the call throws, killing the whole fetch (and, for
+      // accounts with few total ops — like a low-activity account whose
+      // history fits in two or three batches — that happens on almost every
+      // page, wiping out results that had already been found).
+      const effectiveLimit = cursor >= 0 ? Math.min(batchSize, cursor + 1) : batchSize;
       const historyResult = await HiveClient.call('account_history_api', 'get_account_history', {
         account: username,
         start: cursor,
-        limit: batchSize,
+        limit: effectiveLimit,
         include_reversible: true,
       });
 
@@ -1422,7 +1430,7 @@ export async function getTransactionHistory(
       pageItems.push(...historyBatch);
 
       const oldestInBatch = historyBatch[historyBatch.length - 1][0];
-      if (oldestInBatch <= 0 || historyBatch.length < batchSize) {
+      if (oldestInBatch <= 0 || historyBatch.length < effectiveLimit) {
         exhausted = true;
       } else {
         cursor = oldestInBatch - 1;
