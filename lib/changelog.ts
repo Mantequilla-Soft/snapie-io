@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-06',
+    date: '2026-08-06',
+    items: [
+      { type: 'improvement', text: 'The vote slider now remembers the weight you last voted with — on Snap cards, post/comment pages, and Shorts — instead of always resetting to the same default. Vote 20% once, and it starts at 20% next time too.' },
+    ],
+  },
+  {
     id: '2026-08-05',
     date: '2026-08-05',
     items: [

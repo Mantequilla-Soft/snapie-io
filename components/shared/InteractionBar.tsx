@@ -8,6 +8,7 @@ import { vote, reblogPost, getRebloggedBy } from '@/lib/hive/client-functions';
 import { awardPoints } from '@/lib/points/client';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
+import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
 
 interface InteractionBarProps {
     post: Discussion;
@@ -27,7 +28,7 @@ export default function InteractionBar({
     commentCountOverride,
 }: InteractionBarProps) {
     const { username: user } = useCurrentUser();
-    const [sliderValue, setSliderValue] = useState(100);
+    const { weight: sliderValue, setWeight: setSliderValue, rememberWeight } = useRememberedVoteWeight(100);
     const [showSlider, setShowSlider] = useState(false);
     const [voted, setVoted] = useState(false);
     const [voteCount, setVoteCount] = useState(post.active_votes?.length || 0);
@@ -173,11 +174,14 @@ export default function InteractionBar({
                     status: 'error',
                     duration: 3000,
                 });
-            } else if (!wasVoted) {
-                // Only award on a fresh upvote, not on re-votes (weight changes).
-                // The server also dedupes by target, so this is just to avoid a
-                // needless call.
-                awardPoints('vote', user, post.author, post.permlink);
+            } else {
+                rememberWeight(sliderValue);
+                if (!wasVoted) {
+                    // Only award on a fresh upvote, not on re-votes (weight
+                    // changes). The server also dedupes by target, so this is
+                    // just to avoid a needless call.
+                    awardPoints('vote', user, post.author, post.permlink);
+                }
             }
         } catch (error) {
             // Rollback on error

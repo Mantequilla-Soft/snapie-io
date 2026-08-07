@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { vote, getPost } from '@/lib/hive/client-functions';
 import { awardPoints } from '@/lib/points/client';
 import { useUserRelationship } from '@/hooks/useUserRelationship';
+import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
 import { useRouter } from 'next/navigation';
 import { chatService, Conversation } from '@/lib/chat/ChatService';
 
@@ -167,7 +168,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
-  const [voteWeight, setVoteWeight] = useState(100);
+  const { weight: voteWeight, setWeight: setVoteWeight, rememberWeight } = useRememberedVoteWeight(100);
   const [isVoting, setIsVoting] = useState(false);
   const [showSendPicker, setShowSendPicker] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -255,6 +256,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         setLikeCount(prev);
         toast({ title: 'Vote failed', status: 'error', duration: 2000 });
       } else {
+        rememberWeight(voteWeight);
         awardPoints('vote', user, short.author, short.hivePermlink);
       }
     } catch {
@@ -263,7 +265,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
     } finally {
       setIsVoting(false);
     }
-  }, [user, liked, likeCount, voteWeight, short.author, short.hivePermlink, toast]);
+  }, [user, liked, likeCount, voteWeight, short.author, short.hivePermlink, toast, rememberWeight]);
 
   // ── Long press → show weight slider ──────────────────────────────────────
 

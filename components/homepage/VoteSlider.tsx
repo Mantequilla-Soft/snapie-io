@@ -1,6 +1,7 @@
 import { Box, Button, Flex, Icon, Slider, SliderTrack, SliderFilledTrack, SliderThumb, HStack, Text, useToast } from '@chakra-ui/react';
 import { memo, useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
+import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
 
 interface VoteControlsProps {
     initialVoted: boolean;
@@ -14,7 +15,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
     const [voted, setVoted] = useState(initialVoted);
     const [voteCount, setVoteCount] = useState(initialVoteCount);
     const [showSlider, setShowSlider] = useState(false);
-    const [sliderValue, setSliderValue] = useState(5);
+    const { weight: sliderValue, setWeight: setSliderValue, rememberWeight } = useRememberedVoteWeight(5);
     const [isVoting, setIsVoting] = useState(false);
     const toast = useToast();
 
@@ -45,6 +46,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
                 });
             } else {
                 setShowSlider(false);
+                rememberWeight(sliderValue);
             }
         } catch (error) {
             setVoted(wasVoted);

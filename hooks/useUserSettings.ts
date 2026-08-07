@@ -26,6 +26,13 @@ export interface UserSettings {
      *  any blog post, snap, or comment tagged with one of these is filtered
      *  out of feeds. See lib/hive/mutedTags.ts for where this is applied. */
     mutedTags: string[];
+    /** Weight (0-100, percent) of the last vote the user cast, across every
+     *  vote slider in the app (Snap cards, post/comment detail, Shorts) —
+     *  each one initializes to this instead of its own hardcoded default, so
+     *  picking e.g. 20% once means every vote after that starts at 20% too.
+     *  null means "never voted yet," which is also the signal to fall back
+     *  to that surface's original hardcoded default. */
+    lastVoteWeight: number | null;
 }
 
 const defaults: UserSettings = {
@@ -35,6 +42,7 @@ const defaults: UserSettings = {
     interestsOnboardedAt: null,
     lastSeenChangelogId: null,
     mutedTags: [],
+    lastVoteWeight: null,
 };
 
 function load(): UserSettings {
