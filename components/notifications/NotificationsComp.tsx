@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Avatar as ChakraAvatar,
   Badge,
@@ -244,6 +244,31 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
     return computeSummary(notifications.filter((n) => parseHiveDate(n.date) >= cutoff));
   }, [notifications, summaryRange]);
 
+  // The list is paginated (50 at a time) and only grows when the user scrolls or
+  // clicks "Load more". Selecting a wider Activity range (week/month) needs pages
+  // reaching back that far, so fetch older pages until we cover the range or run out.
+  const rangeLoadAttemptsRef = useRef(0);
+  useEffect(() => {
+    rangeLoadAttemptsRef.current = 0;
+  }, [summaryRange]);
+
+  useEffect(() => {
+    if (summaryRange === 'today') return;
+    if (loadingMore || !hasMore) return;
+    if (notifications.length === 0) return;
+    if (rangeLoadAttemptsRef.current >= 20) return;
+
+    const cutoff = new Date();
+    if (summaryRange === 'week') cutoff.setDate(cutoff.getDate() - 7);
+    else cutoff.setMonth(cutoff.getMonth() - 1);
+
+    const oldestLoaded = notifications[notifications.length - 1];
+    if (parseHiveDate(oldestLoaded.date) >= cutoff) {
+      rangeLoadAttemptsRef.current += 1;
+      loadMore();
+    }
+  }, [summaryRange, notifications, hasMore, loadingMore, loadMore]);
+
   const handleMarkAllAsRead = async () => {
     try {
       await markAllAsRead();
@@ -360,6 +385,7 @@ export default function NotificationsComp({ username }: NotificationCompProps) {
         range={summaryRange}
         onRangeChange={setSummaryRange}
         onFilter={setFilter}
+        isBackfilling={summaryRange !== 'today' && loadingMore}
       />
 
       {Boolean(error) && (
@@ -426,11 +452,13 @@ function ActivitySummaryCard({
   range,
   onRangeChange,
   onFilter,
+  isBackfilling,
 }: {
   summary: ActivitySummary;
   range: 'today' | 'week' | 'month';
   onRangeChange: (range: 'today' | 'week' | 'month') => void;
   onFilter: (filter: NotificationFilter) => void;
+  isBackfilling?: boolean;
 }) {
   const summaryItems = getSummaryItems(summary);
 
@@ -442,6 +470,7 @@ function ActivitySummaryCard({
             <Icon as={FiBell} color="primary" boxSize={3.5} />
           </Flex>
           <Text fontWeight="bold">Activity</Text>
+          {isBackfilling && <Spinner size="xs" opacity={0.6} />}
         </HStack>
         <HStack spacing={1}>
           {([['today', 'Today'], ['week', 'This Week'], ['month', 'This Month']] as const).map(([key, label]) => (

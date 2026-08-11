@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-10',
+    date: '2026-08-10',
+    items: [
+      { type: 'fix', text: 'Fixed the Notifications page\'s "This Month" activity summary showing the same counts as "This Week" — switching to a wider range now actually fetches enough notification history to cover it, instead of just re-filtering whatever was already loaded.' },
+    ],
+  },
+  {
     id: '2026-08-07',
     date: '2026-08-07',
     items: [
