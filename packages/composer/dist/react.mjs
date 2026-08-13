@@ -1,7 +1,17 @@
-import { getSelectionFromTextarea, applyToTextarea, insertGif, insertEmoji, insertSpoiler, insertTable, insertHeader, insertNumberedList, insertBulletList, insertBlockquote, insertCodeBlock, insertImage, insertLink, insertStrikethrough, insertUnderline, insertItalic, insertBold, createKeyboardHandler } from './chunk-3DQAWNI6.mjs';
+import { getSelectionFromTextarea, insertGif, insertEmoji, insertSpoiler, insertTable, insertHeader, insertNumberedList, insertBulletList, insertBlockquote, insertCodeBlock, insertImage, insertLink, insertStrikethrough, insertUnderline, insertItalic, insertBold, createKeyboardHandler } from './chunk-3DQAWNI6.mjs';
 export { ALL_COMMON_EMOJIS, COMMON_EMOJIS, applyToTextarea, createKeyboardHandler, getSelectionFromTextarea, insertBlockquote, insertBold, insertBulletList, insertCodeBlock, insertEmoji, insertGif, insertH1, insertH2, insertH3, insertH4, insertH5, insertH6, insertHeader, insertHorizontalRule, insertImage, insertItalic, insertLink, insertMention, insertNumberedList, insertSpoiler, insertStrikethrough, insertTable, insertUnderline } from './chunk-3DQAWNI6.mjs';
 import React, { useRef, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 
+function commitToTextarea(textarea, result, onChange) {
+  flushSync(() => onChange(result.text));
+  textarea.focus();
+  if (result.selection) {
+    textarea.setSelectionRange(result.selection.start, result.selection.end);
+  } else {
+    textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+  }
+}
 function useMarkdownEditor(options = {}) {
   const [value, setValue] = React.useState(options.initialValue ?? "");
   const textareaRef = useRef(null);
@@ -15,7 +25,7 @@ function useMarkdownEditor(options = {}) {
   }, []);
   const apply = useCallback((result) => {
     if (!textareaRef.current) return;
-    applyToTextarea(textareaRef.current, result, handleChange);
+    commitToTextarea(textareaRef.current, result, handleChange);
   }, [handleChange]);
   const toolbar = React.useMemo(() => ({
     bold: () => apply(insertBold(value, getSelection())),
@@ -61,7 +71,7 @@ function useEditorToolbar(textareaRef, value, onChange) {
   }, [textareaRef]);
   const apply = useCallback((result) => {
     if (!textareaRef.current) return;
-    applyToTextarea(textareaRef.current, result, onChange);
+    commitToTextarea(textareaRef.current, result, onChange);
   }, [textareaRef, onChange]);
   return React.useMemo(() => ({
     bold: () => apply(insertBold(value, getSelection())),

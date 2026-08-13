@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-12',
+    date: '2026-08-12',
+    items: [
+      { type: 'fix', text: 'Fixed the blog composer\'s cursor jumping to the wrong spot (or eating what you just typed) right after clicking a toolbar button like Bold/Italic, or accepting an @mention suggestion — the cursor was being put back a beat too late, so typing right after either action could race it.' },
+    ],
+  },
+  {
     id: '2026-08-10',
     date: '2026-08-10',
     items: [

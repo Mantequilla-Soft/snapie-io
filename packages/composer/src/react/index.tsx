@@ -28,6 +28,7 @@
 'use client';
 
 import React, { useRef, useCallback, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import {
     insertBold,
     insertItalic,
@@ -45,7 +46,6 @@ import {
     insertEmoji,
     insertGif,
     getSelectionFromTextarea,
-    applyToTextarea,
     createKeyboardHandler,
     type TextSelection,
     type InsertResult,
@@ -103,6 +103,38 @@ export interface UseMarkdownEditorOptions {
 }
 
 // ============================================================================
+// Internal: commit a toolbar edit and restore the caret without racing React
+// ============================================================================
+
+/**
+ * `applyToTextarea`'s controlled-input branch (in the framework-agnostic
+ * core) calls `onChange` then restores the selection on the next animation
+ * frame, because the DOM `value` only catches up once React re-renders. That
+ * frame-long gap is a real race: if the user keeps typing before it fires —
+ * or the frame is merely late, e.g. a busy tab — the render that lands
+ * during the gap overwrites the textarea's DOM value with `result.text`
+ * wholesale, silently eating whatever was just typed, and then the deferred
+ * `setSelectionRange` plants the caret at the toolbar action's position
+ * instead of where the user actually is. `flushSync` forces that render to
+ * happen synchronously so the selection restore below always runs after the
+ * real value is already committed to the DOM — no gap for a keystroke to
+ * land in.
+ */
+function commitToTextarea(
+    textarea: HTMLTextAreaElement,
+    result: InsertResult,
+    onChange: (value: string) => void
+): void {
+    flushSync(() => onChange(result.text));
+    textarea.focus();
+    if (result.selection) {
+        textarea.setSelectionRange(result.selection.start, result.selection.end);
+    } else {
+        textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+    }
+}
+
+// ============================================================================
 // Hook: useMarkdownEditor
 // ============================================================================
 
@@ -135,7 +167,7 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
     
     const apply = useCallback((result: InsertResult) => {
         if (!textareaRef.current) return;
-        applyToTextarea(textareaRef.current, result, handleChange);
+        commitToTextarea(textareaRef.current, result, handleChange);
     }, [handleChange]);
     
     // Create toolbar action functions
@@ -201,7 +233,7 @@ export function useEditorToolbar(
     
     const apply = useCallback((result: InsertResult) => {
         if (!textareaRef.current) return;
-        applyToTextarea(textareaRef.current, result, onChange);
+        commitToTextarea(textareaRef.current, result, onChange);
     }, [textareaRef, onChange]);
     
     return React.useMemo(() => ({

@@ -17,6 +17,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type UIEvent as ReactUIEvent,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { MENTION_REGEX, normalizeMentionToken } from '@/lib/chat/mentions';
 import { useMentionAutocomplete } from '@/hooks/useMentionAutocomplete';
 import { useMentionValidation } from '@/hooks/useMentionValidation';
@@ -184,10 +185,24 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
       // first, then dispatching input, is the standard way to make a
       // programmatic change look exactly like a real keystroke to both React
       // and this component's own input listener above.
+      //
+      // The dispatch above only *schedules* the parent's state update — in
+      // controlled mode the real DOM value comes back down through the
+      // `value` prop on its own render pass. Restoring the caret before that
+      // render lands (it used to be deferred a whole animation frame) was
+      // exactly the "possessed cursor" bug: type fast enough after accepting
+      // a mention (or the next render is merely slow, e.g. a busy tab) and
+      // the deferred `setSelectionRange` fires *after* the next keystroke,
+      // yanking the caret back to the mention-insertion point mid-word.
+      // `flushSync` forces that render through synchronously so the caret
+      // restore below always lands after the real value is already in the
+      // DOM — no window where a keystroke can race it.
       const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-      setter ? setter.call(el, next.text) : (el.value = next.text);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      requestAnimationFrame(() => el.setSelectionRange(next.cursorPos, next.cursorPos));
+      flushSync(() => {
+        setter ? setter.call(el, next.text) : (el.value = next.text);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+      el.setSelectionRange(next.cursorPos, next.cursorPos);
     }, []);
 
     const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLTextAreaElement>) => {

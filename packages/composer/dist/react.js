@@ -1,6 +1,7 @@
 'use strict';
 
 var React = require('react');
+var reactDom = require('react-dom');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
@@ -227,6 +228,15 @@ function createKeyboardHandler(getText, getSelection, applyResult) {
 }
 
 // src/react/index.tsx
+function commitToTextarea(textarea, result, onChange) {
+  reactDom.flushSync(() => onChange(result.text));
+  textarea.focus();
+  if (result.selection) {
+    textarea.setSelectionRange(result.selection.start, result.selection.end);
+  } else {
+    textarea.setSelectionRange(result.cursorPosition, result.cursorPosition);
+  }
+}
 function useMarkdownEditor(options = {}) {
   const [value, setValue] = React__default.default.useState(options.initialValue ?? "");
   const textareaRef = React.useRef(null);
@@ -240,7 +250,7 @@ function useMarkdownEditor(options = {}) {
   }, []);
   const apply = React.useCallback((result) => {
     if (!textareaRef.current) return;
-    applyToTextarea(textareaRef.current, result, handleChange);
+    commitToTextarea(textareaRef.current, result, handleChange);
   }, [handleChange]);
   const toolbar = React__default.default.useMemo(() => ({
     bold: () => apply(insertBold(value, getSelection())),
@@ -286,7 +296,7 @@ function useEditorToolbar(textareaRef, value, onChange) {
   }, [textareaRef]);
   const apply = React.useCallback((result) => {
     if (!textareaRef.current) return;
-    applyToTextarea(textareaRef.current, result, onChange);
+    commitToTextarea(textareaRef.current, result, onChange);
   }, [textareaRef, onChange]);
   return React__default.default.useMemo(() => ({
     bold: () => apply(insertBold(value, getSelection())),
