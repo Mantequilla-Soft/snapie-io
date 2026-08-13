@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-08-12',
     items: [
       { type: 'fix', text: 'Fixed the blog composer\'s cursor jumping to the wrong spot (or eating what you just typed) right after clicking a toolbar button like Bold/Italic, or accepting an @mention suggestion — the cursor was being put back a beat too late, so typing right after either action could race it.' },
+      { type: 'fix', text: 'Fixed Snapie Auth users\' blog posts never actually setting aside the 3% Snapie beneficiary reward share — the built-in wallet\'s posting-key broadcast path was silently dropping that part of the transaction.' },
     ],
   },
   {

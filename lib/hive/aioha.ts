@@ -126,14 +126,32 @@ export async function broadcastOps(
     const { isSnapieMode } = await import('@/lib/hive/signing');
     if (isSnapieMode()) {
       const { broadcastOp } = await import('@/lib/snapie-auth/client');
-      // Filter to allowed ops (server only accepts posting-key ops via broadcast).
-      const allowed = new Set(['vote', 'comment', 'delete_comment', 'custom_json', 'claim_reward_balance', 'account_update2']);
-      for (const op of operations) {
-        const [opName, opBody] = op as [string, Record<string, unknown>];
-        if (!allowed.has(opName)) continue; // skip comment_options etc.
-        const res = await broadcastOp(opName, opBody);
-        if ('needsClientSigning' in res) break; // emancipated: fall through to Aioha
-        return { success: true as const, result: (res as any).txId };
+      // Server only signs posting-key ops, one per request. If every op in
+      // this batch is posting-authority, broadcast them all custodially in
+      // order; if any isn't (e.g. an active-key op), skip custodial entirely
+      // and fall through to Aioha for the whole batch below — same as before.
+      const allowed = new Set(['vote', 'comment', 'comment_options', 'delete_comment', 'custom_json', 'claim_reward_balance', 'account_update2']);
+      const custodial = operations.every(([opName]) => allowed.has(opName));
+      if (custodial) {
+        let lastTxId: string | undefined;
+        for (const op of operations) {
+          const [opName, opBody] = op as [string, Record<string, unknown>];
+          const res = await broadcastOp(opName, opBody);
+          if ('needsClientSigning' in res) {
+            if (lastTxId) {
+              // Part of this batch already broadcast custodially (e.g. the
+              // post itself) — falling through to Aioha here would resubmit
+              // it. Surface a clear error instead of silently dropping the
+              // rest or double-posting.
+              const { emitNeedsWallet } = await import('@/lib/hive/signing');
+              emitNeedsWallet();
+              throw Object.assign(new Error('Part of this action needs your connected Hive wallet to finish — connect one and try again.'), { code: 'needs_client_signing' });
+            }
+            break; // nothing broadcast yet — fall through to Aioha for the whole batch
+          }
+          lastTxId = (res as any).txId;
+        }
+        if (lastTxId) return { success: true as const, result: lastTxId };
       }
     }
   }
