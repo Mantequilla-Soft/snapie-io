@@ -22,8 +22,6 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
     } catch {}
 
     const payout = parseFloat(getPayoutValue(post)).toFixed(2);
-    const sentiment = postData && Math.abs(postData.sentiment_score) > 0.2 ? postData.sentiment : null;
-    const sentimentColor = sentiment === 'positive' ? 'green.400' : sentiment === 'negative' ? 'orange.400' : undefined;
 
     return (
         <Box
@@ -63,9 +61,6 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
                         <Text fontWeight="semibold" fontSize="sm" color="text" noOfLines={2} lineHeight="short" flex={1}>
                             {post.title}
                         </Text>
-                        {sentimentColor && (
-                            <Box w="7px" h="7px" borderRadius="full" bg={sentimentColor} flexShrink={0} mt="4px" />
-                        )}
                     </Flex>
                     {postData?.categories && postData.categories.length > 0 && (
                         <HStack spacing={1} mb={2} flexWrap="wrap">

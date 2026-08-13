@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Text, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Badge, Tag, TagLabel, Button } from '@chakra-ui/react';
+import { Box, Text, Flex, Link, IconButton, Tooltip, HStack, Spinner, useToast, Tag, TagLabel, Button } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -92,7 +92,6 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
     const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
     const showTranslate = !translatedText && (!postData || postData.primary_language !== browserLang);
     const isNsfw = !isEmbedMode && (postData?.is_nsfw ?? false);
-    const sentiment = postData && Math.abs(postData.sentiment_score) > 0.2 ? postData.sentiment : null;
 
     // Word count / reading time only make sense for actual articles (top-level
     // posts), not snap/wave replies which are comments under a container post.
@@ -316,18 +315,6 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
                 <Text fontSize="2xl" fontWeight="bold" textAlign="center">
                     {title}
                 </Text>
-                {sentiment && (
-                    <Badge
-                        colorScheme={sentiment === 'positive' ? 'green' : 'orange'}
-                        variant="subtle"
-                        fontSize="xs"
-                        borderRadius="full"
-                        px={2}
-                        alignSelf="center"
-                    >
-                        {sentiment === 'positive' ? '↑ Positive' : '↓ Negative'}
-                    </Badge>
-                )}
             </Flex>
             {postData?.categories && postData.categories.length > 0 && (
                 <Flex justify="center" wrap="wrap" gap={2} mb={4}>
