@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-17',
+    date: '2026-08-17',
+    items: [
+      { type: 'improvement', text: 'The Leaderboard now shows just the top 100 instead of loading everyone as you scroll. If you\'re outside the top 100, a pinned row at the bottom shows your real rank and points.' },
+    ],
+  },
+  {
     id: '2026-08-12',
     date: '2026-08-12',
     items: [
