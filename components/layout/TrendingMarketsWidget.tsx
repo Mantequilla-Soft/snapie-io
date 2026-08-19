@@ -24,13 +24,13 @@ function sampleMarkets(markets: TrendingMarket[], count: number): TrendingMarket
 }
 
 function leadingOutcome(market: TrendingMarket): { label: string; percent: number } | null {
-  const entries = Object.entries(market.outcomePools);
+  const entries = Object.entries(market.outcomePools ?? {});
   if (entries.length === 0) return null;
   const [topKey, topValue] = entries.reduce((max, entry) => (parseFloat(entry[1]) > parseFloat(max[1]) ? entry : max));
   const pool = parseFloat(topValue);
   const total = parseFloat(market.totalPool);
   if (!total || pool <= 0) return null;
-  return { label: market.outcomeLabels[topKey] ?? topKey, percent: Math.round((pool / total) * 100) };
+  return { label: market.outcomeLabels?.[topKey] ?? topKey, percent: Math.round((pool / total) * 100) };
 }
 
 export default function TrendingMarketsWidget() {
