@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-19',
+    date: '2026-08-19',
+    items: [
+      { type: 'fix', text: 'Fixed the "pending rewards" banner sometimes staying up after you\'d already claimed — if you claimed from another device or app, the banner\'s own reward check was stuck waiting on its next 5-minute refresh instead of noticing the moment you visited your wallet.' },
+      { type: 'improvement', text: 'The Prediction Markets sidebar widget now picks a random 4 markets from the whole active pool on each visit instead of always showing the same fixed set.' },
+    ],
+  },
+  {
     id: '2026-08-17',
     date: '2026-08-17',
     items: [

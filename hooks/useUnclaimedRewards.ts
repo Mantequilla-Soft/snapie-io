@@ -29,22 +29,48 @@ function toNumber(val: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+function applyDetail(username: string, detail: UnclaimedRewardsDetail) {
+  cache.set(username, detail);
+  subscribers.get(username)?.forEach(cb => cb(detail));
+}
+
+function detailFromRewardFields(rewards: {
+  reward_hive_balance?: unknown;
+  reward_hbd_balance?: unknown;
+  reward_vesting_hive?: unknown;
+}): UnclaimedRewardsDetail {
+  const detail: UnclaimedRewardsDetail = {
+    hive: toNumber(rewards.reward_hive_balance),
+    hbd: toNumber(rewards.reward_hbd_balance),
+    hp: toNumber(rewards.reward_vesting_hive),
+    has: false,
+  };
+  detail.has = detail.hive > 0 || detail.hbd > 0 || detail.hp > 0;
+  return detail;
+}
+
 async function fetchRewards(username: string) {
   try {
     const [account] = await HiveClient.database.getAccounts([username]);
     if (!account) return;
-    const detail: UnclaimedRewardsDetail = {
-      hive: toNumber(account.reward_hive_balance),
-      hbd: toNumber(account.reward_hbd_balance),
-      hp: toNumber(account.reward_vesting_hive),
-      has: false,
-    };
-    detail.has = detail.hive > 0 || detail.hbd > 0 || detail.hp > 0;
-    cache.set(username, detail);
-    subscribers.get(username)?.forEach(cb => cb(detail));
+    applyDetail(username, detailFromRewardFields(account));
   } catch {
     // silently ignore — stale value stays
   }
+}
+
+/**
+ * Feed reward balances that some other fetch (e.g. the wallet page's own
+ * account load) already pulled from the chain into the shared cache, so the
+ * banner reflects ground truth instead of waiting for its own poll timer.
+ * Callers must only pass the *logged-in* user's own account data — never a
+ * profile being viewed — since this cache drives that user's own banner.
+ */
+export function syncUnclaimedRewardsFromAccount(
+  username: string,
+  rewards: { reward_hive_balance?: unknown; reward_hbd_balance?: unknown; reward_vesting_hive?: unknown }
+): void {
+  applyDetail(username, detailFromRewardFields(rewards));
 }
 
 function subscribe(username: string, cb: (v: UnclaimedRewardsDetail) => void): () => void {

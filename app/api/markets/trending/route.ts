@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 
-const HIVEPREDICT_URL = 'https://hivepredict.app/api/markets/trending?limit=5';
+// limit=100 pulls HivePredict's whole active pool (~20-30 markets today) so
+// the widget can pick a random subset instead of always showing the same
+// fixed-order top 5 — their endpoint returns markets in a stable order, so a
+// small limit here was silently freezing the widget on the same markets.
+const HIVEPREDICT_URL = 'https://hivepredict.app/api/markets/trending?limit=100';
 
 export interface TrendingMarket {
   id: string;

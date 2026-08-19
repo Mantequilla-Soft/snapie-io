@@ -39,7 +39,7 @@ import {
 } from '@/lib/hive/client-functions';
 import EditProfileModal from '@/components/wallet/EditProfileModal';
 import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
-import { refreshAfterClaim } from '@/hooks/useUnclaimedRewards';
+import { refreshAfterClaim, syncUnclaimedRewardsFromAccount } from '@/hooks/useUnclaimedRewards';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
 import WalletTermInfo from '@/components/wallet/WalletTermInfo';
@@ -108,6 +108,16 @@ export default function WalletPage({ username }: WalletPageProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isClaimingInterest, setIsClaimingInterest] = useState(false);
   const { pendingInterest, annualRatePct, isLoading: isInterestLoading } = useHbdSavingsInterest(hiveAccount);
+  // Ground-truth sync for the pending-rewards banner: this page fetches reward
+  // balances independently of the shared useUnclaimedRewards cache the banner
+  // reads from, so a claim made elsewhere (another device/app) never reaches
+  // that cache on its own — it only updates on a 5-minute poll. Feed this
+  // page's fetch back into the shared cache whenever we're looking at our own
+  // wallet (never someone else's profile) so the banner clears immediately.
+  useEffect(() => {
+    if (!hiveAccount || !isLoggedIn || !user || username !== user) return;
+    syncUnclaimedRewardsFromAccount(user, hiveAccount);
+  }, [hiveAccount, isLoggedIn, user, username]);
   // Called unconditionally here, before any early returns below (loading/error
   // states) — a Hooks-order bug bit this exact page once already: putting this
   // call after those early returns meant it fired on some renders and not

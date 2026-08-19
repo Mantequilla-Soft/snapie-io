@@ -9,6 +9,20 @@ import type { TrendingMarket } from '@/app/api/markets/trending/route';
 // general markets list rather than guessing a deep link that might 404.
 const HIVEPREDICT_MARKETS_URL = 'https://hivepredict.app/markets';
 
+const SHOWN_COUNT = 4;
+
+/** Random 4-of-N sample, no repeats — picked fresh per mount so reloading
+ *  the page surfaces a different slice of the active pool instead of the
+ *  same fixed markets every time. */
+function sampleMarkets(markets: TrendingMarket[], count: number): TrendingMarket[] {
+  const pool = [...markets];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
+}
+
 function leadingOutcome(market: TrendingMarket): { label: string; percent: number } | null {
   const entries = Object.entries(market.outcomePools);
   if (entries.length === 0) return null;
@@ -26,7 +40,7 @@ export default function TrendingMarketsWidget() {
     let cancelled = false;
     fetch('/api/markets/trending')
       .then(res => res.json())
-      .then(data => { if (!cancelled) setMarkets(Array.isArray(data.markets) ? data.markets.slice(0, 4) : []); })
+      .then(data => { if (!cancelled) setMarkets(Array.isArray(data.markets) ? sampleMarkets(data.markets, SHOWN_COUNT) : []); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
