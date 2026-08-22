@@ -25,6 +25,15 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-22',
+    date: '2026-08-22',
+    title: 'Points Roulette',
+    items: [
+      { type: 'feature', text: 'New Points Roulette — burn Snapie Points for a shot at 2x, 3x, or a rare 5x jackpot. The odds are shown up front, and most spins lose everything — that\'s the game. Find it in Settings → Snapie Points.' },
+      { type: 'feature', text: 'New Points History — see your last 10 Snapie Points transactions (earned, bought, won, or lost) from a new History button in your Wallet\'s Snapie Points card.' },
+    ],
+  },
+  {
     id: '2026-08-19',
     date: '2026-08-19',
     items: [

@@ -13,6 +13,13 @@
 
 export const POINTS_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS === 'true';
 
+// Independent rollout switch for the Points Roulette mini-game — ship-dark
+// like the base points feature, but toggled separately so roulette can go
+// live (or dark again) without touching earning/purchasing. A route should
+// still also require POINTS_FEATURE_FLAG-gated eligibility (roulette spends
+// an existing points balance, so it's meaningless without points).
+export const ROULETTE_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS_ROULETTE === 'true';
+
 function parseList(raw: string | undefined): string[] {
   return (raw || '')
     .split(',')

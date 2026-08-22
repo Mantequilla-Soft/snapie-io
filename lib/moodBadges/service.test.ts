@@ -11,9 +11,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 interface FakeBadgesDoc { _id: string; owned: string[]; equipped: string | null; }
 interface FakeAccountDoc { _id: string; balance: number; lifetimeEarned: number; }
+interface FakePurchaseRow { username: string; sku: string; price: number; }
 
 let badgesStore: Map<string, FakeBadgesDoc> = new Map();
 let accountStore: Map<string, FakeAccountDoc> = new Map();
+let purchaseStore: FakePurchaseRow[] = [];
 
 vi.mock('@/lib/db/mongodb', () => ({
     connectDB: vi.fn(async () => {}),
@@ -95,9 +97,19 @@ vi.mock('@/lib/db/models/PointsAccount', () => ({
     },
 }));
 
+vi.mock('@/lib/db/models/MoodBadgePurchase', () => ({
+    MoodBadgePurchase: {
+        create: async (doc: FakePurchaseRow) => {
+            purchaseStore.push(doc);
+            return doc;
+        },
+    },
+}));
+
 beforeEach(() => {
     badgesStore = new Map();
     accountStore = new Map();
+    purchaseStore = [];
 });
 
 describe('buyBadge', () => {
@@ -110,6 +122,7 @@ describe('buyBadge', () => {
         expect(result.equipped).toBe('bull');
         expect(result.balance).toBe(500); // 1000 - 500
         expect(accountStore.get('alice')?.lifetimeEarned).toBe(1000); // never touched by a spend
+        expect(purchaseStore).toEqual([{ username: 'alice', sku: 'bull', price: 500 }]);
     });
 
     it('does not auto-equip a second purchase when something is already equipped', async () => {
@@ -130,6 +143,7 @@ describe('buyBadge', () => {
         expect(result.owned).toEqual([]);
         expect(result.equipped).toBeNull();
         expect(accountStore.get('alice')?.balance).toBe(100); // untouched
+        expect(purchaseStore).toEqual([]); // no charge happened, no audit row either
     });
 
     it('rolls back the ownership claim so a later purchase can succeed after earning more points', async () => {
@@ -150,6 +164,7 @@ describe('buyBadge', () => {
         expect(first.status).toBe('purchased');
         expect(second.status).toBe('already_owned');
         expect(accountStore.get('alice')?.balance).toBe(500); // charged exactly once
+        expect(purchaseStore).toHaveLength(1); // audit row written once, not on the already_owned replay
     });
 
     it('handles a concurrent double-buy race without double-charging (the claim step is the atomic gate)', async () => {

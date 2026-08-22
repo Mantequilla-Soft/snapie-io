@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db/mongodb';
 import { MoodBadges } from '@/lib/db/models/MoodBadges';
 import { PointsAccount } from '@/lib/db/models/PointsAccount';
+import { MoodBadgePurchase } from '@/lib/db/models/MoodBadgePurchase';
 import { MOOD_BADGES, MoodBadgeSku } from '@/lib/moodBadges/constants';
 
 export type BuyBadgeStatus = 'purchased' | 'already_owned' | 'insufficient_balance';
@@ -74,6 +75,17 @@ export async function buyBadge(username: string, sku: MoodBadgeSku): Promise<Buy
   // purchase becomes the equipped one for free convenience; switching
   // afterward is a separate explicit action, not touched here.
   await MoodBadges.findOneAndUpdate({ _id: username, equipped: null }, { $set: { equipped: sku } });
+
+  // Step 4: audit record — best-effort, written LAST, never blocks or
+  // reverses an already-completed purchase. Same ordering rationale as
+  // purchaseService.ts's creditPurchase() (see its doc comment for the past
+  // bug this avoids): the charge above is already final by this point, so a
+  // failure here just means a missing history row, not a broken purchase.
+  try {
+    await MoodBadgePurchase.create({ username, sku, price });
+  } catch (err: unknown) {
+    console.error('[buyBadge] audit record failed after a successful purchase:', { username, sku, err });
+  }
 
   const badges = await currentBadges(username);
   return { status: 'purchased', ...badges, balance: acct.balance ?? 0 };

@@ -18,7 +18,7 @@ import {
   Badge,
   useDisclosure,
 } from '@chakra-ui/react';
-import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera, FaAward, FaTrophy } from 'react-icons/fa';
+import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera, FaAward, FaTrophy, FaHistory } from 'react-icons/fa';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
@@ -42,6 +42,7 @@ import { useHbdSavingsInterest } from '@/hooks/useHbdSavingsInterest';
 import { refreshAfterClaim, syncUnclaimedRewardsFromAccount } from '@/hooks/useUnclaimedRewards';
 import { extractNumber } from '@/lib/utils/extractNumber';
 import WalletModal from '@/components/wallet/WalletModal';
+import PointsHistoryModal from '@/components/wallet/PointsHistoryModal';
 import WalletTermInfo from '@/components/wallet/WalletTermInfo';
 import TransactionHistory from '@/components/wallet/TransactionHistory';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -90,6 +91,7 @@ export default function WalletPage({ username }: WalletPageProps) {
   const { isOpen: isEditOpen, onOpen: onEditOpen, onClose: onEditClose } = useDisclosure();
   const { isOpen: isQRRequestOpen, onOpen: onQRRequestOpen, onClose: onQRRequestClose } = useDisclosure();
   const { isOpen: isQRScanOpen, onOpen: onQRScanOpen, onClose: onQRScanClose } = useDisclosure();
+  const { isOpen: isPointsHistoryOpen, onOpen: onPointsHistoryOpen, onClose: onPointsHistoryClose } = useDisclosure();
 
   const [prices, setPrices] = useState<{ hive: number; hbd: number } | null>(null);
   const [profileMetadata, setProfileMetadata] = useState<{ profileImage: string; coverImage: string; website: string; name: string; about: string; location: string }>({
@@ -938,6 +940,15 @@ export default function WalletPage({ username }: WalletPageProps) {
                 >
                   Buy Points
                 </Button>
+                <Button
+                  size="sm"
+                  leftIcon={<FaHistory />}
+                  onClick={onPointsHistoryOpen}
+                  variant="outline"
+                  colorScheme="purple"
+                >
+                  History
+                </Button>
               </Flex>
             )}
           </Box>
@@ -1027,6 +1038,8 @@ export default function WalletPage({ username }: WalletPageProps) {
           <TransactionHistory username={username} />
         </Box>
       </Container>
+
+      <PointsHistoryModal isOpen={isPointsHistoryOpen} onClose={onPointsHistoryClose} username={username} />
 
       <WalletModal
         isOpen={isOpen}
