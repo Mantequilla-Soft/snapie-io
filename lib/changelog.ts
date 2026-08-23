@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed muting or blacklisting someone not actually taking effect until you reloaded — sometimes for up to a day. The muted-accounts list wasn\'t being refreshed right after the mute went through, so their posts kept showing up everywhere in the meantime.' },
       { type: 'fix', text: 'Shorts and Notifications now respect your mutes too — a muted or community-muted account\'s videos no longer show up in Shorts, and their replies/votes no longer show up in your notifications. Muting from a Short now also removes their other videos from your feed immediately.' },
       { type: 'fix', text: 'Fixed no way to get back to the rest of the app from Shorts on mobile — added a back button, since Shorts hides the usual header and bottom nav to stay full-screen.' },
+      { type: 'fix', text: 'Fixed Muted Tags not being respected on Trending, For You, and the Right Sidebar\'s Long Reads — a post carrying a hashtag you\'d muted could still show up on those, even though it was already working correctly everywhere else.' },
     ],
   },
   {
