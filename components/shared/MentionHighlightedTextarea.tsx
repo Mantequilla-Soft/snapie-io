@@ -168,6 +168,28 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
       return () => el.removeEventListener('input', handleInput);
     }, [value]);
 
+    // Keeps the backdrop's scroll position glued to the real textarea's
+    // whenever the text itself changes — not just on the textarea's own
+    // `scroll` event (handleScroll below), which the browser doesn't
+    // reliably fire for the auto-scroll it does on its own to keep the caret
+    // in view while typing past the visible area. Without this, once
+    // content overflows the fixed-height wrapper, the backdrop (the only
+    // thing rendering visible text — the real textarea's own text is
+    // transparent) permanently stops following the real textarea's scroll,
+    // so the visible text drifts away from the invisible caret's actual
+    // position: every further keystroke visually lands somewhere else on
+    // screen than where it was actually typed. Confirmed live: typing enough
+    // to overflow the wrapper left the real textarea scrolled while the
+    // backdrop stayed pinned at scrollTop 0, with no `scroll` event ever
+    // firing in between.
+    useEffect(() => {
+      const el = innerRef.current;
+      const backdrop = backdropRef.current;
+      if (!el || !backdrop) return;
+      backdrop.scrollTop = el.scrollTop;
+      backdrop.scrollLeft = el.scrollLeft;
+    }, [text]);
+
     const validity = useMentionValidation(text);
     const mention = useMentionAutocomplete();
 
