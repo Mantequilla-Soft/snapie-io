@@ -14,6 +14,7 @@ import { Comment } from '@hiveio/dhive';
 import { getLastSnapsContainer, uploadImageWithKeychain, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { aggregateBeneficiaries, type Beneficiary } from '@/lib/utils/aggregateBeneficiaries';
+import { snapOpenAttributeKey } from '@/lib/utils/openAttribute';
 import MemePickerModal from './MemePickerModal';
 
 // SDK imports
@@ -370,7 +371,8 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
 
             // Resolve parent permlink for snaps
             let parentPermlink = pp;
-            if (pp === "snaps") { 
+            const isNewSnap = pp === "snaps";
+            if (isNewSnap) {
                 parentPermlink = (await getLastSnapsContainer()).permlink;
             }
 
@@ -378,6 +380,12 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             // beneficiary) only when no meme is present; meme posts use the base
             // composer with DecentMemes beneficiaries merged in instead.
             const composer = videoEmbedUrl ? snapieVideoComposer : snapieComposer;
+
+            // This composer is shared by every comment-composing surface
+            // (snap replies, blog post comments, Shorts comments) — isNewSnap
+            // is the same signal already used a few lines down to decide
+            // snap vs. comment for points awarding.
+            const openAttributeKey = snapOpenAttributeKey(isNewSnap);
 
             // Build operations using SDK
             const result = composer.build({
@@ -391,11 +399,12 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 audioEmbedUrl: audioEmbedUrl || undefined,
                 percentHbd,
                 ...(memeBeneficiaries.length > 0 && { beneficiaries: memeBeneficiaries }),
-                ...(memeTemplateIds.length > 0 && {
-                    metadata: {
+                metadata: {
+                    [openAttributeKey]: {},
+                    ...(memeTemplateIds.length > 0 && {
                         decentmemes: { v: 2, templateIds: memeTemplateIds, frontend: 'snapie' },
-                    },
-                }),
+                    }),
+                },
             });
 
             // Broadcast with Keychain

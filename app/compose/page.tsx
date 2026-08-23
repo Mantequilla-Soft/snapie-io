@@ -253,7 +253,10 @@ export default function Home() {
         beneficiaries: beneficiaries.map(b => ({ account: b.account, weight: b.weight })),
         percentHbd,
         metadata: {
-          image: imageArray
+          image: imageArray,
+          // OpenAttribute self-describing content-type marker — see
+          // internal-docs/open-attribute-snapie-setup.md
+          'snapie.blog': {}
         }
       })
 

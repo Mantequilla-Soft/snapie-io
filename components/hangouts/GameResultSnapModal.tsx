@@ -71,7 +71,8 @@ export default function GameResultSnapModal({ isOpen, onClose, result, currentUs
     setError(null);
     try {
       const { author: parentAuthor, permlink: parentPermlink } = await getLastSnapsContainer();
-      const built = snapieComposer.build({ author: currentUser, body, parentAuthor, parentPermlink });
+      // OpenAttribute marker — see internal-docs/open-attribute-snapie-setup.md
+      const built = snapieComposer.build({ author: currentUser, body, parentAuthor, parentPermlink, metadata: { 'snapie.snap': {} } });
       const res = await signAndBroadcastWithKeychain(currentUser, built.operations, 'posting');
       if (res.success) {
         setPosted(true);

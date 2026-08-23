@@ -55,6 +55,8 @@ function AuthLobby({ user }: { user: string }) {
         parentAuthor,
         parentPermlink,
         images: room.backgroundImage ? [room.backgroundImage] : undefined,
+        // OpenAttribute marker — see internal-docs/open-attribute-snapie-setup.md
+        metadata: { 'snapie.snap': {} },
       });
 
       const response = await signAndBroadcastWithKeychain(user, result.operations, 'posting');
