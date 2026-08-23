@@ -33,6 +33,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed no way to get back to the rest of the app from Shorts on mobile — added a back button, since Shorts hides the usual header and bottom nav to stay full-screen.' },
       { type: 'fix', text: 'Fixed Muted Tags not being respected on Trending, For You, and the Right Sidebar\'s Long Reads — a post carrying a hashtag you\'d muted could still show up on those, even though it was already working correctly everywhere else.' },
       { type: 'fix', text: 'Fixed the Snap composer\'s cursor visually landing in the wrong spot once your post grew past a few lines — new keystrokes still went to the right place under the hood, but the highlighted text on screen quietly stopped scrolling with them, making it look like the cursor had jumped.' },
+      { type: 'improvement', text: 'An image that fails to load in a post (dead link, or a browser/ad-blocker refusing to fetch it) now shows "Image failed to load" with a link to open it directly, instead of just silently disappearing with no explanation.' },
     ],
   },
   {
