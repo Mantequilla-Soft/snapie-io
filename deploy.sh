@@ -1,20 +1,29 @@
 #!/bin/bash
 set -euo pipefail
 
+# node_modules/.next/.git under /var/www/snapie-io are owned by the meno
+# user. Running the build as root (e.g. `sudo ./deploy.sh`) makes pnpm
+# install/write those files as root, which a later non-root — or even a
+# later root — pnpm run may not cleanly relink over, leaving stale
+# leftovers (from before a dependency fix) silently in place even while
+# pnpm reports the lockfile as satisfied. Always build as the app user,
+# regardless of which user invoked this script, same as the PM2 restart
+# below already has to.
+BUILD_CMDS='
+set -euo pipefail
 git pull
 pnpm install
-# A dependency-version fix (e.g. today's jsdom pin) can leave the previous
-# .next build's webpack cache referencing files/paths that no longer exist
-# after the version bump — pnpm install resolves the new version correctly,
-# but next build can still partially reuse the stale cache and fail. Force a
-# clean build so every deploy reflects exactly what's currently installed.
+# A dependency-version fix can leave the previous .next build cache
+# referencing files/paths that no longer exist after the bump — force a
+# clean build so every deploy reflects exactly what is currently installed.
 rm -rf .next
 pnpm build
+'
 
-# PM2 process ownership is tied to user session; when deploy runs with sudo,
-# restart PM2 as the app user so it targets the correct process list.
 if [ "${EUID}" -eq 0 ]; then
+  sudo -u meno -H bash -lc "$BUILD_CMDS"
   sudo -u meno -H env PM2_HOME=/home/meno/.pm2 pm2 restart snapie-io
 else
+  bash -c "$BUILD_CMDS"
   pm2 restart snapie-io
 fi
