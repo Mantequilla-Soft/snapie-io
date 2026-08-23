@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { useToast } from '@chakra-ui/react';
 import { getRelationshipBetweenAccounts, setUserRelationship } from '@/lib/hive/client-functions';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
 export function useUserRelationship(targetUsername: string) {
   const { username: user } = useCurrentUser();
@@ -54,7 +55,7 @@ export function useUserRelationship(targetUsername: string) {
   const handleMute = useCallback(async () => {
     if (!user) {
       toast({ title: 'Please login', description: 'You need to be logged in to mute users', status: 'warning', duration: 3000, isClosable: true });
-      return;
+      return false;
     }
     setIsProcessing(true);
     try {
@@ -62,12 +63,15 @@ export function useUserRelationship(targetUsername: string) {
       if (success) {
         setIsMuted(m => !m);
         if (!isMuted && isFollowing) setIsFollowing(false);
+        mutedAccountsManager.clearCache(user);
         toast({ title: isMuted ? 'Unmuted' : 'Muted', description: `You ${isMuted ? 'unmuted' : 'muted'} @${targetUsername}`, status: 'success', duration: 3000, isClosable: true });
       } else {
         throw new Error('Transaction failed');
       }
+      return success;
     } catch {
       toast({ title: 'Error', description: 'Failed to update mute status', status: 'error', duration: 3000, isClosable: true });
+      return false;
     } finally {
       setIsProcessing(false);
     }
@@ -76,7 +80,7 @@ export function useUserRelationship(targetUsername: string) {
   const handleBlacklist = useCallback(async () => {
     if (!user) {
       toast({ title: 'Please login', description: 'You need to be logged in to blacklist users', status: 'warning', duration: 3000, isClosable: true });
-      return;
+      return false;
     }
     setIsProcessing(true);
     try {
@@ -84,12 +88,15 @@ export function useUserRelationship(targetUsername: string) {
       if (success) {
         setIsBlacklisted(b => !b);
         if (!isBlacklisted && isFollowing) setIsFollowing(false);
+        mutedAccountsManager.clearCache(user);
         toast({ title: isBlacklisted ? 'Removed from blacklist' : 'Blacklisted', description: `You ${isBlacklisted ? 'removed' : 'added'} @${targetUsername} ${isBlacklisted ? 'from' : 'to'} your blacklist`, status: 'success', duration: 3000, isClosable: true });
       } else {
         throw new Error('Transaction failed');
       }
+      return success;
     } catch {
       toast({ title: 'Error', description: 'Failed to update blacklist status', status: 'error', duration: 3000, isClosable: true });
+      return false;
     } finally {
       setIsProcessing(false);
     }

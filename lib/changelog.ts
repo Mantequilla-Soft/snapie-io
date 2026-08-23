@@ -25,6 +25,15 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-23',
+    date: '2026-08-23',
+    items: [
+      { type: 'fix', text: 'Fixed muting or blacklisting someone not actually taking effect until you reloaded — sometimes for up to a day. The muted-accounts list wasn\'t being refreshed right after the mute went through, so their posts kept showing up everywhere in the meantime.' },
+      { type: 'fix', text: 'Shorts and Notifications now respect your mutes too — a muted or community-muted account\'s videos no longer show up in Shorts, and their replies/votes no longer show up in your notifications. Muting from a Short now also removes their other videos from your feed immediately.' },
+      { type: 'fix', text: 'Fixed no way to get back to the rest of the app from Shorts on mobile — added a back button, since Shorts hides the usual header and bottom nav to stay full-screen.' },
+    ],
+  },
+  {
     id: '2026-08-22',
     date: '2026-08-22',
     title: 'Points Roulette',

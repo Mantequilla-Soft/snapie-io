@@ -162,9 +162,12 @@ interface ShortCardProps {
   muted: boolean;
   onToggleMute: () => void;
   onOpenComments: () => void;
+  /** Called after this card's author is successfully muted, so the parent
+   *  can drop their other already-loaded shorts from the feed immediately. */
+  onAuthorMuted?: (author: string) => void;
 }
 
-export default function ShortCard({ short, isActive, isPreload, muted, onToggleMute, onOpenComments }: ShortCardProps) {
+export default function ShortCard({ short, isActive, isPreload, muted, onToggleMute, onOpenComments, onAuthorMuted }: ShortCardProps) {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
@@ -184,8 +187,14 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const {
     isFollowing, isMuted: isAuthorMuted,
     isLoading: relationshipLoading, isProcessing: relationshipProcessing,
-    fetchRelationship, handleFollow, handleMute: handleAuthorMute,
+    fetchRelationship, handleFollow, handleMute: handleAuthorMuteToggle,
   } = useUserRelationship(short.author);
+
+  const handleAuthorMute = useCallback(async () => {
+    const wasMuted = isAuthorMuted;
+    const success = await handleAuthorMuteToggle();
+    if (success && !wasMuted) onAuthorMuted?.(short.author);
+  }, [isAuthorMuted, handleAuthorMuteToggle, onAuthorMuted, short.author]);
 
   // ── Vote detection: check active_votes when card first becomes active ────
   const checkedUserRef = useRef<string | null>(null);

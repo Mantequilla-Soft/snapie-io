@@ -1,10 +1,13 @@
 'use client';
-import { Box, Center, Spinner, Text, Button, useBreakpointValue } from '@chakra-ui/react';
+import { Box, Center, Spinner, Text, Button, IconButton, useBreakpointValue } from '@chakra-ui/react';
+import { FiArrowLeft } from 'react-icons/fi';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Mousewheel, Keyboard } from 'swiper/modules';
 import 'swiper/css';
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useShorts } from '@/hooks/useShorts';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type { ShortItem } from '@/lib/shorts/types';
 import ShortCard from './ShortCard';
 import ShortsCommentSheet from './ShortsCommentSheet';
@@ -16,8 +19,37 @@ interface ActiveComment {
   commentCount: number;
 }
 
+// MobileHeader/BottomTabBar both hide themselves on this route ("immersive
+// pages manage their own chrome") — this is that chrome. Without it, a
+// mobile viewer has no in-app way back out of the full-viewport swiper.
+// Desktop still has the persistent Sidebar, so this is mobile-only.
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <IconButton
+      aria-label="Back"
+      icon={<FiArrowLeft size={22} />}
+      onClick={onClick}
+      position="absolute"
+      top="calc(12px + env(safe-area-inset-top))"
+      left={3}
+      zIndex={10}
+      display={{ base: 'flex', md: 'none' }}
+      variant="ghost"
+      color="white"
+      bg="blackAlpha.500"
+      _hover={{ bg: 'whiteAlpha.200' }}
+      _active={{ bg: 'whiteAlpha.300' }}
+      borderRadius="full"
+      boxSize="40px"
+      minW="40px"
+    />
+  );
+}
+
 export default function ShortsPlayer() {
-  const { shorts, loading, error, hasMore, load, prime } = useShorts();
+  const router = useRouter();
+  const { username } = useCurrentUser();
+  const { shorts, loading, error, hasMore, load, prime, removeAuthor } = useShorts(username);
   const [activeIndex, setActiveIndex] = useState(0);
   const [muted, setMuted] = useState(true);
   const [activeComment, setActiveComment] = useState<ActiveComment | null>(null);
@@ -77,7 +109,8 @@ export default function ShortsPlayer() {
 
   if (loading && shorts.length === 0) {
     return (
-      <Center h="100dvh" bg="black">
+      <Center h="100dvh" bg="black" position="relative">
+        <BackButton onClick={() => router.push('/')} />
         <Spinner size="xl" color="blue.400" thickness="3px" />
       </Center>
     );
@@ -85,7 +118,8 @@ export default function ShortsPlayer() {
 
   if (error && shorts.length === 0) {
     return (
-      <Center h="100dvh" bg="black" flexDir="column" gap={4}>
+      <Center h="100dvh" bg="black" position="relative" flexDir="column" gap={4}>
+        <BackButton onClick={() => router.push('/')} />
         <Text color="red.400">Failed to load shorts</Text>
         <Button onClick={() => load(true)} colorScheme="blue" size="sm">
           Retry
@@ -98,6 +132,7 @@ export default function ShortsPlayer() {
     <Box h="100dvh" overflow="hidden" bg="black" display="flex" justifyContent="center">
       {/* Video column */}
       <Box w={{ base: '100%', md: '420px' }} h="100dvh" position="relative" overflow="hidden" flexShrink={0}>
+        <BackButton onClick={() => router.push('/')} />
         <Swiper
           direction="vertical"
           slidesPerView={1}
@@ -120,6 +155,7 @@ export default function ShortsPlayer() {
                   permlink: short.hivePermlink,
                   commentCount: short.stats.comments,
                 })}
+                onAuthorMuted={removeAuthor}
               />
             </SwiperSlide>
           ))}

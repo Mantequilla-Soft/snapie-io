@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useRef } from 'react';
 import { ShortItem } from '@/lib/shorts/types';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
 // 3speak-checker.okinoko.io was retired — 3Speak's own frontend now points
 // this at checker.3speak.tv (confirmed via their production JS bundle);
@@ -69,7 +70,7 @@ async function fetchPage(page: number, limit: number): Promise<{ shorts: ShortIt
 
 const shortKey = (s: { author: string; permlink: string }) => `${s.author}/${s.permlink}`;
 
-export function useShorts() {
+export function useShorts(username?: string | null) {
   const [shorts, setShorts] = useState<ShortItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +81,11 @@ export function useShorts() {
   // Keys (author/videoPermlink) already in the list — dedupes feed appends and
   // prevents a primed target short from showing up twice once the feed loads.
   const seenKeysRef = useRef<Set<string>>(new Set());
+  // Read via ref rather than a `load` dependency so auth hydrating after
+  // mount (username null -> set) doesn't change load's identity and
+  // re-trigger the ShortsPlayer mount effect that resets the whole feed.
+  const usernameRef = useRef(username);
+  usernameRef.current = username;
 
   const load = useCallback(async (reset = false) => {
     if (inflightRef.current) return;
@@ -101,7 +107,9 @@ export function useShorts() {
     try {
       const { shorts: newShorts, hasMore: more } = await fetchPage(pageRef.current, 10);
       failedPageRef.current = null;
-      const fresh = newShorts.filter(s => !seenKeysRef.current.has(shortKey(s)));
+      const mutedList = await mutedAccountsManager.getMutedList(usernameRef.current ?? undefined);
+      const unmuted = newShorts.filter(s => !mutedList.has(s.author.toLowerCase()));
+      const fresh = unmuted.filter(s => !seenKeysRef.current.has(shortKey(s)));
       for (const s of fresh) seenKeysRef.current.add(shortKey(s));
       setShorts(prev => (reset ? fresh : [...prev, ...fresh]));
       setHasMore(more);
@@ -115,6 +123,13 @@ export function useShorts() {
     }
   }, []);
 
+  // Optimistically drop an author's shorts from the already-loaded list the
+  // moment a mute succeeds, instead of waiting for the next load() to refetch.
+  const removeAuthor = useCallback((author: string) => {
+    const target = author.toLowerCase();
+    setShorts(prev => prev.filter(s => s.author.toLowerCase() !== target));
+  }, []);
+
   // Seed the list with a specific short (from a shared chat link) so it plays
   // first, then call load() to pull the rest of the feed in behind it.
   const prime = useCallback((target: ShortItem) => {
@@ -125,5 +140,5 @@ export function useShorts() {
     setHasMore(true);
   }, []);
 
-  return { shorts, loading, error, hasMore, load, prime };
+  return { shorts, loading, error, hasMore, load, prime, removeAuthor };
 }

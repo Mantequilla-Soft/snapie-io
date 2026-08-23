@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Notifications } from '@hiveio/dhive';
 import HiveClient from '@/lib/hive/hiveclient';
 import { customJsonWithAioha, KeyTypes } from '@/lib/hive/aioha';
-import { parseHiveDate } from '@/lib/utils/notificationHelpers';
+import { parseHiveDate, getNotificationActor } from '@/lib/utils/notificationHelpers';
+import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 
 const POLL_INTERVAL_MS = 60_000;
 
@@ -29,6 +30,15 @@ async function fetchNotifications(account: string, limit: number, lastId?: numbe
 async function fetchUnreadState(account: string): Promise<UnreadNotificationState> {
   const result = await HiveClient.call('bridge', 'unread_notifications', { account });
   return result || { lastread: '1970-01-01T00:00:00', unread: 0 };
+}
+
+async function filterMutedNotifications(notifications: Notifications[], account: string): Promise<Notifications[]> {
+  const mutedList = await mutedAccountsManager.getMutedList(account);
+  if (mutedList.size === 0) return notifications;
+  return notifications.filter((n) => {
+    const actor = getNotificationActor(n);
+    return !actor || !mutedList.has(actor.toLowerCase());
+  });
 }
 
 export function useHiveNotifications(
@@ -82,8 +92,9 @@ export function useHiveNotifications(
 
     try {
       const data = await fetchNotifications(account, limit);
+      const filtered = await filterMutedNotifications(data, account);
       if (accountRef.current === account) {
-        setNotifications(data);
+        setNotifications(filtered);
         setHasMore(data.length >= limit);
       }
     } catch (err) {
@@ -107,10 +118,11 @@ export function useHiveNotifications(
 
     try {
       const data = await fetchNotifications(account, limit, oldestId);
+      const filtered = await filterMutedNotifications(data, account);
       if (accountRef.current === account) {
         setNotifications((prev) => {
           const seen = new Set(prev.map((notification) => notification.id));
-          return [...prev, ...data.filter((notification) => !seen.has(notification.id))];
+          return [...prev, ...filtered.filter((notification) => !seen.has(notification.id))];
         });
         setHasMore(data.length >= limit);
       }

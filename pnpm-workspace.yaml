@@ -1,2 +1,12 @@
 packages:
   - 'packages/*'
+overrides:
+  # isomorphic-dompurify pulls jsdom transitively for SSR sanitization. jsdom
+  # 27+ imports its default-stylesheet as a real .css file (lib/jsdom/browser/
+  # default-stylesheet.css) instead of the inlined JS string 24.x used, and
+  # Next's server webpack bundle doesn't emit that asset — every SSR render
+  # that reaches MediaRenderer.tsx's DOMPurify import throws
+  # `ENOENT: .next/browser/default-stylesheet.css`. Pin below that break.
+  jsdom: ^24.0.0
+  '@aioha/react-provider': 1.4.1
+  glob: 10.5.0
