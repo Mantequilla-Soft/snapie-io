@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useHiveUser } from '@/contexts/UserContext';
 import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 import SidebarEventsWidget from '@/components/hangouts/SidebarEventsWidget';
@@ -55,6 +56,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
 
   const tag = process.env.NEXT_PUBLIC_HIVE_SEARCH_TAG;
   const interestTagsKey = settings.interestTags.join(',');
+  const mutedTagsKey = settings.mutedTags.join(',');
 
   function postKey(post: Discussion): string {
     return `${post.author}/${post.permlink}`;
@@ -104,7 +106,8 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       for (const post of [...trending, ...forYou]) {
         const key = `${post.author}/${post.permlink}`;
         const isMuted = mutedSetRef.current.has((post.author || '').toLowerCase());
-        if (seen.has(key) || !post.author || post.parent_author || isMuted) continue;
+        const isMutedTag = hasMutedTag(post.json_metadata, settings.mutedTags);
+        if (seen.has(key) || !post.author || post.parent_author || isMuted || isMutedTag) continue;
         seen.add(key);
         merged.push(post);
       }
@@ -113,7 +116,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
 
     loadBlendCandidates();
     return () => { cancelled = true; };
-  }, [tag, username, interestTagsKey, mutedLoaded]);
+  }, [tag, username, interestTagsKey, mutedTagsKey, mutedLoaded]);
 
   // Splices blendCandidates into the chronological base exactly once, as
   // soon as both the base's first page and the candidates are ready —
@@ -171,8 +174,9 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         const topLevelPosts = posts.filter((post: Discussion) => {
           const isTopLevel = !post.parent_author;
           const isMuted = mutedSetRef.current.has(post.author.toLowerCase());
+          const isMutedTag = hasMutedTag(post.json_metadata, settings.mutedTags);
           const isDuplicate = seenKeysRef.current.has(postKey(post));
-          return isTopLevel && !isMuted && !isDuplicate;
+          return isTopLevel && !isMuted && !isMutedTag && !isDuplicate;
         });
         topLevelPosts.forEach((post: Discussion) => seenKeysRef.current.add(postKey(post)));
 
@@ -195,7 +199,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       isFetching.current = false;
       setIsLoading(false);
     }
-  }, [query, tag]);
+  }, [query, tag, mutedTagsKey]);
 
   useEffect(() => {
     setMutedLoaded(false);
@@ -207,7 +211,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       mutedSetRef.current = mutedSet;
       setMutedLoaded(true);
     });
-  }, [hiveUser?.name, tag]);
+  }, [hiveUser?.name, tag, mutedTagsKey]);
 
   useEffect(() => {
     if (mutedLoaded) fetchPosts();

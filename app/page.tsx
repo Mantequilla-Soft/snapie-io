@@ -184,9 +184,9 @@ export default function Home() {
     username: user || undefined,
     enabled: ENABLE_BLENDED_FEED && activeFilter === 'all',
   });
-  const trendingFeed = useTrendingFeed({ enabled: isTrendingTab, extraQuery: personalMuteQuery });
-  const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery });
-  const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery });
+  const trendingFeed = useTrendingFeed({ enabled: isTrendingTab, extraQuery: personalMuteQuery, mutedTags: settings.mutedTags });
+  const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery, mutedTags: settings.mutedTags });
+  const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery, mutedTags: settings.mutedTags });
   const activeFeedData = showBlendedForAll ? blendedFeed : isTrendingTab ? trendingFeed : isForYouWarm ? forYouWarmFeed : isForYouCold ? forYouColdFeed : snaps;
 
   // Applies the optimistic reply-count bumps from handleReply on top of
@@ -207,7 +207,7 @@ export default function Home() {
   // The dedicated 'trending' tab already *is* this same pool, so splicing it
   // into itself would just be confusing duplication.
   const discoveryEnabled = showTrendingTab && activeFilter === 'all';
-  const { candidates: discoveryItems } = useDiscoveryCandidates({ enabled: discoveryEnabled, username: user || undefined });
+  const { candidates: discoveryItems } = useDiscoveryCandidates({ enabled: discoveryEnabled, username: user || undefined, mutedTags: settings.mutedTags });
 
   // First-page probe: if the blended source comes back empty, fall back to
   // snaps-only for this session. Scoped to the first page only — a sidecar

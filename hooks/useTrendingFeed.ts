@@ -1,6 +1,7 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExtendedComment } from './useComments';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
 
 interface UseTrendingFeedProps {
     enabled: boolean;
@@ -16,6 +17,10 @@ interface UseTrendingFeedProps {
      *  unless the actual params change — same requirement as `endpoint`,
      *  since it flows into the fetch-effect's dependency list. */
     extraQuery?: string;
+    /** Muted hashtags are local-only (localStorage), so — like
+     *  useDiscoveryCandidates — they can never be baked into the shared
+     *  server-cached pool this hook paginates through. Filtered client-side. */
+    mutedTags?: string[];
 }
 
 const PAGE_SIZE = 10;
@@ -34,11 +39,18 @@ const DEFAULT_ENDPOINT = '/api/discovery/snap-candidates';
  * React StrictMode's dev-only double-mount blocked the surviving instance
  * from ever fetching while the orphaned instance's result got discarded.
  */
-export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQuery }: UseTrendingFeedProps) {
-    const [comments, setComments] = useState<ExtendedComment[]>([]);
+export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQuery, mutedTags = [] }: UseTrendingFeedProps) {
+    const [rawComments, setRawComments] = useState<ExtendedComment[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+
+    // A memo, not a fetch dependency — muting a tag re-filters the
+    // already-fetched pages instantly instead of waiting for the next fetch.
+    const comments = useMemo(
+        () => rawComments.filter(item => !hasMutedTag(item.json_metadata, mutedTags)),
+        [rawComments, mutedTags],
+    );
 
     const offsetRef = useRef(0);
     const isFetchingRef = useRef(false);
@@ -58,7 +70,7 @@ export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQue
             const items: ExtendedComment[] = Array.isArray(data.items) ? data.items : [];
             const fresh = items.filter(item => !seenPermlinksRef.current.has(item.permlink));
             fresh.forEach(item => seenPermlinksRef.current.add(item.permlink));
-            setComments(prev => (reset ? fresh : [...prev, ...fresh]));
+            setRawComments(prev => (reset ? fresh : [...prev, ...fresh]));
             offsetRef.current = offset + items.length;
             setHasMore(Boolean(data.hasMore));
         } catch {
@@ -77,7 +89,7 @@ export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQue
         isFetchingRef.current = false; // fresh generation always starts clean
 
         if (!enabled) {
-            setComments([]);
+            setRawComments([]);
             setHasMore(true);
             setHasFetchedOnce(false);
             offsetRef.current = 0;
@@ -87,7 +99,7 @@ export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQue
 
         offsetRef.current = 0;
         seenPermlinksRef.current.clear();
-        setComments([]);
+        setRawComments([]);
         setHasFetchedOnce(false);
         fetchPage(myGeneration, true);
     }, [enabled, fetchPage]);
@@ -102,7 +114,7 @@ export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQue
         isFetchingRef.current = false;
         offsetRef.current = 0;
         seenPermlinksRef.current.clear();
-        setComments([]);
+        setRawComments([]);
         setHasMore(true);
         setHasFetchedOnce(false);
         fetchPage(myGeneration, true);

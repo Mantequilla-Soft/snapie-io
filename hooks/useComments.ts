@@ -1,6 +1,6 @@
 'use client'
 import HiveClient from "@/lib/hive/hiveclient"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Comment } from "@hiveio/dhive"
 import { mutedAccountsManager } from "@/lib/hive/muted-accounts"
 import { hasMutedTag } from "@/lib/hive/mutedTags"
@@ -96,6 +96,15 @@ export function useComments(
     const [comments, setComments] = useState<Comment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    // Mount fires a fetch with settings.mutedTags still at its pre-hydration
+    // default ([]) — see useUserSettings, whose real localStorage read only
+    // lands via a post-mount effect. That triggers a second, correctly-
+    // filtered fetch once mutedTagsKey changes, but without a staleness
+    // guard the first (unfiltered) call could resolve *after* the second and
+    // clobber its result with unmuted-tag content. Same generation-counter
+    // pattern as useSnaps.ts/useBlendedFeed.ts — only the most recently
+    // *started* call's result is ever applied.
+    const fetchGenerationRef = useRef(0);
 
     const fetchAndUpdateComments = useCallback(async (showLoader = true) => {
         // Skip fetching if author or permlink is empty
@@ -104,11 +113,15 @@ export function useComments(
             return;
         }
 
+        const myGeneration = ++fetchGenerationRef.current;
+        const isStale = () => fetchGenerationRef.current !== myGeneration;
+
         if (showLoader) setIsLoading(true);
         try {
             const fetchedComments = await fetchComments(author, permlink, recursive);
             // Filter out muted accounts (recursively including nested replies)
             const mutedList = await mutedAccountsManager.getMutedList(username);
+            if (isStale()) return;
             const filterMuted = (comments: ExtendedComment[]): ExtendedComment[] => {
                 return comments
                     .filter((c) => !mutedList.has(c.author.toLowerCase()))
@@ -134,6 +147,7 @@ export function useComments(
             });
             if (showLoader) setIsLoading(false);
         } catch (err: any) {
+            if (isStale()) return;
             setError(err.message ? err.message : "Error loading comments");
             console.error(err);
             if (showLoader) setIsLoading(false);

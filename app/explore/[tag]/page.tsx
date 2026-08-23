@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useHiveUser } from '@/contexts/UserContext';
+import { useUserSettings } from '@/hooks/useUserSettings';
 import NextLink from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { FaTh, FaBars } from 'react-icons/fa';
@@ -22,6 +24,8 @@ export default function ExploreTagPage({ params }: { params: { tag: string } }) 
   const tag = decodeURIComponent(params.tag);
   const isCommunity = /^hive-\d+$/.test(tag);
   const { hiveUser } = useHiveUser();
+  const { settings } = useUserSettings();
+  const mutedTagsKey = settings.mutedTags.join(',');
 
   const [communityTitle, setCommunityTitle] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -57,7 +61,9 @@ export default function ExploreTagPage({ params }: { params: { tag: string } }) 
         return;
       }
       const filtered = posts.filter((post: Discussion) =>
-        !post.parent_author && !mutedSetRef.current.has(post.author.toLowerCase())
+        !post.parent_author &&
+        !mutedSetRef.current.has(post.author.toLowerCase()) &&
+        !hasMutedTag(post.json_metadata, settings.mutedTags)
       );
       setAllPosts(prev => [...prev, ...filtered]);
       const last = posts[posts.length - 1];
@@ -90,7 +96,7 @@ export default function ExploreTagPage({ params }: { params: { tag: string } }) 
     fetchParams.current = { tag, limit: 20, start_author: '', start_permlink: '' };
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, mutedLoaded, tag]);
+  }, [query, mutedLoaded, tag, mutedTagsKey]);
 
   const displayName = communityTitle || (isCommunity ? tag : `#${tag}`);
 
