@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, memo } from "react";
 import { createPortal } from "react-dom";
 import { FiX } from "react-icons/fi";
 import ImageCarousel from "@/components/shared/ImageCarousel";
+import ImageWithFallback from "@/components/shared/ImageWithFallback";
 import VideoRenderer from "@/components/layout/VideoRenderer";
 import {
   parseMediaContent,
@@ -344,16 +345,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <Image
-                src={group.url}
-                alt="Post media"
-                width="100%"
-                maxH="480px"
-                objectFit="cover"
-                display="block"
-                loading="lazy"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-              />
+              <ImageWithFallback url={group.url} alt="Post media" />
             </Box>
           );
         }

@@ -1,7 +1,8 @@
 'use client';
-import { Box, Flex, Icon, Image } from '@chakra-ui/react';
+import { Box, Flex, Icon } from '@chakra-ui/react';
 import { useState } from 'react';
 import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import ImageWithFallback from '@/components/shared/ImageWithFallback';
 
 interface ImageCarouselProps {
   urls: string[];
@@ -26,16 +27,12 @@ export default function ImageCarousel({ urls, onImageClick }: ImageCarouselProps
     <Box mb={2} borderRadius="md" overflow="hidden" position="relative">
       {/* Image */}
       <Box cursor="zoom-in" onClick={() => onImageClick(urls[index])}>
-        <Image
-          src={urls[index]}
-          alt={`Image ${index + 1} of ${total}`}
-          width="100%"
-          maxH="480px"
-          objectFit="cover"
-          display="block"
-          loading="lazy"
-          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-        />
+        {/* key={url}, not index — forces a fresh mount (and fresh error
+            state) when navigating to a different image, since the same
+            component instance otherwise keeps yesterday's failure showing
+            even after the url prop moves on to an image that hasn't
+            actually failed yet. */}
+        <ImageWithFallback key={urls[index]} url={urls[index]} alt={`Image ${index + 1} of ${total}`} />
       </Box>
 
       {/* Prev arrow */}
