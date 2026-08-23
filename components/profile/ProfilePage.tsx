@@ -34,6 +34,7 @@ import { useHangout } from '@/contexts/HangoutContext';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import PatronBadge from '@/components/shared/PatronBadge';
 import WitnessBadge from '@/components/shared/WitnessBadge';
+import AccountBadges from './AccountBadges';
 
 interface ProfilePageProps {
   username: string;
@@ -331,6 +332,8 @@ export default function ProfilePage({ username }: ProfilePageProps) {
               {memberSince && <>{' | '}Member since {memberSince}</>}
               {about && <><br />{about}</>}
             </Text>
+
+            <AccountBadges username={username} />
 
             {POINTS_FEATURE_FLAG && profilePoints && profilePoints.lifetimeEarned > 0 && (
               <Flex
