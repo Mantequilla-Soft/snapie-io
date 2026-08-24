@@ -35,6 +35,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed the Snap composer\'s cursor visually landing in the wrong spot once your post grew past a few lines — new keystrokes still went to the right place under the hood, but the highlighted text on screen quietly stopped scrolling with them, making it look like the cursor had jumped.' },
       { type: 'improvement', text: 'An image that fails to load in a post (dead link, or a browser/ad-blocker refusing to fetch it) now shows "Image failed to load" with a link to open it directly, instead of just silently disappearing with no explanation.' },
       { type: 'feature', text: 'Profiles now show account badges — the same PeakD-style badges (Bumble Bee, Trusted Delegate, community and verification badges, etc.) you may already hold on Hive, with a tooltip explaining each one and a link to learn more.' },
+      { type: 'fix', text: 'Fixed the Posts and Reblogs tabs on a profile page cutting off after the first page or so — scrolling for more just spun forever instead of loading further back in someone\'s history.' },
     ],
   },
   {

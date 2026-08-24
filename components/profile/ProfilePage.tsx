@@ -237,7 +237,17 @@ export default function ProfilePage({ username }: ProfilePageProps) {
   }
 
   return (
-    <Box color="text" maxW="container.lg" mx="auto" w="100%" overflowX="hidden">
+    <Box
+      id="scrollableDiv"
+      h="100vh"
+      overflowY="auto"
+      overflowX="hidden"
+      sx={{
+        '&::-webkit-scrollbar': { display: 'none' },
+        scrollbarWidth: 'none',
+      }}
+    >
+    <Box color="text" maxW="container.lg" mx="auto" w="100%">
       {/* Cover image */}
       <Box position="relative" height="200px">
         <Container id="cover" maxW="container.lg" p={0} overflow="hidden" position="relative" height="100%">
@@ -511,6 +521,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           }}
         />
       )}
+    </Box>
     </Box>
   );
 }
