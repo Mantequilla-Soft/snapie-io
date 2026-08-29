@@ -130,7 +130,7 @@ const DOMPURIFY_CONFIG = {
     ALLOWED_ATTR: [
         'href', 'src', 'alt', 'title', 'width', 'height',
         'class', 'id', 'style', 'target', 'rel',
-        'controls', 'muted', 'preload', 'loading', 'autoplay', 'loop',
+        'controls', 'muted', 'preload', 'loading', 'loop',
         'type', 'allowfullscreen', 'frameborder', 'allow', 'scrolling',
         'colspan', 'rowspan', 'align', 'valign',
         'start', 'reversed',
@@ -198,6 +198,40 @@ DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
         if (PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))) {
             data.keepAttr = false;
         }
+    } catch {
+        // Unparseable src — leave it to ALLOWED_URI_REGEXP.
+    }
+});
+
+/**
+ * No embed should autoplay — a visitor should always have to press play
+ * themselves. The `autoplay` HTML attribute is blocked by leaving it out of
+ * ALLOWED_ATTR above, but that doesn't cover providers that trigger
+ * autoplay through their own iframe `src` query string instead (SoundCloud's
+ * `auto_play=true`, YouTube/Vimeo's `autoplay=1`, Twitch's `autostart`,
+ * etc). This only ever comes from an author pasting a provider's raw embed
+ * HTML directly into their post — nothing in this renderer generates such a
+ * param itself — so strip any of these params before the src reaches the
+ * page. `allow="autoplay"` (a permissions-policy grant, not a directive) is
+ * left alone; without a triggering attribute or query param it does nothing.
+ */
+const AUTOPLAY_SRC_TAGS = new Set(['iframe', 'audio', 'video', 'source']);
+const AUTOPLAY_QUERY_PARAMS = ['autoplay', 'auto_play', 'autostart', 'auto-play', 'auto-start'];
+
+DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+    if (data.attrName !== 'src' || !data.attrValue) return;
+    if (!AUTOPLAY_SRC_TAGS.has(node.nodeName.toLowerCase())) return;
+    if (!/^https?:\/\//i.test(data.attrValue)) return;
+    try {
+        const url = new URL(data.attrValue);
+        let changed = false;
+        for (const param of AUTOPLAY_QUERY_PARAMS) {
+            if (url.searchParams.has(param)) {
+                url.searchParams.delete(param);
+                changed = true;
+            }
+        }
+        if (changed) data.attrValue = url.toString();
     } catch {
         // Unparseable src — leave it to ALLOWED_URI_REGEXP.
     }

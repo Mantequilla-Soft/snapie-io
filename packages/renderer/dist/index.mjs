@@ -106,7 +106,6 @@ var DOMPURIFY_CONFIG = {
     "muted",
     "preload",
     "loading",
-    "autoplay",
     "loop",
     "type",
     "allowfullscreen",
@@ -158,6 +157,25 @@ DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
     if (PRIVATE_HOSTNAME_PATTERNS.some((re) => re.test(hostname))) {
       data.keepAttr = false;
     }
+  } catch {
+  }
+});
+var AUTOPLAY_SRC_TAGS = /* @__PURE__ */ new Set(["iframe", "audio", "video", "source"]);
+var AUTOPLAY_QUERY_PARAMS = ["autoplay", "auto_play", "autostart", "auto-play", "auto-start"];
+DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
+  if (data.attrName !== "src" || !data.attrValue) return;
+  if (!AUTOPLAY_SRC_TAGS.has(node.nodeName.toLowerCase())) return;
+  if (!/^https?:\/\//i.test(data.attrValue)) return;
+  try {
+    const url = new URL(data.attrValue);
+    let changed = false;
+    for (const param of AUTOPLAY_QUERY_PARAMS) {
+      if (url.searchParams.has(param)) {
+        url.searchParams.delete(param);
+        changed = true;
+      }
+    }
+    if (changed) data.attrValue = url.toString();
   } catch {
   }
 });

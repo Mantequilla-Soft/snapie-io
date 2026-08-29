@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-08-29',
     items: [
       { type: 'fix', text: 'Fixed a post\'s comment section sometimes not scrolling far enough on mobile to reach the last comment\'s reply button — most noticeable when a post had just one comment, since that put the reply button right at the point the bottom nav bar was quietly covering it, with no way to scroll further to reveal it.' },
+      { type: 'improvement', text: 'A pasted SoundCloud, Spotify, or other embed can no longer auto-play — even if the embed code you copied had autoplay turned on, Snapie now strips that out so playback always waits for a visitor to press play themselves.' },
     ],
   },
   {
