@@ -5,16 +5,9 @@
  */
 
 import HiveClient from '@/lib/hive/hiveclient';
-import { withTimeout } from '@/lib/utils/withTimeout';
 
 const STORAGE_KEY_PREFIX = 'hive_muted_accounts';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-// See withTimeout's doc comment: a stalled HiveClient call in the browser
-// can hang forever. Without this, that hang would sit in `this.loading`
-// below permanently — poisoning getMutedList for every future caller across
-// the whole app (not just this fetch), since the in-flight promise is
-// cached and handed to everyone until it settles.
-const RPC_TIMEOUT_MS = 45000;
 
 interface MutedListCache {
   accounts: Set<string>;
@@ -42,11 +35,7 @@ class MutedAccountsManager {
     const community = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
     if (!community) return [];
 
-    const result = await withTimeout(
-      HiveClient.call('bridge', 'list_community_roles', { community, limit: 1000 }),
-      RPC_TIMEOUT_MS,
-      'Timed out fetching community muted list'
-    );
+    const result = await HiveClient.call('bridge', 'list_community_roles', { community, limit: 1000 });
 
     if (result && Array.isArray(result)) {
       return result
@@ -60,11 +49,7 @@ class MutedAccountsManager {
    * Fetch a user's personal muted list via bridge.get_follow_list
    */
   private async fetchUserMutedList(username: string): Promise<string[]> {
-    const result = await withTimeout(
-      HiveClient.call('bridge', 'get_follow_list', { observer: username, follow_type: 'muted' }),
-      RPC_TIMEOUT_MS,
-      'Timed out fetching user muted list'
-    );
+    const result = await HiveClient.call('bridge', 'get_follow_list', { observer: username, follow_type: 'muted' });
 
     if (result && Array.isArray(result)) {
       return result.map((entry: { name: string }) => entry.name);
