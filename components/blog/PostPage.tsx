@@ -117,6 +117,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
                 setReply={setReply}
                 post={true}
                 data={commentsData}
+                scrollableTargetId="app-scroll-container"
               />
             </>
           ) : !isEmbedMode && conversation ? (

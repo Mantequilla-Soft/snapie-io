@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed a post\'s comment section sometimes not scrolling far enough on mobile to reach the last comment\'s reply button — most noticeable when a post had just one comment, since that put the reply button right at the point the bottom nav bar was quietly covering it, with no way to scroll further to reveal it.' },
       { type: 'improvement', text: 'A pasted SoundCloud, Spotify, or other embed can no longer auto-play — even if the embed code you copied had autoplay turned on, Snapie now strips that out so playback always waits for a visitor to press play themselves.' },
       { type: 'fix', text: 'Fixed the Snaps feed silently stopping mid-scroll after a tab had been open a long time (backgrounded, laptop sleep, a flaky connection) — a stalled request could get stuck forever instead of failing, quietly locking up further loading with nothing to retry it. It now gives up on a stuck request after a while so scrolling can pick back up.' },
+      { type: 'improvement', text: 'The Snaps feed, a post\'s comments, and a profile\'s Snaps tab no longer keep every scrolled-past item sitting in memory forever — only what\'s actually near your screen stays loaded, which keeps long scrolling sessions fast instead of gradually bogging down. Also fixed a post\'s own comments not loading more on scroll in some cases.' },
     ],
   },
   {

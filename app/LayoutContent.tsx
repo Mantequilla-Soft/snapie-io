@@ -134,6 +134,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
           )}
           <Box
+            id="app-scroll-container"
             flex="1"
             h="100dvh"
             overflowY="auto"
