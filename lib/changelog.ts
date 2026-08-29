@@ -32,6 +32,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'improvement', text: 'A pasted SoundCloud, Spotify, or other embed can no longer auto-play — even if the embed code you copied had autoplay turned on, Snapie now strips that out so playback always waits for a visitor to press play themselves.' },
       { type: 'fix', text: 'Fixed the Snaps feed silently stopping mid-scroll after a tab had been open a long time (backgrounded, laptop sleep, a flaky connection) — a stalled request could get stuck forever instead of failing, quietly locking up further loading with nothing to retry it. It now gives up on a stuck request after a while so scrolling can pick back up.' },
       { type: 'improvement', text: 'The Snaps feed, a post\'s comments, and a profile\'s Snaps tab no longer keep every scrolled-past item sitting in memory forever — only what\'s actually near your screen stays loaded, which keeps long scrolling sessions fast instead of gradually bogging down. Also fixed a post\'s own comments not loading more on scroll in some cases.' },
+      { type: 'fix', text: 'Fixed the payout next to a vote sometimes staying stuck at $0.00 even though the heart showed as voted — the two were computed independently, and if it happened to vote before some pricing data had finished loading in the background, the payout estimate silently gave up instead of waiting for it.' },
     ],
   },
   {

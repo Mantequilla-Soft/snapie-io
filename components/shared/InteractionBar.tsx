@@ -150,7 +150,7 @@ export default function InteractionBar({
         setVoted(true);
         if (!wasVoted) {
             setVoteCount(prev => prev + 1);
-            setOptimisticDeltaHBD(calculateDelta(sliderValue));
+            setOptimisticDeltaHBD(await calculateDelta(sliderValue));
         }
         setShowSlider(false);
 

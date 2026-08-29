@@ -448,7 +448,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
                                 initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
                                 initialVoteCount={comment.active_votes?.length || 0}
                                 onVote={handleVote}
-                                onVoteOptimistic={(weight) => setOptimisticDeltaHBD(calculateDelta(weight))}
+                                onVoteOptimistic={async (weight) => setOptimisticDeltaHBD(await calculateDelta(weight))}
                                 onVoteRollback={() => setOptimisticDeltaHBD(0)}
                             />
                             <HStack spacing={{ base: 4, md: 6 }}>

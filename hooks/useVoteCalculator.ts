@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import HiveClient from '@/lib/hive/hiveclient';
 import { calculateVoteValue } from '@/lib/hive/voteValueCalculator';
 
@@ -49,25 +48,26 @@ async function fetchAccount(username: string): Promise<any | null> {
  *
  * Data is fetched once per session and shared across all callers via
  * module-level caches, so mounting many vote-capable components is cheap.
+ *
+ * `calculateDelta` is async and awaits the cached fetches directly, rather
+ * than reading them off React state populated by a fire-and-forget effect —
+ * that state could still be null at the moment of a vote (an effect that
+ * hasn't resolved yet, or failed and was silently swallowed), permanently
+ * showing a $0.00 optimistic payout next to an already-filled heart, since
+ * the two are otherwise unrelated pieces of state. Awaiting the promise
+ * directly means a vote right after page load waits the (usually
+ * sub-second, already-in-flight) fetch instead of silently giving up.
  */
 export function useVoteCalculator(username: string | null) {
-  const [globals, setGlobals] = useState<HiveGlobals | null>(globalsCache);
-  const [account, setAccount] = useState<any>(
-    username ? (accountCache.get(username) ?? null) : null
-  );
-
-  useEffect(() => {
-    fetchGlobals().then(setGlobals).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!username) return;
-    fetchAccount(username).then(setAccount).catch(() => {});
-  }, [username]);
-
-  function calculateDelta(weight: number): number {
-    if (!globals || !account) return 0;
-    return calculateVoteValue(account, globals.rewardFund, weight, globals.medianPrice);
+  async function calculateDelta(weight: number): Promise<number> {
+    if (!username) return 0;
+    try {
+      const [globals, account] = await Promise.all([fetchGlobals(), fetchAccount(username)]);
+      if (!account) return 0;
+      return calculateVoteValue(account, globals.rewardFund, weight, globals.medianPrice);
+    } catch {
+      return 0;
+    }
   }
 
   return { calculateDelta };
