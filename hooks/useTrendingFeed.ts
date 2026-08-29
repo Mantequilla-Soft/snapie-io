@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExtendedComment } from './useComments';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
+import { getPost } from '@/lib/hive/client-functions';
 
 interface UseTrendingFeedProps {
     enabled: boolean;
@@ -120,5 +121,31 @@ export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQue
         fetchPage(myGeneration, true);
     }, [fetchPage]);
 
-    return { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh };
+    // Same helper as useSnaps.ts/useBlendedFeed.ts/useProfileSnaps.ts, same
+    // reason: a candidate handed back by the discovery pool is never
+    // refetched once it's in `rawComments`, so its vote/payout data goes
+    // stale the moment anyone votes on it after the fact. Updates
+    // `rawComments` (the source of truth `comments` is derived from above),
+    // so the mute-tag filter re-runs on the fresh data automatically.
+    const refreshComment = useCallback(async (author: string, permlink: string) => {
+        try {
+            const fresh = await getPost(author, permlink);
+            setRawComments(prev => prev.map(c =>
+                c.author === author && c.permlink === permlink
+                    ? {
+                        ...c,
+                        active_votes: fresh.active_votes,
+                        pending_payout_value: fresh.pending_payout_value,
+                        total_payout_value: fresh.total_payout_value,
+                        curator_payout_value: fresh.curator_payout_value,
+                        net_rshares: fresh.net_rshares,
+                    }
+                    : c
+            ));
+        } catch {
+            // Leave the optimistic value in place on failure.
+        }
+    }, []);
+
+    return { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment };
 }

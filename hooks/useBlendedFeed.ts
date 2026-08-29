@@ -4,6 +4,7 @@ import { ExtendedComment } from './useComments';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useUserSettings } from './useUserSettings';
+import { getPost } from '@/lib/hive/client-functions';
 
 interface FeedApiItem {
   source: 'snap' | 'wave';
@@ -136,5 +137,31 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     setFetchTrigger(prev => prev + 1);
   };
 
-  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, refresh };
+  // Same helper as useSnaps.ts/useProfileSnaps.ts, same reason: an item
+  // handed back by the sidecar is never refetched once it's in `comments`,
+  // so its vote/payout data goes stale the moment anyone votes on it after
+  // the fact. `get_content` works the same for a 'wave' item as a 'snap'
+  // one — both are just a Hive author/permlink pair underneath the app's
+  // own source-type label.
+  const refreshComment = useCallback(async (author: string, permlink: string) => {
+    try {
+      const fresh = await getPost(author, permlink);
+      setComments(prev => prev.map(c =>
+        c.author === author && c.permlink === permlink
+          ? {
+              ...c,
+              active_votes: fresh.active_votes,
+              pending_payout_value: fresh.pending_payout_value,
+              total_payout_value: fresh.total_payout_value,
+              curator_payout_value: fresh.curator_payout_value,
+              net_rshares: fresh.net_rshares,
+            }
+          : c
+      ));
+    } catch {
+      // Leave the optimistic value in place on failure.
+    }
+  }, []);
+
+  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, refresh, refreshComment };
 };
