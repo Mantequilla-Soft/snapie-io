@@ -6,6 +6,13 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { usePatronStatus } from './usePatronStatus';
 import { useUserSettings } from './useUserSettings';
+import { withTimeout } from '@/lib/utils/withTimeout';
+
+// Longer than /api/hive-rpc's own worst-case (up to 6 nodes x 9s each, plus
+// a beacon lookup) so a legitimately slow multi-node fallback isn't cut off
+// early — this is a hang watchdog, not a normal request timeout. See
+// withTimeout's doc comment for why one is needed at all in the browser.
+const RPC_TIMEOUT_MS = 45000;
 
 interface lastContainerInfo {
   permlink: string;
@@ -161,17 +168,21 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     let date = lastContainerRef.current?.date || new Date().toISOString();
 
     // Fetch muted list once before the loop
-    const mutedList = await mutedAccountsManager.getMutedList(username);
+    const mutedList = await withTimeout(mutedAccountsManager.getMutedList(username), RPC_TIMEOUT_MS, 'Timed out fetching muted list');
 
     while (allFilteredComments.length < pageMinSize && hasMoreData && containersScanned < MAX_CONTAINERS_PER_FETCH) {
       if (isCancelled()) break;
 
-      const result = await HiveClient.database.call('get_discussions_by_author_before_date', [
-        author,
-        permlink,
-        date,
-        limit,
-      ]);
+      const result = await withTimeout(
+        HiveClient.database.call('get_discussions_by_author_before_date', [
+          author,
+          permlink,
+          date,
+          limit,
+        ]),
+        RPC_TIMEOUT_MS,
+        'Timed out fetching snap containers'
+      );
 
       if (!result.length) {
         hasMoreData = false;
@@ -182,7 +193,11 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
 
       const allReplies = await Promise.all(
         result.map((resultItem: any) =>
-          HiveClient.database.call("get_content_replies", [author, resultItem.permlink])
+          withTimeout(
+            HiveClient.database.call("get_content_replies", [author, resultItem.permlink]),
+            RPC_TIMEOUT_MS,
+            'Timed out fetching snap replies'
+          )
         )
       );
 

@@ -126,6 +126,45 @@ describe('mutedAccountsManager.getMutedList', () => {
   });
 });
 
+describe('mutedAccountsManager.getMutedList — hung request recovery', () => {
+  // A stalled HiveClient call in the browser can hang forever (see
+  // withTimeout's doc comment) — without the RPC_TIMEOUT_MS watchdog, the
+  // in-flight promise cached in `this.loading` would never settle, and every
+  // future caller (app-wide, since this is a singleton) would be handed that
+  // same permanently-pending promise. This confirms the watchdog actually
+  // fires and the manager recovers afterward instead of staying poisoned.
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('recovers instead of hanging forever when a call never settles', async () => {
+    const manager = await freshManager();
+    callMock.mockImplementationOnce(() => new Promise(() => {})); // never resolves/rejects
+
+    const pending = manager.getMutedList('meno');
+    await vi.advanceTimersByTimeAsync(45000);
+    const list = await pending;
+
+    // No stale cache to fall back to, so the timeout resolves to an empty set
+    // rather than hanging — the key behavior being tested.
+    expect(list.size).toBe(0);
+  });
+
+  it('does not leave the in-flight cache permanently poisoned after a timeout', async () => {
+    const manager = await freshManager();
+    callMock.mockImplementationOnce(() => new Promise(() => {})); // hangs once
+
+    const first = manager.getMutedList('meno');
+    await vi.advanceTimersByTimeAsync(45000);
+    await first;
+
+    // A subsequent call must not be handed the same dead in-flight promise —
+    // it should retry and succeed with the mock's normal (resolving) behavior.
+    const second = await manager.getMutedList('meno');
+    expect(second.has('spambot')).toBe(true);
+    expect(second.has('personalfoe')).toBe(true);
+  });
+});
+
 describe('mutedAccountsManager.isMuted', () => {
   it('performs a case-insensitive lookup', async () => {
     const manager = await freshManager();
