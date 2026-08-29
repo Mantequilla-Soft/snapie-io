@@ -1,6 +1,7 @@
 import HiveClient from '@/lib/hive/hiveclient';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExtendedComment } from './useComments';
+import { getPost } from '@/lib/hive/client-functions';
 
 const PAGE_SIZE = 10;   // snaps to collect before yielding a page
 const FETCH_LIMIT = 20; // comments to request per API call
@@ -112,5 +113,30 @@ export function useProfileSnaps(username: string) {
     setPage(p => p + 1);
   };
 
-  return { comments: snaps, isLoading, hasMore, loadNextPage, refresh };
+  // See the identical helper in useSnaps.ts for why this exists — snaps
+  // fetched into `snaps` above are never revisited, so votes cast by anyone
+  // after a snap was first loaded never show up until refresh() (a full
+  // reset). Reconciles one item's optimistic vote against the real settled
+  // value after casting a vote, without disturbing the rest of the list.
+  const refreshComment = useCallback(async (author: string, permlink: string) => {
+    try {
+      const fresh = await getPost(author, permlink);
+      setSnaps(prev => prev.map(c =>
+        c.author === author && c.permlink === permlink
+          ? {
+              ...c,
+              active_votes: fresh.active_votes,
+              pending_payout_value: fresh.pending_payout_value,
+              total_payout_value: fresh.total_payout_value,
+              curator_payout_value: fresh.curator_payout_value,
+              net_rshares: fresh.net_rshares,
+            }
+          : c
+      ));
+    } catch {
+      // Leave the optimistic value in place on failure.
+    }
+  }, []);
+
+  return { comments: snaps, isLoading, hasMore, loadNextPage, refresh, refreshComment };
 }

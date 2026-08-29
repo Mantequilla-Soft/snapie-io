@@ -1,7 +1,7 @@
 import HiveClient from '@/lib/hive/hiveclient';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ExtendedComment } from './useComments';
-import { getFollowing } from '@/lib/hive/client-functions';
+import { getFollowing, getPost } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { usePatronStatus } from './usePatronStatus';
@@ -316,5 +316,36 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     setFetchTrigger(prev => prev + 1);
   };
 
-  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, currentPage, refresh };
+  // A comment fetched into `comments` above is never revisited by the walk
+  // above — the pagination cursor only moves forward, and the dedup-by-
+  // permlink check in the fetch effect drops any later re-fetch of the same
+  // item. So its active_votes/payout stay frozen at whatever they were the
+  // moment it was first loaded, even as real votes (from anyone) land on it
+  // afterward — confirmed live against chain data, not a display bug. Called
+  // after casting a vote to reconcile the optimistic guess with the real
+  // settled value; incidentally also picks up any other concurrent votes on
+  // the same item. Leaves the existing (optimistic) data in place on
+  // failure rather than blanking it out.
+  const refreshComment = useCallback(async (author: string, permlink: string) => {
+    try {
+      const fresh = await getPost(author, permlink);
+      setComments(prev => prev.map(c =>
+        c.author === author && c.permlink === permlink
+          ? {
+              ...c,
+              active_votes: fresh.active_votes,
+              pending_payout_value: fresh.pending_payout_value,
+              total_payout_value: fresh.total_payout_value,
+              curator_payout_value: fresh.curator_payout_value,
+              net_rshares: fresh.net_rshares,
+            }
+          : c
+      ));
+    } catch {
+      // Leave the optimistic value in place — same fallback spirit as
+      // calculateDelta's catch in useVoteCalculator.ts.
+    }
+  }, []);
+
+  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, currentPage, refresh, refreshComment };
 };

@@ -41,10 +41,14 @@ interface SnapProps {
     onOpen: () => void;
     setReply: (comment: Comment) => void;
     setConversation?: (conversation: Comment) => void;
+    /** Reconciles this comment's optimistic vote data against the real
+     *  settled chain value — see useSnaps.ts/useProfileSnaps.ts for why.
+     *  Optional since not every data source has one yet. */
+    refreshComment?: (author: string, permlink: string) => Promise<void> | void;
     level?: number; // Added level for indentation
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0 }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -147,6 +151,19 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, level = 0 }: Sn
         // this is safe even if that ever changes.
         if (voteResult.success) {
             awardPoints('vote', user, comment.author, comment.permlink);
+
+            // optimisticDeltaHBD is a guess made before the vote even broadcast
+            // (see useVoteCalculator.ts) — reconcile it against the real settled
+            // value once the chain has had a moment to catch up, same delay
+            // convention as SnapList.tsx's handleNewComment. This also happens
+            // to pick up any other concurrent votes on this comment, since
+            // nothing else ever refreshes it once fetched (see useSnaps.ts).
+            // Zero the optimistic delta once the real data lands so the two
+            // don't stack — the fresh comment already includes this vote.
+            setTimeout(async () => {
+                await refreshComment?.(comment.author, comment.permlink);
+                setOptimisticDeltaHBD(0);
+            }, 3000);
         }
 
         return voteResult;

@@ -3,7 +3,8 @@
 import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
 import RightSidebar from '@/components/layout/RightSideBar';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import ScrollToTopButton from '@/components/homepage/ScrollToTopButton';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import { ExtendedComment } from '@/hooks/useComments';
 import Conversation from '@/components/homepage/Conversation';
@@ -238,6 +239,14 @@ export default function Home() {
     return set;
   }, [activeFeedData.comments, user]);
 
+  // `activeFeedData`'s identity changes on every render (it's a plain
+  // object literal from whichever hook is currently active, not memoized) —
+  // the effect below only runs once ([] deps), so it must read the latest
+  // value through a ref rather than closing over it directly, or it'd keep
+  // calling refresh() on the very first render's (possibly stale) feed.
+  const activeFeedDataRef = useRef(activeFeedData);
+  activeFeedDataRef.current = activeFeedData;
+
   // Clicking the Home button while already on `/` dispatches this event so the
   // nav components (which live outside this component tree) can trigger a reset
   // without needing direct access to our state setters.
@@ -245,6 +254,10 @@ export default function Home() {
     const handler = () => {
       setActiveFilter('all');
       setConversation(undefined);
+      // Previously scroll-and-reset only — clicking Home while already home
+      // should also pull current chain data, not just reset the UI. Same
+      // full-reset refresh() already used by handleViewNewSnaps below.
+      activeFeedDataRef.current.refresh?.();
       document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
     };
     window.addEventListener('snapie:go-home', handler);
@@ -276,6 +289,29 @@ export default function Home() {
       handleFilterChange('all');
     }
     acknowledge();
+    document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Floating "back to top" button — appears once scrolled past roughly one
+  // screen, matching RightSideBar.tsx's handleScroll pattern (plain
+  // addEventListener, no debounce needed at this frequency).
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const handleScrollTopVisibility = useCallback(() => {
+    const el = document.getElementById('scrollableDiv');
+    if (el) setShowScrollTop(el.scrollTop > el.clientHeight);
+  }, []);
+  useEffect(() => {
+    const el = document.getElementById('scrollableDiv');
+    if (!el) return;
+    el.addEventListener('scroll', handleScrollTopVisibility);
+    return () => el.removeEventListener('scroll', handleScrollTopVisibility);
+  }, [handleScrollTopVisibility]);
+
+  const handleScrollTopClick = () => {
+    // Same combined "scroll to top + pull fresh data" behavior as
+    // handleViewNewSnaps/the Home-click handler above — clicking a
+    // dedicated "start over" control already implies a reload is expected.
+    activeFeedDataRef.current.refresh?.();
     document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -343,6 +379,7 @@ export default function Home() {
       </Box>
       <RightSidebar engagedAuthors={engagedAuthors} />
       {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
+      <ScrollToTopButton visible={showScrollTop && !conversation} onClick={handleScrollTopClick} />
     </Flex>
   );
 }

@@ -83,6 +83,11 @@ interface InfiniteScrollData {
    *  so the empty state can't rely on `!hasMore` alone anymore. */
   hasFetchedOnce?: boolean;
   refresh?: () => void; // Function to refresh the feed
+  /** Reconciles one comment's optimistic vote data against the real settled
+   *  chain value — see the matching helper in useSnaps.ts/useProfileSnaps.ts
+   *  for why this exists (a comment is otherwise never revisited once
+   *  fetched). Optional since useComments.ts doesn't have one yet. */
+  refreshComment?: (author: string, permlink: string) => void;
 }
 
 export default function SnapList(
@@ -99,7 +104,7 @@ export default function SnapList(
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
 }: SnapListProps) {
-  const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh } = data
+  const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
   // fall back to the previous "!hasMore means done" inference for them.
   const fetchComplete = hasFetchedOnce ?? !hasMore;
@@ -202,6 +207,7 @@ export default function SnapList(
             comment={comment}
             onOpen={onOpen}
             setReply={setReply}
+            refreshComment={refreshComment}
             {...(!post ? { setConversation } : {})}
           />
         )}
