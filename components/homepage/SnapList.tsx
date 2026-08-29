@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
-import { Virtuoso } from 'react-virtuoso';
+import { Virtuoso, ListRange } from 'react-virtuoso';
 import { Box, Button, HStack, Spinner, Text } from '@chakra-ui/react';
 import Snap from './Snap';
 import { ExtendedComment, useComments } from '@/hooks/useComments';
@@ -151,6 +151,43 @@ export default function SnapList(
     ? interleaveCandidates(comments, discoveryItems, discoveryEveryN)
     : comments;
 
+  // Post-vote reconciliation (Snap.tsx's handleVote) only ever refreshes a
+  // comment YOU voted on — the far more common case is just scrolling past
+  // one that already has stale data because someone ELSE voted on it since
+  // it was first fetched (confirmed live: a real Snap with votes sitting at
+  // $0.000, never interacted with, just scrolled past). Reconcile each Snap
+  // once as it actually enters the viewport. `rangeChanged` reports the
+  // strictly-visible range, not the wider overscan={800} buffer Virtuoso
+  // keeps mounted — deliberately not refreshing everything overscanned,
+  // only what's actually been seen. `refreshedRef` is a plain session-
+  // lifetime set (no existing per-item timestamp/cooldown tracking to build
+  // on, and one refresh per visit is enough — a real time-based cooldown
+  // would be solving a problem nobody asked for).
+  const refreshedRef = useRef<Set<string>>(new Set());
+  const handleRangeChanged = useCallback(({ startIndex, endIndex }: ListRange) => {
+    if (!refreshComment) return;
+    for (let i = startIndex; i <= endIndex; i++) {
+      const c = displayComments[i];
+      if (!c) continue;
+      const key = `${c.author}/${c.permlink}`;
+      if (refreshedRef.current.has(key)) continue;
+      refreshedRef.current.add(key);
+      refreshComment(c.author, c.permlink);
+    }
+  }, [displayComments, refreshComment]);
+
+  // Confirmed empirically: Virtuoso's rangeChanged never fires until an
+  // actual scroll happens — the first screenful (exactly the "just opened
+  // the feed, haven't scrolled yet" case the whole feature is for) would
+  // otherwise never get reconciled. Bootstrap it once, directly, the same
+  // way a real scroll-triggered call would.
+  const bootstrappedRef = useRef(false);
+  useEffect(() => {
+    if (bootstrappedRef.current || displayComments.length === 0) return;
+    bootstrappedRef.current = true;
+    handleRangeChanged({ startIndex: 0, endIndex: Math.min(7, displayComments.length - 1) });
+  }, [displayComments, handleRangeChanged]);
+
   if (isLoading && comments.length === 0) {
     return (
       <Box textAlign="center" mt={4}>
@@ -200,6 +237,7 @@ export default function SnapList(
         data={displayComments}
         computeItemKey={(_index, comment) => comment.permlink}
         endReached={loadNextPage}
+        rangeChanged={handleRangeChanged}
         overscan={800}
         components={virtuosoComponents}
         itemContent={(_index, comment: ExtendedComment) => (
