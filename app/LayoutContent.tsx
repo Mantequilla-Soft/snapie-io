@@ -112,33 +112,55 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   // On mobile, pad content away from the fixed header and tab bar.
   // Skip padding on shorts (full-screen immersive) and embed/popout modes.
+  // The tab bar itself is 60px, but on notched devices its own safe-area
+  // padding (see BottomTabBar) pushes its actual top edge higher than that —
+  // so content needs to clear 60px + the safe-area inset, plus a bit of
+  // breathing room, or the last bit of a short page (e.g. a post's only
+  // comment) ends up permanently hidden behind the fixed bar with nowhere
+  // left to scroll to reveal it.
   const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: '56px', sm: '0' } : undefined;
-  const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: '64px', sm: '0' } : undefined;
+  const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(76px + env(safe-area-inset-bottom))', sm: '0' } : undefined;
 
   return (
     <Box
       bg="background"
       color="text"
-      minH="100vh"
+      minH="100dvh"
       bgGradient={baseGradient}
     >
-      <Box maxW="1320px" mx="auto" h="100vh">
-        <Flex direction={{ base: 'column', sm: 'row' }} h="100vh">
+      <Box maxW="1320px" mx="auto" h="100dvh">
+        <Flex direction={{ base: 'column', sm: 'row' }} h="100dvh">
           {!isEmbedMode && !isChatPopoutMode && (
             <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
           )}
           <Box
             flex="1"
-            h="100vh"
+            h="100dvh"
             overflowY="auto"
-            display="flex"
-            flexDirection="column"
             pt={mobilePaddingTop}
-            pb={mobilePaddingBottom}
           >
+            {/* Deliberately NOT display=flex/flexDirection=column: this box's
+                children (EmancipationBanner, the routed page, the spacer
+                below) were flex items of a fixed-height flex container, so
+                flexbox's default shrink resolved the routed page's box to
+                ~viewport height regardless of its actual content — any
+                overflow was still painted (visible), but anything placed
+                after it in flex order landed layered inside that overflow
+                instead of truly after it, so it never extended scrollHeight.
+                Plain block flow lets each child's real content height push
+                the next one down, which the spacer below depends on. */}
             <EmancipationBanner />
             {!isChatPopoutMode && children}
             <NeedsWalletHandler />
+            {/* A real element, not padding-bottom on the scroll container —
+                some browsers don't extend an overflow:auto element's
+                scrollHeight to include its own trailing padding, so a page
+                whose content ends close to one viewport tall (e.g. a post
+                with a single comment) could never actually scroll far enough
+                to clear the fixed BottomTabBar. */}
+            {mobilePaddingBottom && (
+              <Box h={mobilePaddingBottom} aria-hidden />
+            )}
           </Box>
         </Flex>
       </Box>

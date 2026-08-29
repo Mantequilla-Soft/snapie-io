@@ -47,7 +47,8 @@ export default function BottomTabBar() {
       bottom={0}
       left={0}
       right={0}
-      h="60px"
+      h="calc(60px + env(safe-area-inset-bottom))"
+      pb="env(safe-area-inset-bottom)"
       bg="surface"
       borderTop="1px solid"
       borderTopColor="surfaceBorder"
@@ -57,7 +58,7 @@ export default function BottomTabBar() {
       zIndex={999}
       boxShadow="0 -4px 24px rgba(0,0,0,0.4)"
     >
-      <Flex w="full" h="full" align="center">
+      <Flex w="full" h="60px" align="center">
         {/* Home */}
         <Tab href="/" icon={FiHome} label="Home" active={isActive('/')} onClick={handleHomeClick} />
 

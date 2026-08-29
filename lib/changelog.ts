@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-29',
+    date: '2026-08-29',
+    items: [
+      { type: 'fix', text: 'Fixed a post\'s comment section sometimes not scrolling far enough on mobile to reach the last comment\'s reply button — most noticeable when a post had just one comment, since that put the reply button right at the point the bottom nav bar was quietly covering it, with no way to scroll further to reveal it.' },
+    ],
+  },
+  {
     id: '2026-08-23',
     date: '2026-08-23',
     items: [
