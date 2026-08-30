@@ -29,8 +29,8 @@ const IS_BROWSER = typeof window !== "undefined"
 // code lives in a catch block that's never reached. HiveClient wraps every
 // call below with a timeout so a stall always eventually rejects instead of
 // hanging whatever awaited it (and, transitively, any lock guarding that
-// await) forever. Longer than /api/hive-rpc's own worst case — 6 nodes x
-// AbortSignal.timeout(9000) = 54s, plus up to 4s for a stale beacon-node
+// await) forever. Longer than /api/hive-rpc's own worst case — nodes raced
+// in parallel with a shared 9s budget, plus up to 4s for a stale beacon-node
 // refresh — so a legitimately slow multi-node fallback isn't cut off early;
 // this is a hang watchdog, not a normal request timeout.
 export const HIVE_RPC_TIMEOUT_MS = 65000

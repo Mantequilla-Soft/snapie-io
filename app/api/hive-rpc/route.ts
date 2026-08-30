@@ -58,24 +58,35 @@ export async function POST(request: NextRequest) {
 
   const nodes = await getNodes()
 
-  for (const node of nodes.slice(0, 6)) {
-    try {
-      const res = await fetch(node, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(9000),
-      })
-      if (!res.ok) continue
-      const data: unknown = await res.json()
-      return NextResponse.json(data)
-    } catch {
-      // Node unreachable or timed out — try next
-    }
-  }
+  // Race all candidate nodes instead of trying them one at a time — same
+  // result (first successful response wins), but worst case drops from
+  // ~54s (6 nodes x 9s sequential) to ~9s. The shared controller cancels
+  // the losing requests as soon as one succeeds, instead of leaving them
+  // to run to completion in the background.
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 9000)
 
-  return NextResponse.json(
-    { jsonrpc: '2.0', error: { code: -32603, message: 'All Hive nodes unreachable' }, id: null },
-    { status: 503 }
-  )
+  const attempts = nodes.slice(0, 6).map(async (node) => {
+    const res = await fetch(node, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`${node} responded ${res.status}`)
+    return (await res.json()) as unknown
+  })
+
+  try {
+    const data = await Promise.any(attempts)
+    return NextResponse.json(data)
+  } catch {
+    return NextResponse.json(
+      { jsonrpc: '2.0', error: { code: -32603, message: 'All Hive nodes unreachable' }, id: null },
+      { status: 503 }
+    )
+  } finally {
+    controller.abort()
+    clearTimeout(timeoutId)
+  }
 }

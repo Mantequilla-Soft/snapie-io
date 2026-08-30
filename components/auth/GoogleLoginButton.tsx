@@ -58,6 +58,10 @@ export default function GoogleLoginButton({ onCredential, width = 368 }: Props) 
           client_id: config.googleClientId,
           callback: (res: { credential: string }) => onCredentialRef.current(res.credential),
           auto_select: false,
+          // Safari's ITP blocks the third-party storage GIS otherwise probes
+          // for on accounts.google.com, which makes it retry/hang. This flag
+          // tells GIS to use its ITP-compatible flow instead.
+          itp_support: true,
         })
 
         if (containerRef.current) {
@@ -80,7 +84,15 @@ export default function GoogleLoginButton({ onCredential, width = 368 }: Props) 
     }
 
     init()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      // Tear down any pending GIS prompt/session-check (e.g. stuck retrying
+      // under Safari's ITP) so it doesn't keep running after this view is
+      // swapped out for account-setup.
+      try {
+        ;(window as any).google?.accounts?.id?.cancel()
+      } catch {}
+    }
   }, [width])
 
   if (failed) return null
