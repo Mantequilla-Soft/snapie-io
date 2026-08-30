@@ -163,10 +163,26 @@ export default function SnapList(
   // lifetime set (no existing per-item timestamp/cooldown tracking to build
   // on, and one refresh per visit is enough — a real time-based cooldown
   // would be solving a problem nobody asked for).
+  //
+  // Regression fixed here: firing refreshComment directly from every
+  // rangeChanged tick (as this originally did) calls setComments once per
+  // newly-visible item, each on its own network-resolution timer — on
+  // mobile, a burst of these landing *while the user's finger is still on
+  // the screen* was producing a new `data` array reference for Virtuoso
+  // mid-gesture, repeatedly, which fought the browser's own scroll physics
+  // badly enough that scrolling past the first screenful became effectively
+  // impossible. Fix: only ever resolve pending refreshes once Virtuoso's own
+  // `isScrolling` reports the gesture has settled — rangeChanged during an
+  // active scroll just records the latest range without touching state.
   const refreshedRef = useRef<Set<string>>(new Set());
-  const handleRangeChanged = useCallback(({ startIndex, endIndex }: ListRange) => {
-    if (!refreshComment) return;
-    for (let i = startIndex; i <= endIndex; i++) {
+  const pendingRangeRef = useRef<ListRange | null>(null);
+  const isScrollingRef = useRef(false);
+
+  const flushPendingRange = useCallback(() => {
+    const range = pendingRangeRef.current;
+    pendingRangeRef.current = null;
+    if (!range || !refreshComment) return;
+    for (let i = range.startIndex; i <= range.endIndex; i++) {
       const c = displayComments[i];
       if (!c) continue;
       const key = `${c.author}/${c.permlink}`;
@@ -175,6 +191,19 @@ export default function SnapList(
       refreshComment(c.author, c.permlink);
     }
   }, [displayComments, refreshComment]);
+
+  const handleRangeChanged = useCallback((range: ListRange) => {
+    if (!refreshComment) return;
+    pendingRangeRef.current = range;
+    // Not mid-gesture (e.g. the mount bootstrap below, or a programmatic
+    // scroll) — nothing will flip isScrolling false to flush it otherwise.
+    if (!isScrollingRef.current) flushPendingRange();
+  }, [refreshComment, flushPendingRange]);
+
+  const handleIsScrolling = useCallback((scrolling: boolean) => {
+    isScrollingRef.current = scrolling;
+    if (!scrolling) flushPendingRange();
+  }, [flushPendingRange]);
 
   // Confirmed empirically: Virtuoso's rangeChanged never fires until an
   // actual scroll happens — the first screenful (exactly the "just opened
@@ -238,6 +267,7 @@ export default function SnapList(
         computeItemKey={(_index, comment) => comment.permlink}
         endReached={loadNextPage}
         rangeChanged={handleRangeChanged}
+        isScrolling={handleIsScrolling}
         overscan={800}
         components={virtuosoComponents}
         itemContent={(_index, comment: ExtendedComment) => (

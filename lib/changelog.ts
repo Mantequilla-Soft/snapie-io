@@ -35,6 +35,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'Fixed the payout next to a vote sometimes staying stuck at $0.00 even though the heart showed as voted — the two were computed independently, and if it happened to vote before some pricing data had finished loading in the background, the payout estimate silently gave up instead of waiting for it.' },
       { type: 'improvement', text: 'Votes and payouts on the Snaps feed and your profile\'s Snaps tab now catch up to reality: casting a vote quietly re-syncs that Snap with the chain a few seconds later (picking up anyone else\'s votes too), clicking Home while already home pulls fresh data instead of just resetting the view, and a new "back to top" button appears once you\'ve scrolled a while — tap it to jump up and refresh at the same time.' },
       { type: 'fix', text: 'Fixed a Snap sometimes showing votes but a $0.00 payout even when you never voted on it yourself — a Snap now quietly re-syncs with the chain the moment it scrolls into view, not just when you interact with it, so payouts stay accurate as you scroll.' },
+      { type: 'fix', text: 'Fixed the Snaps feed getting stuck a few Snaps in on mobile — scrolling would stall or visibly reload instead of continuing. The just-shipped "re-sync as it scrolls into view" fix above was firing while your finger was still on the screen, fighting the scroll itself. It now waits until scrolling actually stops before re-syncing.' },
     ],
   },
   {
