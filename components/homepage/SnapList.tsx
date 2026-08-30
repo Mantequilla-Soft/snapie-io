@@ -171,14 +171,20 @@ export default function SnapList(
   // the screen* was producing a new `data` array reference for Virtuoso
   // mid-gesture, repeatedly, which fought the browser's own scroll physics
   // badly enough that scrolling past the first screenful became effectively
-  // impossible. Fix: only ever resolve pending refreshes once Virtuoso's own
-  // `isScrolling` reports the gesture has settled — rangeChanged during an
-  // active scroll just records the latest range without touching state.
+  // impossible. Fix: only ever resolve pending refreshes once the gesture
+  // has settled — via Virtuoso's own `isScrolling` callback, or via a short
+  // idle window (below) — rangeChanged during an active scroll just records
+  // the latest range without touching state.
   const refreshedRef = useRef<Set<string>>(new Set());
   const pendingRangeRef = useRef<ListRange | null>(null);
   const isScrollingRef = useRef(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushPendingRange = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
     const range = pendingRangeRef.current;
     pendingRangeRef.current = null;
     if (!range || !refreshComment) return;
@@ -195,15 +201,33 @@ export default function SnapList(
   const handleRangeChanged = useCallback((range: ListRange) => {
     if (!refreshComment) return;
     pendingRangeRef.current = range;
-    // Not mid-gesture (e.g. the mount bootstrap below, or a programmatic
-    // scroll) — nothing will flip isScrolling false to flush it otherwise.
-    if (!isScrollingRef.current) flushPendingRange();
+    if (!isScrollingRef.current) {
+      // Not mid-gesture (e.g. the mount bootstrap below, or a programmatic
+      // scroll) — nothing will flip isScrolling false to flush it otherwise.
+      flushPendingRange();
+      return;
+    }
+    // Still scrolling per Virtuoso, but relying solely on a full stop means
+    // a long continuous scroll session (flick after flick with barely a
+    // pause) can leave everything you've already passed stale until you
+    // finally stop moving entirely. A brief lull — no new items entering
+    // view for a bit — is a safe moment too: it means the visible range
+    // itself has stopped changing, not just that we haven't checked in a
+    // while, so this can't fire mid-motion the way the original bug did.
+    // Every new tick reschedules it, so a genuinely continuous scroll never
+    // lets this timer survive long enough to fire.
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(flushPendingRange, 350);
   }, [refreshComment, flushPendingRange]);
 
   const handleIsScrolling = useCallback((scrolling: boolean) => {
     isScrollingRef.current = scrolling;
     if (!scrolling) flushPendingRange();
   }, [flushPendingRange]);
+
+  useEffect(() => () => {
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+  }, []);
 
   // Confirmed empirically: Virtuoso's rangeChanged never fires until an
   // actual scroll happens — the first screenful (exactly the "just opened
