@@ -25,6 +25,7 @@ import { useUserRelationship } from '@/hooks/useUserRelationship';
 import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
 import { useRouter } from 'next/navigation';
 import { chatService, Conversation } from '@/lib/chat/ChatService';
+import VotersModal from '@/components/shared/VotersModal';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -117,11 +118,13 @@ interface ActionBtnProps {
   onPointerDown?: () => void;
   onPointerUp?: () => void;
   onPointerLeave?: () => void;
+  /** When provided, the count label becomes its own tap target (e.g. to open a voters list) instead of triggering onClick. */
+  onCountClick?: () => void;
 }
 
 function ActionBtn({
   icon, label, count, active, activeColor = 'red.400',
-  onClick, onPointerDown, onPointerUp, onPointerLeave,
+  onClick, onPointerDown, onPointerUp, onPointerLeave, onCountClick,
 }: ActionBtnProps) {
   return (
     <VStack spacing={1}>
@@ -145,7 +148,14 @@ function ActionBtn({
         transition="all 0.15s ease"
       />
       {count !== undefined && (
-        <Text color="white" fontSize="xs" fontWeight="bold" lineHeight="1">
+        <Text
+          color="white"
+          fontSize="xs"
+          fontWeight="bold"
+          lineHeight="1"
+          cursor={onCountClick ? 'pointer' : undefined}
+          onClick={onCountClick ? (e: React.MouseEvent) => { e.stopPropagation(); onCountClick(); } : undefined}
+        >
           {formatCount(count)}
         </Text>
       )}
@@ -171,6 +181,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(short.stats.likes);
   const [showVoteSlider, setShowVoteSlider] = useState(false);
+  const [showVotersModal, setShowVotersModal] = useState(false);
   const { weight: voteWeight, setWeight: setVoteWeight, rememberWeight } = useRememberedVoteWeight(100);
   const [isVoting, setIsVoting] = useState(false);
   const [showSendPicker, setShowSendPicker] = useState(false);
@@ -518,6 +529,7 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
             onPointerDown={handleLikePointerDown}
             onPointerUp={handleLikePointerUp}
             onPointerLeave={handleLikePointerUp}
+            onCountClick={likeCount > 0 ? () => setShowVotersModal(true) : undefined}
           />
         </Box>
 
@@ -666,6 +678,13 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
           </ModalContent>
         </Modal>
       )}
+
+      <VotersModal
+        isOpen={showVotersModal}
+        onClose={() => setShowVotersModal(false)}
+        author={short.author}
+        permlink={short.hivePermlink}
+      />
     </Box>
   );
 }

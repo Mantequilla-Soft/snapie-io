@@ -9,6 +9,7 @@ import { awardPoints } from '@/lib/points/client';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
+import VotersModal from '@/components/shared/VotersModal';
 
 interface InteractionBarProps {
     post: Discussion;
@@ -30,6 +31,7 @@ export default function InteractionBar({
     const { username: user } = useCurrentUser();
     const { weight: sliderValue, setWeight: setSliderValue, rememberWeight } = useRememberedVoteWeight(100);
     const [showSlider, setShowSlider] = useState(false);
+    const [showVotersModal, setShowVotersModal] = useState(false);
     const [voted, setVoted] = useState(false);
     const [voteCount, setVoteCount] = useState(post.active_votes?.length || 0);
     const [reblogCount, setReblogCount] = useState<number>((post as any).reblogs || 0);
@@ -235,8 +237,16 @@ export default function InteractionBar({
                             cursor="pointer"
                             color={voted ? "red.400" : undefined}
                         />
-                        <Text ml={2} fontSize="sm">{voteCount}</Text>
-                        
+                        <Text
+                            ml={2}
+                            fontSize="sm"
+                            cursor={voteCount > 0 ? 'pointer' : 'default'}
+                            onClick={voteCount > 0 ? () => setShowVotersModal(true) : undefined}
+                            _hover={voteCount > 0 ? { textDecoration: 'underline' } : undefined}
+                        >
+                            {voteCount}
+                        </Text>
+
                         <Icon
                             as={FaComment}
                             ml={4}
@@ -275,6 +285,12 @@ export default function InteractionBar({
                     </Text>
                 </Flex>
             )}
+            <VotersModal
+                isOpen={showVotersModal}
+                onClose={() => setShowVotersModal(false)}
+                author={post.author}
+                permlink={post.permlink}
+            />
         </Box>
     );
 }

@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-30',
+    date: '2026-08-30',
+    items: [
+      { type: 'feature', text: 'Tapping the vote count next to the heart (not the heart itself) on a post, Snap, or Short now opens a list of everyone who voted — sorted by value, with each voter\'s reputation, vote percentage, and dollar contribution.' },
+    ],
+  },
+  {
     id: '2026-08-29',
     date: '2026-08-29',
     items: [

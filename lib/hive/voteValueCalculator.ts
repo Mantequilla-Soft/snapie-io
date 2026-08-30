@@ -8,6 +8,26 @@
  *   voteValueHIVE  = (rshares / recentClaims) * rewardBalance
  *   voteValueHBD   = voteValueHIVE * medianPrice
  */
+/**
+ * Converts an already-known rshares amount into its HBD value. This is the
+ * shared back half of calculateVoteValue's formula, factored out so callers
+ * that already have rshares (e.g. an entry from a post's active_votes) don't
+ * need to reconstruct them from an account's vesting shares.
+ */
+export function calculateValueFromRshares(
+  rshares: number,
+  rewardFund: { recent_claims: string; reward_balance: string },
+  medianPrice: number // HBD per HIVE
+): number {
+  const recentClaims = parseFloat(rewardFund.recent_claims);
+  const rewardBalance = parseFloat(rewardFund.reward_balance);
+
+  if (!recentClaims || !rewardBalance) return 0;
+
+  const voteValueHIVE = (rshares / recentClaims) * rewardBalance;
+  return voteValueHIVE * medianPrice;
+}
+
 export function calculateVoteValue(
   account: any,
   rewardFund: { recent_claims: string; reward_balance: string },
@@ -29,11 +49,5 @@ export function calculateVoteValue(
   const weightFraction = Math.min(Math.max(voteWeight / 100, 0), 1);
   const rshares = (effectiveVests * 1e6 * weightFraction) / 50;
 
-  const recentClaims = parseFloat(rewardFund.recent_claims);
-  const rewardBalance = parseFloat(rewardFund.reward_balance);
-
-  if (!recentClaims || !rewardBalance) return 0;
-
-  const voteValueHIVE = (rshares / recentClaims) * rewardBalance;
-  return voteValueHIVE * medianPrice;
+  return calculateValueFromRshares(rshares, rewardFund, medianPrice);
 }

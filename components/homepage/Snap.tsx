@@ -467,6 +467,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                 onVote={handleVote}
                                 onVoteOptimistic={async (weight) => setOptimisticDeltaHBD(await calculateDelta(weight))}
                                 onVoteRollback={() => setOptimisticDeltaHBD(0)}
+                                author={comment.author}
+                                permlink={comment.permlink}
                             />
                             <HStack spacing={{ base: 4, md: 6 }}>
                                 <HStack spacing={1} cursor="pointer" onClick={handleReplyModal}>

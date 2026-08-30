@@ -72,3 +72,12 @@ export function useVoteCalculator(username: string | null) {
 
   return { calculateDelta };
 }
+
+/**
+ * Exposes the same cached reward-fund/price globals as useVoteCalculator, for
+ * callers that already have rshares (e.g. a voter list) and just need to
+ * convert them to a dollar value without an account lookup.
+ */
+export function getHiveGlobals(): Promise<HiveGlobals> {
+  return fetchGlobals();
+}

@@ -121,6 +121,7 @@ export async function commentWithKeychain(formParamsAsObject: any): Promise<Hive
 }
 
 export function getReputation(rep: number) {
+  if (!rep) return 25; // brand-new accounts report raw reputation 0
   let out = ((Math.log10(Math.abs(rep)) - 9) * 9) + 25;
   out = Math.round(out);
   return out;
