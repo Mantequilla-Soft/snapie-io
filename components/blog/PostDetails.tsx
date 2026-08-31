@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { FaEdit } from 'react-icons/fa';
 import InteractionBar from '@/components/shared/InteractionBar';
+import PileTray from '@/components/shared/PileTray';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
@@ -472,6 +473,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
                 </HStack>
             )}
             <InteractionBar post={post} isEmbedMode={isEmbedMode} showShare={true} commentCountOverride={commentCount} />
+            {!isEmbedMode && <PileTray author={post.author} permlink={post.permlink} targetType="post" />}
         </Box>
     );
 }

@@ -10,6 +10,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { MOOD_BADGE_SKUS, MOOD_BADGES, MoodBadgeSku } from '@/lib/moodBadges/constants';
 import { buyMoodBadge, equipMoodBadge, getMyMoodBadges } from '@/lib/moodBadges/client';
+import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 
 export default function MoodBadgesPage() {
   const { username, isLoggedIn } = useCurrentUser();
@@ -48,7 +49,7 @@ export default function MoodBadgesPage() {
         setEquipped(result.equipped);
         toast({ status: 'info', title: 'You already own this one' });
       } else {
-        toast({ status: 'warning', title: 'Not enough points', description: `You need ${MOOD_BADGES[sku].price.toLocaleString()} points for this badge.` });
+        toast(notEnoughPointsToast(MOOD_BADGES[sku].price, 'This badge'));
       }
     } catch (err: any) {
       toast({ status: 'error', title: 'Purchase failed', description: err?.message });

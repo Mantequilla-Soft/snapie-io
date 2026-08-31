@@ -22,6 +22,7 @@ import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
 import { awardPoints } from '@/lib/points/client';
 import NextLink from 'next/link';
 import VoteControls from './VoteSlider';
+import PileTray from '@/components/shared/PileTray';
 import PatronBadge from '@/components/shared/PatronBadge';
 import WaveBadge from '@/components/shared/WaveBadge';
 import TrendingBadge from '@/components/shared/TrendingBadge';
@@ -491,6 +492,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                 {payoutDisplay}
                             </Text>
                         </Flex>
+                        <PileTray author={comment.author} permlink={comment.permlink} targetType="snap" />
                     </Box>
                 </Flex>
             </Box>

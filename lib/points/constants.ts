@@ -7,10 +7,34 @@ export const POINTS_ACTION_TYPES: PointsActionType[] = ['blog', 'snap', 'comment
 // but have no fixed POINTS/DAILY_CAP entry — their point value is derived
 // per-transaction (verified transfer amount, or an admin's typed amount),
 // not a per-action constant, so they're kept out of the earn-only maps below
-// rather than forcing an unused dummy entry.
-export type LedgerActionType = PointsActionType | 'purchase' | 'admin_grant';
+// rather than forcing an unused dummy entry. 'item_purchase' is the same
+// idea for the item market (lib/points/marketService.ts) — a buyer's debit
+// when they buy an ItemUnit; its refKey is the unit's _id. 'item_creation_fee'
+// is the non-refundable burn charged when submitting a new item for review
+// (refKey is the Item's _id). 'item_sale' is the creator's matching credit
+// when someone buys their item (refKey is the buyer's ItemUnit _id, so a
+// buyer's debit and the creator's credit for the same sale share a refKey —
+// same idempotency key, two different usernames/ledger rows). 'item_anon_throw_fee'
+// is the extra burn for throwing an item anonymously — a pure sink with no
+// counterpart credit, refKey is the thrown unit's _id.
+export type LedgerActionType =
+  | PointsActionType
+  | 'purchase'
+  | 'admin_grant'
+  | 'item_purchase'
+  | 'item_creation_fee'
+  | 'item_sale'
+  | 'item_anon_throw_fee';
 
-export const LEDGER_ACTION_TYPES: LedgerActionType[] = [...POINTS_ACTION_TYPES, 'purchase', 'admin_grant'];
+export const LEDGER_ACTION_TYPES: LedgerActionType[] = [
+  ...POINTS_ACTION_TYPES,
+  'purchase',
+  'admin_grant',
+  'item_purchase',
+  'item_creation_fee',
+  'item_sale',
+  'item_anon_throw_fee',
+];
 
 // Per-grant ceiling for the admin "points cannon" — generous enough for a
 // real customer-service comp, low enough that a fat-fingered extra zero

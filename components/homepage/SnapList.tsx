@@ -157,7 +157,7 @@ export default function SnapList(
   // it was first fetched (confirmed live: a real Snap with votes sitting at
   // $0.000, never interacted with, just scrolled past). Reconcile each Snap
   // once as it actually enters the viewport. `rangeChanged` reports the
-  // strictly-visible range, not the wider overscan={800} buffer Virtuoso
+  // strictly-visible range, not the wider overscan buffer Virtuoso
   // keeps mounted — deliberately not refreshing everything overscanned,
   // only what's actually been seen. `refreshedRef` is a plain session-
   // lifetime set (no existing per-item timestamp/cooldown tracking to build
@@ -292,7 +292,19 @@ export default function SnapList(
         endReached={loadNextPage}
         rangeChanged={handleRangeChanged}
         isScrolling={handleIsScrolling}
-        overscan={800}
+        // 800px flat (both directions) was too tight for Snap cards that can
+        // run several hundred px tall with media/embeds — normal scroll
+        // velocity crossed it in well under a second, so cards kept
+        // unmounting/remounting right at the edge of view. Remounting isn't
+        // just a visual pop-in: Snap.tsx holds local state (NSFW reveal,
+        // translation, edit mode, optimistic payout) that resets every time,
+        // which is what actually read as "always loading/freeing something."
+        // Biased toward the scroll direction (`main`) since that's where the
+        // buffer earns its keep; `reverse` stays smaller since scrolling
+        // back up is comparatively rare. Still bounded — nowhere near "keep
+        // everything mounted forever," just enough headroom to absorb a
+        // normal scroll without thrashing at the boundary.
+        overscan={{ main: 2000, reverse: 1000 }}
         components={virtuosoComponents}
         itemContent={(_index, comment: ExtendedComment) => (
           <Snap

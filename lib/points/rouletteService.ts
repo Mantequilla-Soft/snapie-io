@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db/mongodb';
 import { RouletteSpin } from '@/lib/db/models/RouletteSpin';
 import { PointsAccount } from '@/lib/db/models/PointsAccount';
 import { MIN_STAKE, MAX_STAKE, SPIN_COOLDOWN_MS, ROULETTE_ODDS_BP, RouletteMultiplier } from '@/lib/points/rouletteConfig';
+import { currentBalance } from '@/lib/points/accountUtils';
 
 export type SpinStatus = 'spun' | 'duplicate' | 'insufficient_balance' | 'invalid_stake' | 'cooldown';
 
@@ -12,11 +13,6 @@ export interface SpinResult {
   payout: number;
   netDelta: number;
   balance: number;
-}
-
-async function currentBalance(username: string): Promise<number> {
-  const acct = await PointsAccount.findById(username).lean();
-  return acct?.balance ?? 0;
 }
 
 /** crypto.randomInt, not Math.random — this number decides real point-supply

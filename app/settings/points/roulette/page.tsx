@@ -10,6 +10,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { spinRoulette, SpinClientResult } from '@/lib/points/rouletteClient';
 import { STAKE_PRESETS, SPIN_COOLDOWN_MS, ROULETTE_ODDS_BP, RouletteMultiplier } from '@/lib/points/rouletteConfig';
+import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 
 // Strip layout. Purely cosmetic — the tiles that fly by mean nothing; only
 // the tile at LANDING_INDEX carries a real result, and it's only ever set to
@@ -150,7 +151,7 @@ export default function RoulettePage() {
         controls.stop();
         setPhase('idle');
         if (result.status === 'insufficient_balance') {
-          toast({ status: 'warning', title: 'Not enough points', description: `You need ${selectedStake.toLocaleString()} points for this spin.` });
+          toast(notEnoughPointsToast(selectedStake, 'This spin'));
         } else if (result.status === 'cooldown') {
           toast({ status: 'info', title: 'Slow down', description: 'Give it a couple seconds between spins.' });
         } else {

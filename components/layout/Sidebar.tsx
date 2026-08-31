@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield } from 'react-icons/fi';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
 import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
@@ -41,6 +42,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
     const { username: user, isLoggedIn, logout } = useCurrentUser();
+    const { isAdmin } = useIsAdmin();
     const { openLoginModal } = useLoginModal();
     const pathname = usePathname();
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
@@ -358,6 +360,26 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
                                 >
                                     <Text display={textDisplay}>Settings</Text>
+                                </Button>
+                            </Box>
+                        </Tooltip>
+                    )}
+
+                    {user && isAdmin && (
+                        <Tooltip label="Admin" placement="right" hasArrow isDisabled={!isCompactMode}>
+                            <Box w="full">
+                                <Button
+                                    as={NextLink}
+                                    href="/settings/admin"
+                                    variant="ghost"
+                                    w="full"
+                                    justifyContent={iconJustify}
+                                    leftIcon={<Icon as={FiShield} boxSize={4} />}
+                                    px={3}
+                                    borderRadius="10px"
+                                    _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                                >
+                                    <Text display={textDisplay}>Admin</Text>
                                 </Button>
                             </Box>
                         </Tooltip>

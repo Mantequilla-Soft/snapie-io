@@ -3,6 +3,7 @@ import { MoodBadges } from '@/lib/db/models/MoodBadges';
 import { PointsAccount } from '@/lib/db/models/PointsAccount';
 import { MoodBadgePurchase } from '@/lib/db/models/MoodBadgePurchase';
 import { MOOD_BADGES, MoodBadgeSku } from '@/lib/moodBadges/constants';
+import { currentBalance } from '@/lib/points/accountUtils';
 
 export type BuyBadgeStatus = 'purchased' | 'already_owned' | 'insufficient_balance';
 
@@ -11,11 +12,6 @@ export interface BuyBadgeResult {
   owned: string[];
   equipped: string | null;
   balance: number;
-}
-
-async function currentBalance(username: string): Promise<number> {
-  const acct = await PointsAccount.findById(username).lean();
-  return acct?.balance ?? 0;
 }
 
 async function currentBadges(username: string): Promise<{ owned: string[]; equipped: string | null }> {

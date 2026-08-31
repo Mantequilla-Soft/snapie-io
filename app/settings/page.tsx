@@ -5,11 +5,11 @@ import {
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import NextLink from 'next/link';
-import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward, FiCheckSquare, FiFileText, FiShoppingCart, FiSmile, FiEyeOff, FiTarget } from 'react-icons/fi';
+import { FiZap, FiDollarSign, FiMoon, FiSun, FiCompass, FiGift, FiChevronRight, FiAward, FiCheckSquare, FiFileText, FiShoppingCart, FiSmile, FiEyeOff, FiTarget, FiPackage } from 'react-icons/fi';
 import { useUserSettings, type PayoutType, type ColorMode } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
-import { isPointsEnabledFor, ROULETTE_FEATURE_FLAG } from '@/lib/points/config';
+import { isPointsEnabledFor, ROULETTE_FEATURE_FLAG, ITEM_MARKET_FEATURE_FLAG } from '@/lib/points/config';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { INTEREST_TOPICS } from '@/lib/discovery/interestTopics';
 import MutedTagsInput from '@/components/settings/MutedTagsInput';
@@ -83,6 +83,7 @@ export default function SettingsPage() {
     const showPointsSection = isPointsEnabledFor(username);
     const points = usePointsSummary(showPointsSection ? username : null);
     const showRoulette = showPointsSection && ROULETTE_FEATURE_FLAG;
+    const showItemMarket = showPointsSection && ITEM_MARKET_FEATURE_FLAG;
 
     return (
         <Box maxW="640px" mx="auto" px={{ base: 4, md: 8 }} py={10}>
@@ -548,6 +549,45 @@ export default function SettingsPage() {
                         </Box>
                         <Icon as={FiChevronRight} boxSize={5} color="overlay.400" flexShrink={0} />
                     </Flex>
+
+                    {showItemMarket && (
+                        <>
+                            <Divider borderColor="surfaceBorder" />
+
+                            <Flex
+                                as={NextLink}
+                                href="/settings/points/market"
+                                align="center"
+                                gap={4}
+                                px={6}
+                                py={5}
+                                cursor="pointer"
+                                transition="all 0.15s"
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.06)' }}
+                            >
+                                <Flex
+                                    flexShrink={0}
+                                    w="36px"
+                                    h="36px"
+                                    borderRadius="10px"
+                                    bg="rgba(28, 161, 241, 0.15)"
+                                    align="center"
+                                    justify="center"
+                                >
+                                    <Icon as={FiPackage} boxSize={4} color="primary" />
+                                </Flex>
+                                <Box flex={1}>
+                                    <Text color="text" fontWeight="medium" fontSize="sm" mb={1}>
+                                        The Pile
+                                    </Text>
+                                    <Text color="overlay.500" fontSize="xs">
+                                        Buy silly things with points, then throw them at posts and Snaps.
+                                    </Text>
+                                </Box>
+                                <Icon as={FiChevronRight} boxSize={5} color="overlay.400" flexShrink={0} />
+                            </Flex>
+                        </>
+                    )}
 
                     {showRoulette && (
                         <>

@@ -20,6 +20,11 @@ export const POINTS_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS === 'tr
 // an existing points balance, so it's meaningless without points).
 export const ROULETTE_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS_ROULETTE === 'true';
 
+// Same independent-rollout-switch shape as Roulette above — the item market
+// (Phase 0: admin-seeded catalog, buy, throw, "The Pile") ships dark until
+// flipped on, separately from base points earning/purchasing.
+export const ITEM_MARKET_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS_MARKET === 'true';
+
 function parseList(raw: string | undefined): string[] {
   return (raw || '')
     .split(',')

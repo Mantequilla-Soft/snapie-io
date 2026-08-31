@@ -376,6 +376,45 @@ export async function communitySubscribeKeyChain(username: string) {
   }
 }
 
+export type HiveCommunityRole = 'muted' | 'guest' | 'member' | 'mod' | 'admin' | 'owner';
+
+// bridge.list_community_roles only lists accounts holding an explicit,
+// non-default role/title (mods/admins/owners/muted, roughly) — an account
+// with no explicit standing (an ordinary member) simply won't appear, so
+// `null` here means "no explicit role on file," not an error. Same RPC
+// lib/hive/muted-accounts.ts's fetchCommunityMutedList already uses, just
+// looking up one account instead of filtering the whole list for 'muted'.
+export async function getCommunityRole(community: string, account: string): Promise<HiveCommunityRole | null> {
+  try {
+    const roles = await HiveClient.call('bridge', 'list_community_roles', { community, limit: 1000 });
+    if (!Array.isArray(roles)) return null;
+    const entry = roles.find((r: [string, string, string]) => r[0] === account);
+    return (entry?.[1] as HiveCommunityRole) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// A community moderation action — same 'community' custom_json id as
+// communitySubscribeKeyChain above, distinguished by the 'setRole' action
+// string. Requires the signer to hold mod/admin/owner in `community`; Hive
+// silently no-ops an unauthorized call rather than rejecting it, so callers
+// should confirm the signer's own role first (e.g. via
+// bridge.list_community_roles, the same RPC lib/hive/muted-accounts.ts
+// already uses) rather than relying on this call to report failure.
+// There's no distinct "unmute" op — call this again with role: 'member' to
+// clear a mute.
+export async function setCommunityRole(community: string, account: string, role: HiveCommunityRole) {
+  const json = JSON.stringify(['setRole', { community, account, role }]);
+  return customJsonWithAioha(
+    KeyTypes.Posting,
+    'community',
+    json,
+    role === 'muted' ? 'Mute user' : 'Update role',
+    `Approve ${role === 'muted' ? 'muting' : 'role change for'} @${account} in ${community}`,
+  );
+}
+
 export async function checkFollow(follower: string, following: string): Promise<boolean> {
   try {
     const status = await HiveClient.call('bridge', 'get_relationship_between_accounts', [

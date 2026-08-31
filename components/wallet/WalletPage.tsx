@@ -20,6 +20,9 @@ import {
 } from '@chakra-ui/react';
 import { FaGlobe, FaExchangeAlt, FaPiggyBank, FaShoppingCart, FaArrowDown, FaShareAlt, FaDollarSign, FaArrowUp, FaPaperPlane, FaCoins, FaChartLine, FaGift, FaEdit, FaShieldAlt, FaExternalLinkAlt, FaQrcode, FaCamera, FaAward, FaTrophy, FaHistory } from 'react-icons/fa';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
+import { ITEM_MARKET_FEATURE_FLAG } from '@/lib/points/config';
+import { getMyInventory } from '@/lib/points/marketClient';
+import type { InventoryEntry } from '@/lib/points/marketService';
 import useHiveAccount from '@/hooks/useHiveAccount';
 import {
   getProfile,
@@ -126,6 +129,14 @@ export default function WalletPage({ username }: WalletPageProps) {
   // others, which React's Rules of Hooks correctly treats as a crash.
   const pointsSummary = usePointsSummary(username);
   const { getEquippedBadge } = useMoodBadges();
+
+  // Own-wallet-only, same reasoning as pointsSummary above re: hook order —
+  // called unconditionally, gated inside the effect body instead.
+  const [inventory, setInventory] = useState<InventoryEntry[]>([]);
+  useEffect(() => {
+    if (!ITEM_MARKET_FEATURE_FLAG || user !== username) { setInventory([]); return; }
+    getMyInventory(username).then(setInventory);
+  }, [user, username]);
 
   const textMuted = 'overlay.500';
   const successColor = 'success';
@@ -952,6 +963,40 @@ export default function WalletPage({ username }: WalletPageProps) {
               </Flex>
             )}
           </Box>
+
+          {/* The Pile — inventory */}
+          {ITEM_MARKET_FEATURE_FLAG && isOwnWallet && inventory.length > 0 && (
+            <Box
+              bg="muted" borderRadius="10px" boxShadow="md" overflow="hidden"
+              sx={{ border: '1px solid rgba(167, 139, 250, 0.25)', borderLeft: '3px solid #a78bfa' }}
+            >
+              <Flex justifyContent="space-between" alignItems="center" p={5} pb={3}>
+                <Flex alignItems="center" gap={3}>
+                  <Flex w={10} h={10} borderRadius="full" bg="rgba(167, 139, 250, 0.12)" border="1px solid" borderColor="rgba(167, 139, 250, 0.3)" alignItems="center" justifyContent="center">
+                    <Icon as={FaGift} color="#a78bfa" boxSize={4} />
+                  </Flex>
+                  <Box>
+                    <Heading size="md">The Pile — Inventory</Heading>
+                    <Text fontSize="xs" color={textMuted}>Owned items, ready to throw at a post or Snap</Text>
+                  </Box>
+                </Flex>
+              </Flex>
+              <Grid templateColumns={{ base: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }} gap={3} px={5} pb={5}>
+                {inventory.map(entry => (
+                  <VStack key={entry.item.id} spacing={1} bg="background" borderRadius="8px" p={2}>
+                    <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="36px" objectFit="contain" />
+                    <Text fontSize="2xs" color={textMuted} noOfLines={1}>{entry.item.name}</Text>
+                    <Text fontSize="xs" fontWeight="bold">×{entry.unitIds.length}</Text>
+                  </VStack>
+                ))}
+              </Grid>
+              <Flex px={5} pb={4}>
+                <Button size="sm" leftIcon={<FaShoppingCart />} onClick={() => router.push('/settings/points/market')} variant="outline" colorScheme="purple">
+                  Buy More
+                </Button>
+              </Flex>
+            </Box>
+          )}
 
           {/* Savings */}
           <Box
