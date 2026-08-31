@@ -45,6 +45,19 @@ interface MediaRendererProps {
   mediaContent: string;
 }
 
+// Module-scope caches, deliberately outside React state: SnapList's Virtuoso
+// virtualization unmounts a card every time it leaves the scroll window, so
+// per-component state for "this 3Speak video turned out to be vertical" and
+// "this player already reported ready" was being rediscovered from scratch on
+// every re-entry. The vertical rediscovery is the worse of the two — the card
+// mounts 16/9, the player loads, and only then flips to 3/4, a ~250px height
+// change landing seconds after mount, which shoves the scroll position around
+// mid-doomscroll every single time the card scrolls back in. Caching for the
+// session means only the very first sighting of a given video can shift
+// layout; every remount after that starts at its final size immediately.
+const knownVerticalSpeakKeys = new Set<string>();
+const knownReadySpeakSrcs = new Set<string>();
+
 /** Isolated + memoized so parent re-renders do not rewrite iframe innerHTML and reload 3Speak. */
 const EMBED_READY_TIMEOUT_MS = 4000;
 
@@ -68,10 +81,15 @@ const IframeEmbedBox = memo(function IframeEmbedBox({
     setEmbedBlocked(false);
     if (!fallback) return;
 
-    let ready = false;
+    // Already proved it can load once this session — a remount (Virtuoso
+    // scroll-back) starts the iframe over from scratch, and it routinely
+    // takes longer than the timeout while the user is actively scrolling,
+    // which was falsely flashing the "browser blocked the player" overlay.
+    let ready = Boolean(item.src && knownReadySpeakSrcs.has(item.src));
 
     const markReady = () => {
       ready = true;
+      if (item.src) knownReadySpeakSrcs.add(item.src);
       setEmbedBlocked(false);
     };
 
@@ -248,8 +266,11 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
   }, [mediaItems]);
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  /** 3Speak `v=` keys (owner/permlink) known to be portrait — stable across layout= URL changes. */
-  const [verticalSpeakKeys, setVerticalSpeakKeys] = useState<Set<string>>(new Set());
+  /** 3Speak `v=` keys (owner/permlink) known to be portrait — stable across
+   *  layout= URL changes. Seeded from the module-scope session cache so a
+   *  virtualization remount renders already-detected videos at their final
+   *  3/4 size immediately instead of mounting 16/9 and flipping later. */
+  const [verticalSpeakKeys, setVerticalSpeakKeys] = useState<Set<string>>(() => new Set(knownVerticalSpeakKeys));
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -271,6 +292,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
           const rawSrc = iframe.getAttribute('src');
           const key = rawSrc ? speakVideoKeyFromUrl(rawSrc) : null;
           if (key) {
+            knownVerticalSpeakKeys.add(key);
             setVerticalSpeakKeys((prev) => {
               if (prev.has(key)) return prev;
               const next = new Set(prev);

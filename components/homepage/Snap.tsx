@@ -13,6 +13,13 @@ import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
+import OffscreenGate from '@/components/shared/OffscreenGate';
+
+// Tight margin — media (iframes/videos/images) is the expensive part, so
+// only cards genuinely close to the viewport keep it warm. See
+// OffscreenGate's doc comment for how this differs from SnapList's
+// whole-card gate.
+const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
@@ -366,8 +373,13 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                             </Flex>
                         ) : (
                             <>
-                        {/* Media */}
-                        {media && <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />}
+                        {/* Media — gated so far-offscreen embeds/videos/images
+                            release their resources; see OffscreenGate. */}
+                        {media && (
+                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                                <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
+                            </OffscreenGate>
+                        )}
 
                         {/* Text content */}
                         {translatedText ? (

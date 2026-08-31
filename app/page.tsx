@@ -13,6 +13,7 @@ import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import { useBlendedFeed } from '@/hooks/useBlendedFeed';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
 import NewSnapsBanner from '@/components/homepage/NewSnapsBanner';
+import ScrollJumpProbe from '@/components/homepage/ScrollJumpProbe';
 import PendingRewardsBanner from '@/components/homepage/PendingRewardsBanner';
 import { useNewSnapsAvailable } from '@/hooks/useNewSnapsAvailable';
 import OpenPodsLiveStrip from '@/components/hangouts/OpenPodsLiveStrip';
@@ -28,6 +29,41 @@ import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/disco
 interface CommunityInfo {
   title: string;
   about: string;
+}
+
+/**
+ * Manual scroll anchoring for async content that pops in ABOVE the feed,
+ * inside the same scroll container (pods/events strips, rewards banner).
+ * Each of those renders null until its fetch resolves, then appears —
+ * inserting 50–200px above the user's scroll position, which visually
+ * throws them back up the feed ("scrolling keeps jumping me back to the
+ * top", mobile). Browsers' native overflow-anchor can't be relied on here:
+ * iOS Safari doesn't implement it in overflow containers, and react-virtuoso
+ * disables it to run its own (list-internal-only) anchoring. So: observe the
+ * wrapper's height and compensate scrollTop by exactly the delta. The
+ * ResizeObserver callback runs after layout but before paint, so the
+ * correction is invisible. Skipped at the top of the feed (scrollTop ≈ 0),
+ * where content appearing in place is what the user expects to see.
+ */
+function useAnchoredAboveFeed(scrollableId: string) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null || typeof ResizeObserver === 'undefined') return;
+    let prevHeight = el.getBoundingClientRect().height;
+    const observer = new ResizeObserver(() => {
+      const nextHeight = el.getBoundingClientRect().height;
+      const delta = nextHeight - prevHeight;
+      prevHeight = nextHeight;
+      if (delta === 0) return;
+      const scroller = document.getElementById(scrollableId);
+      if (!scroller || scroller.scrollTop <= 1) return;
+      scroller.scrollTop += delta;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [scrollableId]);
+  return ref;
 }
 
 export default function Home() {
@@ -264,6 +300,13 @@ export default function Home() {
     return () => window.removeEventListener('snapie:go-home', handler);
   }, []);
 
+  // Scroll-anchor the async pop-in regions above the feed — see
+  // useAnchoredAboveFeed. Two separate wrappers because the sticky tab
+  // filter sits between them in the layout and must not be wrapped (a
+  // wrapper would clip its sticky range).
+  const stripsAnchorRef = useAnchoredAboveFeed('scrollableDiv');
+  const rewardsAnchorRef = useAnchoredAboveFeed('scrollableDiv');
+
   // Measure the sticky tab strip so the banner can dock just below it
   // (rather than overlapping) once both are pinned to the top while scrolling.
   const tabFilterRef = useRef<HTMLDivElement>(null);
@@ -317,6 +360,7 @@ export default function Home() {
 
   return (
     <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 4 }} px={{ base: 0, md: 4 }}>
+      {searchParams.get('scrolldebug') === '1' && <ScrollJumpProbe scrollableId="scrollableDiv" />}
       <Box
         h="100vh"
         overflowY="auto"
@@ -332,8 +376,12 @@ export default function Home() {
           }
         }
         id='scrollableDiv'>
-        <OpenPodsLiveStrip />
-        <UpcomingEventsStrip />
+        {/* Anchored: both strips pop in when their fetches resolve — see
+            useAnchoredAboveFeed. */}
+        <Box ref={stripsAnchorRef}>
+          <OpenPodsLiveStrip />
+          <UpcomingEventsStrip />
+        </Box>
         <Box ref={tabFilterRef}>
           <FeedTabFilter
             activeFilter={activeFilter}
@@ -345,7 +393,11 @@ export default function Home() {
         </Box>
         {!conversation ? (
           <>
-            <PendingRewardsBanner />
+            {/* Anchored: pops in when the rewards fetch finds something
+                unclaimed — see useAnchoredAboveFeed. */}
+            <Box ref={rewardsAnchorRef}>
+              <PendingRewardsBanner />
+            </Box>
             <NewSnapsBanner count={newCount} onClick={handleViewNewSnaps} top={tabFilterHeight} />
             <SnapList
               author={thread_author}

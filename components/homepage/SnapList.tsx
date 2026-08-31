@@ -1,51 +1,44 @@
-import React, { useState, useEffect, useCallback, useRef, forwardRef } from 'react';
-import { Virtuoso, ListRange } from 'react-virtuoso';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Button, HStack, Spinner, Text } from '@chakra-ui/react';
 import Snap from './Snap';
 import { ExtendedComment, useComments } from '@/hooks/useComments';
 import { useSnaps } from '@/hooks/useSnaps';
 import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
-import { interleaveCandidates } from '@/lib/discovery/interleave';
+import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
+import OffscreenGate from '@/components/shared/OffscreenGate';
 
 type SortOrder = 'new' | 'top';
 
-// Virtuoso treats components.List as a component *type*, not a plain render
-// prop — an inline function recreated every render (as this used to be,
-// defined right inside the JSX) is a *new* component type each time, so
-// React unmounts and remounts the whole list on every SnapList re-render.
-// Define it once, at module scope, so its identity never changes. It
-// doesn't depend on any of SnapList's state, so this is the whole fix for
-// it — no props to thread through.
-const VirtuosoList = forwardRef<HTMLDivElement, { style?: React.CSSProperties; children?: React.ReactNode }>(
-  ({ style, children }, ref) => (
-    <Box ref={ref} style={style} mx="auto" px={{ base: 0, md: 2 }}>{children}</Box>
-  )
-);
-VirtuosoList.displayName = 'VirtuosoList';
+// Whole-card gate, much wider than Snap's own media gate (3000px) — this
+// bounds total mounted cards for a long session (mobile browsers hard-kill
+// a tab that crosses their memory ceiling; see OffscreenGate's doc comment
+// for the full history). Wide on purpose: unmounting resets a card's local
+// state (NSFW reveal, translation, edit mode), so this should only ever
+// catch content genuinely far behind the user, never a normal scroll-back.
+const CARD_GATE_MARGIN = '8000px 0px 8000px 0px';
 
-const virtuosoComponents = { List: VirtuosoList };
+// ── Architecture note ────────────────────────────────────────────────────
+// This list deliberately keeps every card mounted for the life of the feed
+// view. It replaced a react-virtuoso implementation that unmounted cards
+// outside a scroll window: that kept memory flat, but every remount reset
+// each embed to "size unknown" and its late re-settle (tweets, videos,
+// 3Speak) shoved the scroll position — Virtuoso disables the browser's
+// native scroll anchoring and its own compensation overcorrected (measured
+// live on mobile: a 301px embed settle produced a 1579px upward throw),
+// making doomscrolling unusable. Two OffscreenGate instances now bound
+// memory instead: a tight one around just each card's media (inside Snap),
+// and a much wider one around whole cards here (CARD_GATE_MARGIN) — mobile
+// browsers hard-kill and silently reload a tab that stays fully mounted for
+// an hour-plus session, which read as "the feed just stops going further."
+//
+// Infinite scroll and viewport-entry vote reconciliation are both driven by
+// IntersectionObservers against the caller-owned scroll container.
+// ─────────────────────────────────────────────────────────────────────────
 
 const SORT_OPTIONS = ['new', 'top'] as const;
 
-// Neither the composer nor the New/Top toggle live inside <Virtuoso> (as a
-// Header, or anywhere else Virtuoso manages), even though both visually sit
-// above the list. Two different failure modes ruled that out:
-//  - The composer (image/video/gif upload state, postMessage listeners)
-//    inside a Header slot produced a genuine "Maximum update depth
-//    exceeded" crash — some interaction between its own effects and
-//    Virtuoso's Header re-rendering.
-//  - Virtuoso's `context` prop, tried as a way to feed live state into a
-//    stable Header component without recreating it, turned out to only
-//    reach Header/Footer on Virtuoso's own internal render triggers
-//    (scroll, resize) — not immediately when the context value itself
-//    changes. Confirmed directly: clicking the sort toggle updated
-//    `sortOrder` correctly, but the button's highlight only caught up
-//    after the next scroll.
-// Both are rendered as plain siblings around <Virtuoso> instead — normal
-// React children, driven by SnapList's own render cycle, so they're always
-// instantly correct. This matches how PostPage already renders its own
-// composer outside SnapList entirely.
+const snapKey = (c: ExtendedComment) => `${c.author}/${c.permlink}`;
 
 interface SnapListProps {
   author: string
@@ -64,11 +57,11 @@ interface SnapListProps {
    *  'new' — see the interleave call below for why. */
   discoveryItems?: ExtendedComment[]
   discoveryEveryN?: number
-  /** id of the ancestor element that actually scrolls, so Virtuoso can hook
-   *  into it (customScrollParent) instead of owning its own internal
-   *  scroller. Defaults to 'scrollableDiv', the local scroll box every
-   *  caller except PostPage defines for itself — see PostPage's own call
-   *  site for why it needs to pass something else. */
+  /** id of the ancestor element that actually scrolls, used as the
+   *  IntersectionObserver root for pagination and reconciliation. Defaults
+   *  to 'scrollableDiv', the local scroll box every caller except PostPage
+   *  defines for itself — see PostPage's own call site for why it needs to
+   *  pass something else. */
   scrollableTargetId?: string
 }
 
@@ -110,11 +103,6 @@ export default function SnapList(
   const fetchComplete = hasFetchedOnce ?? !hasMore;
   const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
-  // Virtuoso's customScrollParent needs an actual element, not the id string
-  // react-infinite-scroll-component used to take — resolve it the same way
-  // that library did internally (a plain getElementById lookup against the
-  // page's own scroll container, which is already mounted by the time this
-  // component renders).
   const [scrollParentEl, setScrollParentEl] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setScrollParentEl(document.getElementById(scrollableTargetId));
@@ -147,99 +135,173 @@ export default function SnapList(
   // for. Must happen after the sort above, not before — comments.sort()
   // mutates in place and re-runs on every render, so anything spliced in
   // upstream of it would just get reshuffled back out.
-  const displayComments = (discoveryItems?.length && sortOrder === 'new')
-    ? interleaveCandidates(comments, discoveryItems, discoveryEveryN)
+  //
+  // Append-only (interleaveAppendOnly, not interleaveCandidates): the
+  // candidate pool is live — empty on first paint, filled a beat later, and
+  // wholesale-replaced by useDiscoveryCandidates' periodic refetch. A
+  // from-scratch recompute against that pool changed which item sat at
+  // already-rendered positions mid-scroll, shifting content above the
+  // user's viewport. The state ref lives for the feed view's lifetime;
+  // interleaveAppendOnly itself detects a refresh() reset and starts over.
+  const interleaveStateRef = useRef<StableInterleaveState<ExtendedComment>>(emptyStableInterleave());
+  const displayComments = sortOrder === 'new'
+    ? interleaveAppendOnly(interleaveStateRef.current, comments, discoveryItems ?? [], discoveryEveryN)
     : comments;
 
-  // Post-vote reconciliation (Snap.tsx's handleVote) only ever refreshes a
-  // comment YOU voted on — the far more common case is just scrolling past
-  // one that already has stale data because someone ELSE voted on it since
-  // it was first fetched (confirmed live: a real Snap with votes sitting at
-  // $0.000, never interacted with, just scrolled past). Reconcile each Snap
-  // once as it actually enters the viewport. `rangeChanged` reports the
-  // strictly-visible range, not the wider overscan buffer Virtuoso
-  // keeps mounted — deliberately not refreshing everything overscanned,
-  // only what's actually been seen. `refreshedRef` is a plain session-
-  // lifetime set (no existing per-item timestamp/cooldown tracking to build
-  // on, and one refresh per visit is enough — a real time-based cooldown
-  // would be solving a problem nobody asked for).
-  //
-  // Regression fixed here: firing refreshComment directly from every
-  // rangeChanged tick (as this originally did) calls setComments once per
-  // newly-visible item, each on its own network-resolution timer — on
-  // mobile, a burst of these landing *while the user's finger is still on
-  // the screen* was producing a new `data` array reference for Virtuoso
-  // mid-gesture, repeatedly, which fought the browser's own scroll physics
-  // badly enough that scrolling past the first screenful became effectively
-  // impossible. Fix: only ever resolve pending refreshes once the gesture
-  // has settled — via Virtuoso's own `isScrolling` callback, or via a short
-  // idle window (below) — rangeChanged during an active scroll just records
-  // the latest range without touching state.
+  // ── Viewport-entry vote/payout reconciliation ──────────────────────────
+  // A comment's vote data is frozen at fetch time (see refreshComment's doc
+  // in the hooks); refresh each one once, when it first becomes visible.
+  // Deferred to a scroll lull — firing setComments bursts mid-gesture used
+  // to produce a new data array under the user's finger repeatedly, which
+  // fought the browser's scroll physics (the original mobile scroll bug,
+  // pre-virtualization). One refresh per item per session.
   const refreshedRef = useRef<Set<string>>(new Set());
-  const pendingRangeRef = useRef<ListRange | null>(null);
+  const pendingKeysRef = useRef<Set<string>>(new Set());
   const isScrollingRef = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshCommentRef = useRef(refreshComment);
+  refreshCommentRef.current = refreshComment;
 
-  const flushPendingRange = useCallback(() => {
+  const flushPending = useCallback(() => {
     if (idleTimerRef.current) {
       clearTimeout(idleTimerRef.current);
       idleTimerRef.current = null;
     }
-    const range = pendingRangeRef.current;
-    pendingRangeRef.current = null;
-    if (!range || !refreshComment) return;
-    for (let i = range.startIndex; i <= range.endIndex; i++) {
-      const c = displayComments[i];
-      if (!c) continue;
-      const key = `${c.author}/${c.permlink}`;
+    const doRefresh = refreshCommentRef.current;
+    if (!doRefresh) return;
+    for (const key of Array.from(pendingKeysRef.current)) {
+      pendingKeysRef.current.delete(key);
       if (refreshedRef.current.has(key)) continue;
       refreshedRef.current.add(key);
-      refreshComment(c.author, c.permlink);
+      const slash = key.indexOf('/');
+      doRefresh(key.slice(0, slash), key.slice(slash + 1));
     }
-  }, [displayComments, refreshComment]);
+  }, []);
 
-  const handleRangeChanged = useCallback((range: ListRange) => {
-    if (!refreshComment) return;
-    pendingRangeRef.current = range;
+  const scheduleFlush = useCallback(() => {
     if (!isScrollingRef.current) {
-      // Not mid-gesture (e.g. the mount bootstrap below, or a programmatic
-      // scroll) — nothing will flip isScrolling false to flush it otherwise.
-      flushPendingRange();
+      flushPending();
       return;
     }
-    // Still scrolling per Virtuoso, but relying solely on a full stop means
-    // a long continuous scroll session (flick after flick with barely a
-    // pause) can leave everything you've already passed stale until you
-    // finally stop moving entirely. A brief lull — no new items entering
-    // view for a bit — is a safe moment too: it means the visible range
-    // itself has stopped changing, not just that we haven't checked in a
-    // while, so this can't fire mid-motion the way the original bug did.
-    // Every new tick reschedules it, so a genuinely continuous scroll never
-    // lets this timer survive long enough to fire.
+    // Mid-scroll: wait for a brief lull instead of a full stop, so a long
+    // flick-after-flick session still reconciles what it passes.
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    idleTimerRef.current = setTimeout(flushPendingRange, 350);
-  }, [refreshComment, flushPendingRange]);
+    idleTimerRef.current = setTimeout(flushPending, 350);
+  }, [flushPending]);
 
-  const handleIsScrolling = useCallback((scrolling: boolean) => {
-    isScrollingRef.current = scrolling;
-    if (!scrolling) flushPendingRange();
-  }, [flushPendingRange]);
+  // Track whether the user is actively scrolling the feed's container.
+  // The same listener also drives pagination (see the sentinel section
+  // below for why scroll events, not just observer transitions).
+  useEffect(() => {
+    if (!scrollParentEl) return;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      isScrollingRef.current = true;
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(() => {
+        isScrollingRef.current = false;
+        flushPending();
+      }, 200);
+
+      const sentinel = sentinelRef.current;
+      if (sentinel) {
+        const rootBottom = scrollParentEl.getBoundingClientRect().bottom;
+        if (sentinel.getBoundingClientRect().top - rootBottom < 2000) {
+          loadNextPageRef.current();
+        }
+      }
+    };
+    scrollParentEl.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      scrollParentEl.removeEventListener('scroll', onScroll);
+      if (settleTimer) clearTimeout(settleTimer);
+    };
+  }, [scrollParentEl, flushPending]);
+
+  // Observe every card; queue its reconciliation the first time it enters
+  // the viewport. The observer fires immediately for the initial screenful,
+  // which covers the old explicit "bootstrap" pass.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const cardObserverRef = useRef<IntersectionObserver | null>(null);
+  const observedCardsRef = useRef<WeakSet<Element>>(new WeakSet());
+
+  useEffect(() => {
+    if (!refreshComment) return;
+    const observer = new IntersectionObserver(entries => {
+      let queued = false;
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const key = (entry.target as HTMLElement).dataset.snapKey;
+        if (!key || refreshedRef.current.has(key)) continue;
+        pendingKeysRef.current.add(key);
+        queued = true;
+      }
+      if (queued) scheduleFlush();
+    }, { root: scrollParentEl });
+    cardObserverRef.current = observer;
+    observedCardsRef.current = new WeakSet();
+    return () => {
+      observer.disconnect();
+      cardObserverRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollParentEl, refreshComment ? true : false, scheduleFlush]);
+
+  useEffect(() => {
+    const observer = cardObserverRef.current;
+    const listEl = listRef.current;
+    if (!observer || !listEl) return;
+    for (const el of Array.from(listEl.querySelectorAll<HTMLElement>('[data-snap-key]'))) {
+      if (observedCardsRef.current.has(el)) continue;
+      observedCardsRef.current.add(el);
+      observer.observe(el);
+    }
+  }, [displayComments]);
 
   useEffect(() => () => {
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
   }, []);
 
-  // Confirmed empirically: Virtuoso's rangeChanged never fires until an
-  // actual scroll happens — the first screenful (exactly the "just opened
-  // the feed, haven't scrolled yet" case the whole feature is for) would
-  // otherwise never get reconciled. Bootstrap it once, directly, the same
-  // way a real scroll-triggered call would.
-  const bootstrappedRef = useRef(false);
+  // ── Infinite scroll ────────────────────────────────────────────────────
+  // A sentinel below the list requests the next page as it approaches. Three
+  // triggers, deliberately redundant, because each has a hole on its own:
+  //  - The IntersectionObserver fires only on TRANSITIONS. In a continuous
+  //    doomscroll the sentinel gets pushed down by each appended page but
+  //    never actually leaves the 2000px margin, so after the first firing
+  //    it can go silent forever (this stalled the feed at "about an hour
+  //    deep" in production). It's still needed for the no-scroll cases —
+  //    initial load, or a page short enough to leave the sentinel in view.
+  //  - The scroll listener above re-checks proximity on every scroll event,
+  //    which retries naturally; the data hooks' own isLoading/throttle
+  //    guards make the repeated calls cheap no-ops.
+  //  - The post-fetch effect below re-fires after each page lands, but a
+  //    fetch usually finishes inside the hooks' 1s throttle window (which
+  //    silently swallows the call), so it retries once again after the
+  //    window has passed.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const sentinelVisibleRef = useRef(false);
+  const loadNextPageRef = useRef(loadNextPage);
+  loadNextPageRef.current = loadNextPage;
+
   useEffect(() => {
-    if (bootstrappedRef.current || displayComments.length === 0) return;
-    bootstrappedRef.current = true;
-    handleRangeChanged({ startIndex: 0, endIndex: Math.min(7, displayComments.length - 1) });
-  }, [displayComments, handleRangeChanged]);
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      sentinelVisibleRef.current = entry.isIntersecting;
+      if (entry.isIntersecting) loadNextPageRef.current();
+    }, { root: scrollParentEl, rootMargin: '2000px 0px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [scrollParentEl, hasMore]);
+
+  useEffect(() => {
+    if (isLoading || !hasMore) return;
+    if (sentinelVisibleRef.current) loadNextPageRef.current();
+    const retry = setTimeout(() => {
+      if (sentinelVisibleRef.current) loadNextPageRef.current();
+    }, 1100);
+    return () => clearTimeout(retry);
+  }, [isLoading, hasMore, comments.length]);
 
   if (isLoading && comments.length === 0) {
     return (
@@ -262,7 +324,6 @@ export default function SnapList(
 
   return (
     <>
-      {/* Deliberately outside <Virtuoso> — see the comment above for why. */}
       {!post && <Box id="snap-composer"><SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} onClose={() => null} /></Box>}
       {showSortToggle && (
         <HStack spacing={2} px={2} pt={3} pb={1}>
@@ -284,42 +345,37 @@ export default function SnapList(
           ))}
         </HStack>
       )}
-      <Virtuoso
-        useWindowScroll={false}
-        customScrollParent={scrollParentEl ?? undefined}
-        data={displayComments}
-        computeItemKey={(_index, comment) => comment.permlink}
-        endReached={loadNextPage}
-        rangeChanged={handleRangeChanged}
-        isScrolling={handleIsScrolling}
-        // 800px flat (both directions) was too tight for Snap cards that can
-        // run several hundred px tall with media/embeds — normal scroll
-        // velocity crossed it in well under a second, so cards kept
-        // unmounting/remounting right at the edge of view. Remounting isn't
-        // just a visual pop-in: Snap.tsx holds local state (NSFW reveal,
-        // translation, edit mode, optimistic payout) that resets every time,
-        // which is what actually read as "always loading/freeing something."
-        // Biased toward the scroll direction (`main`) since that's where the
-        // buffer earns its keep; `reverse` stays smaller since scrolling
-        // back up is comparatively rare. Still bounded — nowhere near "keep
-        // everything mounted forever," just enough headroom to absorb a
-        // normal scroll without thrashing at the boundary.
-        overscan={{ main: 2000, reverse: 1000 }}
-        components={virtuosoComponents}
-        itemContent={(_index, comment: ExtendedComment) => (
-          <Snap
-            comment={comment}
-            onOpen={onOpen}
-            setReply={setReply}
-            refreshComment={refreshComment}
-            {...(!post ? { setConversation } : {})}
-          />
-        )}
-      />
-      {/* Same reasoning as the composer/toggle above — a Virtuoso Footer
-          driven by `hasMore` via context would lag a scroll event behind. */}
+      <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
+        {displayComments.map(comment => (
+          // One element serves three roles: the data-snap-key anchor the
+          // pagination/reconciliation observers track (must never
+          // disappear), the content-visibility target (native
+          // render-skipping for cards outside the viewport, whose own
+          // scroll anchoring preserves each card's last-rendered size —
+          // 'auto' in contain-intrinsic-size), and the wide-margin
+          // whole-card gate that bounds total mounted cards for a long
+          // session (see CARD_GATE_MARGIN above). Deliberately NOT three
+          // nested divs — see OffscreenGate's doc comment for why a nested
+          // IntersectionObserver target inside a content-visibility:auto
+          // ancestor is fragile.
+          <OffscreenGate
+            key={snapKey(comment)}
+            data-snap-key={snapKey(comment)}
+            rootMargin={CARD_GATE_MARGIN}
+            sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
+          >
+            <Snap
+              comment={comment}
+              onOpen={onOpen}
+              setReply={setReply}
+              refreshComment={refreshComment}
+              {...(!post ? { setConversation } : {})}
+            />
+          </OffscreenGate>
+        ))}
+      </Box>
       {hasMore && (
-        <Box display="flex" justifyContent="center" alignItems="center" py={5}>
+        <Box ref={sentinelRef} display="flex" justifyContent="center" alignItems="center" py={5}>
           <Spinner size="xl" color="primary" />
         </Box>
       )}

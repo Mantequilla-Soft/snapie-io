@@ -60,7 +60,12 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
   // forces the fetch effect to re-run regardless, same pattern as useSnaps.
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
-  const pageSize = 20;
+  // 30, up from 20: with the virtualized SnapList, a fast mobile doomscroll
+  // can reach the bottom of a loaded page before the next fetch lands,
+  // which reads as the feed stalling. A bigger page is cheap runway — the
+  // sidecar hands back pre-merged pages, so the marginal cost is small,
+  // and virtualization means the extra items don't stay mounted anyway.
+  const pageSize = 30;
 
   async function getMoreFeedItems(isCancelled: () => boolean): Promise<{ comments: ExtendedComment[]; hasMoreData: boolean }> {
     const qs = new URLSearchParams({ limit: String(pageSize) });

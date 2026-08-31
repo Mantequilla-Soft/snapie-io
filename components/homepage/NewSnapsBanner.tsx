@@ -14,15 +14,23 @@ export default function NewSnapsBanner({ count, onClick, top = 0 }: NewSnapsBann
   if (count <= 0) return null;
 
   return (
+    // h={0}: the banner appears/disappears while the user is mid-scroll (the
+    // new-snaps poll fires on its own schedule), and it sits above SnapList
+    // inside the scroll container — if it occupied layout height, every
+    // appearance would push the whole feed down under the user's finger
+    // (part of the mobile "scroll keeps jumping back" bug). Zero-height +
+    // overflow lets it float over the feed without ever displacing it.
     <Flex
       justify="center"
-      py={2}
+      h={0}
+      overflow="visible"
       position="sticky"
       top={`${top}px`}
       zIndex={9}
       pointerEvents="none"
     >
       <Button
+        mt={2}
         size="sm"
         bg="#1ca1f1"
         color="white"

@@ -198,6 +198,19 @@ const VIDEO_STYLE = {
   zIndex: 2,
 };
 
+// Real aspect ratio per video src, learned from loadedmetadata — module
+// scope so it survives the virtualized feed unmounting/remounting the card
+// (same pattern as TwitterEmbed's height cache and MediaRenderer's 3Speak
+// caches). With preload="none" a <video> has no intrinsic dimensions until
+// it scrolls into view and loads, so without a reserved ratio the element
+// rendered at the browser's default proportions and then snapped to the
+// real ones — hundreds of px for a vertical video, replayed on every
+// remount, shoving the virtualized list's scroll position each time.
+// Unknown srcs reserve 16/9 up front; only their first-ever metadata load
+// can shift layout, and only if the video isn't actually 16/9.
+const knownVideoAspects = new Map<string, number>();
+const DEFAULT_VIDEO_ASPECT = 16 / 9;
+
 const BASE_SLIDER_STYLE = {
   WebkitAppearance: "none" as React.CSSProperties["WebkitAppearance"],
   height: "8px",
@@ -219,6 +232,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
   const [isVideoLoaded, setIsVideoLoaded] = useState(false);
   const [shouldLoop, setShouldLoop] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState(() => (src && knownVideoAspects.get(src)) || DEFAULT_VIDEO_ASPECT);
 
   // Hide progress bar on mobile (show only audio controls)
   const showProgressBar = useBreakpointValue({ base: false, md: true }) ?? true;
@@ -265,6 +279,14 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
       videoRef.current.volume = 0;
     }
   }, []);
+
+  const handleLoadedMetadata = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !src || video.videoWidth <= 0 || video.videoHeight <= 0) return;
+    const ratio = video.videoWidth / video.videoHeight;
+    knownVideoAspects.set(src, ratio);
+    setAspectRatio(ratio);
+  }, [src]);
 
   const handleVideoError = useCallback(() => {
     setHasError(true);
@@ -355,6 +377,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     setHasError(false);
     setProgress(0);
     loadRequestedRef.current = false;
+    setAspectRatio((src && knownVideoAspects.get(src)) || DEFAULT_VIDEO_ASPECT);
   }, [src]);
 
   useEffect(() => {
@@ -414,6 +437,19 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     [sliderBackground]
   );
 
+  // The explicit aspect-ratio (cached real ratio, or 16/9 while unknown)
+  // keeps the element's layout height fixed from first paint — see
+  // knownVideoAspects above. objectFit letterboxes any brief mismatch
+  // between the reserved box and the video's true proportions.
+  const videoStyle = useMemo(
+    () => ({
+      ...VIDEO_STYLE,
+      aspectRatio: String(aspectRatio),
+      objectFit: "contain" as const,
+    }),
+    [aspectRatio]
+  );
+
   return (
     <Box
       position="relative"
@@ -438,9 +474,10 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
           loop={shouldLoop}
           preload="none" // CRITICAL: Don't load anything until user interaction or in view
           onLoadedData={handleLoadedData}
+          onLoadedMetadata={handleLoadedMetadata}
           onError={handleVideoError}
           onClick={(e) => e.stopPropagation()}
-          style={VIDEO_STYLE}
+          style={videoStyle}
         />
         {!isVideoLoaded && !hasError && (
           <Box
