@@ -14,6 +14,8 @@ import PostDetails from '@/components/blog/PostDetails';
 import { useComments } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
 import { useSearchParams } from 'next/navigation';
+import { useAuthorMuteGate } from '@/hooks/useAuthorMuteGate';
+import MutedAuthorNotice from '@/components/shared/MutedAuthorNotice';
 
 interface PostPageProps {
   author: string
@@ -24,6 +26,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const searchParams = useSearchParams();
   const isEmbedMode = searchParams.get('embed') === 'true';
   const { hiveUser } = useHiveUser();
+  const muteGate = useAuthorMuteGate(author);
 
   const [isLoading, setIsLoading] = useState(false);
   const [post, setPost] = useState<Discussion | null>(null);
@@ -89,11 +92,23 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     }, 3000);
   };
 
-  if (isLoading || (!post || !author || !permlink)) {
+  if (isLoading || muteGate.isChecking || (!post || !author || !permlink)) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <Spinner size="xl" color="primary" />
       </Box>
+    );
+  }
+
+  if (muteGate.isMuted) {
+    return (
+      <MutedAuthorNotice
+        author={author}
+        canUnmute={muteGate.canUnmute}
+        isRelationshipLoading={muteGate.isRelationshipLoading}
+        isProcessing={muteGate.isProcessing}
+        onUnmute={muteGate.unmute}
+      />
     );
   }
 

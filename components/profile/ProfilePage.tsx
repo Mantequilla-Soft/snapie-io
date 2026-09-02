@@ -22,6 +22,8 @@ import SnapList from '@/components/homepage/SnapList';
 import Conversation from '@/components/homepage/Conversation';
 import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthorMuteGate } from '@/hooks/useAuthorMuteGate';
+import MutedAuthorNotice from '@/components/shared/MutedAuthorNotice';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -43,6 +45,7 @@ interface ProfilePageProps {
 export default function ProfilePage({ username }: ProfilePageProps) {
   const { username: user } = useCurrentUser();
   const { hiveAccount, isLoading, error } = useHiveAccount(username);
+  const muteGate = useAuthorMuteGate(username);
   const [profileInfo, setProfileInfo] = useState<any>(null);
 
   // Posts tab state
@@ -217,7 +220,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     }, 3000);
   };
 
-  if (isLoading || !hiveAccount) {
+  if (isLoading || !hiveAccount || muteGate.isChecking) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <Spinner size="xl" color="primary" />
@@ -233,6 +236,18 @@ export default function ProfilePage({ username }: ProfilePageProps) {
           {error}
         </Alert>
       </Box>
+    );
+  }
+
+  if (muteGate.isMuted) {
+    return (
+      <MutedAuthorNotice
+        author={username}
+        canUnmute={muteGate.canUnmute}
+        isRelationshipLoading={muteGate.isRelationshipLoading}
+        isProcessing={muteGate.isProcessing}
+        onUnmute={muteGate.unmute}
+      />
     );
   }
 
