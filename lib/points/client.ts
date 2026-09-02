@@ -64,7 +64,7 @@ function jwtExpiryMs(token: string): number | null {
  *  401'd from that point on with zero recovery until the user happened to
  *  clear storage or log out. Now an expired cached token is treated the same
  *  as "no token" and a fresh one is minted. */
-export async function ensureSessionToken(username: string): Promise<string | null> {
+export async function ensureSessionToken(username: string, opts: { silent?: boolean } = {}): Promise<string | null> {
   const existing = localStorage.getItem(SESSION_TOKEN_KEY);
   if (existing) {
     const exp = jwtExpiryMs(existing);
@@ -77,7 +77,7 @@ export async function ensureSessionToken(username: string): Promise<string | nul
   const promise = (async () => {
     try {
       await chatService.authenticate(username, async challenge => {
-        const res = await signMessageWithAioha(challenge, KeyTypes.Posting, 'Enable Snapie Points');
+        const res = await signMessageWithAioha(challenge, KeyTypes.Posting, 'Enable Snapie Points', { silent: opts.silent });
         if (!res.success || !res.result) throw new Error('Sign failed');
         return res.result as string;
       });
@@ -101,8 +101,8 @@ export async function ensureSessionToken(username: string): Promise<string | nul
  *  Response either way (even a failing one) rather than throwing, so callers
  *  keep their existing ok-check/error-handling shape; returns null only when
  *  no token could be obtained at all (e.g. signature declined). */
-export async function authenticatedFetch(username: string, url: string, init: RequestInit): Promise<Response | null> {
-  const token = await ensureSessionToken(username);
+export async function authenticatedFetch(username: string, url: string, init: RequestInit, opts: { silent?: boolean } = {}): Promise<Response | null> {
+  const token = await ensureSessionToken(username, opts);
   if (!token) return null;
 
   const withAuth = (t: string): RequestInit => ({
@@ -114,7 +114,7 @@ export async function authenticatedFetch(username: string, url: string, init: Re
   if (res.status !== 401) return res;
 
   localStorage.removeItem(SESSION_TOKEN_KEY);
-  const freshToken = await ensureSessionToken(username);
+  const freshToken = await ensureSessionToken(username, opts);
   if (!freshToken) return res;
 
   return fetch(url, withAuth(freshToken));
@@ -142,7 +142,7 @@ export function awardPoints(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ actionType, author: targetAuthor, permlink: targetPermlink }),
-      });
+      }, { silent: true });
       if (!res || !res.ok) return; // no token (e.g. signature declined), or the server rejected the request
       const data = (await res.json()) as { status?: string; awarded?: number; balance?: number };
       if (data?.status === 'awarded' && (data.awarded ?? 0) > 0) {

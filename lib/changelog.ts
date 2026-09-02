@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-02',
+    date: '2026-09-02',
+    items: [
+      { type: 'fix', text: 'Fixed the "connect your wallet" prompt always saying "Active key required" no matter what actually needed signing — it now correctly names the key an action needs (posting or active), so claiming rewards, voting, or commenting no longer looks like it needs the same thing a transfer or power-up does.' },
+      { type: 'fix', text: 'Fixed that same wallet prompt popping up from things you never asked for — a background admin check, quietly awarding Snapie Points, or loading your badges/inventory could all interrupt you with it. It now only shows up when something you actually did (opening Chat, buying an item, claiming a Pile purchase, etc.) genuinely needs your wallet.' },
+    ],
+  },
+  {
     id: '2026-08-30',
     date: '2026-08-30',
     items: [

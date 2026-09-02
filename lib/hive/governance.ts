@@ -188,7 +188,7 @@ export async function proposalVoteBroadcast(username: string, proposalIds: numbe
   if (isSnapieMode()) {
     const { proposalVote } = await import('../snapie-auth/client');
     const res = await proposalVote(proposalIds, approve);
-    if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to vote on proposals'), { code: 'needs_client_signing' }); }
+    if ('needsClientSigning' in res) { emitNeedsWallet('active'); throw Object.assign(new Error('Connect your Hive wallet to vote on proposals'), { code: 'needs_client_signing' }); }
     if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'));
     return { success: true as const, result: res.txId };
   }

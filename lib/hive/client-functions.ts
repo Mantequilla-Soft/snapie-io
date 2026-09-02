@@ -145,7 +145,7 @@ export async function powerUpWithKeychain(username: string, amount: number) {
       const { powerUp } = await import('@/lib/snapie-auth/client');
       const { emitNeedsWallet } = await import('@/lib/hive/signing');
       const res = await powerUp(amount);
-      if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to power up'), { code: 'needs_client_signing' }); }
+      if ('needsClientSigning' in res) { emitNeedsWallet('active'); throw Object.assign(new Error('Connect your Hive wallet to power up'), { code: 'needs_client_signing' }); }
       if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
       return res;
     }
@@ -174,7 +174,7 @@ export async function powerDownWithKeychain(username: string, hivePower: number)
       const { powerDown } = await import('@/lib/snapie-auth/client');
       const { emitNeedsWallet } = await import('@/lib/hive/signing');
       const res = await powerDown(`${vests.toFixed(6)} VESTS`);
-      if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to power down'), { code: 'needs_client_signing' }); }
+      if ('needsClientSigning' in res) { emitNeedsWallet('active'); throw Object.assign(new Error('Connect your Hive wallet to power down'), { code: 'needs_client_signing' }); }
       if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
       return res;
     }
@@ -202,7 +202,7 @@ export async function delegateWithKeychain(username: string, delegatee: string, 
       const { delegate } = await import('@/lib/snapie-auth/client');
       const { emitNeedsWallet } = await import('@/lib/hive/signing');
       const res = await delegate(delegatee, `${vests.toFixed(6)} VESTS`);
-      if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to delegate'), { code: 'needs_client_signing' }); }
+      if ('needsClientSigning' in res) { emitNeedsWallet('active'); throw Object.assign(new Error('Connect your Hive wallet to delegate'), { code: 'needs_client_signing' }); }
       if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
       return res;
     }
@@ -290,7 +290,9 @@ export async function broadcastWithKeychain(
         }
         if (res && 'needsClientSigning' in res) {
           const { emitNeedsWallet } = await import('@/lib/hive/signing');
-          emitNeedsWallet();
+          // Every op this function handles (savings, convert, limit orders,
+          // and the default broadcastOp fallback here) is active-authority.
+          emitNeedsWallet('active');
           throw Object.assign(new Error('Connect your Hive wallet to complete this action'), { code: 'needs_client_signing' });
         }
         if (res) {
@@ -504,7 +506,7 @@ export async function witnessVoteWithKeychain(username: string, witness: string,
   if (isSnapieMode()) {
     const { witnessVote } = await import('@/lib/snapie-auth/client');
     const res = await witnessVote(witness, approve);
-    if ('needsClientSigning' in res) { emitNeedsWallet(); throw Object.assign(new Error('Connect your Hive wallet to vote for witnesses'), { code: 'needs_client_signing' }); }
+    if ('needsClientSigning' in res) { emitNeedsWallet('active'); throw Object.assign(new Error('Connect your Hive wallet to vote for witnesses'), { code: 'needs_client_signing' }); }
     if (res.emancipationRequired && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('snapie:emancipation-required'));
     return { success: true as const, result: res.txId };
   }

@@ -57,7 +57,7 @@ export interface MyMoodBadges {
 }
 
 export async function getMyMoodBadges(username: string): Promise<MyMoodBadges> {
-  const res = await authenticatedFetch(username, '/api/mood-badges/mine', { method: 'GET' });
+  const res = await authenticatedFetch(username, '/api/mood-badges/mine', { method: 'GET' }, { silent: true });
   if (!res || !res.ok) return { owned: [], equipped: null };
   return (await res.json()) as MyMoodBadges;
 }

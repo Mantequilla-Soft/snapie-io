@@ -138,16 +138,14 @@ export async function broadcastOps(
           const [opName, opBody] = op as [string, Record<string, unknown>];
           const res = await broadcastOp(opName, opBody);
           if ('needsClientSigning' in res) {
-            if (lastTxId) {
-              // Part of this batch already broadcast custodially (e.g. the
-              // post itself) — falling through to Aioha here would resubmit
-              // it. Surface a clear error instead of silently dropping the
-              // rest or double-posting.
-              const { emitNeedsWallet } = await import('@/lib/hive/signing');
-              emitNeedsWallet();
-              throw Object.assign(new Error('Part of this action needs your connected Hive wallet to finish — connect one and try again.'), { code: 'needs_client_signing' });
-            }
-            break; // nothing broadcast yet — fall through to Aioha for the whole batch
+            // Every op in this batch is posting-authority (it's in `allowed`
+            // above), so a server-side custody gap here always means the
+            // account is emancipated and needs a posting-key wallet — never
+            // falls through to a local Aioha call with no provider connected,
+            // which would otherwise fail silently with no user feedback.
+            const { emitNeedsWallet } = await import('@/lib/hive/signing');
+            emitNeedsWallet('posting');
+            throw Object.assign(new Error('Connect your Hive wallet to finish this action'), { code: 'needs_client_signing' });
           }
           lastTxId = (res as any).txId;
         }
@@ -173,7 +171,12 @@ export async function voteWithAioha(
       const { broadcastOp } = await import('@/lib/snapie-auth/client');
       const voter = getSnapieUsername() ?? '';
       const res = await broadcastOp('vote', { voter, author, permlink, weight });
-      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId };
+      if ('needsClientSigning' in res) {
+        const { emitNeedsWallet } = await import('@/lib/hive/signing');
+        emitNeedsWallet('posting');
+        throw Object.assign(new Error('Connect your Hive wallet to vote'), { code: 'needs_client_signing' });
+      }
+      return { success: true as const, result: (res as any).txId };
     }
   }
   return withTxApproval(async () => {
@@ -196,7 +199,7 @@ export async function transferWithAioha(
       const { emitNeedsWallet } = await import('@/lib/hive/signing');
       const res = await transfer(to, amount, currency, memo);
       if ('needsClientSigning' in res) {
-        emitNeedsWallet();
+        emitNeedsWallet('active');
         throw Object.assign(new Error('Connect your Hive wallet to complete this transfer'), { code: 'needs_client_signing' });
       }
       if ((res as any).emancipationRequired) window.dispatchEvent(new CustomEvent('snapie:emancipation-required'))
@@ -265,7 +268,12 @@ export async function customJsonWithAioha(
       const required_auths = keyType === KeyTypes.Active ? [username] : [];
       const required_posting_auths = keyType === KeyTypes.Posting ? [username] : [];
       const res = await broadcastOp('custom_json', { required_auths, required_posting_auths, id, json });
-      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId };
+      if ('needsClientSigning' in res) {
+        const { emitNeedsWallet } = await import('@/lib/hive/signing');
+        emitNeedsWallet(keyType === KeyTypes.Active ? 'active' : 'posting');
+        throw Object.assign(new Error('Connect your Hive wallet to finish this action'), { code: 'needs_client_signing' });
+      }
+      return { success: true as const, result: (res as any).txId };
     }
   }
   return withTxApproval(async () => {
@@ -299,7 +307,12 @@ export async function commentWithAioha(
         body,
         json_metadata: jsonMetadata,
       });
-      if (!('needsClientSigning' in res)) return { success: true as const, result: (res as any).txId, publicKey: undefined };
+      if ('needsClientSigning' in res) {
+        const { emitNeedsWallet } = await import('@/lib/hive/signing');
+        emitNeedsWallet('posting');
+        throw Object.assign(new Error('Connect your Hive wallet to post'), { code: 'needs_client_signing' });
+      }
+      return { success: true as const, result: (res as any).txId, publicKey: undefined };
     }
   }
   return withTxApproval(async () => {
@@ -321,6 +334,7 @@ export async function signMessageWithAioha(
   message: string,
   keyType: KeyTypes = KeyTypes.Posting,
   overlayTitle = 'Approve signature request',
+  opts: { silent?: boolean } = {},
 ) {
   // Custodial Snapie Auth users: sign server-side via the proxy.
   if (typeof window !== 'undefined') {
@@ -329,9 +343,15 @@ export async function signMessageWithAioha(
       const { signMessage } = await import('@/lib/snapie-auth/client');
       const res = await signMessage(message);
       if ('needsClientSigning' in res) {
-        // Emancipated: the server can't sign for this account anymore, and a
-        // Snapie Auth session has no local wallet to fall back to silently.
-        emitNeedsWallet();
+        // Message signing proves identity (matches the account's own
+        // registered posting key) rather than broadcasting a transaction, so
+        // it can't be delegated the way @snapie's posting authority covers
+        // on-chain ops — an emancipated/linked account genuinely needs a
+        // wallet here. But this runs from passive background calls too
+        // (admin-status checks, opportunistic point awards) that must never
+        // interrupt the user — only surface the prompt for callers that
+        // opted in as user-initiated (silent defaults to false).
+        if (!opts.silent) emitNeedsWallet(keyType === KeyTypes.Active ? 'active' : 'posting');
         throw Object.assign(new Error('Connect your Hive wallet to finish signing in'), { code: 'needs_client_signing' });
       }
       return { success: true as const, result: res.signature };

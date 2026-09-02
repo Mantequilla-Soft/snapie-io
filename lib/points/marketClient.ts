@@ -121,7 +121,7 @@ export async function claimOwnItem(username: string, itemId: string): Promise<Cl
 }
 
 export async function getMyInventory(username: string): Promise<InventoryEntry[]> {
-  const res = await authenticatedFetch(username, '/api/points/market/inventory', { method: 'GET' });
+  const res = await authenticatedFetch(username, '/api/points/market/inventory', { method: 'GET' }, { silent: true });
   if (!res || !res.ok) return [];
   const data = (await res.json()) as { inventory: InventoryEntry[] };
   return data.inventory ?? [];

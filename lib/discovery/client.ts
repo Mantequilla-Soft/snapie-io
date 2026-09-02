@@ -14,7 +14,7 @@ export function saveInterestsOnboarding(username: string, interestTags: string[]
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ interestTags }),
-      });
+      }, { silent: true });
     } catch {
       // Swallow — see docblock above.
     }

@@ -20,7 +20,7 @@ async function fetchIsAdmin(username: string): Promise<boolean> {
 
   const promise = (async () => {
     try {
-      const res = await authenticatedFetch(username, '/api/admin/whoami', { method: 'GET' });
+      const res = await authenticatedFetch(username, '/api/admin/whoami', { method: 'GET' }, { silent: true });
       const isAdmin = !!res && res.ok && (await res.json()).isAdmin === true;
       cache = { username, isAdmin };
       cacheTimestamp = Date.now();

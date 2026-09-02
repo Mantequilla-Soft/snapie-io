@@ -33,13 +33,21 @@ export function isSnapieMode(): boolean {
   return _mode === 'snapie'
 }
 
+export type NeedsWalletKeyType = 'posting' | 'active'
+
 /**
- * Fired when an emancipated Snapie user attempts an active-key operation.
+ * Fired when an emancipated Snapie user attempts an operation the server can
+ * no longer sign custodially (it holds none of their keys post-emancipation).
  * The server responds with needsClientSigning: true — we surface this to the UI
  * instead of silently failing so the user knows to connect their Hive wallet.
+ *
+ * `keyType` is the authority the failed operation actually needs, so the UI
+ * can tell the user which key their wallet must provide instead of always
+ * saying "active" — most custodial ops (vote, comment, claim rewards) only
+ * ever need posting.
  */
-export function emitNeedsWallet(): void {
+export function emitNeedsWallet(keyType?: NeedsWalletKeyType): void {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('snapie:needs-wallet'))
+    window.dispatchEvent(new CustomEvent('snapie:needs-wallet', { detail: { keyType } }))
   }
 }

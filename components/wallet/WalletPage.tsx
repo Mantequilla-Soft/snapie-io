@@ -380,16 +380,20 @@ export default function WalletPage({ username }: WalletPageProps) {
     if (!user || !hasPendingRewards) return;
     setIsClaiming(true);
     try {
-      await claimRewardsWithKeychain(user, rewardHive, rewardHbd, rewardVests);
+      const result = await claimRewardsWithKeychain(user, rewardHive, rewardHbd, rewardVests);
+      if (!result.success) {
+        console.error('Claim rewards failed:', result.error);
+        return;
+      }
       // Broadcast success just means the node accepted it — wait for the
       // claim to actually land in a block before trusting a refetch.
       await refreshAfterClaim(user);
+      refetch();
     } catch (err) {
       console.error('Claim rewards failed:', err);
     } finally {
       setIsClaiming(false);
     }
-    refetch();
   }
 
   const balance = hiveAccount?.balance ? String(extractNumber(String(hiveAccount.balance))) : '0.000';
