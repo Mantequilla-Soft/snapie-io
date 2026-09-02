@@ -324,15 +324,17 @@ export async function signMessageWithAioha(
 ) {
   // Custodial Snapie Auth users: sign server-side via the proxy.
   if (typeof window !== 'undefined') {
-    const { isSnapieMode } = await import('@/lib/hive/signing');
+    const { isSnapieMode, emitNeedsWallet } = await import('@/lib/hive/signing');
     if (isSnapieMode()) {
       const { signMessage } = await import('@/lib/snapie-auth/client');
       const res = await signMessage(message);
       if ('needsClientSigning' in res) {
-        // Emancipated: fall through to Aioha below
-      } else {
-        return { success: true as const, result: res.signature };
+        // Emancipated: the server can't sign for this account anymore, and a
+        // Snapie Auth session has no local wallet to fall back to silently.
+        emitNeedsWallet();
+        throw Object.assign(new Error('Connect your Hive wallet to finish signing in'), { code: 'needs_client_signing' });
       }
+      return { success: true as const, result: res.signature };
     }
   }
   return withTxApproval(async () => {
