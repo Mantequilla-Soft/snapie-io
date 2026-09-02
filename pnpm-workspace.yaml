@@ -1,5 +1,12 @@
 packages:
   - 'packages/*'
+allowBuilds:
+  '@firebase/util': true
+  core-js: true
+  esbuild: true
+  protobufjs: true
+  secp256k1: true
+  unrs-resolver: true
 overrides:
   # isomorphic-dompurify pulls jsdom transitively for SSR sanitization. jsdom
   # 27+ imports its default-stylesheet as a real .css file (lib/jsdom/browser/
