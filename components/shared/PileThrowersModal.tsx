@@ -14,6 +14,7 @@ import {
   Image,
   Link,
   Icon,
+  Divider,
 } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { FiEyeOff } from 'react-icons/fi';
@@ -35,13 +36,16 @@ export default function PileThrowersModal({ isOpen, onClose, entry }: PileThrowe
       <ModalOverlay bg="blackAlpha.700" />
       <ModalContent bg="muted" borderColor="border" borderWidth="2px">
         <ModalHeader color="primary" borderBottomWidth="1px" borderBottomColor="border">
-          <HStack>
-            {entry && <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="28px" objectFit="contain" />}
-            <Text>{entry ? `${entry.item.name} (${entry.count})` : 'Thrown items'}</Text>
-          </HStack>
+          <Text>{entry ? `${entry.item.name} (${entry.count})` : 'Thrown items'}</Text>
         </ModalHeader>
         <ModalCloseButton color="primary" _hover={{ bg: 'background' }} />
         <ModalBody pb={6}>
+          {entry && (
+            <VStack spacing={3} py={4}>
+              <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="112px" objectFit="contain" />
+              <Divider />
+            </VStack>
+          )}
           {!entry || entry.recentThrowers.length === 0 ? (
             <Box textAlign="center" py={8}>
               <Text color="accent">Nobody&apos;s thrown one yet</Text>

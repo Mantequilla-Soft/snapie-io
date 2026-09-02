@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Box, Flex, HStack, Text, Image, Divider } from '@chakra-ui/react';
+import { Box, Flex, HStack, VStack, Text, Image, Divider } from '@chakra-ui/react';
 import { getPile, ITEM_THROWN_EVENT, ItemThrownDetail } from '@/lib/points/marketClient';
 import type { PileEntry } from '@/lib/points/marketService';
 import type { ItemThrowTargetType } from '@/lib/db/models/ItemThrow';
@@ -79,23 +79,56 @@ export default function PileTray({ author, permlink, targetType }: PileTrayProps
       <Flex align="center" justify="space-between" wrap="wrap" gap={3}>
         <HStack spacing={2} flexWrap="wrap">
           {pile.map(entry => (
-            <HStack
-              key={entry.item.id}
-              spacing={1}
-              px={2}
-              py={1}
-              borderRadius="full"
-              bg="background"
-              borderWidth="1px"
-              borderColor="border"
-              cursor="pointer"
-              _hover={{ borderColor: 'primary' }}
-              onClick={() => setSelected(entry)}
-              title={entry.item.name}
-            >
-              <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="18px" objectFit="contain" />
-              <Text fontSize="xs" color="text">{entry.count}</Text>
-            </HStack>
+            <Box key={entry.item.id} position="relative" role="group">
+              <HStack
+                spacing={1}
+                px={2}
+                py={1}
+                borderRadius="full"
+                bg="background"
+                borderWidth="1px"
+                borderColor="border"
+                cursor="pointer"
+                _hover={{ borderColor: 'primary' }}
+                onClick={() => setSelected(entry)}
+                title={entry.item.name}
+              >
+                <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="18px" objectFit="contain" />
+                <Text fontSize="xs" color="text">{entry.count}</Text>
+              </HStack>
+
+              {/* Desktop-only hover peek — CSS-gated to real pointer devices
+                  so a touch tap never triggers a stuck "hover" state. */}
+              <Box
+                position="absolute"
+                bottom="calc(100% + 8px)"
+                left="50%"
+                transform="translateX(-50%) translateY(4px)"
+                opacity={0}
+                pointerEvents="none"
+                zIndex={20}
+                bg="muted"
+                borderWidth="1px"
+                borderColor="border"
+                borderRadius="md"
+                boxShadow="lg"
+                p={2}
+                transition="opacity 0.15s ease, transform 0.15s ease"
+                sx={{
+                  '@media (hover: hover) and (pointer: fine)': {
+                    '[role=group]:hover &': {
+                      opacity: 1,
+                      transform: 'translateX(-50%) translateY(0)',
+                    },
+                  },
+                }}
+              >
+                <VStack spacing={1}>
+                  <Image src={entry.item.imageUrl} alt={entry.item.name} boxSize="96px" objectFit="contain" />
+                  <Text fontSize="xs" color="accent" whiteSpace="nowrap">{entry.item.name}</Text>
+                </VStack>
+              </Box>
+            </Box>
           ))}
         </HStack>
         <ThrowItemButton targetAuthor={author} targetPermlink={permlink} targetType={targetType} />
