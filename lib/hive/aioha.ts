@@ -343,11 +343,11 @@ export async function signMessageWithAioha(
       const { signMessage } = await import('@/lib/snapie-auth/client');
       const res = await signMessage(message);
       if ('needsClientSigning' in res) {
-        // Message signing proves identity (matches the account's own
-        // registered posting key) rather than broadcasting a transaction, so
-        // it can't be delegated the way @snapie's posting authority covers
-        // on-chain ops — an emancipated/linked account genuinely needs a
-        // wallet here. But this runs from passive background calls too
+        // The auth backend now signs posting-level challenges with @snapie's
+        // own delegated posting key for emancipated users too (mirroring how
+        // /broadcast already covers posting ops for them), so this should
+        // only fire for active-key requests or an account with no custody
+        // mode set at all. This also runs from passive background calls
         // (admin-status checks, opportunistic point awards) that must never
         // interrupt the user — only surface the prompt for callers that
         // opted in as user-initiated (silent defaults to false).

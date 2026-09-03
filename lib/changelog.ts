@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-03',
+    date: '2026-09-03',
+    items: [
+      { type: 'fix', text: 'Fixed Snapie Auth accounts that had retrieved their own keys getting asked to connect a wallet just to open Chat, even though posting authority is still shared with Snapie — sign-in now goes through the same trusted path everything else (posting, voting) already uses.' },
+    ],
+  },
+  {
     id: '2026-09-02',
     date: '2026-09-02',
     items: [
