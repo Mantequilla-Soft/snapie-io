@@ -11,6 +11,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -99,8 +100,15 @@ function renderSegments(text: string, validity: Map<string, boolean>) {
       <Text
         as="span"
         key={key++}
+        // Color and (non-metric) decoration ONLY. Anything that changes glyph
+        // advance width — a bolder weight, a different family, letter-spacing —
+        // makes the backdrop's copy of the text a different physical width than
+        // the real textarea's, which lays the same characters out in the plain
+        // weight it always uses. The caret is positioned by that real layout,
+        // so a 600-weight mention (measured ~11px wider than 400 for a 15-char
+        // handle) shoves every glyph after it on that line out of step with the
+        // caret. Underline is safe; weight is not.
         color={known === true ? 'primary' : known === false ? 'red.400' : undefined}
-        fontWeight={known === true ? 600 : undefined}
         textDecoration={known === false ? 'underline dotted' : undefined}
       >
         {mention}
@@ -136,6 +144,8 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
   ) {
     const innerRef = useRef<HTMLTextAreaElement | null>(null);
     const backdropRef = useRef<HTMLDivElement | null>(null);
+    /** Last textarea content width the backdrop was pinned to. */
+    const syncedWidthRef = useRef(0);
     useImperativeHandle(forwardedRef, () => innerRef.current as HTMLTextAreaElement);
 
     const [text, setText] = useState<string>(String(value ?? defaultValue ?? ''));
@@ -168,6 +178,34 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
       return () => el.removeEventListener('input', handleInput);
     }, [value]);
 
+    /** Pins the backdrop to the real textarea's content box: same scroll
+     *  offset, and same width for line breaking (see the width note below).
+     *  Every path that can change either one funnels through here. */
+    const syncBackdrop = useCallback(() => {
+      const el = innerRef.current;
+      const backdrop = backdropRef.current;
+      if (!el || !backdrop) return;
+      // clientWidth excludes the scrollbar but includes padding; the backdrop
+      // mirrors this element's padding and border, so matching border-box
+      // widths here is what makes the two content boxes identical. A zero
+      // width means the editor is currently hidden (preview-only mode) or not
+      // laid out yet — pinning the backdrop to 0 then would wrap every line to
+      // a single character; leave it alone and let the ResizeObserver below
+      // re-sync the moment it has a real box again.
+      // This runs on every scroll event too, so re-read the (comparatively
+      // expensive) computed border widths only when the content width has
+      // actually moved.
+      if (el.clientWidth > 0 && el.clientWidth !== syncedWidthRef.current) {
+        syncedWidthRef.current = el.clientWidth;
+        const style = window.getComputedStyle(el);
+        const borders =
+          (parseFloat(style.borderLeftWidth) || 0) + (parseFloat(style.borderRightWidth) || 0);
+        backdrop.style.width = `${el.clientWidth + borders}px`;
+      }
+      backdrop.scrollTop = el.scrollTop;
+      backdrop.scrollLeft = el.scrollLeft;
+    }, []);
+
     // Keeps the backdrop's scroll position glued to the real textarea's
     // whenever the text itself changes — not just on the textarea's own
     // `scroll` event (handleScroll below), which the browser doesn't
@@ -183,12 +221,34 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
     // backdrop stayed pinned at scrollTop 0, with no `scroll` event ever
     // firing in between.
     useEffect(() => {
+      syncBackdrop();
+    }, [text, syncBackdrop]);
+
+    // The other half of "the backdrop must occupy exactly the real textarea's
+    // content box": its WIDTH. A textarea with overflowY="auto" (the blog
+    // composer) grows a classic scrollbar the moment the text overflows, and
+    // Chrome takes that scrollbar's ~15px out of the textarea's content box —
+    // so from that keystroke on, the real textarea wraps its lines ~2
+    // characters earlier than the backdrop, which has no scrollbar and stays
+    // full width. Same text, two different sets of line breaks: the caret is
+    // drawn where the *real* textarea's layout puts it, the letters are drawn
+    // where the backdrop's layout puts them, and the two run apart by however
+    // much the wrap points have diverged (measured live: up to ~65px, ~8
+    // characters, and on 137 of 200 sample paragraphs). That's the "cursor
+    // runs ahead of my typing, but the letters still land in the right place"
+    // bug — and why it appears out of nowhere partway into a post (that's the
+    // scrollbar arriving) rather than from the first paragraph.
+    //
+    // ResizeObserver's default box is the content box, which is exactly the
+    // thing the scrollbar shrinks, so it fires on the scrollbar appearing and
+    // disappearing as well as on ordinary layout/resize.
+    useLayoutEffect(() => {
       const el = innerRef.current;
-      const backdrop = backdropRef.current;
-      if (!el || !backdrop) return;
-      backdrop.scrollTop = el.scrollTop;
-      backdrop.scrollLeft = el.scrollLeft;
-    }, [text]);
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(syncBackdrop);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }, [syncBackdrop]);
 
     const validity = useMentionValidation(text);
     const mention = useMentionAutocomplete();
@@ -239,12 +299,9 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
     }, [mention, commit, text, onKeyDown]);
 
     const handleScroll = useCallback((e: ReactUIEvent<HTMLTextAreaElement>) => {
-      if (backdropRef.current) {
-        backdropRef.current.scrollTop = e.currentTarget.scrollTop;
-        backdropRef.current.scrollLeft = e.currentTarget.scrollLeft;
-      }
+      syncBackdrop();
       onScroll?.(e);
-    }, [onScroll]);
+    }, [syncBackdrop, onScroll]);
 
     const handleSelect = useCallback((name: string) => {
       const el = innerRef.current;
@@ -267,7 +324,12 @@ const MentionHighlightedTextarea = forwardRef<HTMLTextAreaElement, MentionHighli
           overflow="hidden"
           pointerEvents="none"
           whiteSpace="pre-wrap"
-          wordBreak="break-word"
+          // Match a textarea's own line-breaking exactly: Chrome gives it
+          // `word-break: normal; overflow-wrap: break-word`. `wordBreak="break-word"`
+          // here computed to a different pair, one more place the two layers
+          // could disagree about where a line ends.
+          wordBreak="normal"
+          overflowWrap="break-word"
           color="text"
           borderRadius={rest.borderRadius}
           {...textStyle}

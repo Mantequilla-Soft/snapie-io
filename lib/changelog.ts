@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-04',
+    date: '2026-09-04',
+    items: [
+      { type: 'fix', text: "Fixed the blog composer's cursor drifting away from your typing. Once a post grew past the height of the editor box, the scrollbar took a slice of width off the text area and the highlighted layer underneath kept the old width, so the two wrapped lines in different places — the letters still landed correctly, but the caret sat several characters away from them. Both layers now always measure the same width, and a confirmed @mention is coloured without being bolded (the heavier text was nudging everything after it out of line)." },
+    ],
+  },
+  {
     id: '2026-09-03',
     date: '2026-09-03',
     items: [
