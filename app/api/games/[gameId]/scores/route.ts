@@ -5,7 +5,10 @@ import { submitGameScore } from '@/lib/games/scoreService';
 
 export const POST = withChatAuth(async (req, { username, params }) => {
   try {
-    const gameId = params.gameId;
+    const gameId = params?.gameId;
+    if (!gameId) {
+      return NextResponse.json({ error: 'bad_request' }, { status: 400 });
+    }
 
     // Authoritative eligibility — the client flags are never trusted. Games' own
     // rollout switch, layered on top of the base points dogfood allowlist
