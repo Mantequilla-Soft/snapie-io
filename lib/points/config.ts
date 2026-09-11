@@ -25,6 +25,12 @@ export const ROULETTE_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS_ROULE
 // flipped on, separately from base points earning/purchasing.
 export const ITEM_MARKET_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_POINTS_MARKET === 'true';
 
+// Independent rollout switch for the Games section (score → Snapie Points
+// conversion). Like Roulette/Market, ships dark and is toggled separately.
+// A route should still also require POINTS_FEATURE_FLAG since games award
+// the same points currency.
+export const GAMES_FEATURE_FLAG = process.env.NEXT_PUBLIC_ENABLE_GAMES === 'true';
+
 function parseList(raw: string | undefined): string[] {
   return (raw || '')
     .split(',')

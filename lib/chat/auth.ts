@@ -133,19 +133,27 @@ type RouteHandler = (
 
 export function withChatAuth(handler: RouteHandler) {
   return async (req: NextRequest, ctx?: { params?: Record<string, string> }) => {
-    const authHeader = req.headers.get('Authorization');
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    try {
+      const authHeader = req.headers.get('Authorization');
+      const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const payload = verifyChatJWT(token);
-    if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      const payload = verifyChatJWT(token);
+      if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    await connectDB();
-    await ChatUser.findOneAndUpdate(
-      { _id: payload.sub },
-      { $set: { lastSeen: new Date() } },
-      { upsert: true, returnDocument: 'after' }
-    );
-    return handler(req, { username: payload.sub, params: ctx?.params });
+      await connectDB();
+      await ChatUser.findOneAndUpdate(
+        { _id: payload.sub },
+        { $set: { lastSeen: new Date() } },
+        { upsert: true, returnDocument: 'after' }
+      );
+      return handler(req, { username: payload.sub, params: ctx?.params });
+    } catch (err) {
+      console.error('[withChatAuth] Error:', err);
+      return NextResponse.json(
+        { error: 'internal_error', message: err instanceof Error ? err.message : 'Unknown error' },
+        { status: 500 }
+      );
+    }
   };
 }

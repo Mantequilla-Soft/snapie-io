@@ -25,6 +25,15 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-11',
+    date: '2026-09-11',
+    title: 'Games & Snapie Quest',
+    items: [
+      { type: 'feature', text: 'Snapie Quest is now live! A retro pixel-art platformer built right into Snapie — play through multiple stages, inhale enemies to steal their powers (Spit Star, Jet Hover, Fire Breath, Spike Dash), and rack up a high score. Every run you save converts your score into Snapie Points (10% conversion: 10,000 points = 10 Snapie Points). New Games section in the sidebar.' },
+      { type: 'fix', text: 'Fixed score save endpoint — handler signature was destructuring route params incorrectly, and added error handling to auth wrapper so database errors surface with clear messages instead of generic 500s.' },
+    ],
+  },
+  {
     id: '2026-09-04',
     date: '2026-09-04',
     items: [
