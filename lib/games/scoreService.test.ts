@@ -131,9 +131,9 @@ describe('submitGameScore', () => {
     const result = await submitGameScore('alice', 'puff-quest', 'session-1', 2000, 2, 2, true, 120000, Date.now());
 
     expect(result.status).toBe('awarded');
-    expect(result.pointsAwarded).toBe(200); // floor(2000 * 10 / 100) = 200
-    expect(result.balance).toBe(1200); // 1000 + 200
-    expect(accountStore.get('alice')?.lifetimeEarned).toBe(1200); // should increment
+    expect(result.pointsAwarded).toBe(40); // floor(2000 * 2 / 100) = 40
+    expect(result.balance).toBe(1040); // 1000 + 40
+    expect(accountStore.get('alice')?.lifetimeEarned).toBe(1040); // should increment
   });
 
   it('rejects an unknown gameId without touching storage', async () => {
@@ -217,20 +217,20 @@ describe('submitGameScore', () => {
 
     const first = await submitGameScore('alice', 'puff-quest', 'session-1', 2000, 2, 2, true, 120000, Date.now());
     expect(first.status).toBe('awarded');
-    expect(first.pointsAwarded).toBe(200);
+    expect(first.pointsAwarded).toBe(40);
 
     const second = await submitGameScore('alice', 'puff-quest', 'session-1', 2000, 2, 2, true, 120000, Date.now());
     expect(second.status).toBe('duplicate');
-    expect(second.pointsAwarded).toBe(200);
-    expect(accountStore.get('alice')?.balance).toBe(1200); // charged exactly once
+    expect(second.pointsAwarded).toBe(40);
+    expect(accountStore.get('alice')?.balance).toBe(1040); // charged exactly once (1000 + 40)
   });
 
-  it('floors the conversion rate (999 score @ 10% = 99 points, not 100)', async () => {
+  it('floors the conversion rate (999 score @ 2% = 19 points, not 20)', async () => {
     const { submitGameScore } = await import('./scoreService');
     const result = await submitGameScore('alice', 'puff-quest', 'session-1', 999, 1, 1, false, 10000, Date.now());
 
     expect(result.status).toBe('awarded');
-    expect(result.pointsAwarded).toBe(99); // floor(999 * 10 / 100) = 99
+    expect(result.pointsAwarded).toBe(19); // floor(999 * 2 / 100) = 19
   });
 
   it('ignores the won flag for point calculation (only score matters)', async () => {
@@ -239,8 +239,8 @@ describe('submitGameScore', () => {
     const won = await submitGameScore('alice', 'puff-quest', 'session-1', 1000, 4, 4, true, 120000, Date.now());
     const lost = await submitGameScore('bob', 'puff-quest', 'session-1', 1000, 1, 0, false, 60000, Date.now());
 
-    expect(won.pointsAwarded).toBe(100);
-    expect(lost.pointsAwarded).toBe(100);
+    expect(won.pointsAwarded).toBe(20); // floor(1000 * 2 / 100) = 20
+    expect(lost.pointsAwarded).toBe(20);
   });
 
   it('handles an idempotency race (E11000 collision)', async () => {
@@ -258,6 +258,6 @@ describe('submitGameScore', () => {
     // but the duplicate detection via findOne covers it.
     const second = await submitGameScore('alice', 'puff-quest', 'session-1', 2000, 2, 2, true, 120000, Date.now());
     expect(second.status).toBe('duplicate');
-    expect(accountStore.get('alice')?.balance).toBe(1200); // charged once
+    expect(accountStore.get('alice')?.balance).toBe(1040); // charged once (1000 + 40)
   });
 });

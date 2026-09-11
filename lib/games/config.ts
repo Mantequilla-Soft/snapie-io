@@ -2,9 +2,9 @@ export type GameId = 'puff-quest';
 export const GAME_IDS: GameId[] = ['puff-quest'];
 
 // Percent of score converted to points: floor(score * rate / 100).
-// 10% for puff-quest per the brief: 10,000 score → 10 points.
+// 2% for puff-quest: 10,000 score → 200 points.
 export const GAME_POINTS_CONVERSION_RATE_PCT: Record<GameId, number> = {
-  'puff-quest': 10,
+  'puff-quest': 2,
 };
 
 // Per-game sanity ceiling on a single submitted score.
