@@ -5,7 +5,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward, FiZap,
 } from 'react-icons/fi';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -15,7 +15,7 @@ import { useOpenPodsCount } from '@/hooks/useOpenPodsCount';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
-import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
+import { POINTS_FEATURE_FLAG, GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import HiveActivityWidget from './HiveActivityWidget';
 
 interface MeSheetProps {
@@ -88,6 +88,9 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
             <SheetLink href="/explore" icon={FiCompass} label="Explore" onClose={onClose} />
             {POINTS_FEATURE_FLAG && (
               <SheetLink href="/leaderboard" icon={FiAward} label="Leaderboard" onClose={onClose} />
+            )}
+            {GAMES_FEATURE_FLAG && (
+              <SheetLink href="/games" icon={FiZap} label="Games" onClose={onClose} />
             )}
             {isLoggedIn && user && (
               <>
