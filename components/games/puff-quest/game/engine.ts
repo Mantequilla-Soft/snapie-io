@@ -1,4 +1,5 @@
 import { LEVELS, type EnemyKind, type LevelDef } from "./levels";
+import { Sfx } from "./audio";
 
 export const TILE = 16;
 export const VIEW_W = 320;
@@ -74,6 +75,7 @@ export class Game {
   private acc = 0;
   private running = false;
   private events: EngineEvents;
+  readonly sfx = new Sfx();
 
   private level!: LevelDef;
   private solid!: Uint8Array;
@@ -87,6 +89,7 @@ export class Game {
   private hearts = 3;
   private invuln = 0;
   private inhaling = false;
+  private wasInhaling = false;
   private mouthful = false;
   private power: Power = "none";
   private dashTime = 0;
@@ -247,6 +250,7 @@ export class Game {
 
   destroy() {
     this.pause();
+    this.sfx.dispose();
   }
 
   private loop = (now: number) => {
@@ -379,6 +383,7 @@ export class Game {
     if (jumpPressed && this.onGround) {
       this.hero.vy = -215;
       this.onGround = false;
+      this.sfx.jump();
     } else if (jumpPressed && !this.onGround) {
       this.puffTime = this.power === "hover" ? 1.1 : 0.65;
       this.hero.vy = Math.min(this.hero.vy, -60);
@@ -421,6 +426,8 @@ export class Game {
     } else if (this.keys.action) {
       this.inhaling = true;
     }
+    if (this.inhaling && !this.wasInhaling) this.sfx.inhale();
+    this.wasInhaling = this.inhaling;
 
     // pit death
     if (this.hero.y > this.rows * TILE + 24) {
@@ -442,6 +449,7 @@ export class Game {
         s.taken = true;
         this.burst(s.x + 5, s.y + 5, COLORS.yellow, 6);
         this.addScore(50);
+        this.sfx.pickup();
       }
     }
 
@@ -480,6 +488,7 @@ export class Game {
         from: "hero",
         kind: "star",
       });
+      this.sfx.shoot();
     } else if (this.power === "fire") {
       for (let i = 0; i < 3; i++) {
         this.shots.push({
@@ -494,9 +503,11 @@ export class Game {
           kind: "fire",
         });
       }
+      this.sfx.shoot();
     } else if (this.power === "spike") {
       this.dashTime = 0.34;
       this.attackCooldown = 0.6;
+      this.sfx.powerUp();
     } else if (this.power === "hover") {
       // jet boost: rise for a while, hold JUMP to climb faster
       this.hoverTime = 1.6;
@@ -505,6 +516,7 @@ export class Game {
       this.onGround = false;
       this.hero.vy = -110;
       this.burst(this.hero.x + this.hero.w / 2, this.hero.y + this.hero.h, COLORS.blue, 6);
+      this.sfx.powerUp();
     }
   }
 
@@ -521,6 +533,7 @@ export class Game {
       from: "hero",
       kind: "star",
     });
+    this.sfx.shoot();
     this.pushHud();
   }
 
@@ -540,6 +553,7 @@ export class Game {
             : "spike";
     this.burst(this.hero.x + 6, this.hero.y + 6, COLORS.pink, 10);
     this.addScore(150);
+    this.sfx.powerUp();
     this.pushHud();
 
   }
@@ -569,6 +583,7 @@ export class Game {
 
             e.captured = true;
             this.mouthful = true;
+            this.sfx.capture();
             this.pushHud();
             continue;
           }
@@ -650,6 +665,7 @@ export class Game {
     e.alive = false;
     this.burst(e.x + e.w / 2, e.y + e.h / 2, COLORS.orange, 10);
     this.addScore(100);
+    this.sfx.hit();
   }
 
   private updateShots(dt: number) {
@@ -690,6 +706,7 @@ export class Game {
       this.mouthful = false;
     }
     this.burst(this.hero.x + 6, this.hero.y + 6, COLORS.red, 10);
+    this.sfx.hurt();
     if (pit) {
       this.hero.x = this.safeX;
       this.hero.y = this.safeY - 4;
@@ -703,6 +720,7 @@ export class Game {
     if (this.hearts <= 0) {
       this.finished = true;
       this.pause();
+      this.sfx.gameOver();
       this.events.onGameOver(this.stageIndex + 1, this.score + this.stageScore);
     }
   }
@@ -716,8 +734,13 @@ export class Game {
     const stage = this.stageIndex + 1;
     const clearedSecret = this.stageIndex >= LEVELS.length - 1;
     const missedSecretGate = stage === MAIN_STAGE_COUNT && total < SECRET_UNLOCK_SCORE;
-    if (clearedSecret || missedSecretGate) this.events.onWin(stage, total);
-    else this.events.onStageClear(stage, total);
+    if (clearedSecret || missedSecretGate) {
+      this.sfx.win();
+      this.events.onWin(stage, total);
+    } else {
+      this.sfx.stageClear();
+      this.events.onStageClear(stage, total);
+    }
   }
 
   get remainingHearts() {

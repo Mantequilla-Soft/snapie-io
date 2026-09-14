@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-13',
+    date: '2026-09-13',
+    title: 'Snapie Blast joins Games',
+    items: [
+      { type: 'feature', text: 'Snapie Blast is here! An 8-bit shooting gallery — aliens swarm the screen, you click or tap to blast them before your 60 seconds (or 3 lives) run out. Speed and points ramp up the longer you survive. Save your run to convert your score into Snapie Points.' },
+    ],
+  },
+  {
     id: '2026-09-11',
     date: '2026-09-11',
     title: 'Games & Snapie Quest',

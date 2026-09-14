@@ -184,11 +184,14 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
   const [finalScore, setFinalScore] = useState(0);
   const [finalStage, setFinalStage] = useState(startStage);
   const [secretUnlocked, setSecretUnlocked] = useState(false);
+  const [muted, setMuted] = useState(false);
 
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const hudRef = useRef(hud);
   hudRef.current = hud;
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
 
   const buildResult = useCallback(
     (stage: number, score: number, won: boolean): PuffQuestResult => ({
@@ -203,6 +206,12 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
     }),
     [sessionId, playerName],
   );
+
+  const toggleMute = useCallback(() => {
+    const next = !mutedRef.current;
+    setMuted(next);
+    if (gameRef.current) gameRef.current.sfx.muted = next;
+  }, []);
 
   const ensureGame = useCallback(() => {
     if (gameRef.current || !canvasRef.current) return gameRef.current;
@@ -239,6 +248,7 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
         emitResult.current?.(result);
       },
     });
+    gameRef.current.sfx.muted = mutedRef.current;
     return gameRef.current;
   }, [buildResult]);
 
@@ -355,6 +365,28 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
     <div className={className} style={rootStyle}>
       <div ref={frameRef} style={S.frame}>
         <canvas ref={canvasRef} width={VIEW_W} height={VIEW_H} style={S.canvas} />
+
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={muted ? "Unmute" : "Mute"}
+          style={{
+            position: "absolute",
+            top: 6,
+            right: 6,
+            zIndex: 2,
+            fontFamily: font,
+            fontSize: 8,
+            color: muted ? "rgba(244,244,244,0.4)" : PAPER,
+            background: "rgba(26,28,44,0.6)",
+            border: `1px solid ${muted ? "rgba(244,244,244,0.4)" : PAPER}`,
+            borderRadius: 2,
+            padding: "4px 6px",
+            cursor: "pointer",
+          }}
+        >
+          {muted ? "SFX OFF" : "SFX ON"}
+        </button>
 
         {phase === "playing" && (
           <div style={S.hud}>

@@ -6,14 +6,34 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import snapieVictory from '@/components/games/puff-quest/assets/snapie-victory.png';
+import snapieBlastCard from '@/components/games/snapie-blast/assets/snapie-blast-card.png';
 import type { GameId } from '@/lib/games/config';
 
-const GAMES_CATALOG: { id: GameId; name: string; tagline: string; href: string }[] = [
+const GAMES_CATALOG: {
+  id: GameId;
+  name: string;
+  tagline: string;
+  href: string;
+  image: { src: string };
+  // 'cover' suits a photographic hero image; 'contain' keeps a pixel-art icon
+  // fully visible instead of letting a wide/short card crop into it.
+  imageFit: 'cover' | 'contain';
+}[] = [
   {
     id: 'puff-quest',
     name: 'Snapie Quest',
     tagline: 'Inhale enemies, steal their powers, clear the keep.',
     href: '/games/puff-quest',
+    image: snapieVictory,
+    imageFit: 'cover',
+  },
+  {
+    id: 'snapie-blast',
+    name: 'Snapie Blast',
+    tagline: 'Blast the swarm in this 8-bit shooting gallery. 60 seconds, 3 lives.',
+    href: '/games/snapie-blast',
+    image: snapieBlastCard,
+    imageFit: 'contain',
   },
 ];
 
@@ -63,9 +83,9 @@ export default function GamesPage() {
                 <VStack align="stretch" spacing={0} h="full">
                   <Flex justify="center" align="center" h={40} bg="rgba(26,28,44,0.5)" borderRadius="0" position="relative">
                     <Image
-                      src={snapieVictory.src}
-                      alt="Snapie celebrating"
-                      objectFit="cover"
+                      src={game.image.src}
+                      alt={game.name}
+                      objectFit={game.imageFit}
                       w="full"
                       h="full"
                       opacity={0.7}
