@@ -161,7 +161,7 @@ export default function SnapieBlastPage() {
 
       <Box w="full" flex={1}>
         <SnapieBlast
-          playerName={username}
+          playerName={username || undefined}
           sessionId={sessionId}
           autoStart
           onEvent={handleGameEvent}
