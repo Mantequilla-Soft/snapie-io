@@ -11,6 +11,8 @@ import {
 
 import { BlastEngine, GAME_ID, GAME_VERSION, VIEW_H, VIEW_W, type EngineHud, type Phase } from "./game/engine";
 import { RULES } from "./game/waves";
+import { useFullscreen, usePortraitOrientation } from "@/hooks/useFullscreen";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import type { SnapieControls, SnapieOptions, SnapieResult } from "./types";
 
 const PAL = {
@@ -49,6 +51,7 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<BlastEngine | null>(null);
   const cbRef = useRef({ onEvent, onResult, playerName, sessionId });
   cbRef.current = { onEvent, onResult, playerName, sessionId };
@@ -57,6 +60,14 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
   const [hud, setHud] = useState<EngineHud | null>(null);
   const [result, setResult] = useState<SnapieResult | null>(null);
   const [muted, setMuted] = useState(false);
+
+  const { isFullscreen, supported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(rootRef);
+  const isPortrait = usePortraitOrientation();
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    setIsTouch(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
+  useWakeLock(phase === "playing");
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -206,15 +217,30 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
 
   return (
     <div
+      ref={rootRef}
       className={className}
-      style={{
-        width: "100%",
-        maxWidth,
-        margin: "0 auto",
-        fontFamily: MONO,
-        color: PAL.light,
-        userSelect: "none",
-      }}
+      style={
+        isFullscreen
+          ? {
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              fontFamily: MONO,
+              color: PAL.light,
+              userSelect: "none",
+              background: PAL.bg,
+            }
+          : {
+              width: "100%",
+              maxWidth,
+              margin: "0 auto",
+              fontFamily: MONO,
+              color: PAL.light,
+              userSelect: "none",
+            }
+      }
     >
       {showMenus && (
         <div
@@ -240,21 +266,41 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
           <span style={{ color: (hud?.misses ?? 0) >= RULES.maxMisses - 1 ? PAL.orange : PAL.green }}>
             LIVES {Math.max(0, RULES.maxMisses - (hud?.misses ?? 0))}
           </span>
-          <button
-            type="button"
-            onClick={toggleMute}
-            style={{
-              fontFamily: MONO,
-              fontSize: 9,
-              color: muted ? PAL.dim : PAL.cyan,
-              background: "transparent",
-              border: `1px solid ${muted ? PAL.dim : PAL.cyan}`,
-              padding: "3px 6px",
-              cursor: "pointer",
-            }}
-          >
-            {muted ? "SFX OFF" : "SFX ON"}
-          </button>
+          <span style={{ display: "flex", gap: 4 }}>
+            {fullscreenSupported && (
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                style={{
+                  fontFamily: MONO,
+                  fontSize: 9,
+                  color: PAL.cyan,
+                  background: "transparent",
+                  border: `1px solid ${PAL.cyan}`,
+                  padding: "3px 6px",
+                  cursor: "pointer",
+                }}
+              >
+                {isFullscreen ? "⤡" : "⤢"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={toggleMute}
+              style={{
+                fontFamily: MONO,
+                fontSize: 9,
+                color: muted ? PAL.dim : PAL.cyan,
+                background: "transparent",
+                border: `1px solid ${muted ? PAL.dim : PAL.cyan}`,
+                padding: "3px 6px",
+                cursor: "pointer",
+              }}
+            >
+              {muted ? "SFX OFF" : "SFX ON"}
+            </button>
+          </span>
         </div>
       )}
 
@@ -279,6 +325,31 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
             touchAction: "manipulation",
           }}
         />
+
+        {isFullscreen && isPortrait && isTouch && (
+          // A non-blocking nudge, not a takeover — some phones ignore the
+          // landscape lock request (iOS never implements it) or the user has
+          // rotation lock on, but the game is still fully playable in
+          // portrait, so this shouldn't stop them from tapping through it.
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              zIndex: 3,
+              pointerEvents: "none",
+              textAlign: "center",
+              padding: "6px 8px",
+              fontSize: 8,
+              lineHeight: 1.6,
+              color: PAL.light,
+              background: "rgba(18,19,31,0.85)",
+            }}
+          >
+            ROTATE YOUR DEVICE FOR THE FULL EXPERIENCE
+          </div>
+        )}
 
         {showMenus && (
           <div
@@ -365,11 +436,16 @@ function Overlay({ children }: { children: React.ReactNode }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        // "safe center" falls back to start-alignment once content overflows,
+        // so the Save Score / Retry buttons stay reachable via scroll instead
+        // of spilling out past the frame's fixed-aspect-ratio bounds on short
+        // mobile viewports.
+        justifyContent: "safe center",
         gap: 14,
         textAlign: "center",
         padding: 16,
         background: "rgba(18,19,31,0.72)",
+        overflowY: "auto",
       }}
     >
       {children}

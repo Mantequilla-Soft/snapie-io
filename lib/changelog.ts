@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-09-14',
+    date: '2026-09-14',
+    items: [
+      { type: 'fix', text: "Fixed Snapie Quest and Snapie Blast's end-of-run screen sometimes hiding the Save Score button on phones — a short/narrow screen could squeeze the game frame down until the button fell outside its fixed-size box and couldn't be reached at all. It now scrolls into view instead." },
+    ],
+  },
+  {
     id: '2026-09-13',
     date: '2026-09-13',
     title: 'Snapie Blast joins Games',

@@ -21,6 +21,8 @@ import {
   type Power,
 } from "./game/engine";
 import { LEVELS } from "./game/levels";
+import { useFullscreen, usePortraitOrientation } from "@/hooks/useFullscreen";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import snapieVictory from "./assets/snapie-victory.png";
 import type {
   PuffQuestControls,
@@ -86,11 +88,17 @@ const S = {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    // "safe center" falls back to start-alignment once content overflows,
+    // so buttons (e.g. Save Score) stay reachable via scroll instead of
+    // being clipped off the top/bottom by the frame's fixed aspect ratio
+    // on short mobile viewports (plain "center" would clip the overflow
+    // above the fold with no way to scroll up to it).
+    justifyContent: "safe center",
     gap: 12,
     padding: 16,
     textAlign: "center",
     background: "rgba(26,28,44,0.92)",
+    overflowY: "auto",
   } as CSSProperties,
   btn: {
     fontFamily: font,
@@ -165,6 +173,7 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
 ) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Game | null>(null);
   const runRef = useRef({ stage: 0, score: 0, hearts: 3, startedAt: 0, cleared: 0 });
   const emit = useRef(onEvent);
@@ -294,6 +303,10 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
     setIsTouch(window.matchMedia("(pointer: coarse)").matches);
   }, []);
 
+  const { isFullscreen, supported: fullscreenSupported, toggle: toggleFullscreen } = useFullscreen(rootRef);
+  const isPortrait = usePortraitOrientation();
+  useWakeLock(phase === "playing");
+
   useEffect(() => {
     setSecretUnlocked(window.localStorage.getItem(SECRET_UNLOCK_KEY) === "unlocked");
     emit.current?.({ type: "ready" });
@@ -334,8 +347,21 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
   });
 
   const rootStyle = useMemo(
-    () => ({ ...S.root, maxWidth, marginLeft: "auto", marginRight: "auto", ...style }),
-    [maxWidth, style],
+    () =>
+      isFullscreen
+        ? ({
+            ...S.root,
+            ...style,
+            maxWidth: "none",
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            background: INK,
+          } as CSSProperties)
+        : ({ ...S.root, maxWidth, marginLeft: "auto", marginRight: "auto", ...style } as CSSProperties),
+    [isFullscreen, maxWidth, style],
   );
 
   const showOverlay = phase !== "playing" && (showMenus || phase === "stageclear" || phase === "gameover" || phase === "win");
@@ -362,31 +388,73 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
   }, []);
 
   return (
-    <div className={className} style={rootStyle}>
+    <div ref={rootRef} className={className} style={rootStyle}>
       <div ref={frameRef} style={S.frame}>
         <canvas ref={canvasRef} width={VIEW_W} height={VIEW_H} style={S.canvas} />
 
-        <button
-          type="button"
-          onClick={toggleMute}
-          aria-label={muted ? "Unmute" : "Mute"}
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            zIndex: 2,
-            fontFamily: font,
-            fontSize: 8,
-            color: muted ? "rgba(244,244,244,0.4)" : PAPER,
-            background: "rgba(26,28,44,0.6)",
-            border: `1px solid ${muted ? "rgba(244,244,244,0.4)" : PAPER}`,
-            borderRadius: 2,
-            padding: "4px 6px",
-            cursor: "pointer",
-          }}
-        >
-          {muted ? "SFX OFF" : "SFX ON"}
-        </button>
+        <div style={{ position: "absolute", top: 6, right: 6, zIndex: 2, display: "flex", gap: 4 }}>
+          {fullscreenSupported && (
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              style={{
+                fontFamily: font,
+                fontSize: 8,
+                color: PAPER,
+                background: "rgba(26,28,44,0.6)",
+                border: `1px solid ${PAPER}`,
+                borderRadius: 2,
+                padding: "4px 6px",
+                cursor: "pointer",
+              }}
+            >
+              {isFullscreen ? "⤡" : "⤢"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={muted ? "Unmute" : "Mute"}
+            style={{
+              fontFamily: font,
+              fontSize: 8,
+              color: muted ? "rgba(244,244,244,0.4)" : PAPER,
+              background: "rgba(26,28,44,0.6)",
+              border: `1px solid ${muted ? "rgba(244,244,244,0.4)" : PAPER}`,
+              borderRadius: 2,
+              padding: "4px 6px",
+              cursor: "pointer",
+            }}
+          >
+            {muted ? "SFX OFF" : "SFX ON"}
+          </button>
+        </div>
+
+        {isFullscreen && isPortrait && isTouch && (
+          // A non-blocking nudge, not a takeover — some phones ignore the
+          // landscape lock request (iOS never implements it) or the user has
+          // rotation lock on, but the game is still fully playable in
+          // portrait, so this shouldn't stop them from tapping through it.
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 3,
+              pointerEvents: "none",
+              textAlign: "center",
+              padding: "6px 8px",
+              fontSize: 8,
+              lineHeight: 1.6,
+              color: PAPER,
+              background: "rgba(26,28,44,0.85)",
+            }}
+          >
+            ROTATE YOUR DEVICE FOR THE FULL EXPERIENCE
+          </div>
+        )}
 
         {phase === "playing" && (
           <div style={S.hud}>
