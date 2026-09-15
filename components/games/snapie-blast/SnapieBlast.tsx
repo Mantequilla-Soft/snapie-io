@@ -195,8 +195,15 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
     const canvas = canvasRef.current;
     if (!engine || !canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = ((ev.clientX - rect.left) / rect.width) * VIEW_W;
-    const y = ((ev.clientY - rect.top) / rect.height) * VIEW_H;
+    // object-fit:contain (used in fullscreen) letterboxes the canvas inside
+    // its box when the box's aspect ratio doesn't match VIEW_W/VIEW_H, so
+    // rect itself isn't the visible game surface — subtract the pillar/letter
+    // bars before scaling, or taps drift off in whichever axis has bars.
+    const scale = Math.min(rect.width / VIEW_W, rect.height / VIEW_H);
+    const offsetX = (rect.width - VIEW_W * scale) / 2;
+    const offsetY = (rect.height - VIEW_H * scale) / 2;
+    const x = (ev.clientX - rect.left - offsetX) / scale;
+    const y = (ev.clientY - rect.top - offsetY) / scale;
     engine.showAim = false;
     if (engine.phase === "ready" || engine.phase === "over") {
       if (!showMenus) startRun();
