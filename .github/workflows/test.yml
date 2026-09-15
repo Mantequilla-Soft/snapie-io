@@ -45,6 +45,15 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generate next-env.d.ts
+        # next-env.d.ts is gitignored (Next.js's own convention) and is what
+        # declares ambient module types for static asset imports (*.png,
+        # etc). `next build`/`next lint` regenerate it as a side effect on
+        # startup, but plain `tsc` doesn't invoke Next at all, so on a fresh
+        # checkout it's simply missing and every asset import 404s as a type
+        # error. Content matches exactly what Next itself writes.
+        run: |
+          printf '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n' > next-env.d.ts
       - run: pnpm exec tsc --noEmit
 
   test:
