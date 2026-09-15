@@ -87,3 +87,23 @@ jobs:
         env:
           CHAT_JWT_SECRET: ci-build-placeholder
         run: pnpm build
+
+  deploy:
+    needs: [lint, typecheck, test, build]
+    # Only after a real push to main, never on pull_request — a fork PR must
+    # never get access to the deploy key, and there's nothing to deploy for
+    # a PR anyway.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /var/www/snapie-io
+            bash deploy.sh
