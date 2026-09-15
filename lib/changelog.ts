@@ -29,6 +29,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-14',
     items: [
       { type: 'fix', text: "Fixed Snapie Quest and Snapie Blast's end-of-run screen sometimes hiding the Save Score button on phones — a short/narrow screen could squeeze the game frame down until the button fell outside its fixed-size box and couldn't be reached at all. It now scrolls into view instead." },
+      { type: 'feature', text: 'Added a fullscreen option to Snapie Quest and Snapie Blast, with a best-effort landscape lock on phones that support it.' },
+      { type: 'fix', text: "Fixed the new fullscreen mode cutting off the bottom of the game on landscape phones — the game canvas now scales to fit the actual screen height instead of assuming there's always enough room." },
     ],
   },
   {

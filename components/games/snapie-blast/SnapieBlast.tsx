@@ -222,11 +222,12 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
       style={
         isFullscreen
           ? {
-              width: "100%",
-              height: "100%",
+              position: "fixed",
+              inset: 0,
+              width: "100vw",
+              height: "100dvh",
               display: "flex",
               flexDirection: "column",
-              justifyContent: "center",
               fontFamily: MONO,
               color: PAL.light,
               userSelect: "none",
@@ -245,6 +246,7 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
       {showMenus && (
         <div
           style={{
+            flexShrink: 0,
             display: "flex",
             flexWrap: "wrap",
             gap: 8,
@@ -310,20 +312,39 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
           border: `2px solid ${PAL.cyan}`,
           boxShadow: `0 0 0 2px ${PAL.panel}, 0 0 24px rgba(115,239,247,0.25)`,
           background: PAL.bg,
+          ...(isFullscreen
+            ? { flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }
+            : null),
         }}
       >
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointer}
-          style={{
-            display: "block",
-            width: "100%",
-            height: "auto",
-            aspectRatio: `${VIEW_W} / ${VIEW_H}`,
-            imageRendering: "pixelated",
-            cursor: "crosshair",
-            touchAction: "manipulation",
-          }}
+          style={
+            isFullscreen
+              ? {
+                  // Bounded by the container on both axes and letterboxed to fit —
+                  // width:100% + aspect-ratio alone doesn't know about the container's
+                  // height limit, which in landscape fullscreen cut the bottom of the
+                  // game off the screen instead of shrinking to fit above it.
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  imageRendering: "pixelated",
+                  cursor: "crosshair",
+                  touchAction: "manipulation",
+                }
+              : {
+                  display: "block",
+                  width: "100%",
+                  height: "auto",
+                  aspectRatio: `${VIEW_W} / ${VIEW_H}`,
+                  imageRendering: "pixelated",
+                  cursor: "crosshair",
+                  touchAction: "manipulation",
+                }
+          }
         />
 
         {isFullscreen && isPortrait && isTouch && (
@@ -413,6 +434,7 @@ export const SnapieBlast = forwardRef<SnapieControls, SnapieBlastProps>(function
       {(touch || showTouchControls === "auto") && showMenus && (
         <p
           style={{
+            flexShrink: 0,
             fontSize: 8,
             color: PAL.dim,
             textAlign: "center",

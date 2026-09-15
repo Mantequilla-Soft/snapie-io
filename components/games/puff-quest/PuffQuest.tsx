@@ -353,15 +353,29 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
             ...S.root,
             ...style,
             maxWidth: "none",
-            width: "100%",
-            height: "100%",
+            position: "fixed",
+            inset: 0,
+            width: "100vw",
+            height: "100dvh",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
             background: INK,
           } as CSSProperties)
         : ({ ...S.root, maxWidth, marginLeft: "auto", marginRight: "auto", ...style } as CSSProperties),
     [isFullscreen, maxWidth, style],
+  );
+
+  // In fullscreen the frame gets a real, independent height from the flex
+  // layout (screen height minus the touch-control bar) instead of just
+  // shrink-wrapping the canvas, so the fit() effect below can letterbox the
+  // canvas within it instead of the canvas overflowing past the bottom of
+  // the screen (which was cutting off the game's floor in landscape).
+  const frameStyle = useMemo(
+    () =>
+      isFullscreen
+        ? ({ ...S.frame, flex: 1, minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" } as CSSProperties)
+        : S.frame,
+    [isFullscreen],
   );
 
   const showOverlay = phase !== "playing" && (showMenus || phase === "stageclear" || phase === "gameover" || phase === "win");
@@ -374,10 +388,15 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
     if (!frame || !canvas) return;
     const fit = () => {
       const w = frame.clientWidth;
-      if (!w) return;
-      // Use whole-number zoom when the screen is wide enough (crisp pixels),
-      // but on phones fill the width so the game isn't a tiny strip.
-      const zoom = w >= VIEW_W * 2 ? Math.floor(w / VIEW_W) : w / VIEW_W;
+      const h = frame.clientHeight;
+      if (!w || !h) return;
+      // Cap by whichever axis is tighter — on phones filling the width is
+      // usually right, but in fullscreen landscape the frame's height is
+      // the real constraint (screen height minus the touch-control bar),
+      // and without this cap the canvas would grow past the bottom of the
+      // screen since width alone doesn't know about that limit.
+      const rawZoom = Math.min(w / VIEW_W, h / VIEW_H);
+      const zoom = rawZoom >= 2 ? Math.floor(rawZoom) : rawZoom;
       canvas.style.width = `${VIEW_W * zoom}px`;
       canvas.style.height = `${VIEW_H * zoom}px`;
     };
@@ -389,7 +408,7 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
 
   return (
     <div ref={rootRef} className={className} style={rootStyle}>
-      <div ref={frameRef} style={S.frame}>
+      <div ref={frameRef} style={frameStyle}>
         <canvas ref={canvasRef} width={VIEW_W} height={VIEW_H} style={S.canvas} />
 
         <div style={{ position: "absolute", top: 6, right: 6, zIndex: 2, display: "flex", gap: 4 }}>
@@ -575,6 +594,7 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
         <div
           style={{
             marginTop: 12,
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
