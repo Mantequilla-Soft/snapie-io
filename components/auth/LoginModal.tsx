@@ -127,7 +127,7 @@ export default function LoginModal({
     } finally {
       setLoading(false)
     }
-  }, [email, password, emailMode, onSnapieLoginSuccess])
+  }, [email, password, emailMode, onSnapieLoginSuccess, loading])
 
   const handleResend = useCallback(async () => {
     setResending(true)
@@ -253,7 +253,7 @@ export default function LoginModal({
                     colorScheme="blue"
                     onClick={handleEmailSubmit}
                     isLoading={loading}
-                    isDisabled={!email || !password}
+                    isDisabled={!email || !password || loading}
                     size="md"
                     width="full"
                   >

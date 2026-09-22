@@ -21,6 +21,7 @@ import {
   type Power,
 } from "./game/engine";
 import { LEVELS } from "./game/levels";
+import Image from "next/image";
 import { useFullscreen, usePortraitOrientation } from "@/hooks/useFullscreen";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import snapieVictory from "./assets/snapie-victory.png";
@@ -544,12 +545,15 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
 
             {phase === "stageclear" && (
               <>
-                <img
-                  src={snapieVictory.src}
+                {/* unoptimized: pre-rendered sprite imported for the hashed
+                    URL — resizes would be wasted optimizer cost for a 120px
+                    celebration screen in a mini-game. */}
+                <Image
+                  src={snapieVictory}
                   alt="Snapie celebrating"
-                  loading="lazy"
-                  width={1024}
-                  height={1024}
+                  width={120}
+                  height={120}
+                  unoptimized
                   style={{ width: 120, height: 120, imageRendering: "pixelated" }}
                 />
                  <h2 style={{ fontSize: 14, color: ORANGE, margin: 0 }}>
