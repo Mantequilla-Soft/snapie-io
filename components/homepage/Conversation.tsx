@@ -4,7 +4,7 @@ import { useComments, ExtendedComment } from '@/hooks/useComments';
 import { useHiveUser } from '@/contexts/UserContext';
 import { ArrowBackIcon, ArrowUpIcon } from "@chakra-ui/icons";
 import Snap from './Snap';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { getPayoutValue } from '@/lib/hive/client-functions';
@@ -46,11 +46,18 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
         isWaveContainer(comment.parent_author, comment.parent_permlink);
     const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
+    // updateComments also changes identity whenever the thread's muted tags
+    // change (see useComments), which already triggers its own internal
+    // refetch — so this effect must fire only on a genuine refreshTrigger
+    // bump, not on every identity change of updateComments, or a reply
+    // anywhere in the session would cause a duplicate fetch on every later
+    // thread open.
+    const lastRefreshTrigger = useRef(refreshTrigger);
     useEffect(() => {
-        if (refreshTrigger && refreshTrigger > 0) updateComments();
-        // updateComments only changes identity when the thread, user, or
-        // muted tags actually change — each a legitimate refetch. Muted-tag
-        // changes must re-filter the visible thread (see useComments).
+        if (refreshTrigger !== lastRefreshTrigger.current) {
+            lastRefreshTrigger.current = refreshTrigger;
+            if (refreshTrigger && refreshTrigger > 0) updateComments();
+        }
     }, [refreshTrigger, updateComments]);
 
     const replies = useMemo(() => {

@@ -108,7 +108,15 @@ export function useUserSettings() {
     const settings = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
     useEffect(() => {
-        setCached(load());
+        // Skip the update when hydration didn't actually change anything —
+        // load() always returns a fresh object/array graph, and replacing
+        // `cached` unconditionally on every mount would break referential
+        // equality for consumers of settings.mutedTags/interestTags across
+        // unrelated component mounts.
+        const next = load();
+        if (JSON.stringify(next) !== JSON.stringify(cached)) {
+            setCached(next);
+        }
     }, []);
 
     const update = useCallback((patch: Partial<UserSettings>) => {

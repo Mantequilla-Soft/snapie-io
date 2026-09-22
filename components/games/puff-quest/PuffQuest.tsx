@@ -553,6 +553,7 @@ export const PuffQuest = forwardRef<PuffQuestControls, PuffQuestProps>(function 
                   alt="Snapie celebrating"
                   width={120}
                   height={120}
+                  unoptimized
                   style={{ width: 120, height: 120, imageRendering: "pixelated" }}
                 />
                  <h2 style={{ fontSize: 14, color: ORANGE, margin: 0 }}>
