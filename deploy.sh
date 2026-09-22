@@ -16,14 +16,20 @@ pnpm install
 # A dependency-version fix can leave the previous .next build cache
 # referencing files/paths that no longer exist after the bump — force a
 # clean build so every deploy reflects exactly what is currently installed.
+# The app must already be stopped before this runs: the old PM2 process
+# keeps writing to .next/cache/fetch-cache (the ISR fetch cache) until it
+# is stopped, and rm -rf racing those writes intermittently fails with
+# "Directory not empty".
 rm -rf .next
 pnpm build
 '
 
 if [ "${EUID}" -eq 0 ]; then
+  sudo -u meno -H env PM2_HOME=/home/meno/.pm2 pm2 stop snapie-io
   sudo -u meno -H bash -lc "$BUILD_CMDS"
   sudo -u meno -H env PM2_HOME=/home/meno/.pm2 pm2 restart snapie-io
 else
+  pm2 stop snapie-io
   bash -c "$BUILD_CMDS"
   pm2 restart snapie-io
 fi
