@@ -116,6 +116,10 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
 
     loadBlendCandidates();
     return () => { cancelled = true; };
+    // The settings.* arrays are tracked via interestTagsKey/mutedTagsKey —
+    // they get a fresh reference on every settings hydration, which would
+    // refetch the blend on every unrelated mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tag, username, interestTagsKey, mutedTagsKey, mutedLoaded]);
 
   // Splices blendCandidates into the chronological base exactly once, as
@@ -199,6 +203,10 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       isFetching.current = false;
       setIsLoading(false);
     }
+  // The settings.mutedTags array is tracked via mutedTagsKey — it gets a
+  // fresh reference on every settings hydration, which would recreate this
+  // callback (and re-trigger the fetch effect below) on unrelated mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, tag, mutedTagsKey]);
 
   useEffect(() => {

@@ -48,7 +48,10 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
 
     useEffect(() => {
         if (refreshTrigger && refreshTrigger > 0) updateComments();
-    }, [refreshTrigger]);
+        // updateComments only changes identity when the thread, user, or
+        // muted tags actually change — each a legitimate refetch. Muted-tag
+        // changes must re-filter the visible thread (see useComments).
+    }, [refreshTrigger, updateComments]);
 
     const replies = useMemo(() => {
         return [...comments].sort((a, b) => {
