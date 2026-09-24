@@ -131,6 +131,16 @@ type RouteHandler = (
   context: { username: string; params?: Record<string, string> }
 ) => Promise<NextResponse>;
 
+/** Next 14 signals "route is dynamic" by throwing an error with this digest. */
+function isDynamicServerError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'digest' in err &&
+    (err as { digest?: unknown }).digest === 'DYNAMIC_SERVER_USAGE'
+  );
+}
+
 export function withChatAuth(handler: RouteHandler) {
   return async (req: NextRequest, ctx?: { params?: Record<string, string> }) => {
     try {
@@ -147,8 +157,13 @@ export function withChatAuth(handler: RouteHandler) {
         { $set: { lastSeen: new Date() } },
         { upsert: true, returnDocument: 'after' }
       );
-      return handler(req, { username: payload.sub, params: ctx?.params });
+      // await so rejections surface in our catch as the documented 500 JSON
+      // instead of escaping as unhandled promise rejections.
+      return await handler(req, { username: payload.sub, params: ctx?.params });
     } catch (err) {
+      // Next bails out of static generation by throwing; its own build-time
+      // machinery must see DYNAMIC_SERVER_USAGE, so never convert it to a 500.
+      if (isDynamicServerError(err)) throw err;
       console.error('[withChatAuth] Error:', err);
       return NextResponse.json(
         { error: 'internal_error', message: err instanceof Error ? err.message : 'Unknown error' },
