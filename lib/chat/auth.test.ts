@@ -1,6 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
 
+// auth.ts requires the secret at module load, and imports are hoisted above
+// ordinary statements — must run before them (don't rely on local .env files,
+// which vitest auto-loads but CI doesn't have).
+vi.hoisted(() => {
+  process.env.CHAT_JWT_SECRET = 'test-secret';
+});
+
 const jwtVerify = vi.fn();
 const connectDB = vi.fn();
 const findOneAndUpdate = vi.fn();
@@ -20,8 +27,6 @@ vi.mock('@/lib/db/models/ChatUser', () => ({
 vi.mock('@/lib/hive/hiveclient', () => ({
   default: { database: { getAccounts: vi.fn() } },
 }));
-
-process.env.CHAT_JWT_SECRET = 'test-secret';
 
 import { withChatAuth } from '@/lib/chat/auth';
 
