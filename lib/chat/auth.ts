@@ -134,8 +134,9 @@ type RouteHandler = (
 /**
  * Next uses thrown errors with marker digests as control flow: bail out of
  * static generation ('DYNAMIC_SERVER_USAGE'), redirect() ('NEXT_REDIRECT;...'),
- * notFound() ('NEXT_HTTP_ERROR_FALLBACK;404'). A wrapper must let these reach
- * Next's own machinery, never convert them to 500s.
+ * notFound() ('NEXT_NOT_FOUND' in Next 14; 'NEXT_HTTP_ERROR_FALLBACK;404' in
+ * Next 15). A wrapper must let these reach Next's own machinery, never
+ * convert them to 500s.
  */
 function isNextControlFlowError(err: unknown): boolean {
   if (typeof err !== 'object' || err === null || !('digest' in err)) return false;
@@ -144,6 +145,7 @@ function isNextControlFlowError(err: unknown): boolean {
     typeof digest === 'string' &&
     (digest === 'DYNAMIC_SERVER_USAGE' ||
       digest.startsWith('NEXT_REDIRECT;') ||
+      digest === 'NEXT_NOT_FOUND' ||
       digest.startsWith('NEXT_HTTP_ERROR_FALLBACK;404'))
   );
 }

@@ -164,9 +164,22 @@ describe('withChatAuth', () => {
       expect(logged).not.toHaveBeenCalled();
     });
 
-    it('re-throws a notFound() control-flow error from an async handler', async () => {
+    it("re-throws a notFound() control-flow error (Next 14's NEXT_NOT_FOUND digest)", async () => {
       const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
       const signal = Object.assign(new Error('NEXT_NOT_FOUND'), {
+        digest: 'NEXT_NOT_FOUND',
+      });
+      await expect(
+        run(async () => {
+          throw signal;
+        })
+      ).rejects.toBe(signal);
+      expect(logged).not.toHaveBeenCalled();
+    });
+
+    it("re-throws the Next 15 not-found digest too", async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const signal = Object.assign(new Error('NEXT_HTTP_ERROR_FALLBACK'), {
         digest: 'NEXT_HTTP_ERROR_FALLBACK;404',
       });
       await expect(
