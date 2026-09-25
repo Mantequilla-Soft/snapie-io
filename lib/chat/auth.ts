@@ -131,13 +131,20 @@ type RouteHandler = (
   context: { username: string; params?: Record<string, string> }
 ) => Promise<NextResponse>;
 
-/** Next 14 signals "route is dynamic" by throwing an error with this digest. */
-function isDynamicServerError(err: unknown): boolean {
+/**
+ * Next uses thrown errors with marker digests as control flow: bail out of
+ * static generation ('DYNAMIC_SERVER_USAGE'), redirect() ('NEXT_REDIRECT;...'),
+ * notFound() ('NEXT_HTTP_ERROR_FALLBACK;404'). A wrapper must let these reach
+ * Next's own machinery, never convert them to 500s.
+ */
+function isNextControlFlowError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) return false;
+  const digest = (err as { digest?: unknown }).digest;
   return (
-    typeof err === 'object' &&
-    err !== null &&
-    'digest' in err &&
-    (err as { digest?: unknown }).digest === 'DYNAMIC_SERVER_USAGE'
+    typeof digest === 'string' &&
+    (digest === 'DYNAMIC_SERVER_USAGE' ||
+      digest.startsWith('NEXT_REDIRECT;') ||
+      digest.startsWith('NEXT_HTTP_ERROR_FALLBACK;404'))
   );
 }
 
@@ -161,9 +168,9 @@ export function withChatAuth(handler: RouteHandler) {
       // instead of escaping as unhandled promise rejections.
       return await handler(req, { username: payload.sub, params: ctx?.params });
     } catch (err) {
-      // Next bails out of static generation by throwing; its own build-time
-      // machinery must see DYNAMIC_SERVER_USAGE, so never convert it to a 500.
-      if (isDynamicServerError(err)) throw err;
+      // Never convert Next's control-flow throws to 500s — its own machinery
+      // must see them.
+      if (isNextControlFlowError(err)) throw err;
       console.error('[withChatAuth] Error:', err);
       return NextResponse.json(
         { error: 'internal_error', message: err instanceof Error ? err.message : 'Unknown error' },

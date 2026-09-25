@@ -150,5 +150,31 @@ describe('withChatAuth', () => {
       });
       expect(res.status).toBe(500);
     });
+
+    it('re-throws a redirect() control-flow error from an async handler', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const signal = Object.assign(new Error('NEXT_REDIRECT'), {
+        digest: 'NEXT_REDIRECT;replace;https://snapie.example/login;307',
+      });
+      await expect(
+        run(async () => {
+          throw signal;
+        })
+      ).rejects.toBe(signal);
+      expect(logged).not.toHaveBeenCalled();
+    });
+
+    it('re-throws a notFound() control-flow error from an async handler', async () => {
+      const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const signal = Object.assign(new Error('NEXT_NOT_FOUND'), {
+        digest: 'NEXT_HTTP_ERROR_FALLBACK;404',
+      });
+      await expect(
+        run(async () => {
+          throw signal;
+        })
+      ).rejects.toBe(signal);
+      expect(logged).not.toHaveBeenCalled();
+    });
   });
 });
