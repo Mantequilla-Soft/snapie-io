@@ -131,6 +131,25 @@ type RouteHandler = (
   context: { username: string; params?: Record<string, string> }
 ) => Promise<NextResponse>;
 
+/**
+ * Next uses thrown errors with marker digests as control flow: bail out of
+ * static generation ('DYNAMIC_SERVER_USAGE'), redirect() ('NEXT_REDIRECT;...'),
+ * notFound() ('NEXT_NOT_FOUND' in Next 14; 'NEXT_HTTP_ERROR_FALLBACK;404' in
+ * Next 15). A wrapper must let these reach Next's own machinery, never
+ * convert them to 500s.
+ */
+function isNextControlFlowError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('digest' in err)) return false;
+  const digest = (err as { digest?: unknown }).digest;
+  return (
+    typeof digest === 'string' &&
+    (digest === 'DYNAMIC_SERVER_USAGE' ||
+      digest.startsWith('NEXT_REDIRECT;') ||
+      digest === 'NEXT_NOT_FOUND' ||
+      digest.startsWith('NEXT_HTTP_ERROR_FALLBACK;404'))
+  );
+}
+
 export function withChatAuth(handler: RouteHandler) {
   return async (req: NextRequest, ctx?: { params?: Record<string, string> }) => {
     try {
@@ -147,8 +166,13 @@ export function withChatAuth(handler: RouteHandler) {
         { $set: { lastSeen: new Date() } },
         { upsert: true, returnDocument: 'after' }
       );
-      return handler(req, { username: payload.sub, params: ctx?.params });
+      // await so rejections surface in our catch as the documented 500 JSON
+      // instead of escaping as unhandled promise rejections.
+      return await handler(req, { username: payload.sub, params: ctx?.params });
     } catch (err) {
+      // Never convert Next's control-flow throws to 500s — its own machinery
+      // must see them.
+      if (isNextControlFlowError(err)) throw err;
       console.error('[withChatAuth] Error:', err);
       return NextResponse.json(
         { error: 'internal_error', message: err instanceof Error ? err.message : 'Unknown error' },
