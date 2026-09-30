@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
+import type { ReactNode } from 'react';
 import ChatPage from './page';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 
@@ -28,7 +29,7 @@ vi.mock('@/contexts/LoginModalContext', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, ...rest }: { href: string; children: unknown }) => (
+  default: ({ href, children, ...rest }: { href: string; children?: ReactNode }) => (
     <a href={href} {...rest}>{children}</a>
   ),
 }));
