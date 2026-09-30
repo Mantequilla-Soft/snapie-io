@@ -1,6 +1,8 @@
 'use client';
-import { Box, Image, Link, Skeleton, Text } from '@chakra-ui/react';
+import { Box, Link, Skeleton, Text } from '@chakra-ui/react';
+import NextImage from 'next/image';
 import { memo, useState } from 'react';
+import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -29,29 +31,48 @@ interface ImageWithFallbackProps {
  * constant aspect-ratio up front means its height is known before the image
  * ever starts loading, so there is nothing left to jump. objectFit="cover"
  * crops to fill it instead of letter-boxing.
+ *
+ * The bytes come through `next/image`. Remote user-content URLs are rewritten
+ * to `/api/image-proxy` (same origin) so the optimizer does not need a
+ * wildcard remotePatterns entry. `loading="eager"` keeps the previous
+ * behavior: SnapList's virtualization already bounds how many cards exist,
+ * and Virtuoso mounts cards ~3500px ahead of the viewport — further out than
+ * the browser's own lazy-load threshold, so lazy was delaying the fetch
+ * until the user was nearly on top of the image. Eager lets the download
+ * start the moment the card mounts. next/image also covers the cached-image
+ * case (a remount where `complete` is already true) that used to need a
+ * manual ref check.
  */
 const IMAGE_ASPECT_RATIO = 4 / 3;
+const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
-const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWithFallbackProps) {
-  const [hasError, setHasError] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+function canOpenDirectly(url: string): boolean {
+  if (url.startsWith('/') && !url.startsWith('//')) return true;
+  try {
+    const parsed = new URL(url);
+    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
 
-  if (hasError) {
-    return (
-      <Box
-        aspectRatio={IMAGE_ASPECT_RATIO}
-        bg="blackAlpha.700"
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        px={4}
-        textAlign="center"
-        gap={2}
-      >
-        <Text fontSize="sm" color="whiteAlpha.900">
-          Image failed to load.
-        </Text>
+function ImageFallback({ url }: { url: string }) {
+  return (
+    <Box
+      aspectRatio={IMAGE_ASPECT_RATIO}
+      bg="blackAlpha.700"
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      px={4}
+      textAlign="center"
+      gap={2}
+    >
+      <Text fontSize="sm" color="whiteAlpha.900">
+        Image failed to load.
+      </Text>
+      {canOpenDirectly(url) && (
         <Link
           href={url}
           isExternal
@@ -63,8 +84,18 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWit
         >
           Open image directly
         </Link>
-      </Box>
-    );
+      )}
+    </Box>
+  );
+}
+
+const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWithFallbackProps) {
+  const [hasError, setHasError] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const resolved = resolveFeedImageSrc(url);
+
+  if (hasError || !resolved) {
+    return <ImageFallback url={url} />;
   }
 
   return (
@@ -73,30 +104,20 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWit
           sits blank with no hint anything is happening, which on mobile
           bandwidth reads as the feed being stuck rather than loading. */}
       {!isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
-      {/* No loading="lazy": SnapList's virtualization already bounds how
-          many cards (and thus images) exist at once, and Virtuoso mounts
-          cards ~3500px ahead of the viewport — further out than the
-          browser's own lazy-load threshold, so lazy was delaying the fetch
-          until the user was nearly on top of the image. Eager lets the
-          download start the moment the card mounts, using the scroll
-          runway as preload time; the browser still deprioritizes
-          offscreen fetches on its own. */}
-      <Image
-        src={url}
+      <NextImage
+        src={resolved.src}
         alt={alt}
-        width="100%"
-        height="100%"
-        objectFit="cover"
-        display="block"
-        opacity={isLoaded ? 1 : 0}
-        transition="opacity 0.15s ease-out"
+        fill
+        sizes={FEED_IMAGE_SIZES}
+        loading="eager"
+        unoptimized={resolved.unoptimized}
+        style={{
+          objectFit: 'cover',
+          opacity: isLoaded ? 1 : 0,
+          transition: 'opacity 0.15s ease-out',
+        }}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
-        // A remount of an already-cached image (scroll back up through the
-        // virtualized list) can have `complete` true before onLoad wires
-        // up — without this check the shimmer covers an image that's
-        // already there.
-        ref={(el) => { if (el?.complete && el.naturalWidth > 0 && !isLoaded) setIsLoaded(true); }}
       />
     </Box>
   );
