@@ -9,6 +9,7 @@ import BottomTabBar from '@/components/layout/BottomTabBar';
 import MeSheet from '@/components/layout/MeSheet';
 import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
+import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -80,6 +81,17 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     setIsChatOpen(true);
     setIsChatMinimized(false);
   }, [isChatPopoutMode]);
+
+  // /chat asks for the existing panel once a session exists. Guests stay on
+  // the page's sign-in gate; opening the overlay on mobile would cover it.
+  useEffect(() => {
+    const open = () => {
+      setIsChatOpen(true);
+      setIsChatMinimized(false);
+    };
+    window.addEventListener(OPEN_CHAT_EVENT, open);
+    return () => window.removeEventListener(OPEN_CHAT_EVENT, open);
+  }, []);
 
   // Close MeSheet when navigating
   useEffect(() => { setIsMeSheetOpen(false); }, [pathname]);
