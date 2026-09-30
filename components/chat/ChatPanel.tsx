@@ -43,6 +43,7 @@ import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiE
 import { FaPlay } from 'react-icons/fa';
 import { KeyTypes } from '@aioha/aioha';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
+import { shouldShowChatAuthGate } from '@/lib/chat/authGate';
 // Same parser the server uses to decide what mentions you, so highlighting and
 // the badge can never disagree about what counts as a mention.
 import { MENTION_REGEX, normalizeMentionToken, messageMentionsUser, getActiveMentionDraft } from '@/lib/chat/mentions';
@@ -841,6 +842,10 @@ export default function ChatPanel({
   }, []);
 
   const isAuthed = chatService.isAuthenticated();
+  // Session is the stored JWT, not authState. authState starts at 'idle' on
+  // every mount, so gating on idle re-prompts Keychain after a remount even
+  // though posting authority was already proven. See lib/chat/authGate.ts.
+  const showAuthGate = shouldShowChatAuthGate(user, isAuthed);
   const activeConversation = conversations.find(c => c._id === activeConversationId);
   const showJumpToNow = messages.length > 0 && !stickToLatest;
   const typingLabel = useMemo(() => {
@@ -2296,7 +2301,7 @@ export default function ChatPanel({
               )}
 
               {/* Auth overlay / compose bar */}
-              {!isAuthed || authState === 'idle' ? (
+              {showAuthGate ? (
                 <Flex
                   px={4}
                   py={4}
