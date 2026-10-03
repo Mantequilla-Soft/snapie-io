@@ -100,6 +100,12 @@ export class SnapieAuthError extends Error {
     public readonly code: string,
     public readonly status: number,
     message?: string,
+    /**
+     * Set by the auto-detecting email flow when the failure means "this account
+     * already exists" — the UI uses it to switch the tab to Sign In so the user's
+     * next attempt starts from the correct mode.
+     */
+    public readonly accountExists: boolean = false,
   ) {
     super(message ?? code)
     this.name = 'SnapieAuthError'
