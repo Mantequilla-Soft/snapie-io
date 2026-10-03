@@ -80,25 +80,29 @@ export async function loginWithEmail(email: string, password: string): Promise<S
 /**
  * Codes meaning "this email already has an account" — the register call failed
  * because the user is a returning visitor, not because anything is wrong.
- * Supabase-style codes plus the 409 status are both handled since the auth
- * service is external to this repo.
+ *
+ * Verified against menobass/snapie-auth src/routes/auth.js, which returns
+ *   409 email_already_registered  — verified account with a Hive username
+ *   409 login_to_claim_hive       — verified account still missing a username
+ * Both mean "sign in instead". The status check covers them, and the remaining
+ * entries are defensive in case the auth service adopts Supabase-style codes.
  */
 const ACCOUNT_EXISTS_CODES = new Set([
-  'email_exists',
-  'email_taken',
-  'user_already_exists',
   'email_already_registered',
+  'login_to_claim_hive',
+  'email_exists',
+  'user_already_exists',
   'email_in_use',
-  'conflict',
 ])
 
 /**
- * Codes meaning "no account with this email" — unambiguous signal from the
+ * Codes meaning "no account with this email" — an unambiguous signal from the
  * login call that we should fall through to registration.
  *
- * Deliberately EXCLUDES `unauthorized` / `invalid_credentials`: those are
- * ambiguous (Supabase returns them for both a wrong password and an unknown
- * email), so we never treat them as "account missing" without probing first.
+ * The current auth server does NOT emit any of these: it answers
+ * `invalid_credentials` (401) for both a wrong password and an unknown email.
+ * Kept as a fast path so that if the service ever does distinguish them, we
+ * skip the extra register probe.
  */
 const NO_ACCOUNT_CODES = new Set([
   'user_not_found',
@@ -129,15 +133,24 @@ export type EmailAuthResult =
  * returning user who never noticed the tab still signs in, and a new user who
  * landed on the Sign In tab still registers.
  *
- * Fallback rules (kept deliberately disjoint):
- *   - register fails with "account exists"  → try to sign in instead.
- *   - login fails with an unambiguous "no such account" → register instead.
- *   - login fails with `unauthorized` (ambiguous: wrong password OR unknown
- *     email) → probe with a register call. If that says the account exists,
- *     the password was simply wrong, and we rethrow the auth error. If it
- *     succeeds, the email really was unused, so registration is correct.
+ * Contract verified against menobass/snapie-auth src/routes/auth.js:
  *
- * `email_not_verified` (403) is never treated as a fallback trigger.
+ *   POST /auth/email/register
+ *     202 {pending}          new account created, OR existing-but-unverified
+ *                            (server resends the mail rather than confirming
+ *                            the account exists — both mean "verify your email")
+ *     409 email_already_registered   account exists, verified, has a username
+ *     409 login_to_claim_hive        account exists, verified, no username yet
+ *
+ *   POST /auth/email/login
+ *     200 {user}
+ *     401 invalid_credentials  wrong password OR unknown email — indistinguishable
+ *     403 email_not_verified   password was correct, email still unverified
+ *
+ * Because 401 is ambiguous, the Sign In path resolves it with a register probe:
+ * 409 means the account was there all along (so the password was simply wrong),
+ * and 202 means the email was genuinely unused (or unverified), so registering is
+ * the right move. `email_not_verified` is never a fallback trigger.
  */
 export type EmailAuthOps = {
   register: (email: string, password: string) => Promise<unknown>
@@ -167,6 +180,11 @@ export async function authenticateWithEmail(
     const user = await login(email, password)
     return { outcome: 'signedIn', user }
   } catch (logErr) {
+    // NOTE: the auth server returns `invalid_credentials` for BOTH a wrong
+    // password and an unknown email (routes/auth.js), so there is no
+    // "no such account" code to key off — the register probe below is what
+    // actually disambiguates. isNoAccount is kept as a fast path for any future
+    // server that does distinguish the two.
     if (isNoAccount(logErr)) {
       await register(email, password)
       return { outcome: 'registered', notice: 'accountCreated' }
@@ -176,17 +194,23 @@ export async function authenticateWithEmail(
       (logErr as AuthError)?.code === 'invalid_credentials'
     if (!ambiguous) throw logErr
 
-    // Ambiguous credential failure — probe to tell "wrong password" apart
-    // from "no account yet". A rejected register means the account exists.
+    // Ambiguous credential failure. Probe with a register call to tell a wrong
+    // password apart from an unused email:
+    //   - 409 => already registered, so the password was simply wrong.
+    //   - 202 => accepted. This covers a brand-new account AND an existing
+    //     account that has not verified its email yet — the server resends the
+    //     verification mail rather than disclosing that the account exists, so
+    //     the two are deliberately indistinguishable. Both land on the same
+    //     verification screen, so no notice is claimed here.
     try {
       await register(email, password)
-      return { outcome: 'registered', notice: 'accountCreated' }
     } catch (probeErr) {
       if (isAccountExists(probeErr)) {
         throw new AuthError('unauthorized', 401, undefined, true)
       }
       throw logErr
     }
+    return { outcome: 'registered' }
   }
 }
 
