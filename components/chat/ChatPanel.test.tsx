@@ -308,6 +308,30 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+describe('ChatPanel account switch', () => {
+  it('keeps the composer closed while the stored token still belongs to someone else', async () => {
+    mocks.isAuthenticated.mockReturnValue(true);
+    mocks.getTokenUsername.mockReturnValue('previous-account');
+
+    const { chatService } = await import('@/lib/chat/ChatService');
+    const { default: ChatPanel } = await import('./ChatPanel');
+    render(
+      <ChakraProvider>
+        <ChatPanel isOpen onClose={vi.fn()} />
+      </ChakraProvider>,
+    );
+
+    fireEvent.click(await screen.findByText('#general'));
+
+    expect(await screen.findByText('Connect your Hive account to chat')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('Message…')).toBeNull();
+    // The account-switch effect calls logout(), but the gate cannot wait for
+    // that. The previous account's session is still usable on this render.
+    expect(chatService.isAuthenticated()).toBe(true);
+    expect(chatService.getTokenUsername()).toBe('previous-account');
+  });
+});
+
 describe('ChatPanel rejected session', () => {
   beforeEach(() => {
     serviceMode.real = true;

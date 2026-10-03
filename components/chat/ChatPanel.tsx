@@ -845,7 +845,11 @@ export default function ChatPanel({
   // Session is the stored JWT, not authState. authState starts at 'idle' on
   // every mount, so gating on idle re-prompts Keychain after a remount even
   // though posting authority was already proven. See lib/chat/authGate.ts.
-  const showAuthGate = shouldShowChatAuthGate(user, isAuthed);
+  // Logout for a different Hive account runs in an effect, after this render.
+  // Until that token is cleared, a previous owner's session must not compose.
+  const tokenOwner = chatService.getTokenUsername();
+  const tokenOwnedBySomeoneElse = !!user && !!tokenOwner && tokenOwner !== user;
+  const showAuthGate = shouldShowChatAuthGate(user, isAuthed) || tokenOwnedBySomeoneElse;
   const activeConversation = conversations.find(c => c._id === activeConversationId);
   const showJumpToNow = messages.length > 0 && !stickToLatest;
   const typingLabel = useMemo(() => {

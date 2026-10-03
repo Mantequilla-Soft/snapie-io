@@ -15,10 +15,10 @@
  * A logged-out Hive user sees "log in" even if a token is still stored, so
  * logout does not leave a live composer behind.
  *
- * A different Hive account is not decided here. The effect in ChatPanel that
- * compares chatService.getTokenUsername() with the logged-in user calls
- * logout() first; once that token is gone, this gate shows for the same
- * "no usable session" reason.
+ * A different Hive account is not decided here. ChatPanel closes the composer
+ * on the render where getTokenUsername() is someone else, and the effect that
+ * compares that owner with the logged-in user then calls logout(). Once that
+ * token is gone, this gate shows for the same "no usable session" reason.
  */
 export function shouldShowChatAuthGate(
   hiveUsername: string | null | undefined,
