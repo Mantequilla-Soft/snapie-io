@@ -24,6 +24,10 @@ const mocks = vi.hoisted(() => ({
   getTokenUsername: vi.fn(() => 'alice'),
 }));
 
+// Scroll tests drive a fake chatService. The rejected-session test flips this
+// so ChatPanel hits the real service, whose post() clears hive-chat-token.
+const serviceMode = vi.hoisted(() => ({ real: false }));
+
 const virtuoso = vi.hoisted(() => ({
   props: null as null | Record<string, any>,
 }));
@@ -59,8 +63,10 @@ vi.mock('@/lib/hive/aioha', () => ({
 
 vi.mock('@/components/homepage/GiphySelector', () => ({ default: () => null }));
 
-vi.mock('@/lib/chat/ChatService', () => ({
-  chatService: {
+vi.mock('@/lib/chat/ChatService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/chat/ChatService')>();
+  const real = actual.chatService;
+  const fake = {
     isAuthenticated: () => mocks.isAuthenticated(),
     getTokenUsername: () => mocks.getTokenUsername(),
     getChannels: (...args: unknown[]) => mocks.getChannels(...args),
@@ -73,8 +79,16 @@ vi.mock('@/lib/chat/ChatService', () => ({
     joinChannel: (...args: unknown[]) => mocks.joinChannel(...args),
     setTyping: (...args: unknown[]) => mocks.setTyping(...args),
     logout: vi.fn(),
-  },
-}));
+  };
+  const chatService = new Proxy(fake, {
+    get(target, prop, _receiver) {
+      const source = serviceMode.real ? real : target;
+      const value = Reflect.get(source, prop, source);
+      return typeof value === 'function' ? value.bind(source) : value;
+    },
+  });
+  return { ...actual, chatService };
+});
 
 if (typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', { writable: true, configurable: true, value: () => {} });
@@ -119,6 +133,7 @@ function messageCalls() {
 }
 
 beforeEach(() => {
+  serviceMode.real = false;
   virtuoso.props = null;
   mocks.isAuthenticated.mockReturnValue(true);
   mocks.getTokenUsername.mockReturnValue('alice');
@@ -275,5 +290,109 @@ describe('ChatPanel scrolls to the newest messages when the conversation changes
     await Promise.resolve();
     await Promise.resolve();
     expect(virtuoso.props?.data?.map((row: Message) => row._id)).toEqual(['d0', 'd1']);
+  });
+});
+
+const TOKEN_KEY = 'hive-chat-token';
+
+function unsignedJwt(expSeconds: number): string {
+  const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }));
+  const payload = btoa(JSON.stringify({ sub: 'alice', exp: expSeconds }));
+  return `${header}.${payload}.sig`;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+describe('ChatPanel rejected session', () => {
+  beforeEach(() => {
+    serviceMode.real = true;
+    localStorage.clear();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method || 'GET').toUpperCase();
+
+        // The send path. ChatService only drops the stored token for a
+        // non-GET 401, then post() throws CHAT_UNAUTHORIZED. Other posts
+        // (read receipts, typing) must keep succeeding or the token would
+        // be gone before the user ever sends.
+        if (method === 'POST' && url.includes('/messages')) {
+          return jsonResponse({ error: 'unauthorized' }, 401);
+        }
+
+        if (method === 'GET' && url.includes('/channels') && !url.includes('/messages')) {
+          return jsonResponse({
+            channels: [{
+              _id: 'general',
+              name: 'general',
+              type: 'channel',
+              conversationKind: 'channel',
+              isPublic: true,
+              owner: 'snapie',
+              members: [],
+              memberCount: 1,
+            }],
+          });
+        }
+
+        if (url.includes('/conversations')) return jsonResponse({ conversations: [] });
+        if (url.includes('/messages')) return jsonResponse({ messages: [] });
+        if (url.includes('/preferences')) return jsonResponse({ mutedUsers: [], blockedUsers: [] });
+        if (url.includes('/typing')) return jsonResponse({ users: [], ttlMs: 0 });
+        if (url.includes('/read')) return jsonResponse({ unread: 0, conversations: {} });
+        return jsonResponse({});
+      }),
+    );
+  });
+
+  afterEach(() => {
+    serviceMode.real = false;
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('shows the auth gate and drops the stored token when sending is rejected', async () => {
+    const { chatService } = await import('@/lib/chat/ChatService');
+    const token = unsignedJwt(Math.floor(Date.now() / 1000) + 60 * 60);
+    localStorage.setItem(TOKEN_KEY, token);
+    expect(chatService.isAuthenticated()).toBe(true);
+
+    const { default: ChatPanel } = await import('./ChatPanel');
+    render(
+      <ChakraProvider>
+        <ChatPanel isOpen onClose={vi.fn()} />
+      </ChakraProvider>,
+    );
+
+    // The panel opens on the conversation list at the base breakpoint.
+    // Opening the channel is what reveals the composer.
+    fireEvent.click(await screen.findByText('#general'));
+    const composer = await screen.findByPlaceholderText('Message…');
+    expect(screen.queryByText('Connect your Hive account to chat')).toBeNull();
+    expect(localStorage.getItem(TOKEN_KEY)).toBe(token);
+
+    fireEvent.change(composer, { target: { value: 'hello' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Connect your Hive account to chat')).toBeTruthy();
+    });
+    expect(screen.queryByPlaceholderText('Message…')).toBeNull();
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(chatService.isAuthenticated()).toBe(false);
+
+    const fetchMock = vi.mocked(fetch);
+    const rejectedSend = fetchMock.mock.calls.find(([input, init]) => {
+      const url = String(input);
+      const method = ((init as RequestInit | undefined)?.method || 'GET').toUpperCase();
+      return method === 'POST' && url.includes('/messages');
+    });
+    expect(rejectedSend).toBeTruthy();
   });
 });

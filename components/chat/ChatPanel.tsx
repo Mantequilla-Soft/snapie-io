@@ -1593,8 +1593,11 @@ export default function ChatPanel({
         setShowMemoFallbackPrompt({ conversationId: activeConversation._id, peer: activeConversation.peer });
       }
       await reloadConversations();
-    } catch (err: any) {
-      if (err?.message === 'CHAT_UNAUTHORIZED') setAuthState('idle');
+    } catch {
+      // A rejected mutation clears hive-chat-token inside ChatService before
+      // it throws CHAT_UNAUTHORIZED. The composer gate reads that token via
+      // isAuthenticated(), not authState, so setAuthState('idle') would not
+      // change what the user sees. Restoring the draft re-renders onto the gate.
       setDraft(content);
     }
     setSending(false);

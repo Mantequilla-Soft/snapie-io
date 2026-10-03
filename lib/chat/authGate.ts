@@ -9,9 +9,16 @@
  * still valid.
  *
  * Keychain stays required when there is no usable token: first connect,
- * expiry, a different Hive account, or a session the server rejected.
+ * expiry, or a session the server rejected. A rejected mutation clears the
+ * stored token in ChatService; the panel re-renders and this gate follows
+ * isAuthenticated(), not the in-memory auth flag.
  * A logged-out Hive user sees "log in" even if a token is still stored, so
  * logout does not leave a live composer behind.
+ *
+ * A different Hive account is not decided here. The effect in ChatPanel that
+ * compares chatService.getTokenUsername() with the logged-in user calls
+ * logout() first; once that token is gone, this gate shows for the same
+ * "no usable session" reason.
  */
 export function shouldShowChatAuthGate(
   hiveUsername: string | null | undefined,
