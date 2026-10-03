@@ -148,7 +148,7 @@ describe('mutedAccountsManager.getMutedList', () => {
     expect(localStorage.getItem('hive_muted_accounts_meno')).toBeNull();
 
     const storedPending = JSON.parse(localStorage.getItem('hive_pending_personal_mutes_meno')!);
-    expect(storedPending).toContain('freshmute');
+    expect(storedPending).toEqual([expect.objectContaining({ name: 'freshmute' })]);
 
     const next = await manager.getMutedList('meno');
     expect(next.has('freshmute')).toBe(true);
@@ -180,6 +180,49 @@ describe('mutedAccountsManager.getMutedList', () => {
     const list = await manager.getMutedList('meno');
     expect(list.has('freshmute')).toBe(false);
     expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('keeps a pending mute the follow index has not listed yet', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify([
+      { name: 'freshmute', mutedAt: Date.now() },
+    ]));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(true);
+    expect(list.has('personalfoe')).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('hive_pending_personal_mutes_meno')!);
+    expect(stored).toEqual([expect.objectContaining({ name: 'freshmute' })]);
+  });
+
+  it('drops a pending mute once the follow index lists that account', async () => {
+    const manager = await freshManager();
+    manager.notifyPersonalMute('meno', 'personalfoe');
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('does not reapply an expired pending mute missing from the follow index', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify([
+      { name: 'freshmute', mutedAt: 0 },
+    ]));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(false);
+    expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('does not let a legacy untimestamped pending mute override an authoritative list', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify(['freshmute']));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(false);
     expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
   });
 });

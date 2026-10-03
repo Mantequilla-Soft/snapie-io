@@ -81,6 +81,13 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
 
     const mutedList = await mutedAccountsManager.getMutedList(username);
+    // The reset effect clears lastCreatedRef / fetchedPermlinksRef when
+    // username or muted tags change. A fetch that started earlier can
+    // resume here and write those refs back, which paginates the new feed
+    // from the stale page. Discard before touching either ref. The caller
+    // still drops the returned comments when this generation is stale.
+    if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
+
     const items = data.items
       .filter(item => !fetchedPermlinksRef.current.has(item.permlink))
       .filter(item => !mutedList.has(item.author.toLowerCase()))

@@ -189,4 +189,68 @@ describe('useBlendedFeed mute filters', () => {
     expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
     vi.unstubAllGlobals();
   });
+
+  it('does not let a superseded fetch restore the pagination cursor', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const before = new URL(String(url), 'http://localhost').searchParams.get('before');
+      if (before === '2026-08-01T00:00:00') {
+        return {
+          json: async () => ({
+            items: [feedItem('stale-page', { created: '2026-07-01T00:00:00' })],
+            hasMore: true,
+          }),
+        };
+      }
+      return {
+        json: async () => ({
+          items: [feedItem('fresh-page', { created: '2026-08-01T00:00:00' })],
+          hasMore: true,
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result, rerender } = renderHook(
+      ({ username }: { username?: string }) => useBlendedFeed({ username }),
+      { initialProps: { username: 'viewer' as string | undefined } },
+    );
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['fresh-page']));
+
+    let releaseStale!: (list: Set<string>) => void;
+    const staleMuteList = new Promise<Set<string>>(resolve => { releaseStale = resolve; });
+    let muteListCalls = 0;
+    vi.mocked(mutedAccountsManager.getMutedList).mockImplementation(() => {
+      muteListCalls += 1;
+      if (muteListCalls === 1) return staleMuteList;
+      return Promise.resolve(new Set<string>());
+    });
+
+    act(() => {
+      result.current.loadNextPage();
+    });
+    await waitFor(() => expect(muteListCalls).toBe(1));
+
+    rerender({ username: 'other' });
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['fresh-page']));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      releaseStale(new Set());
+    });
+    // loadNextPage ignores calls for 1s after the page that was superseded.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 1100));
+    });
+
+    const callsBeforeNext = fetchMock.mock.calls.length;
+    act(() => {
+      result.current.loadNextPage();
+    });
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(callsBeforeNext));
+
+    const nextUrl = String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][0]);
+    expect(nextUrl).toContain('before=2026-08-01T00%3A00%3A00');
+    expect(nextUrl).not.toContain('2026-07-01');
+    vi.unstubAllGlobals();
+  });
 });

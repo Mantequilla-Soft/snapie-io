@@ -12,6 +12,10 @@ const STORAGE_KEY_PREFIX = 'hive_muted_accounts';
  *  drop that snapshot without forgetting the mute that just landed. */
 const PENDING_MUTES_PREFIX = 'hive_pending_personal_mutes';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+/** How long a local mute may hide an account the follow index has not
+ *  listed yet. After this, a fetched list that still omits them wins —
+ *  including an unmute that landed somewhere else. */
+const PENDING_MUTE_TTL_MS = 10 * 60 * 1000;
 
 interface MutedListCache {
   accounts: Set<string>;
@@ -26,7 +30,8 @@ class MutedAccountsManager {
   /** Bumped by clearCache so an in-flight getMutedList cannot write the
    *  pre-clear snapshot back over the cache it just invalidated. */
   private epoch: Map<string, number> = new Map();
-  private pendingMutes: Map<string, Set<string>> = new Map();
+  /** username -> (account -> mutedAt epoch ms) */
+  private pendingMutes: Map<string, Map<string, number>> = new Map();
   private personalMuteListeners = new Set<PersonalMuteListener>();
 
   private getStorageKey(username?: string): string {
@@ -110,16 +115,28 @@ class MutedAccountsManager {
     return `${PENDING_MUTES_PREFIX}_${username}`;
   }
 
-  private readPending(username?: string): Set<string> {
-    if (!username) return new Set();
-    const pending = new Set(this.pendingMutes.get(username) ?? []);
+  private readPending(username?: string): Map<string, number> {
+    if (!username) return new Map();
+    const pending = new Map(this.pendingMutes.get(username) ?? []);
     try {
       if (typeof window === 'undefined') return pending;
       const raw = localStorage.getItem(this.pendingStorageKey(username));
       if (!raw) return pending;
       const names = JSON.parse(raw);
-      if (Array.isArray(names)) {
-        for (const name of names) pending.add(String(name).toLowerCase());
+      if (!Array.isArray(names)) return pending;
+      for (const entry of names) {
+        // A bare string is the previous shape, which had no timestamp and
+        // could outlive an unmute. Treat it as already expired.
+        if (typeof entry === 'string') {
+          const name = entry.toLowerCase();
+          if (!pending.has(name)) pending.set(name, 0);
+          continue;
+        }
+        if (!entry || typeof entry.name !== 'string') continue;
+        const name = entry.name.toLowerCase();
+        const mutedAt = typeof entry.mutedAt === 'number' ? entry.mutedAt : 0;
+        const known = pending.get(name);
+        if (known === undefined || mutedAt > known) pending.set(name, mutedAt);
       }
     } catch {
       // A corrupt pending entry just means "nothing extra to union."
@@ -127,22 +144,48 @@ class MutedAccountsManager {
     return pending;
   }
 
-  private writePending(username: string, accounts: Set<string>): void {
-    this.pendingMutes.set(username, accounts);
+  private writePending(username: string, accounts: Map<string, number>): void {
+    this.pendingMutes.set(username, new Map(accounts));
     try {
       if (typeof window === 'undefined') return;
       if (accounts.size === 0) {
         localStorage.removeItem(this.pendingStorageKey(username));
       } else {
-        localStorage.setItem(this.pendingStorageKey(username), JSON.stringify(Array.from(accounts)));
+        const payload = Array.from(accounts, ([name, mutedAt]) => ({ name, mutedAt }));
+        localStorage.setItem(this.pendingStorageKey(username), JSON.stringify(payload));
       }
     } catch (error) {
       console.error('Failed to save pending mutes:', error);
     }
   }
 
-  private withPending(accounts: Set<string>, username?: string): Set<string> {
-    for (const name of this.readPending(username)) accounts.add(name);
+  /**
+   * Union local mutes Hive may not have indexed yet.
+   * When `authoritativePersonal` is the personal list just fetched, a name
+   * that appears there is dropped from pending (the index now owns it) and
+   * a name older than PENDING_MUTE_TTL_MS is dropped even if the index
+   * still omits it — so a later unmute is not hidden forever.
+   */
+  private withPending(
+    accounts: Set<string>,
+    username?: string,
+    authoritativePersonal?: Set<string>,
+  ): Set<string> {
+    if (!username) return accounts;
+    const pending = this.readPending(username);
+    const now = Date.now();
+    let changed = false;
+    for (const [name, mutedAt] of pending) {
+      const expired = now - mutedAt >= PENDING_MUTE_TTL_MS;
+      const indexed = authoritativePersonal?.has(name) ?? false;
+      if (expired || indexed) {
+        pending.delete(name);
+        changed = true;
+        continue;
+      }
+      accounts.add(name);
+    }
+    if (changed) this.writePending(username, pending);
     return accounts;
   }
 
@@ -192,8 +235,11 @@ class MutedAccountsManager {
       return stored.accounts;
     }
 
-    // Fetch from API
+    // `owned` holds this request's promise so finally can drop the in-flight
+    // slot only if it still belongs to this call. Reading `promise` from
+    // inside its own initializer is a definite-assignment error (TS2454).
     const epochAtStart = this.epochOf(cacheKey);
+    const owned: { current: Promise<Set<string>> | null } = { current: null };
     const promise = (async () => {
       try {
         const fetches: Promise<string[]>[] = [this.fetchCommunityMutedList()];
@@ -202,7 +248,14 @@ class MutedAccountsManager {
         }
 
         const results = await Promise.all(fetches);
-        const combined = this.withPending(new Set(results.flat().map(a => a.toLowerCase())), username);
+        const personal = username
+          ? new Set((results[1] ?? []).map(a => a.toLowerCase()))
+          : undefined;
+        const combined = this.withPending(
+          new Set(results.flat().map(a => a.toLowerCase())),
+          username,
+          personal,
+        );
 
         // clearCache / notifyPersonalMute landed while this fetch was in
         // flight. Return the list (including any mute that just succeeded)
@@ -218,7 +271,7 @@ class MutedAccountsManager {
       } catch (error) {
         console.error('Failed to fetch muted list:', error);
         if (this.epochOf(cacheKey) !== epochAtStart) {
-          return this.readPending(username);
+          return this.withPending(new Set(), username);
         }
         // Return expired cache if available rather than empty set
         const stale = this.loadFromStorage(username, true);
@@ -227,13 +280,14 @@ class MutedAccountsManager {
           this.cache.set(cacheKey, stale);
           return stale.accounts;
         }
-        return this.readPending(username);
+        return this.withPending(new Set(), username);
       } finally {
-        if (this.loading.get(cacheKey) === promise) {
+        if (this.loading.get(cacheKey) === owned.current) {
           this.loading.delete(cacheKey);
         }
       }
     })();
+    owned.current = promise;
 
     this.loading.set(cacheKey, promise);
     return promise;
@@ -248,7 +302,7 @@ class MutedAccountsManager {
     const name = author.toLowerCase();
     if (!viewer || !name) return;
     const pending = this.readPending(viewer);
-    pending.add(name);
+    pending.set(name, Date.now());
     this.writePending(viewer, pending);
     this.clearCache(viewer);
     this.personalMuteListeners.forEach(listener => listener(name));
