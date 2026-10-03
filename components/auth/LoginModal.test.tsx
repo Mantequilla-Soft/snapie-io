@@ -182,6 +182,40 @@ describe('LoginModal email mode auto-detection', () => {
     expect(onSuccess).not.toHaveBeenCalled();
   });
 
+  it('keeps the notice visible after switching to the verification view', async () => {
+    mocks.authenticateWithEmail.mockResolvedValue({
+      outcome: 'registered',
+      notice: 'accountCreated',
+    });
+
+    renderModal();
+    fillCredentials();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    // The notice is set in the same tick that swaps the view, so it must also
+    // render inside email-pending or the user never sees why they were routed there.
+    await waitFor(() => expect(screen.getByText('Check your email')).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        screen.getByText('No account found for that email — creating one instead.'),
+      ).toBeTruthy(),
+    );
+  });
+
+  it('shows a password-specific message for a too-short password', async () => {
+    mocks.authenticateWithEmail.mockRejectedValue(
+      new SnapieAuthError('password_too_short', 400),
+    );
+
+    renderModal();
+    fillCredentials();
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+
+    await waitFor(() =>
+      expect(screen.getByText('Passwords must be at least 8 characters.')).toBeTruthy(),
+    );
+  });
+
   it('surfaces an invalid-credentials error without entering a signup flow', async () => {
     const onSuccess = vi.fn();
     mocks.authenticateWithEmail.mockRejectedValue(

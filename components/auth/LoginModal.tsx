@@ -45,6 +45,8 @@ const EMAIL_ERRORS: Record<string, string> = {
   invalid_credentials: 'Invalid email or password.',
   email_not_verified: 'Please verify your email before signing in. Check your inbox.',
   insufficient_rc: 'Service temporarily busy — please try again in a moment.',
+  password_too_short: 'Passwords must be at least 8 characters.',
+  weak_password: 'Passwords must be at least 8 characters.',
 }
 
 // Shown when the server told us the chosen tab was wrong and we corrected it.
@@ -318,6 +320,15 @@ export default function LoginModal({
             {/* ── EMAIL PENDING VIEW ─────────────────────────── */}
             {view === 'email-pending' && (
               <VStack spacing={4} align="stretch">
+                {/* Rendered here too: a notice set right before switching to this
+                    view (e.g. "creating one instead") would otherwise vanish. */}
+                {notice && (
+                  <Alert status="info" borderRadius="md" py={2}>
+                    <AlertIcon />
+                    <Text fontSize="sm">{notice}</Text>
+                  </Alert>
+                )}
+
                 <Alert status="info" borderRadius="md">
                   <AlertIcon />
                   <Box>
@@ -353,7 +364,7 @@ export default function LoginModal({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => { setView('providers'); setEmailMode('login') }}
+                  onClick={() => { setView('providers'); setEmailMode('login'); setNotice('') }}
                 >
                   Back to sign in
                 </Button>

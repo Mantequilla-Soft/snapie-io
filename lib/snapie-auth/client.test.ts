@@ -150,7 +150,7 @@ describe('authenticateWithEmail — ambiguous credential failures', () => {
 
   it('surfaces a probe validation error rather than a misleading login error', async () => {
     const login = vi.fn(failsWith(BAD_CREDENTIALS, 401));
-    const register = vi.fn(failsWith('password_too_short', 400));
+    const register = vi.fn(failsWith('invalid input', 400));
 
     await expect(
       authenticateWithEmail('a@b.c', 'pw', 'login', ops(register, login)),
@@ -169,5 +169,48 @@ describe('authenticateWithEmail — ambiguous credential failures', () => {
     expect(res).toEqual({ outcome: 'registered' });
     expect(register).toHaveBeenCalledWith('a@b.c', 'pw');
     expect(login).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('authenticateWithEmail — fallback failure handling', () => {
+  it('marks the error accountExists when the register->login fallback fails', async () => {
+    // Register said the account exists, so a failed fallback means the password
+    // was wrong. accountExists lets the modal switch to the Sign In tab rather
+    // than leaving the user on a tab that will fail identically forever.
+    const register = vi.fn(failsWith(ALREADY, 409));
+    const login = vi.fn(failsWith(BAD_CREDENTIALS, 401));
+
+    await expect(
+      authenticateWithEmail('a@b.c', 'wrong', 'register', ops(register, login)),
+    ).rejects.toMatchObject({ code: BAD_CREDENTIALS, status: 401, accountExists: true });
+  });
+
+  it('preserves email_not_verified from the failed fallback', async () => {
+    const register = vi.fn(failsWith(ALREADY, 409));
+    const login = vi.fn(failsWith('email_not_verified', 403));
+
+    await expect(
+      authenticateWithEmail('a@b.c', 'pw', 'register', ops(register, login)),
+    ).rejects.toMatchObject({ code: 'email_not_verified', status: 403, accountExists: true });
+  });
+
+  it('surfaces a too-short password from the probe instead of invalid_credentials', async () => {
+    // The probe revealed the password itself is unacceptable, so reporting
+    // invalid_credentials would ask the user to retype the same password.
+    const login = vi.fn(failsWith(BAD_CREDENTIALS, 401));
+    const register = vi.fn(failsWith('password_too_short', 400));
+
+    await expect(
+      authenticateWithEmail('a@b.c', 'short', 'login', ops(register, login)),
+    ).rejects.toMatchObject({ code: 'password_too_short' });
+  });
+
+  it('still reports invalid_credentials when the probe fails for a non-password reason', async () => {
+    const login = vi.fn(failsWith(BAD_CREDENTIALS, 401));
+    const register = vi.fn(failsWith('over_request_rate_limit', 429));
+
+    await expect(
+      authenticateWithEmail('a@b.c', 'pw', 'login', ops(register, login)),
+    ).rejects.toMatchObject({ code: BAD_CREDENTIALS });
   });
 });

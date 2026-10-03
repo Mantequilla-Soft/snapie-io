@@ -96,6 +96,16 @@ const ACCOUNT_EXISTS_CODES = new Set([
 ])
 
 /**
+ * Codes meaning the password itself is unacceptable, so no retry of the same
+ * password can succeed. `password_too_short` is what the auth server returns
+ * (routes/auth.js); `weak_password` is the Supabase equivalent.
+ */
+const PASSWORD_PROBLEM_CODES = new Set([
+  'password_too_short',
+  'weak_password',
+])
+
+/**
  * Codes meaning "no account with this email" — an unambiguous signal from the
  * login call that we should fall through to registration.
  *
@@ -118,6 +128,19 @@ function isAccountExists(e: unknown): boolean {
 
 function isNoAccount(e: unknown): boolean {
   return NO_ACCOUNT_CODES.has((e as AuthError)?.code)
+}
+
+/**
+ * Re-throw an error with `accountExists` set, preserving its original code and
+ * status so the UI keeps the right message. A non-AuthError is wrapped so the
+ * flag is always readable.
+ */
+function markAccountExists(e: unknown): AuthError {
+  const err = e as AuthError
+  if (err instanceof AuthError) {
+    return new AuthError(err.code, err.status, err.message, true)
+  }
+  return new AuthError('unauthorized', 401, undefined, true)
 }
 
 /** Which way the auto-detect flow had to correct the user's chosen tab. */
@@ -171,8 +194,16 @@ export async function authenticateWithEmail(
     } catch (regErr) {
       if (!isAccountExists(regErr)) throw regErr
       // The account is already here — this was a login all along.
-      const user = await login(email, password)
-      return { outcome: 'signedIn', user, notice: 'alreadyRegistered' }
+      try {
+        const user = await login(email, password)
+        return { outcome: 'signedIn', user, notice: 'alreadyRegistered' }
+      } catch (logErr) {
+        // The fallback failed, but we still know the account exists, so the
+        // failure means "sign in with the right password" — not "register".
+        // Marking it lets the modal move to the Sign In tab instead of leaving
+        // the user on a tab that will fail the same way forever.
+        throw markAccountExists(logErr)
+      }
     }
   }
 
@@ -208,6 +239,13 @@ export async function authenticateWithEmail(
       if (isAccountExists(probeErr)) {
         throw new AuthError('unauthorized', 401, undefined, true)
       }
+      // The probe proved nothing about the credentials, but it did prove the
+      // password is unusable (too short). Surface that instead of the generic
+      // invalid-credentials message, which would send the user off to retype a
+      // password the server will never accept.
+      if (PASSWORD_PROBLEM_CODES.has((probeErr as AuthError)?.code)) throw probeErr
+      // Anything else (rate limits, network) tells us nothing about the
+      // account, so report the original login failure.
       throw logErr
     }
     return { outcome: 'registered' }
