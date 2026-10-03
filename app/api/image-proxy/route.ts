@@ -3,6 +3,24 @@ import { fetchProxiedImage, ImageProxyError } from '@/lib/images/imageProxy';
 
 export const runtime = 'nodejs';
 
+// In-memory IP limiter — resets on cold start, same pattern as translate.
+// 60/min rather than translate's 10/min: a feed scroll loads many thumbnails.
+const RATE_LIMIT = 60;
+const RATE_WINDOW_MS = 60_000;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetAt) {
+        rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+        return true;
+    }
+    if (entry.count >= RATE_LIMIT) return false;
+    entry.count++;
+    return true;
+}
+
 /**
  * Same-origin stand-in for arbitrary feed image URLs.
  *
@@ -12,6 +30,14 @@ export const runtime = 'nodejs';
  * checks in `fetchProxiedImage`.
  */
 export async function GET(request: NextRequest) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    if (!checkRateLimit(ip)) {
+        return new NextResponse('Too many requests', {
+            status: 429,
+            headers: { 'Retry-After': '60', 'Cache-Control': 'no-store' },
+        });
+    }
+
     const urls = request.nextUrl.searchParams.getAll('url');
     if (urls.length !== 1) {
         return new NextResponse('Invalid image url', { status: 400 });
