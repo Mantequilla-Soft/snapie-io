@@ -14,6 +14,13 @@ import GiphySelector from '@/components/homepage/GiphySelector';
 import { IGif } from '@giphy/js-types';
 import { useDropzone } from 'react-dropzone';
 import { compressImage } from '@/lib/utils/composeUtils';
+
+/** Still images are resized to JPEG. Animated GIFs must skip compressImage —
+ *  the canvas path draws one frame and the animation is gone. */
+async function imageForUpload(file: File): Promise<File> {
+    if (file.type === 'image/gif') return file;
+    return compressImage(file);
+}
 import BeneficiariesInput, { Beneficiary } from '@/components/compose/BeneficiariesInput';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
@@ -315,8 +322,8 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     isClosable: true,
                 });
 
-                // Compress image before upload
-                const compressedFile = await compressImage(file);
+                // Compress stills before upload. GIFs skip the canvas path.
+                const compressedFile = await imageForUpload(file);
                 
                 // Upload using user's own signature via Keychain
                 const url = await uploadImageWithKeychain(compressedFile, user);
@@ -495,7 +502,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
             const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY || '';
             setIsUpdatingThumbnail(true);
             try {
-                const compressed = await compressImage(file);
+                const compressed = await imageForUpload(file);
                 let thumbUrl: string;
                 try {
                     thumbUrl = await uploadImageWithKeychain(compressed, user);
@@ -571,8 +578,8 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                         isClosable: true,
                     });
                     
-                    // Compress image
-                    const compressedFile = await compressImage(file);
+                    // Compress stills. GIFs are uploaded unchanged.
+                    const compressedFile = await imageForUpload(file);
                     
                     // Upload with user's signature via Keychain
                     const url = await uploadImageWithKeychain(compressedFile, user);

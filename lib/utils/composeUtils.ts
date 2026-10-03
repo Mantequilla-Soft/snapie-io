@@ -114,6 +114,10 @@ export function insertAtCursor(
  * Reduces file size while maintaining reasonable quality
  */
 export async function compressImage(file: File, maxWidth: number = 1920, quality: number = 0.8): Promise<File> {
+    // drawImage + toBlob('image/jpeg') keeps a single frame. An animated GIF
+    // uploaded through that path is a still. Return the original bytes.
+    if (file.type === 'image/gif') return file;
+
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         

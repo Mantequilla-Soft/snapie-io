@@ -237,6 +237,16 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     setFetchTrigger(prev => prev + 1);
   }, [filterType, username, mutedTagsKey]);
 
+  // A mute that succeeds while this walk is on screen has to drop that
+  // author now. The next page would also hide them once getMutedList
+  // refetches, but items already in `comments` are never revisited.
+  useEffect(() => {
+    return mutedAccountsManager.subscribePersonalMute((author) => {
+      const target = author.toLowerCase();
+      setComments(prev => prev.filter(c => c.author.toLowerCase() !== target));
+    });
+  }, []);
+
   // Fetch posts when `currentPage` changes (or when followingListLoaded changes for following filter)
   useEffect(() => {
     // A caller (currently: the blended feed standing in for 'all') is covering

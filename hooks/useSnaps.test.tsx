@@ -13,8 +13,16 @@ vi.mock('./useUserSettings', () => ({
   useUserSettings: () => ({ settings: { mutedTags: [] as string[] } }),
 }));
 
+const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
+
 vi.mock('@/lib/hive/muted-accounts', () => ({
-  mutedAccountsManager: { getMutedList: vi.fn(async () => new Set<string>()) },
+  mutedAccountsManager: {
+    getMutedList: vi.fn(async () => new Set<string>()),
+    subscribePersonalMute: (listener: (author: string) => void) => {
+      personalMuteListeners.add(listener);
+      return () => personalMuteListeners.delete(listener);
+    },
+  },
 }));
 
 const databaseCallMock = vi.fn();
@@ -52,6 +60,7 @@ function reply(permlink: string, overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   databaseCallMock.mockReset();
   getPostMock.mockReset();
+  personalMuteListeners.clear();
   process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG = COMMUNITY_TAG;
 });
 
@@ -118,5 +127,24 @@ describe('useSnaps.refreshComment', () => {
     });
 
     expect((result.current.comments[0] as any).pending_payout_value).toBe('0.000 HBD');
+  });
+
+  it('drops a muted author from the loaded walk immediately', async () => {
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([container('c1')]));
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([
+      reply('keep', { author: 'goodauthor' }),
+      reply('gone', { author: 'spammer' }),
+      reply('also-gone', { author: 'Spammer' }),
+    ]));
+    databaseCallMock.mockImplementation(() => Promise.resolve([]));
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'community' }));
+    await waitFor(() => expect(result.current.comments).toHaveLength(3));
+
+    act(() => {
+      personalMuteListeners.forEach(listener => listener('spammer'));
+    });
+
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
   });
 });
