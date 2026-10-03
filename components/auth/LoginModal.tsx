@@ -30,7 +30,7 @@ import {
 import { AiohaModal } from '@aioha/react-ui'
 import { Providers } from '@aioha/aioha'
 import { FiEye, FiEyeOff } from 'react-icons/fi'
-import { loginWithEmail, loginWithGoogle, registerWithEmail, resendVerification } from '@/lib/snapie-auth/client'
+import { authenticateWithEmail, loginWithGoogle, resendVerification } from '@/lib/snapie-auth/client'
 import { SnapieAuthError } from '@/lib/snapie-auth/types'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
 import GoogleLoginButton from './GoogleLoginButton'
@@ -42,8 +42,16 @@ type EmailMode = 'login' | 'register'
 
 const EMAIL_ERRORS: Record<string, string> = {
   unauthorized: 'Invalid email or password.',
+  invalid_credentials: 'Invalid email or password.',
   email_not_verified: 'Please verify your email before signing in. Check your inbox.',
   insufficient_rc: 'Service temporarily busy — please try again in a moment.',
+}
+
+// Shown when the server told us the chosen tab was wrong and we corrected it.
+// Silence would make the app look like it did something arbitrary.
+const EMAIL_NOTICES: Record<string, string> = {
+  alreadyRegistered: 'That email is already registered — signing you in instead.',
+  accountCreated: 'No account found for that email — creating one instead.',
 }
 
 interface Props {
@@ -72,6 +80,7 @@ export default function LoginModal({
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [pendingEmail, setPendingEmail] = useState('')
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
@@ -81,12 +90,17 @@ export default function LoginModal({
     if (displayed) {
       setView(initialView)
       setError('')
+      setNotice('')
       setEmail('')
       setPassword('')
+      setEmailMode('register')
     }
   }, [displayed, initialView])
 
-  const clearError = useCallback(() => setError(''), [])
+  const clearError = useCallback(() => {
+    setError('')
+    setNotice('')
+  }, [])
 
   const handleGoogleCredential = useCallback(
     async (credential: string) => {
@@ -109,21 +123,30 @@ export default function LoginModal({
     if (!email || !password || loading) return
     setLoading(true)
     setError('')
+    setNotice('')
     try {
-      if (emailMode === 'register') {
-        await registerWithEmail(email, password)
+      // emailMode is only a hint — authenticateWithEmail detects whether this
+      // is a registration or a sign-in from the server's response.
+      const result = await authenticateWithEmail(email, password, emailMode)
+      if (result.notice) {
+        setNotice(EMAIL_NOTICES[result.notice])
+        // Keep the tab in sync with what actually happened.
+        setEmailMode(result.outcome === 'signedIn' ? 'login' : 'register')
+      }
+      if (result.outcome === 'registered') {
         setPendingEmail(email)
         setView('email-pending')
       } else {
-        const user = await loginWithEmail(email, password)
+        const user = result.user
         onSnapieLoginSuccess(user)
         if (!user.hiveUsername) setView('account-setup')
       }
     } catch (e: any) {
       const code = e?.code ?? ''
-      setError(EMAIL_ERRORS[code] ?? (emailMode === 'register'
-        ? 'Registration failed. Please try again.'
-        : 'Sign-in failed. Check your email and password.'))
+      setError(EMAIL_ERRORS[code] ?? 'Something went wrong. Please try again.')
+      // A register attempt that turned out to hit an existing account means the
+      // user is signing in, not registering — move the tab so a retry is correct.
+      if (e?.accountExists) setEmailMode('login')
     } finally {
       setLoading(false)
     }
@@ -204,11 +227,23 @@ export default function LoginModal({
                   </TabPanels>
                 </Tabs>
 
+                <Text fontSize="xs" color="gray.500" textAlign="center" mt={-1}>
+                    Either tab works — we&rsquo;ll sign you in or create your account
+                    automatically.
+                  </Text>
+
                 <VStack spacing={3} align="stretch">
                   {error && (
                     <Alert status="error" borderRadius="md" py={2}>
                       <AlertIcon />
                       <Text fontSize="sm">{error}</Text>
+                    </Alert>
+                  )}
+
+                  {notice && (
+                    <Alert status="info" borderRadius="md" py={2}>
+                      <AlertIcon />
+                      <Text fontSize="sm">{notice}</Text>
                     </Alert>
                   )}
 

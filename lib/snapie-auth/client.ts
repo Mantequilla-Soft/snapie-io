@@ -77,6 +77,119 @@ export async function loginWithEmail(email: string, password: string): Promise<S
   return (data as { user: SnapieUser }).user
 }
 
+/**
+ * Codes meaning "this email already has an account" — the register call failed
+ * because the user is a returning visitor, not because anything is wrong.
+ * Supabase-style codes plus the 409 status are both handled since the auth
+ * service is external to this repo.
+ */
+const ACCOUNT_EXISTS_CODES = new Set([
+  'email_exists',
+  'email_taken',
+  'user_already_exists',
+  'email_already_registered',
+  'email_in_use',
+  'conflict',
+])
+
+/**
+ * Codes meaning "no account with this email" — unambiguous signal from the
+ * login call that we should fall through to registration.
+ *
+ * Deliberately EXCLUDES `unauthorized` / `invalid_credentials`: those are
+ * ambiguous (Supabase returns them for both a wrong password and an unknown
+ * email), so we never treat them as "account missing" without probing first.
+ */
+const NO_ACCOUNT_CODES = new Set([
+  'user_not_found',
+  'email_not_found',
+  'no_user_found',
+  'account_not_found',
+])
+
+function isAccountExists(e: unknown): boolean {
+  const err = e as AuthError
+  return ACCOUNT_EXISTS_CODES.has(err?.code) || err?.status === 409
+}
+
+function isNoAccount(e: unknown): boolean {
+  return NO_ACCOUNT_CODES.has((e as AuthError)?.code)
+}
+
+/** Which way the auto-detect flow had to correct the user's chosen tab. */
+export type EmailAuthNotice = 'alreadyRegistered' | 'accountCreated'
+
+export type EmailAuthResult =
+  | { outcome: 'registered'; notice?: EmailAuthNotice }
+  | { outcome: 'signedIn'; user: SnapieUser; notice?: EmailAuthNotice }
+
+/**
+ * Single entry point for the email form. The chosen tab is treated as a *hint*
+ * only — the correct action is discovered from the server's response, so a
+ * returning user who never noticed the tab still signs in, and a new user who
+ * landed on the Sign In tab still registers.
+ *
+ * Fallback rules (kept deliberately disjoint):
+ *   - register fails with "account exists"  → try to sign in instead.
+ *   - login fails with an unambiguous "no such account" → register instead.
+ *   - login fails with `unauthorized` (ambiguous: wrong password OR unknown
+ *     email) → probe with a register call. If that says the account exists,
+ *     the password was simply wrong, and we rethrow the auth error. If it
+ *     succeeds, the email really was unused, so registration is correct.
+ *
+ * `email_not_verified` (403) is never treated as a fallback trigger.
+ */
+export type EmailAuthOps = {
+  register: (email: string, password: string) => Promise<unknown>
+  login: (email: string, password: string) => Promise<SnapieUser>
+}
+
+export async function authenticateWithEmail(
+  email: string,
+  password: string,
+  mode: 'login' | 'register',
+  ops: EmailAuthOps = { register: registerWithEmail, login: loginWithEmail },
+): Promise<EmailAuthResult> {
+  const { register, login } = ops
+  if (mode === 'register') {
+    try {
+      await register(email, password)
+      return { outcome: 'registered' }
+    } catch (regErr) {
+      if (!isAccountExists(regErr)) throw regErr
+      // The account is already here — this was a login all along.
+      const user = await login(email, password)
+      return { outcome: 'signedIn', user, notice: 'alreadyRegistered' }
+    }
+  }
+
+  try {
+    const user = await login(email, password)
+    return { outcome: 'signedIn', user }
+  } catch (logErr) {
+    if (isNoAccount(logErr)) {
+      await register(email, password)
+      return { outcome: 'registered', notice: 'accountCreated' }
+    }
+
+    const ambiguous = (logErr as AuthError)?.code === 'unauthorized' ||
+      (logErr as AuthError)?.code === 'invalid_credentials'
+    if (!ambiguous) throw logErr
+
+    // Ambiguous credential failure — probe to tell "wrong password" apart
+    // from "no account yet". A rejected register means the account exists.
+    try {
+      await register(email, password)
+      return { outcome: 'registered', notice: 'accountCreated' }
+    } catch (probeErr) {
+      if (isAccountExists(probeErr)) {
+        throw new AuthError('unauthorized', 401, undefined, true)
+      }
+      throw logErr
+    }
+  }
+}
+
 export function resendVerification() {
   return req<{ ok: true }>('POST', '/auth/email/resend')
 }
