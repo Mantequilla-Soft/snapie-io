@@ -46,6 +46,15 @@ import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib
 // Same parser the server uses to decide what mentions you, so highlighting and
 // the badge can never disagree about what counts as a mention.
 import { MENTION_REGEX, normalizeMentionToken, messageMentionsUser, getActiveMentionDraft } from '@/lib/chat/mentions';
+import {
+  CHAT_LIST_INDEX_ORIGIN,
+  absoluteMessageIndex,
+  nextFirstItemIndex,
+  pinAfterAtBottom,
+  shouldBackfillShortThread,
+  shouldPageOlderHistory,
+  type ChatScrollPin,
+} from '@/lib/chat/messageScroll';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
@@ -264,6 +273,13 @@ function mergeMessagesById(existing: Message[], incoming: Message[], cap = MAX_A
 function trimMessagesTail(messages: Message[], cap = MAX_ACTIVE_MESSAGES): Message[] {
   if (messages.length <= cap) return messages;
   return messages.slice(messages.length - cap);
+}
+
+function dmThreadShowsSeen(messages: Message[], user: string | null, peerSeenAt?: string | null): boolean {
+  if (!user || !peerSeenAt) return false;
+  const myLast = [...messages].reverse().find(message => message.sender === user);
+  if (!myLast) return false;
+  return new Date(peerSeenAt).getTime() >= new Date(myLast.createdAt).getTime();
 }
 
 function avatarNameForConversation(conv: Conversation): string {
@@ -759,14 +775,27 @@ export default function ChatPanel({
   const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
   const [activeMentionIdx, setActiveMentionIdx] = useState(0);
   const [hasValidMentionInDraft, setHasValidMentionInDraft] = useState(false);
-  const [showJumpToNow, setShowJumpToNow] = useState(false);
+  // True while the viewport should stay on the newest row. Drives Virtuoso's
+  // followOutput prop directly: a function that returns false still counts as
+  // "following" for item-resize and yanks someone who scrolled up.
+  const [stickToLatest, setStickToLatest] = useState(true);
+  const [scrollConversationId, setScrollConversationId] = useState(activeConversationId);
 
   const virtuosoRef = useRef<VirtuosoHandle | null>(null);
   const messageNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const oldestIdRef = useRef<string | undefined>(undefined);
   const latestIdRef = useRef<string | undefined>(undefined);
-  const shouldAutoScrollRef = useRef(true);
+  const stickToLatestRef = useRef(true);
+  const settledAtLatestRef = useRef(false);
+  const pinGenerationRef = useRef(0);
+  const didBackfillShortListRef = useRef(false);
+  const atTopRef = useRef(false);
+  const replaceTokenRef = useRef(0);
+  const [firstItemIndex, setFirstItemIndex] = useState(CHAT_LIST_INDEX_ORIGIN);
+  const firstItemIndexRef = useRef(CHAT_LIST_INDEX_ORIGIN);
+  const messagesRef = useRef<Message[]>([]);
+  const activeConversationIdRef = useRef(activeConversationId);
   const loadingOlderRef = useRef(false);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -777,15 +806,51 @@ export default function ChatPanel({
   const hasInteractedRef = useRef(false);
   const prevMessageIdsRef = useRef<Set<string>>(new Set());
   const didPrimeMessageSetRef = useRef(false);
+  messagesRef.current = messages;
+  activeConversationIdRef.current = activeConversationId;
+
+  // Drop the previous thread before paint so Virtuoso remounts on the new
+  // conversation's rows (initialTopMostItemIndex only applies on mount).
+  if (scrollConversationId !== activeConversationId) {
+    setScrollConversationId(activeConversationId);
+    stickToLatestRef.current = true;
+    setStickToLatest(true);
+    settledAtLatestRef.current = false;
+    didBackfillShortListRef.current = false;
+    atTopRef.current = false;
+    messagesRef.current = [];
+    setMessages(prev => (prev.length === 0 ? prev : []));
+    setLoadingMessages(true);
+    firstItemIndexRef.current = CHAT_LIST_INDEX_ORIGIN;
+    setFirstItemIndex(CHAT_LIST_INDEX_ORIGIN);
+  }
+
+  const commitMessageWindow = useCallback((prev: Message[], next: Message[]) => {
+    const first = nextFirstItemIndex(firstItemIndexRef.current, prev, next);
+    firstItemIndexRef.current = first;
+    messagesRef.current = next;
+    setFirstItemIndex(first);
+    setMessages(next);
+    if (next.length > 0) {
+      oldestIdRef.current = next[0]._id;
+      latestIdRef.current = next[next.length - 1]._id;
+    } else {
+      oldestIdRef.current = undefined;
+      latestIdRef.current = undefined;
+    }
+  }, []);
 
   const isAuthed = chatService.isAuthenticated();
   const activeConversation = conversations.find(c => c._id === activeConversationId);
+  const showJumpToNow = messages.length > 0 && !stickToLatest;
   const typingLabel = useMemo(() => {
     if (!typingUsers.length) return '';
     if (typingUsers.length === 1) return `@${typingUsers[0]} is typing...`;
     if (typingUsers.length === 2) return `@${typingUsers[0]} and @${typingUsers[1]} are typing...`;
     return `${typingUsers.length} people are typing...`;
   }, [typingUsers]);
+  const showDmSeen = activeConversation?.type === 'dm'
+    && dmThreadShowsSeen(messages, user, dmStatus?.peerSeenAt);
   const sortedMentions = useMemo(
     () => messages
       .map((msg, idx) => ({ msg, idx }))
@@ -890,6 +955,9 @@ export default function ChatPanel({
       chatService.logout();
       setAuthState('idle');
       setAuthError('');
+      messagesRef.current = [];
+      firstItemIndexRef.current = CHAT_LIST_INDEX_ORIGIN;
+      setFirstItemIndex(CHAT_LIST_INDEX_ORIGIN);
       setMessages([]);
       setConversations([]);
     }
@@ -949,49 +1017,47 @@ export default function ChatPanel({
   ) => {
     if (append) {
       if (loadingOlderRef.current) return;
+      const replaceToken = replaceTokenRef.current;
+      const convAtStart = activeConversationIdRef.current;
       loadingOlderRef.current = true;
       setLoadingOlder(true);
-    } else {
-      setLoadingMessages(true);
-    }
-    try {
-      const msgs = await fetchMessagesForConversation(convId, convType, {
-        before: append ? oldestIdRef.current : undefined,
-        limit: INITIAL_MESSAGE_LIMIT,
-      });
-      if (append) {
+      try {
+        const msgs = await fetchMessagesForConversation(convId, convType, {
+          before: oldestIdRef.current,
+          limit: INITIAL_MESSAGE_LIMIT,
+        });
+        if (replaceToken !== replaceTokenRef.current || convAtStart !== activeConversationIdRef.current) return;
         if (!msgs.length) {
           oldestIdRef.current = undefined;
         } else {
-          oldestIdRef.current = msgs[0]._id;
-          setMessages(prev => mergeMessagesById(msgs, prev, MAX_ACTIVE_MESSAGES));
+          const prev = messagesRef.current;
+          commitMessageWindow(prev, mergeMessagesById(msgs, prev, MAX_ACTIVE_MESSAGES));
         }
-      } else {
-        const ordered = trimMessagesTail(sortMessagesAsc(msgs), MAX_ACTIVE_MESSAGES);
-        if (ordered.length > 0) {
-          oldestIdRef.current = ordered[0]._id;
-          latestIdRef.current = ordered[ordered.length - 1]._id;
-        } else {
-          oldestIdRef.current = undefined;
-          latestIdRef.current = undefined;
-        }
-        setMessages(ordered);
-      }
-    } catch {
-      if (!append) {
-        setMessages([]);
-        oldestIdRef.current = undefined;
-        latestIdRef.current = undefined;
-      }
-    } finally {
-      if (append) {
+      } catch {
+        // Keep the page the user is already reading.
+      } finally {
         setLoadingOlder(false);
         loadingOlderRef.current = false;
-      } else {
-        setLoadingMessages(false);
       }
+      return;
     }
-  }, [fetchMessagesForConversation]);
+
+    const token = ++replaceTokenRef.current;
+    setLoadingMessages(true);
+    try {
+      const msgs = await fetchMessagesForConversation(convId, convType, {
+        limit: INITIAL_MESSAGE_LIMIT,
+      });
+      if (token !== replaceTokenRef.current) return;
+      const ordered = trimMessagesTail(sortMessagesAsc(msgs), MAX_ACTIVE_MESSAGES);
+      commitMessageWindow(messagesRef.current, ordered);
+    } catch {
+      if (token !== replaceTokenRef.current) return;
+      commitMessageWindow(messagesRef.current, []);
+    } finally {
+      if (token === replaceTokenRef.current) setLoadingMessages(false);
+    }
+  }, [commitMessageWindow, fetchMessagesForConversation]);
 
   // ── Read receipts ──────────────────────────────────────────────────────
   //  Fetching a conversation no longer marks it read server-side: a background
@@ -1030,9 +1096,16 @@ export default function ChatPanel({
 
   useEffect(() => {
     if (!isOpen || isMinimized) return;
+    // New open or new conversation: ignore atBottom/startReached from the
+    // list we just left, and pin again once the new page mounts.
+    pinGenerationRef.current += 1;
+    settledAtLatestRef.current = false;
+    didBackfillShortListRef.current = false;
+    atTopRef.current = false;
+    stickToLatestRef.current = true;
+    setStickToLatest(true);
     oldestIdRef.current = undefined;
     latestIdRef.current = undefined;
-    shouldAutoScrollRef.current = true;
     setDmStatus(null);
     setReplyingTo(null);
     setEditingMessage(null);
@@ -1341,22 +1414,19 @@ export default function ChatPanel({
   const refreshMessageDeltas = useCallback(async () => {
     if (!activeConversationId || !activeConversation?.type) return;
 
+    const convId = activeConversationId;
+    const replaceToken = replaceTokenRef.current;
     const newestId = latestIdRef.current;
-    const delta = await fetchMessagesForConversation(activeConversationId, activeConversation?.type, {
+    const delta = await fetchMessagesForConversation(convId, activeConversation?.type, {
       after: newestId,
       limit: DELTA_MESSAGE_LIMIT,
     });
     if (!delta.length) return;
+    if (replaceToken !== replaceTokenRef.current || convId !== activeConversationIdRef.current) return;
 
-    setMessages(prev => {
-      const merged = mergeMessagesById(prev, delta, MAX_ACTIVE_MESSAGES);
-      if (merged.length > 0) {
-        oldestIdRef.current = merged[0]._id;
-        latestIdRef.current = merged[merged.length - 1]._id;
-      }
-      return merged;
-    });
-  }, [activeConversationId, activeConversation?.type, fetchMessagesForConversation]);
+    const prev = messagesRef.current;
+    commitMessageWindow(prev, mergeMessagesById(prev, delta, MAX_ACTIVE_MESSAGES));
+  }, [activeConversationId, activeConversation?.type, commitMessageWindow, fetchMessagesForConversation]);
 
   // ── Poll fallback ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -1379,48 +1449,28 @@ export default function ChatPanel({
     });
   }, [isAuthed, activeConversationId, activeConversation?.type, reloadConversations, refreshMessageDeltas]);
 
-  // ── Auto-scroll to bottom on new messages ─────────────────────────────
+  // Id cursors for paging. The list itself is positioned by Virtuoso
+  // (initialTopMostItemIndex on mount, followOutput after that) — scrollToIndex
+  // in this effect does not run on the list's first mount.
   useEffect(() => {
-    if (!messages.length) {
-      setShowJumpToNow(false);
-      return;
-    }
-
+    if (!messages.length) return;
     oldestIdRef.current = messages[0]?._id;
     latestIdRef.current = messages[messages.length - 1]?._id;
-
-    if (!shouldAutoScrollRef.current) {
-      setShowJumpToNow(true);
-      return;
-    }
-
-    const lastIndex = messages.length - 1;
-    if (lastIndex < 0) return;
-
-    virtuosoRef.current?.scrollToIndex({
-      index: lastIndex,
-      align: 'end',
-      behavior: 'auto',
-    });
-
-    setShowJumpToNow(false);
   }, [messages]);
 
   function jumpToLatestMention() {
     if (!latestMention) return;
     virtuosoRef.current?.scrollToIndex({
-      index: latestMention.idx,
+      index: absoluteMessageIndex(firstItemIndexRef.current, latestMention.idx),
       align: 'center',
       behavior: 'smooth',
     });
   }
 
   function jumpToNow() {
-    shouldAutoScrollRef.current = true;
-    setShowJumpToNow(false);
-    const lastIndex = messages.length - 1;
-    if (lastIndex < 0) return;
-    virtuosoRef.current?.scrollToIndex({ index: lastIndex, align: 'end', behavior: 'smooth' });
+    stickToLatestRef.current = true;
+    setStickToLatest(true);
+    virtuosoRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' });
   }
 
   function handleResizeStart(e: ReactMouseEvent<HTMLDivElement>) {
@@ -1529,7 +1579,8 @@ export default function ChatPanel({
       } else {
         msg = await chatService.sendMessage(activeConversation._id, content, replyTo);
       }
-      setMessages(prev => trimMessagesTail([...prev, msg], MAX_ACTIVE_MESSAGES));
+      const prevMessages = messagesRef.current;
+      commitMessageWindow(prevMessages, trimMessagesTail([...prevMessages, msg], MAX_ACTIVE_MESSAGES));
       setMessageCache(prev => ({ ...prev, [msg._id]: msg }));
       setReplyingTo(null);
       try { await chatService.setTyping(activeConversation._id, false); } catch {}
@@ -1667,6 +1718,16 @@ export default function ChatPanel({
     activeConversation.type === 'group' &&
     activeConversation.owner === user
   );
+  const pinGeneration = pinGenerationRef.current;
+  // Stable component types — an inline Header/Footer is a new component every
+  // render, which remounts Virtuoso's chrome and drops the scroll pin.
+  const messageListComponents = useMemo(() => ({
+    Header: () => loadingOlder ? (
+      <Flex justify="center" align="center" py={2}>
+        <Spinner color="blue.300" size="xs" />
+      </Flex>
+    ) : null,
+  }), [loadingOlder]);
 
   if (!isOpen) return null;
 
@@ -2107,14 +2168,55 @@ export default function ChatPanel({
                   </Flex>
                 ) : (
                   <Virtuoso
+                    key={activeConversationId}
                     ref={virtuosoRef}
                     style={{ height: '100%' }}
                     data={messages}
-                    atBottomStateChange={(atBottom) => {
-                      shouldAutoScrollRef.current = atBottom;
-                      if (atBottom) setShowJumpToNow(false);
+                    alignToBottom
+                    followOutput={stickToLatest ? 'auto' : false}
+                    initialTopMostItemIndex={{ index: 'LAST', align: 'end' }}
+                    firstItemIndex={firstItemIndex}
+                    computeItemKey={(_index, message) => message._id}
+                    atBottomThreshold={32}
+                    atTopStateChange={(atTop) => {
+                      if (pinGeneration !== pinGenerationRef.current) return;
+                      atTopRef.current = atTop;
                     }}
-                    startReached={loadOlderMessages}
+                    atBottomStateChange={(atBottom) => {
+                      if (pinGeneration !== pinGenerationRef.current) return;
+                      const prev: ChatScrollPin = {
+                        stickToLatest: stickToLatestRef.current,
+                        settledAtLatest: settledAtLatestRef.current,
+                      };
+                      const next = pinAfterAtBottom(prev, atBottom);
+                      settledAtLatestRef.current = next.settledAtLatest;
+                      if (next.stickToLatest !== stickToLatestRef.current) {
+                        stickToLatestRef.current = next.stickToLatest;
+                        setStickToLatest(next.stickToLatest);
+                      }
+                      if (!prev.settledAtLatest && next.settledAtLatest) {
+                        const generation = pinGeneration;
+                        queueMicrotask(() => {
+                          if (generation !== pinGenerationRef.current || didBackfillShortListRef.current) return;
+                          const pin: ChatScrollPin = {
+                            stickToLatest: stickToLatestRef.current,
+                            settledAtLatest: settledAtLatestRef.current,
+                          };
+                          if (!shouldBackfillShortThread(pin, atTopRef.current, false)) return;
+                          didBackfillShortListRef.current = true;
+                          loadOlderMessages();
+                        });
+                      }
+                    }}
+                    startReached={() => {
+                      if (pinGeneration !== pinGenerationRef.current) return;
+                      const pin: ChatScrollPin = {
+                        stickToLatest: stickToLatestRef.current,
+                        settledAtLatest: settledAtLatestRef.current,
+                      };
+                      if (!shouldPageOlderHistory(pin)) return;
+                      loadOlderMessages();
+                    }}
                     itemContent={(index, msg) => (
                       <Box
                         key={msg._id}
@@ -2143,36 +2245,7 @@ export default function ChatPanel({
                         />
                       </Box>
                     )}
-                    components={{
-                      Header: () => loadingOlder ? (
-                        <Flex justify="center" align="center" py={2}>
-                          <Spinner color="blue.300" size="xs" />
-                        </Flex>
-                      ) : <></>,
-                      Footer: () => (
-                        <>
-                          {activeConversation?.type === 'dm' && (() => {
-                            const myLast = [...messages].reverse().find(m => m.sender === user);
-                            if (!myLast) return null;
-                            const peerSeenTs = dmStatus?.peerSeenAt ? new Date(dmStatus.peerSeenAt).getTime() : 0;
-                            const msgTs = new Date(myLast.createdAt).getTime();
-                            if (peerSeenTs && peerSeenTs >= msgTs) {
-                              return (
-                                <Text fontSize="10px" color="overlay.500" textAlign="right" pr={1}>
-                                  Seen
-                                </Text>
-                              );
-                            }
-                            return null;
-                          })()}
-                          {!!typingLabel && (
-                            <Text fontSize="11px" color="overlay.600" mt={1}>
-                              {typingLabel}
-                            </Text>
-                          )}
-                        </>
-                      ),
-                    }}
+                    components={messageListComponents}
                   />
                 )}
                 {showJumpToNow && (
@@ -2206,6 +2279,21 @@ export default function ChatPanel({
                   />
                 )}
               </Box>
+
+              {(showDmSeen || !!typingLabel) && (
+                <Box px={4} pb={1} flexShrink={0}>
+                  {showDmSeen && (
+                    <Text fontSize="10px" color="overlay.500" textAlign="right" pr={1}>
+                      Seen
+                    </Text>
+                  )}
+                  {!!typingLabel && (
+                    <Text fontSize="11px" color="overlay.600">
+                      {typingLabel}
+                    </Text>
+                  )}
+                </Box>
+              )}
 
               {/* Auth overlay / compose bar */}
               {!isAuthed || authState === 'idle' ? (
