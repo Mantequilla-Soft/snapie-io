@@ -15,4 +15,6 @@ export type {
   ChatPreferences,
   StorageAdapter,
   UnreadSnapshot,
+  ChatUserInfo,
+  ButrAuthChatSession,
 } from './types';

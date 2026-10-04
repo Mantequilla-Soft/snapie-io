@@ -98,6 +98,26 @@ Use `.env.local` for local development.
 - `CHAT_JWT_SECRET` - signing secret for chat JWT tokens (use strong random value)
 - `NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL` - initial channel id/name (e.g. `general`)
 
+### Chat sign-in with ButrAuth (Optional)
+
+Lets an app that signs its users in through [ButrAuth](https://butrauth.com) put
+them in chat with their ButrAuth access token instead of a Hive signature. This
+is the only way **warm-up users** (a ButrAuth identity, no Hive account yet) can
+chat: they appear as `~<butrauth userId>`, shown by their handle, and their
+conversations move to their Hive name the first time they sign in after
+graduating.
+
+Off unless both of these are set **and** `@mantequilla-soft/butrauth-client`
+(>= 0.6.0) is installed; it is loaded at runtime, so a build without it is fine.
+
+- `BUTRAUTH_URL` - the ButrAuth deployment, e.g. `https://butrauth.com`
+- `BUTRAUTH_CHAT_AUDIENCES` - comma-separated clientIds whose tokens are accepted; a token issued to any other app is refused
+- `BUTRAUTH_ISSUER` - expected `iss` (default `butrauth`)
+
+The app's **server** calls `POST /api/chat/auth/butrauth { accessToken }` (or
+`client.authenticateWithButrAuth(token)` in `@snapie/chat-client`) and passes the
+returned `token` + `username` to the browser's `client.useSession(...)`.
+
 ### Translation (Optional)
 
 Snapie supports per-snap inline translation via a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) instance. When configured, a translate button appears below each snap's text content and detects the user's browser language automatically.

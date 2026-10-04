@@ -1,5 +1,5 @@
-import { S as StorageAdapter } from './client-C8OuYUK4.mjs';
-export { c as Channel, C as ChatClient, b as ChatClientOptions, g as ChatPreferences, a as ChatService, d as Conversation, D as DmDeliveryInfo, f as DmStatusInfo, M as Message, e as MessagesResult, T as TypingStatusInfo, U as UnreadSnapshot } from './client-C8OuYUK4.mjs';
+import { S as StorageAdapter } from './client-CyyZEKZd.mjs';
+export { B as ButrAuthChatSession, c as Channel, C as ChatClient, b as ChatClientOptions, g as ChatPreferences, a as ChatService, h as ChatUserInfo, d as Conversation, D as DmDeliveryInfo, f as DmStatusInfo, M as Message, e as MessagesResult, T as TypingStatusInfo, U as UnreadSnapshot } from './client-CyyZEKZd.mjs';
 
 type Handler = () => void | Promise<void>;
 /**

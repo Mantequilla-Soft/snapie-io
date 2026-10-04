@@ -11,6 +11,8 @@ import type {
   TypingStatusInfo,
   DmDeliveryInfo,
   UnreadSnapshot,
+  ChatUserInfo,
+  ButrAuthChatSession,
 } from './types';
 
 type ConversationsCallback = (conversations: Conversation[]) => void;
@@ -59,6 +61,26 @@ export class ChatClient {
     signMessage: (challenge: string) => Promise<string>
   ): Promise<void> {
     return this.service.authenticate(username, signMessage);
+  }
+
+  /**
+   * Sign in with a ButrAuth access token instead of a Hive signature. Covers
+   * warm-up users with no Hive account (they chat as `~<id>`, shown by their
+   * handle). Run it where the token is: normally the app's server, which then
+   * passes the session to the browser via `useSession`.
+   */
+  async authenticateWithButrAuth(accessToken: string): Promise<ButrAuthChatSession> {
+    return this.service.authenticateWithButrAuth(accessToken);
+  }
+
+  /** Adopt a chat session obtained by the app's server. */
+  useSession(token: string, username: string): void {
+    this.service.useSession(token, username);
+  }
+
+  /** Display info for chat ids, e.g. the handle behind a warm-up `~<id>`. */
+  getUsers(ids: string[]): Promise<ChatUserInfo[]> {
+    return this.service.getUsers(ids);
   }
 
   logout(): void {

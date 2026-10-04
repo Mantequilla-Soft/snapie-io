@@ -13,6 +13,12 @@ export async function POST(req: NextRequest) {
     if (!normalizedUser) {
       return NextResponse.json({ error: 'username, challenge, and signature required' }, { status: 400 });
     }
+    // `~` ids are warm-up identities, reachable only through ButrAuth sign-in.
+    // No Hive account can be called that, so a signature could never verify;
+    // refused by name as well so that never depends on a node's answer.
+    if (normalizedUser.startsWith('~')) {
+      return NextResponse.json({ error: 'Signature verification failed' }, { status: 401 });
+    }
 
     await connectDB();
 

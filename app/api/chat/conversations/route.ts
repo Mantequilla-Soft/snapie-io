@@ -5,6 +5,7 @@ import { Channel } from '@/lib/db/models/Channel';
 import { Message } from '@/lib/db/models/Message';
 import { getDmPeer, parseDmConversationId } from '@/lib/chat/conversations';
 import { computeUnread } from '@/lib/chat/unread';
+import { isWarmupChatId } from '@/lib/chat/butrauth';
 
 export const GET = withChatAuth(async (_req, { username }) => {
   const chatUser = await ChatUser.findById(username);
@@ -16,17 +17,32 @@ export const GET = withChatAuth(async (_req, { username }) => {
     ? await Channel.find({ _id: { $in: channelIds } }).sort({ updatedAt: -1 })
     : [];
 
+  // Warm-up peers are `~<id>` to the server; clients show their handle.
+  const warmupPeers = Array.from(new Set(
+    dmIds.map((id: string) => getDmPeer(id, username)).filter((p: string | null): p is string => !!p && isWarmupChatId(p))
+  ));
+  const displayNames = new Map<string, string>(
+    warmupPeers.length
+      ? (await ChatUser.find({ _id: { $in: warmupPeers } }, { displayName: 1 }).lean<{ _id: string; displayName?: string | null }[]>())
+        .filter((u) => !!u.displayName)
+        .map((u) => [u._id, u.displayName as string])
+      : []
+  );
+
   const dmConversations = dmIds
     .map((id: string) => {
       const parsed = parseDmConversationId(id);
       if (!parsed) return null;
+      const peer = getDmPeer(id, username);
+      const peerDisplayName = (peer && displayNames.get(peer)) || null;
       return {
         _id: id,
         type: 'dm' as const,
         isPublic: false,
         members: parsed,
-        name: `@${getDmPeer(id, username) || parsed[0]}`,
-        peer: getDmPeer(id, username),
+        name: `@${peerDisplayName || peer || parsed[0]}`,
+        peer,
+        peerDisplayName,
       };
     })
     .filter(Boolean);
