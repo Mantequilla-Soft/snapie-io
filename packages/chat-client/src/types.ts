@@ -33,6 +33,9 @@ export interface Conversation {
   members?: string[];
   memberCount?: number;
   peer?: string;
+  /** Set when the peer is a warm-up user (`~<id>`): their handle, to show
+   *  instead of the id. Null for Hive users, who show as their name. */
+  peerDisplayName?: string | null;
   lastMessage?: Message | null;
   unread?: boolean;
   /** Unread messages in this conversation. Sums across conversations to the
@@ -94,4 +97,24 @@ export interface ChatClientOptions {
   storage?: StorageAdapter;
   /** How often to poll for new messages when FCM is not available (ms, default 15000) */
   pollInterval?: number;
+}
+
+/** How to show a chat id. See ChatClient.getUsers. */
+export interface ChatUserInfo {
+  id: string;
+  /** Hive name, or a warm-up user's handle (null if unknown). */
+  displayName: string | null;
+  /** A ButrAuth warm-up identity (`~<id>`), with no Hive account yet. */
+  warmup: boolean;
+  /** The Hive account a warm-up identity graduated to. */
+  mergedInto: string | null;
+}
+
+/** Result of a ButrAuth sign-in. */
+export interface ButrAuthChatSession {
+  token: string;
+  /** The chat id: a Hive name, or `~<id>` for a warm-up user. */
+  username: string;
+  displayName: string | null;
+  warmup: boolean;
 }

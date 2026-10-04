@@ -36,6 +36,34 @@ var ChatService = class {
     this.storage.setItem(TOKEN_KEY, token);
     this.storage.setItem(TOKEN_USER_KEY, username);
   }
+  /**
+   * Sign in with a ButrAuth access token (the server must have ButrAuth
+   * sign-in enabled). This is how warm-up users, who have no Hive account,
+   * get into chat. Call it SERVER-SIDE where the token lives, then hand the
+   * returned `token` + `username` to the browser's `useSession`.
+   */
+  async authenticateWithButrAuth(accessToken) {
+    const session = await this.post(
+      `${this.base}/auth/butrauth`,
+      { accessToken },
+      false
+    );
+    this.useSession(session.token, session.username);
+    return session;
+  }
+  /** Adopt a chat token obtained elsewhere, e.g. by the app's own server. */
+  useSession(token, username) {
+    this.token = token;
+    this.tokenUsername = username;
+    this.storage.setItem(TOKEN_KEY, token);
+    this.storage.setItem(TOKEN_USER_KEY, username);
+  }
+  async getUsers(ids) {
+    if (!ids.length) return [];
+    const qs = new URLSearchParams({ ids: ids.join(",") }).toString();
+    const { users } = await this.get(`${this.base}/users?${qs}`, true);
+    return users;
+  }
   logout() {
     this.token = null;
     this.tokenUsername = null;
@@ -328,6 +356,23 @@ var ChatClient = class {
    */
   async authenticate(username, signMessage) {
     return this.service.authenticate(username, signMessage);
+  }
+  /**
+   * Sign in with a ButrAuth access token instead of a Hive signature. Covers
+   * warm-up users with no Hive account (they chat as `~<id>`, shown by their
+   * handle). Run it where the token is: normally the app's server, which then
+   * passes the session to the browser via `useSession`.
+   */
+  async authenticateWithButrAuth(accessToken) {
+    return this.service.authenticateWithButrAuth(accessToken);
+  }
+  /** Adopt a chat session obtained by the app's server. */
+  useSession(token, username) {
+    this.service.useSession(token, username);
+  }
+  /** Display info for chat ids, e.g. the handle behind a warm-up `~<id>`. */
+  getUsers(ids) {
+    return this.service.getUsers(ids);
   }
   logout() {
     this.service.logout();

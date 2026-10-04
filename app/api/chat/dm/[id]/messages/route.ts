@@ -116,6 +116,11 @@ export const POST = withChatAuth(async (req, { username, params }) => {
   }
 
   const peerUser = await ChatUser.findById(peer);
+  // The peer was a warm-up identity and has graduated: this conversation moved
+  // to their Hive name. Say where, instead of writing into the old one.
+  if (peerUser?.mergedInto) {
+    return NextResponse.json({ error: 'peer_moved', movedTo: peerUser.mergedInto }, { status: 410 });
+  }
   if (peerUser?.blockedUsers?.includes(username)) {
     return NextResponse.json({ error: 'Recipient has blocked you' }, { status: 403 });
   }

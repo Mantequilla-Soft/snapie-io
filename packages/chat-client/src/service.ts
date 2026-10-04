@@ -8,6 +8,8 @@ import type {
   ChatPreferences,
   StorageAdapter,
   UnreadSnapshot,
+  ChatUserInfo,
+  ButrAuthChatSession,
 } from './types';
 
 const TOKEN_KEY = 'snapie-chat-token';
@@ -55,6 +57,37 @@ export class ChatService {
     this.tokenUsername = username;
     this.storage.setItem(TOKEN_KEY, token);
     this.storage.setItem(TOKEN_USER_KEY, username);
+  }
+
+  /**
+   * Sign in with a ButrAuth access token (the server must have ButrAuth
+   * sign-in enabled). This is how warm-up users, who have no Hive account,
+   * get into chat. Call it SERVER-SIDE where the token lives, then hand the
+   * returned `token` + `username` to the browser's `useSession`.
+   */
+  async authenticateWithButrAuth(accessToken: string): Promise<ButrAuthChatSession> {
+    const session = await this.post<ButrAuthChatSession>(
+      `${this.base}/auth/butrauth`,
+      { accessToken },
+      false
+    );
+    this.useSession(session.token, session.username);
+    return session;
+  }
+
+  /** Adopt a chat token obtained elsewhere, e.g. by the app's own server. */
+  useSession(token: string, username: string): void {
+    this.token = token;
+    this.tokenUsername = username;
+    this.storage.setItem(TOKEN_KEY, token);
+    this.storage.setItem(TOKEN_USER_KEY, username);
+  }
+
+  async getUsers(ids: string[]): Promise<ChatUserInfo[]> {
+    if (!ids.length) return [];
+    const qs = new URLSearchParams({ ids: ids.join(',') }).toString();
+    const { users } = await this.get<{ users: ChatUserInfo[] }>(`${this.base}/users?${qs}`, true);
+    return users;
   }
 
   logout(): void {

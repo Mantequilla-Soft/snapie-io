@@ -1,6 +1,6 @@
 import * as react_jsx_runtime from 'react/jsx-runtime';
 import { ReactNode } from 'react';
-import { C as ChatClient, d as Conversation, M as Message } from './client-C8OuYUK4.mjs';
+import { C as ChatClient, d as Conversation, M as Message } from './client-CyyZEKZd.mjs';
 
 interface ChatProviderProps {
     client: ChatClient;
