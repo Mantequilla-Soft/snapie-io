@@ -80,5 +80,8 @@
       "@aioha/react-provider": "1.4.1",
       "glob": "10.5.0"
     }
+  },
+  "optionalDependencies": {
+    "@mantequilla-soft/butrauth-client": "^0.6.0"
   }
 }
