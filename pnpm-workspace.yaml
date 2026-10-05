@@ -6,6 +6,7 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   secp256k1: true
+  sharp: true
   unrs-resolver: true
 overrides:
   # isomorphic-dompurify pulls jsdom transitively for SSR sanitization. jsdom

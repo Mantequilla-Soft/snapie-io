@@ -6,6 +6,14 @@ const nextConfig = {
         },
     },
     images: {
+        // AVIF when the browser asks for it, WebP otherwise. Sharp (a
+        // production dependency) does the encode inside /_next/image.
+        formats: ['image/avif', 'image/webp'],
+        // Fixed partner hosts only. Do not add hostname: '**' — that would
+        // let the optimizer fetch whatever URL a client passes. Feed images
+        // are arbitrary user-content URLs, so they go through the same-origin
+        // /api/image-proxy path (localPatterns below). The proxy, not this
+        // allowlist, is what blocks SSRF.
         remotePatterns: [
             {
                 protocol: 'https',
@@ -51,6 +59,14 @@ const nextConfig = {
                 protocol: 'https',
                 hostname: 'images.hive.blog',
             },
+        ],
+        // localPatterns replaces "allow every local path". The proxy is the
+        // only query-string path the optimizer may fetch; its `url` param is
+        // checked in the route. Other same-origin images are allowed only
+        // when they have no query string (public files, static imports).
+        localPatterns: [
+            { pathname: '/api/image-proxy' },
+            { pathname: '/**', search: '' },
         ],
     },
     webpack: (config, { isServer }) => {
