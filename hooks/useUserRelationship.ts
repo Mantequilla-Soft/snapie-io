@@ -63,7 +63,10 @@ export function useUserRelationship(targetUsername: string) {
       if (success) {
         setIsMuted(m => !m);
         if (!isMuted && isFollowing) setIsFollowing(false);
-        mutedAccountsManager.clearCache(user);
+        // notify/release drop the 24h cache themselves. Passing the author
+        // on mute lets mounted feeds hide them before Hive reindexes.
+        if (isMuted) mutedAccountsManager.releasePersonalMute(user, targetUsername);
+        else mutedAccountsManager.notifyPersonalMute(user, targetUsername);
         toast({ title: isMuted ? 'Unmuted' : 'Muted', description: `You ${isMuted ? 'unmuted' : 'muted'} @${targetUsername}`, status: 'success', duration: 3000, isClosable: true });
       } else {
         throw new Error('Transaction failed');

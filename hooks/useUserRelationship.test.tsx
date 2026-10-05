@@ -21,8 +21,14 @@ vi.mock('@/hooks/useCurrentUser', () => ({
 }));
 
 const clearCache = vi.fn();
+const notifyPersonalMute = vi.fn();
+const releasePersonalMute = vi.fn();
 vi.mock('@/lib/hive/muted-accounts', () => ({
-  mutedAccountsManager: { clearCache: (...args: unknown[]) => clearCache(...args) },
+  mutedAccountsManager: {
+    clearCache: (...args: unknown[]) => clearCache(...args),
+    notifyPersonalMute: (viewer: string, author: string) => notifyPersonalMute(viewer, author),
+    releasePersonalMute: (viewer: string, author: string) => releasePersonalMute(viewer, author),
+  },
 }));
 
 vi.mock('@chakra-ui/react', () => ({
@@ -33,10 +39,12 @@ beforeEach(() => {
   getRelationshipBetweenAccounts.mockReset().mockResolvedValue({ follows: false, ignores: false, blacklists: false });
   setUserRelationship.mockReset().mockResolvedValue(true);
   clearCache.mockReset();
+  notifyPersonalMute.mockReset();
+  releasePersonalMute.mockReset();
 });
 
 describe('useUserRelationship mute/blacklist cache invalidation', () => {
-  it('clears the muted-accounts cache for the current user after a successful mute', async () => {
+  it('notifies feeds and drops the 24h mute cache after a successful mute', async () => {
     const { result } = renderHook(() => useUserRelationship('spammer'));
 
     await act(async () => {
@@ -44,7 +52,8 @@ describe('useUserRelationship mute/blacklist cache invalidation', () => {
     });
 
     expect(setUserRelationship).toHaveBeenCalledWith('meno', 'spammer', 'ignore');
-    expect(clearCache).toHaveBeenCalledWith('meno');
+    expect(notifyPersonalMute).toHaveBeenCalledWith('meno', 'spammer');
+    expect(releasePersonalMute).not.toHaveBeenCalled();
     expect(result.current.isMuted).toBe(true);
   });
 
@@ -61,7 +70,8 @@ describe('useUserRelationship mute/blacklist cache invalidation', () => {
     });
 
     expect(setUserRelationship).toHaveBeenCalledWith('meno', 'spammer', '');
-    expect(clearCache).toHaveBeenCalledWith('meno');
+    expect(releasePersonalMute).toHaveBeenCalledWith('meno', 'spammer');
+    expect(notifyPersonalMute).not.toHaveBeenCalled();
     expect(result.current.isMuted).toBe(false);
   });
 
@@ -85,6 +95,8 @@ describe('useUserRelationship mute/blacklist cache invalidation', () => {
     });
 
     expect(clearCache).not.toHaveBeenCalled();
+    expect(notifyPersonalMute).not.toHaveBeenCalled();
+    expect(releasePersonalMute).not.toHaveBeenCalled();
     expect(result.current.isMuted).toBe(false); // optimistic state never flipped
   });
 
@@ -103,5 +115,6 @@ describe('useUserRelationship mute/blacklist cache invalidation', () => {
 
     expect(setUserRelationship).not.toHaveBeenCalled();
     expect(clearCache).not.toHaveBeenCalled();
+    expect(notifyPersonalMute).not.toHaveBeenCalled();
   });
 });

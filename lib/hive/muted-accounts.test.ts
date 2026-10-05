@@ -23,18 +23,7 @@ class LocalStorageMock {
   }
 }
 
-const callMock = vi.fn(async (_api: string, method: string, _params: unknown) => {
-  if (method === 'list_community_roles') {
-    return [
-      ['spambot', 'muted', ''],
-      ['goodmod', 'mod', ''],
-    ];
-  }
-  if (method === 'get_follow_list') {
-    return [{ name: 'personalfoe' }];
-  }
-  return [];
-});
+const callMock = vi.fn(async (api: string, method: string, _params: unknown) => hiveMuteResponse(api, method));
 
 vi.mock('@/lib/hive/hiveclient', () => ({
   default: { call: (...args: [string, string, unknown]) => callMock(...args) },
@@ -46,8 +35,22 @@ async function freshManager() {
   return mutedAccountsManager;
 }
 
+function hiveMuteResponse(_api: string, method: string) {
+  if (method === 'list_community_roles') {
+    return [
+      ['spambot', 'muted', ''],
+      ['goodmod', 'mod', ''],
+    ];
+  }
+  if (method === 'get_follow_list') {
+    return [{ name: 'personalfoe' }];
+  }
+  return [];
+}
+
 beforeEach(() => {
-  callMock.mockClear();
+  callMock.mockReset();
+  callMock.mockImplementation(async (api: string, method: string) => hiveMuteResponse(api, method));
   process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG = 'testtag';
   // muted-accounts.ts branches on `typeof window === 'undefined'`; the suite
   // runs under vitest's node environment, so stub just enough to exercise
@@ -123,6 +126,104 @@ describe('mutedAccountsManager.getMutedList', () => {
     const list = await manager2.getMutedList('meno');
     expect(list.has('spambot')).toBe(true);
     expect(list.has('personalfoe')).toBe(true);
+  });
+
+  it('does not write an in-flight pre-mute snapshot back after notifyPersonalMute', async () => {
+    const manager = await freshManager();
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    callMock.mockImplementation(async (api: string, method: string) => {
+      await gate;
+      return hiveMuteResponse(api, method);
+    });
+
+    const pending = manager.getMutedList('meno');
+    manager.notifyPersonalMute('meno', 'FreshMute');
+    release();
+    const inFlight = await pending;
+
+    // The waiter still sees the account that was just muted, but the 24h
+    // snapshot from this fetch is not what gets stored.
+    expect(inFlight.has('freshmute')).toBe(true);
+    expect(localStorage.getItem('hive_muted_accounts_meno')).toBeNull();
+
+    const storedPending = JSON.parse(localStorage.getItem('hive_pending_personal_mutes_meno')!);
+    expect(storedPending).toEqual([expect.objectContaining({ name: 'freshmute' })]);
+
+    const next = await manager.getMutedList('meno');
+    expect(next.has('freshmute')).toBe(true);
+    expect(next.has('personalfoe')).toBe(true);
+    const cached = JSON.parse(localStorage.getItem('hive_muted_accounts_meno')!);
+    expect(cached.accounts).toEqual(expect.arrayContaining(['freshmute', 'personalfoe', 'spambot']));
+  });
+
+  it('drops a cached 24h list on notifyPersonalMute and tells subscribers', async () => {
+    const manager = await freshManager();
+    await manager.getMutedList('meno');
+    expect(localStorage.getItem('hive_muted_accounts_meno')).not.toBeNull();
+
+    const seen: string[] = [];
+    const unsubscribe = manager.subscribePersonalMute(author => seen.push(author));
+    manager.notifyPersonalMute('meno', 'NewMute');
+    unsubscribe();
+    manager.notifyPersonalMute('meno', 'ignored');
+
+    expect(localStorage.getItem('hive_muted_accounts_meno')).toBeNull();
+    expect(seen).toEqual(['newmute']);
+  });
+
+  it('stops applying a pending mute after releasePersonalMute', async () => {
+    const manager = await freshManager();
+    manager.notifyPersonalMute('meno', 'freshmute');
+    manager.releasePersonalMute('meno', 'FreshMute');
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(false);
+    expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('keeps a pending mute the follow index has not listed yet', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify([
+      { name: 'freshmute', mutedAt: Date.now() },
+    ]));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(true);
+    expect(list.has('personalfoe')).toBe(true);
+    const stored = JSON.parse(localStorage.getItem('hive_pending_personal_mutes_meno')!);
+    expect(stored).toEqual([expect.objectContaining({ name: 'freshmute' })]);
+  });
+
+  it('drops a pending mute once the follow index lists that account', async () => {
+    const manager = await freshManager();
+    manager.notifyPersonalMute('meno', 'personalfoe');
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('does not reapply an expired pending mute missing from the follow index', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify([
+      { name: 'freshmute', mutedAt: 0 },
+    ]));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(false);
+    expect(list.has('personalfoe')).toBe(true);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
+  });
+
+  it('does not let a legacy untimestamped pending mute override an authoritative list', async () => {
+    const manager = await freshManager();
+    localStorage.setItem('hive_pending_personal_mutes_meno', JSON.stringify(['freshmute']));
+
+    const list = await manager.getMutedList('meno');
+    expect(list.has('freshmute')).toBe(false);
+    expect(localStorage.getItem('hive_pending_personal_mutes_meno')).toBeNull();
   });
 });
 

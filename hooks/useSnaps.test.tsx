@@ -13,8 +13,16 @@ vi.mock('./useUserSettings', () => ({
   useUserSettings: () => ({ settings: { mutedTags: [] as string[] } }),
 }));
 
+const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
+
 vi.mock('@/lib/hive/muted-accounts', () => ({
-  mutedAccountsManager: { getMutedList: vi.fn(async () => new Set<string>()) },
+  mutedAccountsManager: {
+    getMutedList: vi.fn(async () => new Set<string>()),
+    subscribePersonalMute: (listener: (author: string) => void) => {
+      personalMuteListeners.add(listener);
+      return () => personalMuteListeners.delete(listener);
+    },
+  },
 }));
 
 const databaseCallMock = vi.fn();
@@ -52,6 +60,7 @@ function reply(permlink: string, overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   databaseCallMock.mockReset();
   getPostMock.mockReset();
+  personalMuteListeners.clear();
   process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG = COMMUNITY_TAG;
 });
 
@@ -118,5 +127,70 @@ describe('useSnaps.refreshComment', () => {
     });
 
     expect((result.current.comments[0] as any).pending_payout_value).toBe('0.000 HBD');
+  });
+
+  it('drops a muted author from the loaded walk immediately', async () => {
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([container('c1')]));
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([
+      reply('keep', { author: 'goodauthor' }),
+      reply('gone', { author: 'spammer' }),
+      reply('also-gone', { author: 'Spammer' }),
+    ]));
+    databaseCallMock.mockImplementation(() => Promise.resolve([]));
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'community' }));
+    await waitFor(() => expect(result.current.comments).toHaveLength(3));
+
+    act(() => {
+      personalMuteListeners.forEach(listener => listener('spammer'));
+    });
+
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
+  });
+
+  it('does not append replies from an author muted while the walk is in flight', async () => {
+    let releaseSecond!: () => void;
+    const gate = new Promise<void>(resolve => { releaseSecond = resolve; });
+    let waitingForSecond = false;
+
+    databaseCallMock.mockImplementation(async (method: string, params?: unknown[]) => {
+      const args = Array.isArray(params) ? params : [];
+      if (method === 'get_discussions_by_author_before_date') {
+        const startPermlink = String(args[1] ?? '');
+        if (!startPermlink) return [container('c1')];
+        if (startPermlink === 'c1') {
+          waitingForSecond = true;
+          await gate;
+          return [container('c2')];
+        }
+        return [];
+      }
+      const containerPermlink = String(args[1] ?? '');
+      if (containerPermlink === 'c1') {
+        return [
+          reply('keep-1', { author: 'goodauthor' }),
+          reply('spam-1', { author: 'spammer' }),
+        ];
+      }
+      if (containerPermlink === 'c2') {
+        return [
+          reply('keep-2', { author: 'goodauthor' }),
+          reply('spam-2', { author: 'Spammer' }),
+        ];
+      }
+      return [];
+    });
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'community' }));
+    await waitFor(() => expect(waitingForSecond).toBe(true));
+
+    act(() => {
+      personalMuteListeners.forEach(listener => listener('spammer'));
+    });
+    releaseSecond();
+
+    await waitFor(() => {
+      expect(result.current.comments.map(c => c.permlink)).toEqual(['keep-1', 'keep-2']);
+    });
   });
 });

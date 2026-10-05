@@ -49,6 +49,10 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
   // mark the real attempt as cancelled — only an instance that itself reaches
   // past the lock and claims a newer generation can do that.
   const fetchGenerationRef = useRef(0);
+  // Authors muted after getMoreSnaps captured its muted-list snapshot.
+  // The walk filters with that snapshot, then appends when it finishes, so
+  // without this set a mute mid-scan reappears in the page it commits.
+  const mutedDuringFetchRef = useRef<Set<string>>(new Set());
 
   const [currentPage, setCurrentPage] = useState(1);
   const [comments, setComments] = useState<ExtendedComment[]>([]);
@@ -160,8 +164,16 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     let permlink = lastContainerRef.current?.permlink || "";
     let date = lastContainerRef.current?.date || new Date().toISOString();
 
-    // Fetch muted list once before the loop
+    // Mutes that happened before this snapshot are in the list getMutedList
+    // returns (including pending). Clear first so an unmute isn't stuck in
+    // the set for the rest of the session; the subscription fills it again
+    // if a mute lands while this walk is still scanning.
+    mutedDuringFetchRef.current = new Set();
     const mutedList = await mutedAccountsManager.getMutedList(username);
+    const hiddenByMute = (account: string) => {
+      const name = account.toLowerCase();
+      return mutedList.has(name) || mutedDuringFetchRef.current.has(name);
+    };
 
     while (allFilteredComments.length < pageMinSize && hasMoreData && containersScanned < MAX_CONTAINERS_PER_FETCH) {
       if (isCancelled()) break;
@@ -203,7 +215,7 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
         }
 
         filteredComments = filteredComments
-          .filter(c => !mutedList.has(c.author.toLowerCase()))
+          .filter(c => !hiddenByMute(c.author))
           .filter(c => !hasMutedTag(c.json_metadata, settings.mutedTags));
 
         allFilteredComments.push(...filteredComments);
@@ -236,6 +248,17 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     setCurrentPage(1);
     setFetchTrigger(prev => prev + 1);
   }, [filterType, username, mutedTagsKey]);
+
+  // A mute that succeeds while this walk is on screen has to drop that
+  // author now. The next page would also hide them once getMutedList
+  // refetches, but items already in `comments` are never revisited.
+  useEffect(() => {
+    return mutedAccountsManager.subscribePersonalMute((author) => {
+      const target = author.toLowerCase();
+      mutedDuringFetchRef.current.add(target);
+      setComments(prev => prev.filter(c => c.author.toLowerCase() !== target));
+    });
+  }, []);
 
   // Fetch posts when `currentPage` changes (or when followingListLoaded changes for following filter)
   useEffect(() => {
@@ -278,9 +301,14 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
         setHasMore(hasMoreData);
 
         setComments((prevPosts) => {
+          const blocked = mutedDuringFetchRef.current;
+          const visible = (post: ExtendedComment) => !blocked.has(post.author.toLowerCase());
           const existingPermlinks = new Set(prevPosts.map((post) => post.permlink));
-          const uniqueSnaps = newSnaps.filter((snap) => !existingPermlinks.has(snap.permlink));
-          return [...prevPosts, ...uniqueSnaps];
+          const uniqueSnaps = newSnaps.filter((snap) => visible(snap) && !existingPermlinks.has(snap.permlink));
+          // Recheck at commit time: replies filtered before the mute are
+          // already in newSnaps, and this update can land after the
+          // subscription has stripped that author from the loaded page.
+          return [...prevPosts, ...uniqueSnaps].filter(visible);
         });
       } catch (err) {
         if (!isStale()) console.error('Error fetching posts:', err);

@@ -43,6 +43,10 @@ function toExtendedComment(item: FeedApiItem): ExtendedComment {
  */
 export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps = {}) => {
   const { settings } = useUserSettings();
+  // Same value-compared key as useSnaps. Settings hydrate from localStorage
+  // after mount (mutedTags starts []), and a mute added later must reset
+  // Latest instead of leaving the first page unfiltered.
+  const mutedTagsKey = settings.mutedTags.join(',');
   const lastCreatedRef = useRef<string | null>(null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const isFetchingRef = useRef(false);
@@ -77,6 +81,13 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
 
     const mutedList = await mutedAccountsManager.getMutedList(username);
+    // The reset effect clears lastCreatedRef / fetchedPermlinksRef when
+    // username or muted tags change. A fetch that started earlier can
+    // resume here and write those refs back, which paginates the new feed
+    // from the stale page. Discard before touching either ref. The caller
+    // still drops the returned comments when this generation is stale.
+    if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
+
     const items = data.items
       .filter(item => !fetchedPermlinksRef.current.has(item.permlink))
       .filter(item => !mutedList.has(item.author.toLowerCase()))
@@ -123,6 +134,30 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, fetchTrigger, enabled]);
+
+  // Username is a fetch input: a list loaded before login resolved only
+  // applied community mutes. Reset the cursor the same way useSnaps does
+  // when the signed-in account or the muted-tag key changes. Bump the
+  // generation immediately so a page fetched with the previous (often
+  // still-empty) mute list cannot land after this reset and stick.
+  useEffect(() => {
+    fetchGenerationRef.current += 1;
+    lastCreatedRef.current = null;
+    fetchedPermlinksRef.current.clear();
+    isFetchingRef.current = false;
+    setComments([]);
+    setHasMore(true);
+    setHasFetchedOnce(false);
+    setCurrentPage(1);
+    setFetchTrigger(prev => prev + 1);
+  }, [username, mutedTagsKey]);
+
+  useEffect(() => {
+    return mutedAccountsManager.subscribePersonalMute((author) => {
+      const target = author.toLowerCase();
+      setComments(prev => prev.filter(c => c.author.toLowerCase() !== target));
+    });
+  }, []);
 
   const loadNextPage = useCallback(() => {
     if (isLoading || !hasMore || isThrottledRef.current) return;
