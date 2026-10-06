@@ -66,6 +66,19 @@ describe('parseMediaContent private-network filtering', () => {
         expect(items[0].type).toBe('image');
     });
 
+    it('keeps a filename that contains parentheses', () => {
+        const url = 'https://images.hive.blog/DQmerj5ka4MkkXwTr5atPeNe3eVVwXWA2LGogbTWDHz9h9y/Screenshot%20(88).jpg';
+        const items = parseMediaContent(`![shot](${url})`);
+        expect(items).toHaveLength(1);
+        expect(items[0].type).toBe('image');
+        const captured = /!\[.*?\]\((.*?)\)/.exec(items[0].content);
+        expect(captured?.[1].endsWith('.jpg')).toBe(true);
+        expect(captured?.[1]).toContain('Screenshot%20%2888%29.jpg');
+        const { media, text } = separateContent(`hello\n![shot](${url})`);
+        expect(text).toBe('hello');
+        expect(media).toContain('Screenshot%20%2888%29.jpg');
+    });
+
     it('drops a raw iframe pointing at a private LAN address', () => {
         const items = parseMediaContent('<iframe src="http://192.168.1.1/admin"></iframe>');
         expect(items).toHaveLength(0);

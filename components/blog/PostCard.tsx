@@ -1,4 +1,6 @@
-import { Box, Image, Text, Flex, Link, Spinner } from '@chakra-ui/react';
+import { Box, Text, Flex, Link, Spinner } from '@chakra-ui/react';
+import ProxiedImage from '@/components/shared/ProxiedImage';
+import { extractMarkdownImages } from '@/lib/images/markdownImages';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -91,12 +93,11 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
     function extractImagesFromBody(rawBody: unknown): string[] {
         if (typeof rawBody !== 'string' || !rawBody) return [];
 
-        const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
-        const htmlImageRegex = /<img\s+[^>]*src="([^"]*)"[^>]*>/g;
-        const markdownMatches = Array.from(rawBody.matchAll(markdownImageRegex)) as RegExpExecArray[];
-        const htmlMatches = Array.from(rawBody.matchAll(htmlImageRegex)) as RegExpExecArray[];
-        const markdownImages = markdownMatches.map(match => match[1]);
-        const htmlImages = htmlMatches.map(match => match[1]);
+        const markdownImages = extractMarkdownImages(rawBody)
+            .map((img) => img.url)
+            .filter((url) => /^https?:\/\//i.test(url));
+        const htmlImages = Array.from(rawBody.matchAll(/<img\s+[^>]*src=["']([^"']*)["'][^>]*>/gi))
+            .map((match) => match[1]);
         return [...markdownImages, ...htmlImages];
     }
 
@@ -225,15 +226,9 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                                     overflow="hidden"
                                     borderRadius="10px"
                                 >
-                                    <Image
-                                        src={url}
-                                        alt={title}
-                                        objectFit="cover"
-                                        w="100%"
-                                        h={CARD_IMAGE_HEIGHT}
-                                        maxH={CARD_IMAGE_HEIGHT}
-                                        loading="lazy"
-                                    />
+                                    <Box position="relative" w="100%" h="100%">
+                                        <ProxiedImage url={url} alt={title || 'Post image'} sizes="(max-width: 800px) 100vw, 640px" />
+                                    </Box>
                                 </Box>
                             </SwiperSlide>
                         ))}

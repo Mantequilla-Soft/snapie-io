@@ -1,5 +1,6 @@
 'use client';
-import { Box, HStack, VStack, Text, Badge, Image } from '@chakra-ui/react';
+import { Box, HStack, VStack, Text, Badge } from '@chakra-ui/react';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -76,16 +77,9 @@ export default function HangoutPreviewCard({ roomName }: HangoutPreviewCardProps
       transition="border-color 0.15s"
     >
       {room.backgroundImage && (
-        <Image
-          src={room.backgroundImage}
-          alt=""
-          width="100%"
-          height="80px"
-          objectFit="cover"
-          display="block"
-          fallbackStrategy="onError"
-          fallback={<></>}
-        />
+        <Box position="relative" w="100%" h="80px">
+          <ProxiedImage url={room.backgroundImage} alt="" sizes="540px" />
+        </Box>
       )}
       <Box p={4}>
       <HStack spacing={3}>
