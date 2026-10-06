@@ -67,6 +67,9 @@ interface SnapListProps {
   scrollableTargetId?: string
   /** Home feed only. GIF, video, and oversized media are not the LCP image. */
   optimizeHomeLcp?: boolean
+  /** Leading cards whose contents are in the first HTML. 0 keeps every card
+   *  unmounted until the observer approaches it. */
+  paintedCount?: number
 }
 
 interface InfiniteScrollData {
@@ -101,6 +104,7 @@ export default function SnapList(
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
     optimizeHomeLcp = false,
+    paintedCount = 0,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -358,7 +362,7 @@ export default function SnapList(
         </HStack>
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
-        {displayComments.map(comment => (
+        {displayComments.map((comment, index) => (
           // One element serves three roles: the data-snap-key anchor the
           // pagination/reconciliation observers track (must never
           // disappear), the content-visibility target (native
@@ -370,10 +374,14 @@ export default function SnapList(
           // nested divs — see OffscreenGate's doc comment for why a nested
           // IntersectionObserver target inside a content-visibility:auto
           // ancestor is fragile.
+          // The leading `paintedCount` cards start mounted so their author,
+          // body, and counts are in the server HTML. The observer still
+          // owns them after that.
           <OffscreenGate
             key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
             rootMargin={CARD_GATE_MARGIN}
+            initiallyMounted={index < paintedCount}
             sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
           >
             <Snap
@@ -383,6 +391,7 @@ export default function SnapList(
               refreshComment={refreshComment}
               priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
               deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
+              priority={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>

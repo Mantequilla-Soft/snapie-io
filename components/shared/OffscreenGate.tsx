@@ -32,6 +32,8 @@ interface OffscreenGateProps extends BoxProps {
   children: React.ReactNode;
   /** e.g. '3000px 0px 3000px 0px' */
   rootMargin: string;
+  /** Paint children on the first render (SSR). Default stays unmounted. */
+  initiallyMounted?: boolean;
 }
 
 // Extra Box props (data-*, sx, id, ...) land on THIS component's own
@@ -45,6 +47,7 @@ interface OffscreenGateProps extends BoxProps {
 const OffscreenGate = memo(function OffscreenGate({
   children,
   rootMargin,
+  initiallyMounted = false,
   ...boxProps
 }: OffscreenGateProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -56,7 +59,11 @@ const OffscreenGate = memo(function OffscreenGate({
   // viewport mounts essentially immediately; everything else waits until
   // approached. The placeholder starts at 0px, which is fine below the
   // viewport (that's where new content appears) and settles harmlessly.
-  const [mounted, setMounted] = useState(false);
+  //
+  // `initiallyMounted` is only for the server-rendered first screen, which
+  // has to be in the HTML before this effect runs. The observer still
+  // unmounts it if it ends up far from the viewport.
+  const [mounted, setMounted] = useState(initiallyMounted);
 
   useEffect(() => {
     const el = wrapperRef.current;
