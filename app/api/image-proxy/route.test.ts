@@ -98,4 +98,89 @@ describe('GET /api/image-proxy', () => {
         const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://cdn.discordapp.com/missing.png')}`, '203.0.113.22');
         expect(res.status).toBe(502);
     });
+
+    it('uses the first forwarded address and answers 400 when the url param is missing or repeated', async () => {
+        const missing = await GET(new NextRequest(new URL('/api/image-proxy', 'http://127.0.0.1:3310')));
+        expect(missing.status).toBe(400);
+
+        const forwarded = await GET(new NextRequest(new URL('/api/image-proxy', 'http://127.0.0.1:3310'), {
+            headers: { 'x-forwarded-for': ' 198.51.100.8 , 203.0.113.1' },
+        }));
+        expect(forwarded.status).toBe(400);
+
+        const repeated = await call(
+            `/api/image-proxy?url=${encodeURIComponent('https://example.com/a.jpg')}&url=${encodeURIComponent('https://example.com/b.jpg')}`,
+            '203.0.113.30',
+        );
+        expect(repeated.status).toBe(400);
+        expect(fetchProxiedImage).not.toHaveBeenCalled();
+    });
+
+    it('probe answers ok false for a missing url, a repeated url, and an unexpected throw', async () => {
+        const missing = await call('/api/image-proxy?probe=1', '203.0.113.31');
+        expect(missing.status).toBe(200);
+        expect(await missing.json()).toEqual({ ok: false });
+
+        const repeated = await call(
+            `/api/image-proxy?probe=1&url=${encodeURIComponent('https://example.com/a.jpg')}&url=${encodeURIComponent('https://example.com/b.jpg')}`,
+            '203.0.113.32',
+        );
+        expect(repeated.status).toBe(200);
+        expect(await repeated.json()).toEqual({ ok: false });
+
+        vi.mocked(probeProxiedImage).mockRejectedValue(new Error('boom'));
+        const thrown = await call(
+            `/api/image-proxy?probe=1&url=${encodeURIComponent('https://example.com/a.jpg')}`,
+            '203.0.113.33',
+        );
+        expect(thrown.status).toBe(200);
+        expect(await thrown.json()).toEqual({ ok: false });
+    });
+
+    it('maps proxy errors to their status and unexpected failures to 502', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+        vi.mocked(fetchProxiedImage).mockRejectedValueOnce(new ImageProxyError(403, 'blocked-host'));
+        const forbidden = await call(
+            `/api/image-proxy?url=${encodeURIComponent('http://metadata.google.internal/x')}`,
+            '203.0.113.34',
+        );
+        expect(forbidden.status).toBe(403);
+        expect(warn).toHaveBeenCalled();
+
+        vi.mocked(fetchProxiedImage).mockRejectedValueOnce(new ImageProxyError(415, 'not-image'));
+        const unsupported = await call(
+            `/api/image-proxy?url=${encodeURIComponent('https://example.com/a.svg')}`,
+            '203.0.113.35',
+        );
+        expect(unsupported.status).toBe(415);
+
+        vi.mocked(fetchProxiedImage).mockRejectedValueOnce(new Error('socket hang up'));
+        const unexpected = await call(
+            `/api/image-proxy?url=${encodeURIComponent('https://example.com/a.jpg')}`,
+            '203.0.113.36',
+        );
+        expect(unexpected.status).toBe(502);
+        expect(unexpected.headers.get('cache-control')).toBe('no-store');
+        expect(error).toHaveBeenCalled();
+        warn.mockRestore();
+        error.mockRestore();
+    });
+
+    it('returns 429 once an address exceeds the per-minute budget, including probes', async () => {
+        const ip = '203.0.113.77';
+        vi.mocked(fetchProxiedImage).mockResolvedValue({ body: JPEG, contentType: 'image/jpeg' });
+        for (let i = 0; i < 60; i++) {
+            const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://example.com/a.jpg')}`, ip);
+            expect(res.status).toBe(200);
+        }
+        const blocked = await call(`/api/image-proxy?url=${encodeURIComponent('https://example.com/a.jpg')}`, ip);
+        expect(blocked.status).toBe(429);
+        expect(blocked.headers.get('retry-after')).toBe('60');
+
+        const probe = await call(`/api/image-proxy?probe=1&url=${encodeURIComponent('https://example.com/a.jpg')}`, ip);
+        expect(probe.status).toBe(200);
+        expect(await probe.json()).toEqual({ ok: false });
+        expect(probeProxiedImage).not.toHaveBeenCalled();
+    });
 });

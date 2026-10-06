@@ -420,6 +420,83 @@ describe('fetchProxiedImage', () => {
     });
 });
 
+const PNG = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+]);
+const GIF = Buffer.concat([Buffer.from('GIF89a', 'ascii'), Buffer.alloc(6)]);
+const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')]);
+const AVIF = Buffer.concat([Buffer.alloc(4), Buffer.from('ftyp'), Buffer.from('avif')]);
+
+describe('image sniffing and address short-circuits', () => {
+    it('sniffs png, gif, webp, and avif and accepts a declared charset', async () => {
+        for (const [body, type, header] of [
+            [PNG, 'image/png', 'image/png; charset=binary'],
+            [GIF, 'image/gif', 'image/gif'],
+            [WEBP, 'image/webp', 'IMAGE/WEBP'],
+            [AVIF, 'image/avif', 'image/avif'],
+        ] as const) {
+            const image = await fetchProxiedImage(`https://example.com/${type}`, deps({
+                request: vi.fn(async () => upstream({ status: 200, body, contentType: header, contentLength: body.length })),
+            }));
+            expect(image.contentType).toBe(type);
+        }
+    });
+
+    it('connects to a public IP literal without a DNS lookup, including ipv6', async () => {
+        const fake = deps();
+        const v4 = await fetchProxiedImage('http://1.1.1.1/a.jpg', fake);
+        expect(v4.contentType).toBe('image/jpeg');
+        expect(fake.resolve).not.toHaveBeenCalled();
+        const v6 = await fetchProxiedImage('http://[2606:4700:4700::1111]/a.jpg', deps());
+        expect(v6.contentType).toBe('image/jpeg');
+    });
+
+    it('maps resolver failures and refuses an empty or private answer', async () => {
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            resolve: vi.fn(async () => { throw new Error('ENOTFOUND'); }),
+        }))).rejects.toMatchObject({ code: 'dns-failed' });
+
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            resolve: vi.fn(async () => { throw new ImageProxyError(504, 'dns-timeout'); }),
+        }))).rejects.toMatchObject({ code: 'dns-timeout' });
+
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            resolve: vi.fn(async () => []),
+        }))).rejects.toMatchObject({ code: 'dns-empty' });
+
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            resolve: vi.fn(async () => [{ address: '', family: 4 as const }]),
+        }))).rejects.toMatchObject({ code: 'blocked-resolved-ip' });
+    });
+
+    it('rejects a redirect with a bad location and a body over the cache size', async () => {
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            request: vi.fn(async () => upstream({ status: 302, location: 'http://[', body: Buffer.alloc(0), contentLength: 0 })),
+        }))).rejects.toMatchObject({ code: 'invalid-url' });
+
+        const big = Buffer.alloc(5 * 1024 * 1024);
+        big[0] = 0xff; big[1] = 0xd8; big[2] = 0xff;
+        const cache = new Map();
+        const image = await fetchProxiedImage('https://example.com/big.jpg', deps({
+            cache,
+            request: vi.fn(async () => upstream({ status: 200, body: big, contentLength: big.length })),
+        }));
+        expect(image.body.length).toBe(big.length);
+        expect(cache.size).toBe(0);
+    });
+
+    it('evicts the oldest cache entry once the cap is passed', async () => {
+        const cache = new Map();
+        const request = vi.fn(async () => upstream({ status: 200 }));
+        for (let i = 0; i < 9; i++) {
+            await fetchProxiedImage(`https://example.com/${i}.jpg`, deps({ cache, request }));
+        }
+        expect(cache.size).toBe(8);
+        expect(cache.has('https://example.com/0.jpg')).toBe(false);
+        expect(cache.has('https://example.com/8.jpg')).toBe(true);
+    });
+});
+
 describe('probeProxiedImage', () => {
     it('is true only when the upstream image is accepted', async () => {
         const ok = await probeProxiedImage('https://example.com/pic.jpg', deps());
@@ -446,5 +523,11 @@ describe('probeProxiedImage', () => {
         expect(blocked).toBe(false);
         expect(fake.resolve).not.toHaveBeenCalled();
         expect(fake.request).not.toHaveBeenCalled();
+    });
+
+    it('rethrows an unexpected failure instead of treating it as a missing image', async () => {
+        await expect(probeProxiedImage('https://example.com/a.jpg', deps({
+            request: vi.fn(async () => { throw new Error('socket hang up'); }),
+        }))).rejects.toThrow('socket hang up');
     });
 });

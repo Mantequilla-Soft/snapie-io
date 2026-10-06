@@ -71,7 +71,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - name: Test with coverage gates
+        # vitest.config.ts thresholds fail this step when overall lines drop
+        # under 70, or a feed/image hot path drops under 90% lines.
+        run: pnpm test:coverage
 
   build:
     runs-on: ubuntu-latest
