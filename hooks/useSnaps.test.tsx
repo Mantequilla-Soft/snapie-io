@@ -194,3 +194,51 @@ describe('useSnaps.refreshComment', () => {
     });
   });
 });
+
+describe('useSnaps initial server page', () => {
+  const seed = {
+    comments: [reply('already', { author: 'alice', body: 'from the server' })],
+    hasMore: true,
+    cursor: { permlink: 'container-1', date: '2026-08-29T00:00:00' },
+  };
+
+  it('hydrates the public Latest page without refetching it', async () => {
+    const { result } = renderHook(() => useSnaps({ filterType: 'all', initialPage: seed }));
+
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['already']);
+    expect(result.current.hasFetchedOnce).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => {});
+    expect(databaseCallMock).not.toHaveBeenCalled();
+  });
+
+  it('continues infinite scroll from the server cursor', async () => {
+    databaseCallMock.mockResolvedValue([]);
+    const { result } = renderHook(() => useSnaps({ filterType: 'all', initialPage: seed }));
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    await waitFor(() => expect(databaseCallMock).toHaveBeenCalled());
+    const [method, args] = databaseCallMock.mock.calls[0];
+    expect(method).toBe('get_discussions_by_author_before_date');
+    expect(args[1]).toBe('container-1');
+    expect(args[2]).toBe('2026-08-29T00:00:00');
+  });
+
+  it('refetches when a logged-in username arrives', async () => {
+    databaseCallMock.mockResolvedValue([]);
+    const { result, rerender } = renderHook(
+      ({ username }: { username?: string }) => useSnaps({ filterType: 'all', username, initialPage: seed }),
+      { initialProps: { username: undefined as string | undefined } }
+    );
+
+    expect(databaseCallMock).not.toHaveBeenCalled();
+    rerender({ username: 'alice' });
+
+    await waitFor(() => expect(databaseCallMock).toHaveBeenCalled());
+    expect(result.current.comments).toEqual([]);
+  });
+});

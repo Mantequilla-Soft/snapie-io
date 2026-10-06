@@ -58,6 +58,8 @@ interface SnapProps {
     priorityUrl?: string | null;
     /** GIF, video, and oversized URLs in the home LCP scan. */
     deferUrls?: readonly string[];
+    /** First-screen cards paint their media into the server HTML. */
+    priority?: boolean;
 }
 
 function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
@@ -69,7 +71,7 @@ function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
     return true;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls, priority = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -335,7 +337,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                             @{comment.author}
                                         </Link>
                                         <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
-                                        <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
+                                        <Text fontSize="sm" color="overlay.500" flexShrink={0} suppressHydrationWarning>{commentDate}</Text>
                                     </HStack>
                                 </WrapItem>
                                 {getTier(comment.author) && <WrapItem><PatronBadge tier={getTier(comment.author)} /></WrapItem>}
@@ -389,7 +391,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN} initiallyMounted={priority}>
                                 <MediaRenderer
                                     key={`media-${comment.permlink}`}
                                     mediaContent={media}
@@ -582,7 +584,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
         prevProps.level === nextProps.level &&
         prevProps.priorityUrl === nextProps.priorityUrl &&
-        sameUrlList(prevProps.deferUrls, nextProps.deferUrls)
+        sameUrlList(prevProps.deferUrls, nextProps.deferUrls) &&
+        prevProps.priority === nextProps.priority
     );
 });
 
