@@ -11,6 +11,7 @@ import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { listMarketItems, buyItem, claimOwnItem, getMyInventory } from '@/lib/points/marketClient';
 import type { ItemDTO, InventoryEntry, CatalogSort } from '@/lib/points/marketService';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
+import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
 
 export default function ItemMarketPage() {
   const { username, isLoggedIn } = useCurrentUser();
@@ -24,12 +25,34 @@ export default function ItemMarketPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [inventory, setInventory] = useState<InventoryEntry[]>([]);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [needsLogin, setNeedsLogin] = useState(false);
 
   useEffect(() => {
-    listMarketItems(sort, 0).then(page => {
-      setItems(page.items);
-      setHasMore(page.hasMore);
-    });
+    let cancelled = false;
+    const load = () => {
+      if (!hasViewerSessionMarker()) {
+        if (cancelled) return;
+        setItems([]);
+        setHasMore(false);
+        setNeedsLogin(true);
+        return;
+      }
+      setNeedsLogin(false);
+      listMarketItems(sort, 0).then(page => {
+        if (cancelled) return;
+        setItems(page.items);
+        setHasMore(page.hasMore);
+      });
+    };
+    load();
+    const onSession = () => { load(); };
+    window.addEventListener(VIEWER_SESSION_EVENT, onSession);
+    window.addEventListener('hiveuser-saved', onSession);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(VIEWER_SESSION_EVENT, onSession);
+      window.removeEventListener('hiveuser-saved', onSession);
+    };
   }, [sort]);
 
   const loadMore = useCallback(async () => {
@@ -132,7 +155,9 @@ export default function ItemMarketPage() {
       </HStack>
 
       {items.length === 0 ? (
-        <Text color="overlay.400" fontSize="sm">Nothing in the shop yet — check back soon.</Text>
+        <Text color="overlay.400" fontSize="sm">
+          {needsLogin ? 'Log in to browse the shop.' : 'Nothing in the shop yet — check back soon.'}
+        </Text>
       ) : (
         <>
           <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>

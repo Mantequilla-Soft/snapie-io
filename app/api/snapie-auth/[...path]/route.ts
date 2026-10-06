@@ -10,7 +10,33 @@ function stripDomain(setCookieHeader: string): string {
   return setCookieHeader.replace(/;\s*domain=[^;]*/gi, '')
 }
 
+function cookieValue(rawCookies: string, name: string): string | null {
+  for (const part of rawCookies.split(';')) {
+    const trimmed = part.trim()
+    if (trimmed.startsWith(name + '=')) return trimmed.slice(name.length + 1)
+  }
+  return null
+}
+
 async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
+  const rawCookies = req.headers.get('cookie') ?? ''
+
+  // GET /auth/me is the logged-out session probe. The session cookie is
+  // httpOnly, so the client cannot skip the call, and the auth server
+  // answers 401 when it is missing (a dead stub answers 502). Both show up
+  // as a failed request. No cookie means there is nothing to restore —
+  // answer here and leave the logged-in path (cookie present) proxied.
+  if (
+    req.method === 'GET' &&
+    path.join('/') === 'auth/me' &&
+    !cookieValue(rawCookies, 'snapieauth_session')
+  ) {
+    return NextResponse.json(
+      { authenticated: false },
+      { headers: { 'Cache-Control': 'private, no-store' } },
+    )
+  }
+
   if (!BASE) {
     return NextResponse.json({ error: 'snapie_auth_not_configured' }, { status: 503 })
   }
@@ -19,7 +45,6 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
   const qs = req.nextUrl.searchParams.toString()
   const url = qs ? `${upstream}?${qs}` : upstream
 
-  const rawCookies = req.headers.get('cookie') ?? ''
   const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
 
   // Only forward Snapie Auth cookies — never leak unrelated session cookies.

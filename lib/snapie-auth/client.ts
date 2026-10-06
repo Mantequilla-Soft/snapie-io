@@ -256,11 +256,14 @@ export function resendVerification() {
   return req<{ ok: true }>('POST', '/auth/email/resend')
 }
 
-// GET /auth/me returns { user: SnapieMeUser } — a superset of SnapieUser with
-// email, accountValueUsd, and emancipationRequired.
-export async function getMe(): Promise<SnapieMeUser> {
-  const data = await req<{ user: SnapieMeUser }>('GET', '/auth/me')
-  return data.user
+// GET /auth/me returns { user: SnapieMeUser } when a session cookie is
+// present — a superset of SnapieUser with email, accountValueUsd, and
+// emancipationRequired. With no session cookie the proxy answers 200
+// { authenticated: false } instead of the auth server's 401, so a logged-out
+// visit is not a failed request. Null means logged out.
+export async function getMe(): Promise<SnapieMeUser | null> {
+  const data = await req<{ user?: SnapieMeUser | null }>('GET', '/auth/me')
+  return data.user ?? null
 }
 
 export function logout() {
