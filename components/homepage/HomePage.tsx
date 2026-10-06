@@ -434,6 +434,11 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
               discoveryItems={discoveryEnabled ? discoveryItems : undefined}
               discoveryEveryN={DISCOVERY_INTERLEAVE_EVERY_N}
               paintedCount={paintedCount}
+              // scrollableDiv grows to its content (flex min-height), so the
+              // element that actually clips the feed is the layout scroller.
+              // Observing the inner box treated the sentinel as already
+              // visible and fetched the next page during the first paint.
+              scrollableTargetId="app-scroll-container"
             />
           </>
         ) : (
