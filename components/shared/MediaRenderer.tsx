@@ -1,24 +1,74 @@
 import { Box, Image, IconButton } from "@chakra-ui/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import { FiX } from "react-icons/fi";
 import ImageCarousel from "@/components/shared/ImageCarousel";
 import ImageWithFallback from "@/components/shared/ImageWithFallback";
+import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import {
   parseMediaContent,
   MediaItem,
   speakVideoKeyFromUrl,
   finalizeAudio3SpeakEmbedUrl,
+  type EmbedAspect,
 } from "@/lib/utils/snapUtils";
 import { resolveFeedImageSrc } from "@/lib/images/feedImageSrc";
 import { classifyFeedMediaUrl } from "@/lib/images/feedLcp";
 
-const VideoRenderer = dynamic(() => import("@/components/layout/VideoRenderer"), { ssr: false });
+/** Same chrome as VideoRenderer's frame, so the chunk swap does not move the card. */
+function VideoFrame() {
+  return (
+    <Box width="100%" pt="10px" mb="20px">
+      <Box width="100%" bg="black" style={{ aspectRatio: "16 / 9" }} />
+    </Box>
+  );
+}
+
+const VideoRenderer = dynamic(() => import("@/components/layout/VideoRenderer"), {
+  ssr: false,
+  loading: VideoFrame,
+});
 const SnapieSpeakAudio = dynamic(() => import("@/components/shared/SnapieSpeakAudio"), { ssr: false });
 const TwitterEmbed = dynamic(() => import("@/components/shared/TwitterEmbed"), { ssr: false });
-const ThreeSpeakVideoPlayer = dynamic(() => import("@/components/shared/ThreeSpeakVideoPlayer"), { ssr: false });
-const IframeEmbedBox = dynamic(() => import("@/components/shared/IframeEmbedBox"), { ssr: false });
+
+type IframeEmbedProps = { item: MediaItem; isVertical3Speak: boolean };
+
+function embedFrameAspect(item: MediaItem, isVertical3Speak: boolean): string {
+  if (isVertical3Speak) return "3 / 4";
+  const aspect: EmbedAspect | undefined = item.embedAspect;
+  if (aspect === "9/16") return "9 / 16";
+  if (aspect === "4/5") return "4 / 5";
+  if (aspect === "3/4") return "3 / 4";
+  return "16 / 9";
+}
+
+/** Reserve the iframe's box on the first render. next/dynamic renders null until the chunk loads. */
+function LazyIframeEmbed({ item, isVertical3Speak }: IframeEmbedProps) {
+  const [Comp, setComp] = useState<ComponentType<IframeEmbedProps> | null>(null);
+  useEffect(() => {
+    let cancel = false;
+    import("@/components/shared/IframeEmbedBox").then((mod) => {
+      if (!cancel) setComp(() => mod.default);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+  if (!Comp) {
+    return (
+      <Box
+        mb={2}
+        w="100%"
+        mx="auto"
+        bg="black"
+        borderRadius="md"
+        style={{ aspectRatio: embedFrameAspect(item, isVertical3Speak) }}
+      />
+    );
+  }
+  return <Comp item={item} isVertical3Speak={isVertical3Speak} />;
+}
 
 interface MediaRendererProps {
   mediaContent: string;
@@ -255,7 +305,7 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
           );
 
           return (
-            <IframeEmbedBox
+            <LazyIframeEmbed
               key={item.src ?? `iframe-${index}`}
               item={item}
               isVertical3Speak={isVertical3Speak}

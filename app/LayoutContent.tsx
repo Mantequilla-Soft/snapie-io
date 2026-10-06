@@ -1,7 +1,7 @@
 'use client'
 import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect, type ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
@@ -14,7 +14,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
 
-const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), { ssr: false });
 const MeSheet = dynamic(() => import('@/components/layout/MeSheet'), { ssr: false });
 const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
@@ -38,19 +37,30 @@ function SidebarSlot() {
   );
 }
 
-function DeferredSidebar(props: { isChatOpen: boolean; setIsChatOpen?: (v: boolean) => void; chatUnreadCount: number }) {
-  const [ready, setReady] = useState(false);
+type SidebarComponentProps = {
+  isChatOpen: boolean;
+  setIsChatOpen?: (v: boolean) => void;
+  chatUnreadCount: number;
+};
+
+function DeferredSidebar(props: SidebarComponentProps) {
+  // next/dynamic renders null for a frame after `ready` flips and before the
+  // chunk is evaluated. That frame drops the 260px column and the feed jumps
+  // wider. Hold the slot until the module itself has resolved.
+  const [SidebarComp, setSidebarComp] = useState<ComponentType<SidebarComponentProps> | null>(null);
   useEffect(() => {
     let cancel = false;
-    afterPriorityImage().then(() => {
-      if (!cancel) setReady(true);
-    });
+    afterPriorityImage()
+      .then(() => import('@/components/layout/Sidebar'))
+      .then((mod) => {
+        if (!cancel) setSidebarComp(() => mod.default);
+      });
     return () => {
       cancel = true;
     };
   }, []);
-  if (!ready) return <SidebarSlot />;
-  return <Sidebar {...props} />;
+  if (!SidebarComp) return <SidebarSlot />;
+  return <SidebarComp {...props} />;
 }
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {

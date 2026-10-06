@@ -299,7 +299,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                 width="100%"
                 boxShadow="md"
                 backdropFilter="blur(16px)"
-                transition="all 0.18s ease"
+                transition="border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease"
                 _hover={{
                     borderColor: 'rgba(28, 161, 241, 0.34)',
                     boxShadow: 'lg',
@@ -415,6 +415,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                             rootMargin={MEDIA_GATE_MARGIN}
                                             unmountedAspectRatio={feedMediaSlotAspect(media)}
                                             unmountedMinHeight={/audio\.3speak\.tv/i.test(media) ? SPEAK_AUDIO_IFRAME_HEIGHT_PX : 0}
+                                            preserveHeight
+                                            keepMounted
                                         >
                                             <MediaRenderer mediaContent={media} skipImages />
                                         </OffscreenGate>
@@ -425,6 +427,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                 rootMargin={MEDIA_GATE_MARGIN}
                                 unmountedAspectRatio={feedMediaSlotAspect(media)}
                                 unmountedMinHeight={/audio\.3speak\.tv/i.test(media) ? SPEAK_AUDIO_IFRAME_HEIGHT_PX : 0}
+                                preserveHeight
+                                keepMounted
                             >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>

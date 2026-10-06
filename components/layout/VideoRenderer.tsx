@@ -193,9 +193,12 @@ VideoControls.displayName = "VideoControls";
 // Memoize common styles outside the component
 const VIDEO_STYLE = {
   background: "transparent",
-  marginBottom: "20px",
+  position: "absolute" as const,
+  inset: 0,
   width: "100%",
+  height: "100%",
   zIndex: 2,
+  objectFit: "contain" as const,
 };
 
 // Real aspect ratio per video src, learned from loadedmetadata — module
@@ -206,8 +209,10 @@ const VIDEO_STYLE = {
 // rendered at the browser's default proportions and then snapped to the
 // real ones — hundreds of px for a vertical video, replayed on every
 // remount, shoving the virtualized list's scroll position each time.
-// Unknown srcs reserve 16/9 up front; only their first-ever metadata load
-// can shift layout, and only if the video isn't actually 16/9.
+// Unknown srcs reserve 16/9 up front. Metadata may correct that only while
+// the frame is still below the viewport — a visible correction is a layout
+// shift, and applying it on the <video> itself (height auto + aspect-ratio)
+// oscillates in Chrome. The frame box owns the ratio; the video fills it.
 const knownVideoAspects = new Map<string, number>();
 const DEFAULT_VIDEO_ASPECT = 16 / 9;
 
@@ -221,6 +226,7 @@ const BASE_SLIDER_STYLE = {
 
 const VideoRenderer = ({ src, ...props }: RendererProps) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const frameRef = React.useRef<HTMLDivElement | null>(null);
   /** Avoid calling load() on every inView=true tick while readyState is still 0 (causes perpetual loading). */
   const loadRequestedRef = React.useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -284,6 +290,10 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     const video = videoRef.current;
     if (!video || !src || video.videoWidth <= 0 || video.videoHeight <= 0) return;
     const ratio = video.videoWidth / video.videoHeight;
+    if (!knownVideoAspects.has(src)) {
+      const top = frameRef.current?.getBoundingClientRect().top ?? 0;
+      if (top < window.innerHeight) return;
+    }
     knownVideoAspects.set(src, ratio);
     setAspectRatio(ratio);
   }, [src]);
@@ -437,31 +447,23 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
     [sliderBackground]
   );
 
-  // The explicit aspect-ratio (cached real ratio, or 16/9 while unknown)
-  // keeps the element's layout height fixed from first paint — see
-  // knownVideoAspects above. objectFit letterboxes any brief mismatch
-  // between the reserved box and the video's true proportions.
-  const videoStyle = useMemo(
-    () => ({
-      ...VIDEO_STYLE,
-      aspectRatio: String(aspectRatio),
-      objectFit: "contain" as const,
-    }),
-    [aspectRatio]
-  );
-
   return (
     <Box
       position="relative"
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      paddingTop="10px"
-      minWidth="100%"
+      width="100%"
+      pt="10px"
+      mb="20px"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <picture style={{ position: "relative", width: "100%", height: "100%" }}>
+      <Box
+        ref={frameRef}
+        position="relative"
+        width="100%"
+        overflow="hidden"
+        bg="black"
+        style={{ aspectRatio: String(aspectRatio) }}
+      >
         <video
           key={src}
           {...props}
@@ -477,7 +479,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
           onLoadedMetadata={handleLoadedMetadata}
           onError={handleVideoError}
           onClick={(e) => e.stopPropagation()}
-          style={videoStyle}
+          style={VIDEO_STYLE}
         />
         {!isVideoLoaded && !hasError && (
           <Box
@@ -515,7 +517,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
             </Box>
           </Box>
         )}
-      </picture>
+      </Box>
       {isHovered && (
         <VideoControls
           isPlaying={isPlaying}

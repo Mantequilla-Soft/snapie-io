@@ -39,6 +39,10 @@ interface OffscreenGateProps extends BoxProps {
   unmountedAspectRatio?: number;
   /** After the first intersection, leave children mounted. */
   keepMounted?: boolean;
+  /** Keep the measured height as a floor after mount. Media slots use this
+   *  so a player chunk that has not arrived yet cannot collapse the box
+   *  (the observer would unmount it and the placeholder would pop back). */
+  preserveHeight?: boolean;
 }
 
 const OffscreenGate = memo(function OffscreenGate({
@@ -48,6 +52,7 @@ const OffscreenGate = memo(function OffscreenGate({
   unmountedMinHeight = 0,
   unmountedAspectRatio,
   keepMounted = false,
+  preserveHeight = false,
   style,
   ...boxProps
 }: OffscreenGateProps) {
@@ -67,6 +72,8 @@ const OffscreenGate = memo(function OffscreenGate({
       const entry = entries[0];
       if (!entry) return;
       if (entry.isIntersecting) {
+        const height = entry.boundingClientRect.height;
+        if (height > 0) lastHeightRef.current = height;
         seenRef.current = true;
         setMounted(true);
         return;
@@ -114,12 +121,15 @@ const OffscreenGate = memo(function OffscreenGate({
 
   const reserved = lastHeightRef.current || unmountedMinHeight;
   const useAspect = !mounted && !lastHeightRef.current && !!unmountedAspectRatio;
+  const holdFloor = !mounted || preserveHeight;
 
   // Inline, not a stylesheet class: the placeholder has to be in the same
   // frame as the unmount, including before Chakra's emotion sheet applies.
+  // Media slots also hold that floor while mounted so a not-yet-loaded
+  // player cannot shrink the gate to 0.
   const reservedStyle: CSSProperties = {
     ...(style as CSSProperties | undefined),
-    minHeight: mounted ? undefined : `${reserved}px`,
+    minHeight: holdFloor && reserved > 0 ? `${reserved}px` : undefined,
     aspectRatio: useAspect ? unmountedAspectRatio : undefined,
   };
 
