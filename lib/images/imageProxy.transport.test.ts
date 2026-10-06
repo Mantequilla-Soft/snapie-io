@@ -31,7 +31,7 @@ const JPEG = Buffer.from([
 
 type Script = {
   status?: number;
-  headers?: http.IncomingHttpHeaders;
+  headers?: Record<string, string | string[] | undefined>;
   chunks?: Buffer[];
   error?: Error;
   mode?: 'body' | 'redirect' | 'destroy-length';
@@ -40,7 +40,7 @@ type Script = {
 function scriptResponse(script: Script) {
   const res = new EventEmitter() as EventEmitter & {
     statusCode: number;
-    headers: http.IncomingHttpHeaders;
+    headers: Record<string, string | string[] | undefined>;
     resume: () => void;
     destroy: () => void;
   };
@@ -169,7 +169,7 @@ describe('default image proxy transport', () => {
   });
 
   it('maps the request timeout callback to a timeout error', async () => {
-    vi.mocked(http.request).mockImplementation(() => {
+    vi.mocked(http.request).mockImplementation((() => {
       const req = new EventEmitter() as EventEmitter & {
         end: () => void;
         destroy: (err?: Error) => void;
@@ -184,7 +184,7 @@ describe('default image proxy transport', () => {
       };
       req.end = () => timeout?.();
       return req;
-    });
+    }) as never);
     await expect(fetchProxiedImage('http://cdn.example/slow.jpg')).rejects.toMatchObject({ code: 'timeout' });
   });
 

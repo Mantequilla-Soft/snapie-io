@@ -316,7 +316,7 @@ describe('wallet operations', () => {
   it('routes the same operations through snapie auth, including a wallet prompt', async () => {
     env.isSnapieMode.mockReturnValue(true);
     const dispatch = vi.fn();
-    (globalThis as { window?: { dispatchEvent: typeof dispatch } }).window = { dispatchEvent: dispatch };
+    (globalThis as unknown as { window: { dispatchEvent: typeof dispatch } }).window = { dispatchEvent: dispatch };
     env.powerUp.mockResolvedValueOnce({ txId: 'p', emancipationRequired: true });
     await expect(powerUpWithKeychain('alice', 1)).resolves.toMatchObject({ txId: 'p' });
     expect(dispatch).toHaveBeenCalled();
@@ -340,7 +340,16 @@ describe('wallet operations', () => {
     await expect(witnessVoteWithKeychain('alice', 'blocktrades')).resolves.toMatchObject({ success: true });
 
     env.isSnapieMode.mockReturnValue(true);
-    const ops: Array<[string, Record<string, unknown>, keyof typeof env]> = [
+    const snapieBroadcast = {
+      transferToSavings: env.transferToSavings,
+      transferFromSavings: env.transferFromSavings,
+      convertHbd: env.convertHbd,
+      collateralizedConvert: env.collateralizedConvert,
+      limitOrderCreate: env.limitOrderCreate,
+      limitOrderCancel: env.limitOrderCancel,
+      broadcastOp: env.broadcastOp,
+    };
+    const ops: Array<[string, Record<string, unknown>, keyof typeof snapieBroadcast]> = [
       ['transfer_to_savings', { amount: '1.000 HBD', to: 'bob', memo: 'm' }, 'transferToSavings'],
       ['transfer_from_savings', { amount: '1.000 HBD', request_id: 4 }, 'transferFromSavings'],
       ['convert', { amount: '1.000 HBD', requestid: 2 }, 'convertHbd'],
@@ -351,7 +360,7 @@ describe('wallet operations', () => {
       ['custom', { foo: 1 }, 'broadcastOp'],
     ];
     for (const [name, body, fn] of ops) {
-      env[fn].mockResolvedValueOnce({ txId: name });
+      snapieBroadcast[fn].mockResolvedValueOnce({ txId: name });
       await expect(broadcastWithKeychain('alice', [[name, body]])).resolves.toEqual({ success: true, result: name });
     }
     env.transferToSavings.mockResolvedValueOnce({ needsClientSigning: true });
@@ -573,7 +582,7 @@ describe('uploads', () => {
       ok: false,
       status: 500,
       json: async () => { throw new Error('no body'); },
-    } as Response);
+    } as unknown as Response);
     await expect(uploadAudioTo3Speak(new Blob([new Uint8Array([1])], { type: 'audio/mp4' }), 1, 'alice')).resolves.toMatchObject({
       success: false,
     });
@@ -601,7 +610,9 @@ describe('uploads', () => {
       responseText: '{"success":true,"url":"https://cdn.example/a.jpg","source":"3speak"}',
       progress: { loaded: 1, total: 2, lengthComputable: true },
     };
-    await expect(uploadImage(file(), 'sig', 0, (update) => progress.push(update([0])))).resolves.toBe('https://cdn.example/a.jpg');
+    await expect(uploadImage(file(), 'sig', 0, (update) => {
+      if (typeof update === 'function') progress.push(update([0]));
+    })).resolves.toBe('https://cdn.example/a.jpg');
     expect(progress[0][0]).toBe(50);
 
     xhrScript = { status: 500, statusText: 'bad', responseText: '{"error":"nope","message":"rejected"}' };
@@ -626,7 +637,9 @@ describe('uploads', () => {
     await expect(uploadImageWithKeychain(file(), 'alice', {
       index: 1,
       onProgress: (value) => seen.push(value),
-      setUploadProgress: (update) => update([0, 0]),
+      setUploadProgress: (update) => {
+        if (typeof update === 'function') update([0, 0]);
+      },
     })).resolves.toBe('https://images.hive.blog/x');
     expect(seen).toEqual([100]);
 
@@ -635,7 +648,12 @@ describe('uploads', () => {
 
     wallet = { loggedIn: true, provider: Providers.HiveAuth };
     xhrScript = { status: 201, responseText: '{"success":true,"url":"https://images.3speak.tv/a.jpg"}', progress: { loaded: 1, total: 4, lengthComputable: true } };
-    await expect(uploadImageWithKeychain(file(), 'alice', { index: 0, setUploadProgress: (update) => update([0]) })).resolves.toBe('https://images.3speak.tv/a.jpg');
+    await expect(uploadImageWithKeychain(file(), 'alice', {
+      index: 0,
+      setUploadProgress: (update) => {
+        if (typeof update === 'function') update([0]);
+      },
+    })).resolves.toBe('https://images.3speak.tv/a.jpg');
 
     env.isSnapieMode.mockReturnValue(true);
     xhrScript = { status: 400, responseText: '{"error":"quota"}' };
