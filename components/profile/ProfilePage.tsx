@@ -37,16 +37,21 @@ import { usePatronStatus } from '@/hooks/usePatronStatus';
 import PatronBadge from '@/components/shared/PatronBadge';
 import WitnessBadge from '@/components/shared/WitnessBadge';
 import AccountBadges from './AccountBadges';
+import type { ProfileSeedAccount } from '@/lib/hive/profileSeed';
 
 interface ProfilePageProps {
   username: string;
+  /** Server-rendered header. Without it the first paint is a spinner. */
+  initialAccount?: ProfileSeedAccount | null;
+  initialProfile?: any;
 }
 
-export default function ProfilePage({ username }: ProfilePageProps) {
+export default function ProfilePage({ username, initialAccount = null, initialProfile = null }: ProfilePageProps) {
   const { username: user } = useCurrentUser();
-  const { hiveAccount, isLoading, error } = useHiveAccount(username);
+  const { hiveAccount: fetchedAccount, isLoading, error } = useHiveAccount(username);
+  const hiveAccount = fetchedAccount ?? initialAccount;
   const muteGate = useAuthorMuteGate(username);
-  const [profileInfo, setProfileInfo] = useState<any>(null);
+  const [profileInfo, setProfileInfo] = useState<any>(initialProfile);
 
   // Posts tab state
   const [posts, setPosts] = useState<any[]>([]);
@@ -220,7 +225,10 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     }, 3000);
   };
 
-  if (isLoading || !hiveAccount || muteGate.isChecking) {
+  // A server seed already has the header. Waiting on the client mute check
+  // and the account refetch would put a spinner in the first HTML again.
+  const seeded = initialAccount != null && initialProfile != null;
+  if (!hiveAccount || (!seeded && (isLoading || muteGate.isChecking))) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <Spinner size="xl" color="primary" />
@@ -228,7 +236,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
     );
   }
 
-  if (error) {
+  if (error && !hiveAccount) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
         <Alert status="error" borderRadius="md" variant="solid">
