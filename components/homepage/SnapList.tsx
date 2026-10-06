@@ -8,6 +8,7 @@ import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { findClipScroller } from '@/lib/dom/scrollParent';
+import { FEED_PAGE_PREFETCH_MARGIN_PX, resolveFeedScrollRoot, sentinelNearScrollport } from '@/lib/dom/feedScrollRoot';
 import { bodyHasMarkdownImageUrl, paintedPriorityImageUrl } from '@/lib/images/feedLcp';
 import { useAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
@@ -124,10 +125,8 @@ export default function SnapList(
     // the feed column scrolls; on a phone the layout scroller does. A root
     // that does not clip makes the sentinel look permanently visible.
     const explicit = document.getElementById(scrollableTargetId);
-    const explicitClips = !!explicit && explicit.scrollHeight > explicit.clientHeight + 1
-      && explicit.clientHeight <= window.innerHeight + 2;
     const fromList = findClipScroller(listRef.current);
-    setScrollParentEl(explicitClips ? explicit : (fromList ?? explicit));
+    setScrollParentEl(resolveFeedScrollRoot(explicit, fromList, window.innerHeight));
   }, [scrollableTargetId, comments.length, interactionsReady]);
 
   // `refresh`'s own identity changes every render (it's a plain closure
@@ -228,7 +227,7 @@ export default function SnapList(
       const sentinel = sentinelRef.current;
       if (sentinel) {
         const rootBottom = scrollParentEl.getBoundingClientRect().bottom;
-        if (sentinel.getBoundingClientRect().top - rootBottom < 2000) {
+        if (sentinelNearScrollport(sentinel.getBoundingClientRect().top, rootBottom)) {
           loadNextPageRef.current();
         }
       }
@@ -312,7 +311,7 @@ export default function SnapList(
     const observer = new IntersectionObserver(([entry]) => {
       sentinelVisibleRef.current = entry.isIntersecting;
       if (entry.isIntersecting) loadNextPageRef.current();
-    }, { root: scrollParentEl, rootMargin: '2000px 0px' });
+    }, { root: scrollParentEl, rootMargin: `${FEED_PAGE_PREFETCH_MARGIN_PX}px 0px` });
     observer.observe(el);
     return () => observer.disconnect();
   }, [scrollParentEl, hasMore, interactionsReady]);

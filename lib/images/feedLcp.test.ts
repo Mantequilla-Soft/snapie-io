@@ -136,6 +136,48 @@ describe('selectFirstScreenLcpImage', () => {
     expect(LCP_MEDIA_SIZE_CAP_BYTES).toBe(300_000);
   });
 
+  it('picks the first photo at or under 300KB and does not probe GIF or video', async () => {
+    const bodies = [
+      '![](https://media.giphy.com/media/abc/giphy.gif?cid=1)',
+      '![](https://cdn.example.com/clip.webm?token=1)',
+      '![](https://images.hive.blog/huge.png)',
+      '![](https://images.hive.blog/ok.jpg)',
+    ];
+    const probe = vi.fn(async (url: string) => {
+      if (url.endsWith('huge.png')) return { contentType: 'image/png', contentLength: LCP_MEDIA_SIZE_CAP_BYTES + 1 };
+      if (url.endsWith('ok.jpg')) return { contentType: 'image/jpeg', contentLength: LCP_MEDIA_SIZE_CAP_BYTES };
+      throw new Error(`unexpected probe ${url}`);
+    });
+    const chosen = await selectFirstScreenLcpImage(bodies, probe);
+    expect(classifyFeedMediaUrl('https://media.giphy.com/media/abc/giphy.gif?cid=1')).toBe('gif');
+    expect(lcpCandidateNeedsProbe('https://cdn.example.com/clip.webm?token=1')).toBe(false);
+    expect(probe.mock.calls.map((call) => call[0])).toEqual([
+      'https://images.hive.blog/huge.png',
+      'https://images.hive.blog/ok.jpg',
+    ]);
+    expect(chosen?.rawUrl).toBe('https://images.hive.blog/ok.jpg');
+    expect(chosen?.optimizerUrl).toContain('w=640');
+  });
+
+  it('keeps a known photo when the probe throws or omits Content-Length, and rejects a video type', async () => {
+    expect(isSuitableLcpCandidate('https://images.hive.blog/a.jpg', {
+      contentType: 'image/jpeg',
+      contentLength: null,
+    })).toBe(true);
+    expect(isSuitableLcpCandidate('https://images.hive.blog/a.jpg', {
+      contentType: 'video/mp4',
+      contentLength: 12_000,
+    })).toBe(false);
+
+    const chosen = await selectFirstScreenLcpImage([
+      '![](https://ipfs.3speak.tv/ipfs/QmExample)',
+      '![](https://images.hive.blog/photo.jpg)',
+    ], async () => {
+      throw new Error('timeout');
+    });
+    expect(chosen?.rawUrl).toBe('https://images.hive.blog/photo.jpg');
+  });
+
   it('skips a GIF without probing it and preloads the next photo through the proxy', async () => {
     const probe = vi.fn(async (url: string) => {
       if (url.endsWith('huge.jpg')) return { contentType: 'image/jpeg', contentLength: 2_000_000 };

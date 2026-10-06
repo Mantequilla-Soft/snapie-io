@@ -10,6 +10,8 @@ const requested: string[] = [];
 afterEach(() => {
   cleanup();
   requested.length = 0;
+  document.body.innerHTML = '';
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -53,6 +55,24 @@ describe('Avatar', () => {
     } finally {
       priority.remove();
     }
+  });
+
+  it('requests the avatar on the priority-image timeout', async () => {
+    vi.useFakeTimers();
+    stubImage();
+    const priority = document.createElement('img');
+    priority.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(priority, 'complete', { configurable: true, get: () => false });
+    document.body.appendChild(priority);
+    renderAvatar();
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(requested).toEqual([]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(requested.some((url) => url.includes('images.hive.blog/u/alice/avatar'))).toBe(true);
   });
 
   it('requests the avatar when the page has no priority image', async () => {

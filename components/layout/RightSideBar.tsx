@@ -25,6 +25,7 @@ import {
   LONG_READS_PAGE_SIZE,
   LONG_READS_TARGET,
 } from '@/lib/blog/longReads';
+import { HOME_RIGHT_SIDEBAR_WIDTH, homeRightSidebarFrame } from '@/lib/layout/homeSidebarSlot';
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
@@ -41,7 +42,7 @@ interface RightSideBarProps {
   engagedAuthors?: Set<string>;
 }
 
-export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {}) {
+export default function RightSideBar({ engagedAuthors }: RightSideBarProps) {
   const { hiveUser } = useHiveUser();
   const { username } = useCurrentUser();
   const { settings } = useUserSettings();
@@ -283,9 +284,9 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
   return (
     <Box
       as="aside"
-      display={{ base: 'none', md: 'block' }}
-      w={{ base: '100%', md: '300px' }}
-      h="100vh"
+      {...homeRightSidebarFrame}
+      data-home-sidebar-frame=""
+      data-sidebar-width={HOME_RIGHT_SIDEBAR_WIDTH}
       overflowY="auto"
       position="sticky"
       top={0}
