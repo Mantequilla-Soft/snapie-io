@@ -44,6 +44,13 @@ DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
 
 interface MediaRendererProps {
   mediaContent: string;
+  /** Preload the first plain image. Home feed only, for the LCP card. */
+  priority?: boolean;
+  /** Render markdown images only. The home LCP card uses this so an embed
+   *  iframe is not a second early document on the critical path. */
+  onlyImages?: boolean;
+  /** Skip markdown images. Paired with onlyImages when a card has both. */
+  skipImages?: boolean;
 }
 
 // Module-scope caches, deliberately outside React state: SnapList's Virtuoso
@@ -239,7 +246,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -314,6 +321,10 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
     return null;
   }
 
+  const priorityIndex = priority
+    ? groupedItems.findIndex((group) => group.kind === 'single-image' || group.kind === 'carousel')
+    : -1;
+
   return (
     <Box mb={4} ref={wrapperRef} data-snapie-media-layout>
       {lightboxUrl && typeof document !== 'undefined' && createPortal(
@@ -356,6 +367,9 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
         document.body
       )}
       {groupedItems.map((group, index) => {
+        const isImage = group.kind === 'single-image' || group.kind === 'carousel';
+        if (onlyImages && !isImage) return null;
+        if (skipImages && isImage) return null;
         if (group.kind === 'single-image') {
           return (
             <Box
@@ -368,7 +382,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <ImageWithFallback url={group.url} alt="Post media" />
+              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} />
             </Box>
           );
         }
@@ -376,7 +390,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
         if (group.kind === 'carousel') {
           return (
             <Box key={index} maxW="540px" mx="auto">
-              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} />
+              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} />
             </Box>
           );
         }

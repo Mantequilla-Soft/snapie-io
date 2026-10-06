@@ -16,6 +16,17 @@ const nextConfig = {
     // `next start` of the full build still works from the same output.
     output: 'standalone',
     experimental: {
+        // Loads instrumentation.ts, which holds framework scripts until the
+        // server-rendered feed has painted. See lib/perf/deferFrameworkScripts.js.
+        instrumentationHook: true,
+        // The hook require()s these files from the process working directory.
+        // Standalone tracing does not follow that runtime path on its own.
+        outputFileTracingIncludes: {
+            '/api/**': [
+                './lib/perf/installDeferredScriptResponse.js',
+                './lib/perf/deferFrameworkScripts.js',
+            ],
+        },
         serverActions: {
             bodySizeLimit: '10mb', // Increase the body size limit
         },

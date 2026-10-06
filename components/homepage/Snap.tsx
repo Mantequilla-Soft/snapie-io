@@ -16,6 +16,7 @@ import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
+import { isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -23,12 +24,6 @@ import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 // whole-card gate.
 const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
 
-/** The 4/3 slot matches ImageWithFallback. Embeds and players size themselves
- *  differently, so reserving 4/3 for those would shift the card when they mount. */
-function isImageOnlyMedia(media: string): boolean {
-    if (!/!\[.*?\]\(.*?\)/.test(media)) return false;
-    return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
-}
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
@@ -65,9 +60,11 @@ interface SnapProps {
     level?: number; // Added level for indentation
     /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
     reserveMediaSpace?: boolean;
+    /** First home card. Its media is in the server HTML, not behind a gate. */
+    eagerMedia?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -391,14 +388,35 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
+                            eagerMedia && isPlainFeedImageMedia(media) ? (
+                                <>
+                                    {/* The photo is the LCP element: in the server HTML,
+                                        not behind a gate. Embeds on the same card stay
+                                        gated so their iframe is not on the critical path. */}
+                                    <MediaRenderer
+                                        key={`media-${comment.permlink}`}
+                                        mediaContent={media}
+                                        priority
+                                        onlyImages
+                                    />
+                                    {mediaHasEmbed(media) && (
+                                        <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                                            <MediaRenderer mediaContent={media} skipImages />
+                                        </OffscreenGate>
+                                    )}
+                                </>
+                            ) : (
                             <OffscreenGate
                                 rootMargin={MEDIA_GATE_MARGIN}
                                 unmountedAspectRatio={
-                                    reserveMediaSpace && isImageOnlyMedia(media) ? IMAGE_ASPECT_RATIO : undefined
+                                    // 4/3 matches ImageWithFallback. Embeds size themselves,
+                                    // so reserving 4/3 for those would shift the card on mount.
+                                    reserveMediaSpace && isPlainFeedImageMedia(media) ? IMAGE_ASPECT_RATIO : undefined
                                 }
                             >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
+                            )
                         )}
 
                         {/* Text content */}
@@ -584,7 +602,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         (prevProps.comment.active_votes?.length ?? prevProps.comment.voteCount) ===
             (nextProps.comment.active_votes?.length ?? nextProps.comment.voteCount) &&
         prevProps.level === nextProps.level &&
-        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace
+        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
+        prevProps.eagerMedia === nextProps.eagerMedia
     );
 });
 

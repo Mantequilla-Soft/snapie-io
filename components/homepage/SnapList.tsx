@@ -366,7 +366,23 @@ export default function SnapList(
           // body, and counts are in the server HTML. The rest reserve 400px
           // (the same stand-in as contain-intrinsic-size) so a collapsed
           // list doesn't pull the sentinel into the 2000px prefetch margin.
-          // Media stays behind its own gate — a placeholder, not a video.
+          // Card 0 is not gated and has no content-visibility. Every painted
+          // card's photo is in the HTML too: a later card's image is often
+          // the largest box in the first viewport, and a client-only mount
+          // would make it the LCP after hydration.
+          index === 0 ? (
+            <Box key={snapKey(comment)} data-snap-key={snapKey(comment)}>
+              <Snap
+                comment={comment}
+                onOpen={onOpen}
+                setReply={setReply}
+                refreshComment={refreshComment}
+                reserveMediaSpace
+                eagerMedia
+                {...(!post ? { setConversation } : {})}
+              />
+            </Box>
+          ) : (
           <OffscreenGate
             key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
@@ -381,9 +397,11 @@ export default function SnapList(
               setReply={setReply}
               refreshComment={refreshComment}
               reserveMediaSpace={index < paintedCount}
+              eagerMedia={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
+          )
         ))}
       </Box>
       {hasMore && (
