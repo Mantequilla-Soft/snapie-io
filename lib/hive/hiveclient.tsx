@@ -1,4 +1,5 @@
 import { Client } from "@hiveio/dhive"
+import { installBrowserRpcCoalescer } from "@/lib/hive/rpcBatch"
 import { withTimeout } from "@/lib/utils/withTimeout"
 
 const FALLBACK_NODES = [
@@ -37,12 +38,22 @@ export const HIVE_RPC_TIMEOUT_MS = 65000
 
 // Proxy object so reassigning .client propagates to all importers
 // (export default captures a value, not a binding)
+function createHiveClient(): Client {
+  if (!IS_BROWSER) {
+    // Server: call Hive nodes directly (no CORS constraints). Node selection
+    // and failover stay inside dhive; reads are not coalesced here.
+    return new Client(filterNodeList(FALLBACK_NODES))
+  }
+  // Browser: one origin, our proxy. Reads that start in the same turn share
+  // a JSON-RPC batch. The proxy still picks and races the Hive nodes.
+  const endpoint = window.location.origin + "/api/hive-rpc"
+  const client = new Client([endpoint])
+  installBrowserRpcCoalescer(client, endpoint)
+  return client
+}
+
 const hive = {
-  client: IS_BROWSER
-    // Browser: route through our own API proxy — eliminates CORS entirely
-    ? new Client([window.location.origin + "/api/hive-rpc"])
-    // Server: call Hive nodes directly (no CORS constraints)
-    : new Client(filterNodeList(FALLBACK_NODES)),
+  client: createHiveClient(),
 }
 
 function isExcludedNode(endpoint: string): boolean {

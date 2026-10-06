@@ -66,6 +66,10 @@ export async function POST(request: NextRequest) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 9000)
 
+  // `body` is either one JSON-RPC object or a batch array. Both are forwarded
+  // unchanged — node choice and the parallel race stay as they are. A batch
+  // response is an array that may mix results and per-item errors; that array
+  // is the success payload. Do not collapse a partial item error into a 503.
   const attempts = nodes.slice(0, 6).map(async (node) => {
     const res = await fetch(node, {
       method: 'POST',
