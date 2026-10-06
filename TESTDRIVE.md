@@ -11,7 +11,7 @@ docker compose -f docker-compose.testdrive.yml up --build
 
 Open http://localhost:3000
 
-The published port is bound to `127.0.0.1` only. Copy `.env.testdrive.example` to `.env.testdrive` if you want to override server-side variables. If `.env.testdrive` is missing, Compose uses the example file. `NEXT_PUBLIC_*` values are taken from the example file when the image is built. Editing them only in `.env.testdrive` does not change the browser bundle until you rebuild from an edited example.
+The published port is bound to `127.0.0.1` only. Copy `.env.testdrive.example` to `.env.testdrive` if you want to override server-side variables. If `.env.testdrive` is missing, Compose uses the example file. `NEXT_PUBLIC_*` values are taken from the example file when the image is built. Editing them only in `.env.testdrive` does not change the browser bundle until you rebuild from an edited example. The example search tag is `hive-178315`, the live Snapie community. Home Long Reads and the blog search use it.
 
 ## Included changes
 
