@@ -38,6 +38,9 @@ interface OffscreenGateProps extends BoxProps {
    *  The SSR feed uses this so a few hundred not-yet-painted cards don't
    *  collapse to 0px and pull the infinite-scroll sentinel into view. */
   unmountedMinHeight?: number;
+  /** Aspect ratio reserved while unmounted, so a media slot does not pop
+   *  open when its renderer mounts. */
+  unmountedAspectRatio?: number;
 }
 
 // Extra Box props (data-*, sx, id, ...) land on THIS component's own
@@ -53,6 +56,7 @@ const OffscreenGate = memo(function OffscreenGate({
   rootMargin,
   initiallyMounted = false,
   unmountedMinHeight = 0,
+  unmountedAspectRatio,
   ...boxProps
 }: OffscreenGateProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -99,6 +103,7 @@ const OffscreenGate = memo(function OffscreenGate({
       ref={wrapperRef}
       {...boxProps}
       minH={mounted ? undefined : `${lastHeightRef.current || unmountedMinHeight}px`}
+      aspectRatio={!mounted && unmountedAspectRatio ? unmountedAspectRatio : undefined}
     >
       {mounted ? children : null}
     </Box>
