@@ -1,7 +1,8 @@
 import { preload } from 'react-dom';
 import HomePage from '@/components/homepage/HomePage';
 import { getInitialPublicSnapPage } from '@/lib/hive/publicSnapFeed';
-import { homeFeedLcpImageUrl } from '@/lib/images/feedLcp';
+import { firstScreenLcpImageUrl } from '@/lib/images/feedLcp';
+import { SSR_PAINTED_SNAP_COUNT } from '@/lib/hive/publicSnapPage';
 
 // Short window: the public first page is shared by every logged-out visitor.
 // Logged-in mutes and following still load on the client.
@@ -13,10 +14,12 @@ export default async function Page() {
   // client immediately replaces.
   const blended = process.env.NEXT_PUBLIC_ENABLE_BLENDED_FEED === 'true';
   const initialSnapPage = blended ? null : await getInitialPublicSnapPage();
-  // The first card's photo is the home LCP element. Preload it from this
-  // server component so the request is in the document head, at the same
-  // 640px optimizer URL the card's next/image renders.
-  const lcpImage = homeFeedLcpImageUrl(initialSnapPage?.comments[0]?.body);
+  // A photo in the first screen is the home LCP element once it paints.
+  // Card 0 is often text; the next painted snap's image is then larger.
+  // Preload that URL from this server component so it matches next/image.
+  const lcpImage = firstScreenLcpImageUrl(
+    (initialSnapPage?.comments ?? []).slice(0, SSR_PAINTED_SNAP_COUNT).map((comment) => comment.body),
+  );
   if (lcpImage) {
     preload(lcpImage, { as: 'image', fetchPriority: 'high' });
   }

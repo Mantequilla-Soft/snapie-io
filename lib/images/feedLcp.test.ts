@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEED_LCP_WIDTH, feedLcpImageUrl, homeFeedLcpImageUrl, isPlainFeedImageMedia, mediaHasEmbed } from './feedLcp';
+import { FEED_LCP_WIDTH, feedLcpImageUrl, firstScreenLcpImageUrl, homeFeedLcpImageUrl, isPlainFeedImageMedia, mediaHasEmbed } from './feedLcp';
 
 describe('feedLcpImageUrl', () => {
   it('asks the optimizer for a fixed 640px image through the same-origin proxy', () => {
@@ -55,5 +55,16 @@ describe('homeFeedLcpImageUrl', () => {
   it('skips text-only snaps', () => {
     expect(homeFeedLcpImageUrl('just words')).toBeNull();
     expect(homeFeedLcpImageUrl(null)).toBeNull();
+  });
+
+  it('uses the next painted snap when the first card has no image', () => {
+    const url = firstScreenLcpImageUrl([
+      'just words',
+      null,
+      '![](https://images.hive.blog/photo.jpg)',
+    ]);
+    expect(url).toContain('w=640');
+    expect(decodeURIComponent(url || '')).toContain('/api/image-proxy?url=');
+    expect(firstScreenLcpImageUrl(['just words', null])).toBeNull();
   });
 });

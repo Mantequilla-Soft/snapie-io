@@ -46,3 +46,13 @@ export function homeFeedLcpImageUrl(body: string | null | undefined): string | n
   if (!resolved || resolved.unoptimized) return null;
   return feedLcpImageUrl(resolved.src);
 }
+
+/** First plain image among the server-painted snaps. Card 0 is often text;
+ *  the next card's photo is then the largest thing in the first viewport. */
+export function firstScreenLcpImageUrl(bodies: Array<string | null | undefined>): string | null {
+  for (const body of bodies) {
+    const url = homeFeedLcpImageUrl(body);
+    if (url) return url;
+  }
+  return null;
+}
