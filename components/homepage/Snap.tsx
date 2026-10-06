@@ -8,14 +8,14 @@ import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "r
 import { FaXTwitter } from "react-icons/fa6";
 import { MdTranslate } from "react-icons/md";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { separateContent, extractHivePostUrls, extractHangoutUrls, SPEAK_AUDIO_IFRAME_HEIGHT_PX } from '@/lib/utils/snapUtils';
+import { separateContent, extractHivePostUrls, extractHangoutUrls, SPEAK_AUDIO_IFRAME_HEIGHT_PX, snapTextForMarkdown } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
-import { feedMediaSlotAspect, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
+import { feedMediaSlotAspect, hasMarkdownImage, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -25,7 +25,6 @@ const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
 
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
-import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
@@ -59,11 +58,15 @@ interface SnapProps {
     level?: number; // Added level for indentation
     /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
     reserveMediaSpace?: boolean;
-    /** First home card. Its media is in the server HTML, not behind a gate. */
+    /** First-viewport card. Its photos are in the server HTML, not behind a gate. */
     eagerMedia?: boolean;
+    /** Preload this card's first photo. Only one card on the page sets this. */
+    imagePriority?: boolean;
+    /** The photo URL that should receive fetchpriority=high. */
+    priorityImageUrl?: string;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, eagerMedia = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, eagerMedia = false, imagePriority = false, priorityImageUrl }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -108,26 +111,28 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         [comment.body]
     );
 
-    // Remove Hive post URLs and hangout URLs from text since we'll render them as preview cards
-    const textWithoutHiveUrls = useMemo(() => {
-        let cleanText = text;
-        hivePostUrls.forEach(({ url }) => {
-            cleanText = cleanText.replace(url, '');
-        });
-        hangoutRoomNames.forEach((roomName) => {
-            cleanText = cleanText.replace(
-                new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, 'g'),
-                ''
-            );
-        });
-        return cleanText.trim();
-    }, [text, hivePostUrls, hangoutRoomNames]);
-
-    // Render text as HTML using markdown renderer
-    const renderedText = useMemo(
-        () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }) : '',
-        [textWithoutHiveUrls, comment.author]
+    // Hive post URLs and hangout links render as cards, so they are not
+    // also markdown. The home seed already carries the HTML (`bodyHtml`);
+    // other pages load the renderer after paint.
+    const textWithoutHiveUrls = useMemo(
+        () => snapTextForMarkdown(comment.body || ''),
+        [comment.body]
     );
+    const seededHtml = comment.bodyHtml;
+    const [lazyHtml, setLazyHtml] = useState('');
+    useEffect(() => {
+        if (typeof seededHtml === 'string') return;
+        if (!textWithoutHiveUrls) return;
+        let cancel = false;
+        import('@/lib/utils/MarkdownRenderer').then((mod) => {
+            if (cancel) return;
+            setLazyHtml(mod.default(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }));
+        });
+        return () => {
+            cancel = true;
+        };
+    }, [seededHtml, textWithoutHiveUrls, comment.author]);
+    const renderedText = typeof seededHtml === 'string' ? seededHtml : lazyHtml;
 
     const browserLang = browserLanguageTag();
     const detectedLang = useMemo(() => detectLang(text), [text]);
@@ -387,15 +392,18 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            eagerMedia && isPlainFeedImageMedia(media) ? (
+                            eagerMedia && hasMarkdownImage(media) ? (
                                 <>
-                                    {/* The photo is the LCP element: in the server HTML,
-                                        not behind a gate. Embeds on the same card stay
-                                        gated so their iframe is not on the critical path. */}
+                                    {/* Photos in the first viewport are in the server HTML,
+                                        visible without hydration. Embeds on the same card
+                                        stay gated so their iframe is not on the critical path.
+                                        A 3speak CDN url inside markdown is still a photo. */}
                                     <MediaRenderer
                                         key={`media-${comment.permlink}`}
                                         mediaContent={media}
-                                        priority
+                                        priority={imagePriority}
+                                        priorityUrl={priorityImageUrl}
+                                        painted
                                         onlyImages
                                     />
                                     {mediaHasEmbed(media) && (
@@ -612,7 +620,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
             (nextProps.comment.active_votes?.length ?? nextProps.comment.voteCount) &&
         prevProps.level === nextProps.level &&
         prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
-        prevProps.eagerMedia === nextProps.eagerMedia
+        prevProps.eagerMedia === nextProps.eagerMedia &&
+        prevProps.imagePriority === nextProps.imagePriority &&
+        prevProps.priorityImageUrl === nextProps.priorityImageUrl
     );
 });
 

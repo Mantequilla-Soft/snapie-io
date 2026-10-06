@@ -8,6 +8,7 @@ import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { findClipScroller } from '@/lib/dom/scrollParent';
+import { bodyHasMarkdownImageUrl, paintedPriorityImageUrl } from '@/lib/images/feedLcp';
 
 type SortOrder = 'new' | 'top';
 
@@ -67,6 +68,8 @@ interface SnapListProps {
   /** Leading cards whose contents are in the first HTML. 0 keeps every card
    *  unmounted until the observer approaches it. */
   paintedCount?: number
+  /** Photo the server preloaded. Null means do not mark any image priority. */
+  lcpImageUrl?: string | null
 }
 
 interface InfiniteScrollData {
@@ -101,6 +104,7 @@ export default function SnapList(
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
     paintedCount = 0,
+    lcpImageUrl,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -333,6 +337,12 @@ export default function SnapList(
   }
 
   const showSortToggle = post && comments.length > 1;
+  const priorityLimit = Math.max(paintedCount, 1);
+  const priorityImageUrl = paintedPriorityImageUrl(
+    displayComments.map((item) => item.body),
+    paintedCount,
+    lcpImageUrl,
+  );
 
   return (
     <>
@@ -358,7 +368,11 @@ export default function SnapList(
         </HStack>
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
-        {displayComments.map((comment, index) => (
+        {displayComments.map((comment, index) => {
+          const imagePriority = index < priorityLimit
+            && priorityImageUrl != null
+            && bodyHasMarkdownImageUrl(comment.body || '', priorityImageUrl);
+          return (
           // One element is the data-snap-key anchor the pagination observers
           // track (it must never disappear) and the wide-margin whole-card
           // gate that bounds mounted cards (see CARD_GATE_MARGIN). Not
@@ -382,6 +396,8 @@ export default function SnapList(
                 refreshComment={refreshComment}
                 reserveMediaSpace
                 eagerMedia
+                imagePriority={imagePriority}
+                priorityImageUrl={imagePriority ? priorityImageUrl ?? undefined : undefined}
                 {...(!post ? { setConversation } : {})}
               />
             </Box>
@@ -401,11 +417,14 @@ export default function SnapList(
               refreshComment={refreshComment}
               reserveMediaSpace={index < paintedCount}
               eagerMedia={index < paintedCount}
+              imagePriority={imagePriority}
+              priorityImageUrl={imagePriority ? priorityImageUrl ?? undefined : undefined}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
           )
-        ))}
+          );
+        })}
       </Box>
       {hasMore && (
         <Box ref={sentinelRef} display="flex" justifyContent="center" alignItems="center" py={5}>

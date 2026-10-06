@@ -5,8 +5,10 @@ import ProxiedImage from '@/components/shared/ProxiedImage';
 import HiveClient from '@/lib/hive/hiveclient';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
-import ReSnap from './ReSnap';
+import dynamic from 'next/dynamic';
 import { Comment } from '@hiveio/dhive';
+
+const ReSnap = dynamic(() => import('./ReSnap'), { ssr: false });
 
 interface HivePostPreviewProps {
   author: string;

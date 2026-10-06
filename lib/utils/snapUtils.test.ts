@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPrivateNetworkUrl, parseMediaContent, separateContent } from './snapUtils';
+import { isPrivateNetworkUrl, parseMediaContent, separateContent, snapTextForMarkdown } from './snapUtils';
 
 describe('isPrivateNetworkUrl', () => {
     it('flags RFC1918 private ranges', () => {
@@ -62,5 +62,17 @@ describe('parseMediaContent private-network filtering', () => {
     it('drops a raw iframe pointing at a private LAN address', () => {
         const items = parseMediaContent('<iframe src="http://192.168.1.1/admin"></iframe>');
         expect(items).toHaveLength(0);
+    });
+});
+
+describe('snapTextForMarkdown', () => {
+    it('keeps the words and drops a hive post url that renders as a card', () => {
+        const text = snapTextForMarkdown(
+            'See https://hive.blog/@alice/hello-world for context\n![pic](https://images.hive.blog/x.jpg)'
+        );
+        expect(text).toContain('See');
+        expect(text).toContain('for context');
+        expect(text).not.toContain('hive.blog/@alice');
+        expect(text).not.toContain('![');
     });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchPublicSnapPage } from './publicSnapFeed';
+import { fetchPublicSnapPage, getInitialPublicSnapPage, pinnedHomeFeedEnabled } from './publicSnapFeed';
 import { PUBLIC_SNAP_SEED_COUNT } from './publicSnapPage';
 
 const databaseCallMock = vi.fn();
@@ -123,5 +123,21 @@ describe('fetchPublicSnapPage', () => {
   it('rejects when the container walk fails so the caller can fall back', async () => {
     databaseCallMock.mockRejectedValueOnce(new Error('node down'));
     await expect(fetchPublicSnapPage()).rejects.toThrow('node down');
+  });
+
+  it('serves the checked-in fixture when SNAPIE_PINNED_FEED is exactly 1', async () => {
+    const previous = process.env.SNAPIE_PINNED_FEED;
+    process.env.SNAPIE_PINNED_FEED = '1';
+    try {
+      expect(pinnedHomeFeedEnabled()).toBe(true);
+      const page = await getInitialPublicSnapPage();
+      expect(databaseCallMock).not.toHaveBeenCalled();
+      expect(page?.comments).toHaveLength(15);
+      expect(page?.comments[0].author).toBeTruthy();
+      expect(page?.comments[0].permlink).toBeTruthy();
+    } finally {
+      if (previous === undefined) delete process.env.SNAPIE_PINNED_FEED;
+      else process.env.SNAPIE_PINNED_FEED = previous;
+    }
   });
 });

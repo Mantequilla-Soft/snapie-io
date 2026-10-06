@@ -9,9 +9,11 @@ interface ImageCarouselProps {
   onImageClick: (url: string) => void;
   /** Preload the visible slide. Only the home feed's first image sets this. */
   priority?: boolean;
+  /** First-viewport slide. Visible without waiting for onLoad. */
+  painted?: boolean;
 }
 
-export default function ImageCarousel({ urls, onImageClick, priority = false }: ImageCarouselProps) {
+export default function ImageCarousel({ urls, onImageClick, priority = false, painted = false }: ImageCarouselProps) {
   const [index, setIndex] = useState(0);
   const total = urls.length;
 
@@ -34,7 +36,7 @@ export default function ImageCarousel({ urls, onImageClick, priority = false }: 
             component instance otherwise keeps yesterday's failure showing
             even after the url prop moves on to an image that hasn't
             actually failed yet. */}
-        <ImageWithFallback key={urls[index]} url={urls[index]} alt={`Image ${index + 1} of ${total}`} priority={priority && index === 0} />
+        <ImageWithFallback key={urls[index]} url={urls[index]} alt={`Image ${index + 1} of ${total}`} priority={priority && index === 0} painted={painted} />
       </Box>
 
       {/* Prev arrow */}
