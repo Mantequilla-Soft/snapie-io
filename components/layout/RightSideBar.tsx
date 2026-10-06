@@ -258,12 +258,18 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       borderRadius={0}
       backdropFilter="blur(18px)"
       ref={sidebarRef}
-      id="scrollableDiv"
+      id="right-sidebar-scroll"
       sx={{
         '&::-webkit-scrollbar': { display: 'none' },
         scrollbarWidth: 'none',
       }}
     >
+      {/* Async widgets used to push Long Reads down after paint. The slot
+          stays at least as tall as stats + the daily vote row + a short
+          markets list, which is what actually lands here for a logged-out
+          visitor. A shorter result leaves a gap; a taller one can still
+          move Long Reads, but the common case does not. */}
+      <Box minH={{ base: 0, md: '240px' }}>
       {/* Community stats bar */}
       {communityStats !== null && (
         <>
@@ -293,6 +299,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       <SidebarEventsWidget />
 
       <TrendingMarketsWidget />
+      </Box>
 
       <Box px={2}>
         <Text
@@ -307,7 +314,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         >
           Long Reads
         </Text>
-        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" />
+        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" scrollableTarget="right-sidebar-scroll" />
       </Box>
     </Box>
   );

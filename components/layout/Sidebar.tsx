@@ -119,11 +119,14 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
         >
             <Flex direction="column" height="100%" px={forceCompact ? 1 : { sm: 1, md: 2 }}>
                 <VStack spacing={4} align={forceCompact ? 'center' : { sm: 'center', md: 'start' }} w="full">
+                    {/* Same box while the community title loads, so the nav
+                        links below do not jump when the avatar replaces the spinner. */}
+                    <Box minH="50px" mb={4} w="full" display="flex" alignItems="center">
                     {loading ? (
                         <Spinner size="sm" />
                     ) : (
                         <>
-                            <Flex align="center" mb={4} display={fullBreakpoint}>
+                            <Flex align="center" display={fullBreakpoint} minH="50px">
                                 {communityTag && (
                                     <Image
                                         src={getHiveAvatarUrl(communityTag, 'medium')}
@@ -136,7 +139,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 )}
                                 <Text fontSize="lg" fontWeight="bold" letterSpacing="-0.03em">{communityInfo?.title}</Text>
                             </Flex>
-                            <Box display={compactBreakpoint} mb={4} w="40px" h="40px">
+                            <Box display={compactBreakpoint} w="40px" h="40px">
                                 {communityTag && (
                                     <Image
                                         src={getHiveAvatarUrl(communityTag, 'small')}
@@ -151,6 +154,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Box>
                         </>
                     )}
+                    </Box>
 
                     <Tooltip label="Home" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">

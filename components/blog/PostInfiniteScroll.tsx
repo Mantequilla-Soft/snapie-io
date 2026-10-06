@@ -10,6 +10,8 @@ interface PostsInfiniteScrollProps {
     viewMode: 'grid' | 'list';
     hasMore?: boolean;
     searchMode?: boolean;
+    /** Overflow element this list listens to. Defaults to the shared feed id. */
+    scrollableTarget?: string;
 }
 
 export default function PostsInfiniteScroll({
@@ -18,6 +20,7 @@ export default function PostsInfiniteScroll({
     viewMode,
     hasMore = true,
     searchMode = false,
+    scrollableTarget = 'scrollableDiv',
 }: PostsInfiniteScrollProps) {
 
     return (
@@ -30,7 +33,7 @@ export default function PostsInfiniteScroll({
                     <Spinner size="xl" color="primary" />
                 </Box>
                 )}
-            scrollableTarget="scrollableDiv"
+            scrollableTarget={scrollableTarget}
         >
             {allPosts && (
                 <PostGrid

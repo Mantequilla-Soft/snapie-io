@@ -10,13 +10,12 @@ import { MdTranslate } from "react-icons/md";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
+import { separateContent, extractHivePostUrls, extractHangoutUrls, SPEAK_AUDIO_IFRAME_HEIGHT_PX } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
-import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
-import { isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
+import { feedMediaSlotAspect, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -64,7 +63,7 @@ interface SnapProps {
     eagerMedia?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, eagerMedia = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -400,7 +399,11 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         onlyImages
                                     />
                                     {mediaHasEmbed(media) && (
-                                        <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                                        <OffscreenGate
+                                            rootMargin={MEDIA_GATE_MARGIN}
+                                            unmountedAspectRatio={feedMediaSlotAspect(media)}
+                                            unmountedMinHeight={/audio\.3speak\.tv/i.test(media) ? SPEAK_AUDIO_IFRAME_HEIGHT_PX : 0}
+                                        >
                                             <MediaRenderer mediaContent={media} skipImages />
                                         </OffscreenGate>
                                     )}
@@ -408,11 +411,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                             ) : (
                             <OffscreenGate
                                 rootMargin={MEDIA_GATE_MARGIN}
-                                unmountedAspectRatio={
-                                    // 4/3 matches ImageWithFallback. Embeds size themselves,
-                                    // so reserving 4/3 for those would shift the card on mount.
-                                    reserveMediaSpace && isPlainFeedImageMedia(media) ? IMAGE_ASPECT_RATIO : undefined
-                                }
+                                unmountedAspectRatio={feedMediaSlotAspect(media)}
+                                unmountedMinHeight={/audio\.3speak\.tv/i.test(media) ? SPEAK_AUDIO_IFRAME_HEIGHT_PX : 0}
                             >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
