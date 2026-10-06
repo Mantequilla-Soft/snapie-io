@@ -231,14 +231,27 @@ export function selectFirstScreenLcpImageSync(
   return null;
 }
 
+export interface FirstScreenMediaPlan {
+  /** First suitable photo, or null when none of the painted images qualify. */
+  lcp: FirstScreenLcpImage | null;
+  /**
+   * GIF and video URLs in this screen. They are never the priority image.
+   * Extensionless files are included when the probe reports image/gif or
+   * a video type. Oversized photos are not included.
+   */
+  deferredUrls: string[];
+}
+
 /**
- * Server pick. Probes every candidate that is not already a GIF or video,
- * then walks in order. The first suitable photo wins.
+ * One probe pass for the painted screen.
+ * Suitability rules are unchanged: GIF, video, and anything over the size
+ * cap still never become `lcp`. GIF and video URLs are also returned so the
+ * client can keep their bytes off the critical connection.
  */
-export async function selectFirstScreenLcpImage(
+export async function inspectFirstScreenMedia(
   bodies: Array<string | null | undefined>,
   probe: (rawUrl: string) => Promise<LcpImageProbe | null>,
-): Promise<FirstScreenLcpImage | null> {
+): Promise<FirstScreenMediaPlan> {
   const candidates = listFirstScreenLcpCandidates(bodies);
   const metas = await Promise.all(candidates.map(async (candidate) => {
     if (!lcpCandidateNeedsProbe(candidate.rawUrl)) return null;
@@ -248,13 +261,61 @@ export async function selectFirstScreenLcpImage(
       return null;
     }
   }));
+  const deferredUrls: string[] = [];
+  let lcp: FirstScreenLcpImage | null = null;
   for (let i = 0; i < candidates.length; i++) {
     const candidate = candidates[i];
-    if (isSuitableLcpCandidate(candidate.rawUrl, metas[i])) {
-      return candidate;
-    }
+    const meta = metas[i];
+    const kind = classifyFeedMediaUrl(candidate.rawUrl, meta?.contentType);
+    if (kind === 'gif' || kind === 'video') deferredUrls.push(candidate.rawUrl);
+    if (!lcp && isSuitableLcpCandidate(candidate.rawUrl, meta)) lcp = candidate;
   }
-  return null;
+  return { lcp, deferredUrls };
+}
+
+/**
+ * Server pick. Probes every candidate that is not already a GIF or video,
+ * then walks in order. The first suitable photo wins.
+ */
+export async function selectFirstScreenLcpImage(
+  bodies: Array<string | null | undefined>,
+  probe: (rawUrl: string) => Promise<LcpImageProbe | null>,
+): Promise<FirstScreenLcpImage | null> {
+  const plan = await inspectFirstScreenMedia(bodies, probe);
+  return plan.lcp;
+}
+
+/**
+ * True when this URL must not be requested until the viewer plays it or
+ * scrolls it near the viewport. A priority photo is never deferred, so the
+ * LCP image still ships in the first HTML. Extensionless URLs are deferred
+ * only when the server probe put them in `knownHeavy` (content-type gif or
+ * video). The picker rules are not involved here.
+ */
+export function shouldDeferNonPriorityMedia(
+  rawUrl: string,
+  priority: boolean,
+  knownHeavy?: ReadonlySet<string> | null,
+): boolean {
+  if (priority) return false;
+  const kind = classifyFeedMediaUrl(rawUrl);
+  if (kind === 'gif' || kind === 'video') return true;
+  return Boolean(knownHeavy?.has(rawUrl));
+}
+
+/** Video embeds that download a player. Audio and tweets are not included. */
+export function isDeferredVideoEmbed(src: string): boolean {
+  if (/audio\.3speak\.tv/i.test(src)) return false;
+  if (/platform\.twitter\.com/i.test(src)) return false;
+  const kind = classifyFeedMediaUrl(src);
+  if (kind === 'gif' || kind === 'video') return true;
+  return /play\.3speak\.tv|(?:^|\/\/)(?:www\.)?3speak\.tv|youtube\.com|youtube-nocookie\.com|youtu\.be|vimeo\.com|dailymotion\.com|odysee\.com|rumble\.com/i.test(src);
+}
+
+/** Reserved box for a video poster. Shorts stay vertical; everything else is 16/9. */
+export function deferredEmbedAspect(src: string): number {
+  if (/\/shorts\/|youtube\.com\/shorts/i.test(src)) return 9 / 16;
+  return 16 / 9;
 }
 
 /**

@@ -12,7 +12,8 @@ import {
   finalizeAudio3SpeakEmbedUrl,
 } from "@/lib/utils/snapUtils";
 import { resolveFeedImageSrc } from "@/lib/images/feedImageSrc";
-import { classifyFeedMediaUrl } from "@/lib/images/feedLcp";
+import { classifyFeedMediaUrl, deferredEmbedAspect, isDeferredVideoEmbed } from "@/lib/images/feedLcp";
+import { DeferredMediaGate } from "@/components/shared/DeferredFeedMedia";
 
 const VideoRenderer = dynamic(() => import("@/components/layout/VideoRenderer"), { ssr: false });
 const SnapieSpeakAudio = dynamic(() => import("@/components/shared/SnapieSpeakAudio"), { ssr: false });
@@ -219,7 +220,9 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
         if (item.type === "video" && item.src) {
           return (
             <Box key={index} mb={2}>
-              <VideoRenderer src={item.src} />
+              <DeferredMediaGate defer aspectRatio={deferredEmbedAspect(item.src)}>
+                <VideoRenderer src={item.src} />
+              </DeferredMediaGate>
             </Box>
           );
         }
@@ -245,7 +248,11 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
             const key = speakVideoKeyFromUrl(item.src);
             if (key) {
               const [author, permlink] = key.split("/");
-              return <ThreeSpeakVideoPlayer key={key} author={author} permlink={permlink} />;
+              return (
+                <DeferredMediaGate key={key} defer aspectRatio={deferredEmbedAspect(item.src)}>
+                  <ThreeSpeakVideoPlayer author={author} permlink={permlink} />
+                </DeferredMediaGate>
+              );
             }
           }
 
@@ -253,6 +260,18 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
           const isVertical3Speak = Boolean(
             speakKey && item.src.includes("play.3speak.tv") && verticalSpeakKeys.has(speakKey)
           );
+
+          if (item.src && isDeferredVideoEmbed(item.src)) {
+            return (
+              <DeferredMediaGate
+                key={item.src ?? `iframe-${index}`}
+                defer
+                aspectRatio={deferredEmbedAspect(item.src)}
+              >
+                <IframeEmbedBox item={item} isVertical3Speak={isVertical3Speak} />
+              </DeferredMediaGate>
+            );
+          }
 
           return (
             <IframeEmbedBox

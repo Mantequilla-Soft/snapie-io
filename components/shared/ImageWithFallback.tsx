@@ -3,7 +3,8 @@ import { Box, Skeleton } from '@chakra-ui/react';
 import NextImage, { type ImageLoader } from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
-import { FEED_IMAGE_ASPECT_RATIO, feedLcpImageUrl } from '@/lib/images/feedLcp';
+import { FEED_IMAGE_ASPECT_RATIO, classifyFeedMediaUrl, feedLcpImageUrl, shouldDeferNonPriorityMedia } from '@/lib/images/feedLcp';
+import { DeferredMediaGate, useKnownHeavyMediaUrls } from '@/components/shared/DeferredFeedMedia';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -48,6 +49,10 @@ const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, qu
  * start the moment the card mounts. next/image also covers the cached-image
  * case (a remount where `complete` is already true) that used to need a
  * manual ref check.
+ *
+ * GIF and video files are the exception. They are never the priority image,
+ * and an eager request still competes with that image on the critical
+ * connection. Those stay a poster until play or a near-viewport scroll.
  */
 export const IMAGE_ASPECT_RATIO = FEED_IMAGE_ASPECT_RATIO;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
@@ -70,10 +75,47 @@ function ImageFallback() {
 const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false, painted = false }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const knownHeavy = useKnownHeavyMediaUrls();
   const resolved = resolveFeedImageSrc(url);
+  const defer = shouldDeferNonPriorityMedia(url, priority, knownHeavy);
 
   if (hasError || !resolved) {
     return <ImageFallback />;
+  }
+
+  // Playback uses the proxy (or the raw file for a video) and skips the
+  // optimizer. The optimizer would fetch the whole GIF during the click,
+  // and it would flatten the animation to one frame.
+  if (defer) {
+    const kind = classifyFeedMediaUrl(url);
+    return (
+      <DeferredMediaGate defer aspectRatio={IMAGE_ASPECT_RATIO}>
+        <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
+          {kind === 'video' ? (
+            <video
+              src={url}
+              controls
+              playsInline
+              preload="metadata"
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          ) : (
+            <NextImage
+              src={resolved.src}
+              alt={alt}
+              fill
+              sizes={FEED_IMAGE_SIZES}
+              unoptimized
+              loading="lazy"
+              decoding="async"
+              style={{ objectFit: 'cover' }}
+              onLoad={() => setIsLoaded(true)}
+              onError={() => setHasError(true)}
+            />
+          )}
+        </Box>
+      </DeferredMediaGate>
+    );
   }
 
   // A first-viewport image has to paint from the server HTML. Opacity 0

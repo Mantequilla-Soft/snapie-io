@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { createElement } from 'react';
 import ImageWithFallback from './ImageWithFallback';
+import { DeferredMediaUrlProvider } from './DeferredFeedMedia';
 
 afterEach(() => cleanup());
 
@@ -93,6 +94,55 @@ describe('ImageWithFallback', () => {
     const tile = screen.getByRole('img', { name: 'Image unavailable' });
     expect(tile.getAttribute('data-image-fallback')).toBe('');
     expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('does not request a non-priority GIF until play', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://media.giphy.com/media/abc/giphy.gif',
+      alt: 'a gif',
+      painted: true,
+    }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('video')).toBeNull();
+    expect(container.innerHTML).not.toContain('giphy.gif');
+    fireEvent.click(screen.getByRole('button', { name: 'Play media' }));
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(decodedSrc(img)).toContain('giphy.gif');
+    expect(img?.getAttribute('fetchpriority')).not.toBe('high');
+  });
+
+  it('does not request a markdown video until play', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://cdn.example.com/clip.mp4',
+      alt: 'a clip',
+      painted: true,
+    }));
+    expect(container.querySelector('video')).toBeNull();
+    expect(container.innerHTML).not.toContain('clip.mp4');
+    fireEvent.click(screen.getByRole('button', { name: 'Play media' }));
+    expect(container.querySelector('video')?.getAttribute('src')).toBe('https://cdn.example.com/clip.mp4');
+  });
+
+  it('still paints a GIF immediately when it is the priority image', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://media.giphy.com/media/abc/giphy.gif',
+      alt: 'a gif',
+      priority: true,
+    }));
+    expect(container.querySelector('img')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Play media' })).toBeNull();
+    expect(container.querySelector('img')?.getAttribute('fetchpriority')).toBe('high');
+  });
+
+  it('holds an extensionless file the server marked as a GIF', () => {
+    const url = 'https://ipfs.3speak.tv/ipfs/QmExample';
+    const { container } = render(createElement(DeferredMediaUrlProvider, {
+      urls: [url],
+      children: createElement(ImageWithFallback, { url, alt: 'ipfs', painted: true }),
+    }));
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.innerHTML).not.toContain('QmExample');
   });
 
   it('shows the same tile when the url can never be an image', () => {

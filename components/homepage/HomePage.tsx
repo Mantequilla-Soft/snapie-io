@@ -25,6 +25,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
+import { DeferredMediaUrlProvider } from '@/components/shared/DeferredFeedMedia';
 
 const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
 const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
@@ -111,10 +112,13 @@ function HomeSearchParams() {
 export default function Home({
   initialSnapPage = null,
   lcpImageUrl,
+  deferredMediaUrls,
 }: {
   initialSnapPage?: PublicSnapPage | null;
   /** Server-chosen priority photo. Null means none of the painted images qualified. */
   lcpImageUrl?: string | null;
+  /** GIF and video URLs from the server probe, including extensionless files. */
+  deferredMediaUrls?: string[];
 }) {
   //console.log('author', process.env.NEXT_PUBLIC_THREAD_AUTHOR);
   const thread_author = 'peak.snaps';
@@ -403,6 +407,7 @@ export default function Home({
     : 0;
 
   return (
+    <DeferredMediaUrlProvider urls={deferredMediaUrls}>
     <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 4 }} px={{ base: 0, md: 4 }}>
       <Suspense fallback={null}>
         <HomeSearchParams />
@@ -486,5 +491,6 @@ export default function Home({
       {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
       <ScrollToTopButton visible={showScrollTop && !conversation} onClick={handleScrollTopClick} />
     </Flex>
+    </DeferredMediaUrlProvider>
   );
 }
