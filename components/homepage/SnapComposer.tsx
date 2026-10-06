@@ -1,21 +1,19 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem, VisuallyHidden } from '@chakra-ui/react';
+import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, VisuallyHidden } from '@chakra-ui/react';
+import dynamic from 'next/dynamic';
 import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import GiphySelector from './GiphySelector';
 import ImageUploader from './ImageUploader';
-import AudioRecorder from './AudioRecorder';
-import { IGif } from '@giphy/js-types';
+import type { IGif } from '@giphy/js-types';
 import { CloseIcon } from '@chakra-ui/icons';
 import { FaImage, FaVideo, FaMicrophone, FaSmile } from 'react-icons/fa';
 import { MdGif } from 'react-icons/md';
-import { ALL_COMMON_EMOJIS, insertEmoji, getSelectionFromTextarea } from '@snapie/composer';
+import { insertEmoji, getSelectionFromTextarea } from '@snapie/composer';
 import { Comment } from '@hiveio/dhive';
 import { getLastSnapsContainer, uploadImageWithKeychain, signAndBroadcastWithKeychain } from '@/lib/hive/client-functions';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { aggregateBeneficiaries, type Beneficiary } from '@/lib/utils/aggregateBeneficiaries';
 import { snapOpenAttributeKey } from '@/lib/utils/openAttribute';
-import MemePickerModal from './MemePickerModal';
 import ProxiedImage from '@/components/shared/ProxiedImage';
 
 // SDK imports
@@ -30,6 +28,11 @@ import {
     bufferFileInMemory
 } from '@snapie/operations/video';
 import { pickVideoFile } from '@/lib/utils/pickVideoFile';
+
+const GiphySelector = dynamic(() => import('./GiphySelector'), { ssr: false });
+const AudioRecorder = dynamic(() => import('./AudioRecorder'), { ssr: false });
+const MemePickerModal = dynamic(() => import('./MemePickerModal'), { ssr: false });
+const EmojiGrid = dynamic(() => import('./EmojiGrid'), { ssr: false });
 
 // Type for tracking image upload state
 interface UploadingImage {
@@ -72,6 +75,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [isLoading, setIsLoading] = useState(false);
     const { percentHbd } = useUserSettings();
     const [isMemePickerOpen, setIsMemePickerOpen] = useState(false);
+    const [isEmojiOpen, setEmojiOpen] = useState(false);
     const [memeBeneficiaries, setMemeBeneficiaries] = useState<Beneficiary[]>([]);
     const [memeTemplateIds, setMemeTemplateIds] = useState<string[]>([]);
     const [isMemeUploading, setIsMemeUploading] = useState(false);
@@ -520,34 +524,21 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     >
                         <MdGif size={44} />
                     </Button>
-                    <Menu>
-                        <MenuButton
-                            as={Button}
+                    <Box position="relative">
+                        <Button
                             variant="ghost" borderRadius="full"
                             color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                             isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                             aria-label="Emoji"
+                            aria-expanded={isEmojiOpen}
+                            onClick={() => setEmojiOpen((open) => !open)}
                         >
                             <FaSmile size={20} />
-                        </MenuButton>
-                        <MenuList maxH="200px" overflowY="auto" display="grid" gridTemplateColumns="repeat(6, 1fr)" gap={1} p={2} bg="surface" borderColor="surfaceBorder">
-                            {ALL_COMMON_EMOJIS.map((emoji, index) => (
-                                <MenuItem
-                                    key={index}
-                                    onClick={() => handleEmojiClick(emoji)}
-                                    minH="32px"
-                                    w="32px"
-                                    display="flex"
-                                    alignItems="center"
-                                    justifyContent="center"
-                                    fontSize="lg"
-                                    p={1}
-                                >
-                                    {emoji}
-                                </MenuItem>
-                            ))}
-                        </MenuList>
-                    </Menu>
+                        </Button>
+                        {isEmojiOpen && (
+                            <EmojiGrid onPick={(emoji) => { handleEmojiClick(emoji); setEmojiOpen(false); }} />
+                        )}
+                    </Box>
                     <Button
                         variant="ghost" borderRadius="full"
                         aria-label="Add video"
@@ -738,7 +729,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     }}
                 />
             )}
-            {user && (
+            {user && isAudioRecorderOpen && (
                 <AudioRecorder
                     isOpen={isAudioRecorderOpen}
                     onClose={() => setAudioRecorderOpen(false)}
@@ -746,10 +737,12 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     username={user}
                 />
             )}
-            <MemePickerModal
-                isOpen={isMemePickerOpen}
-                onClose={() => setIsMemePickerOpen(false)}
-            />
+            {isMemePickerOpen && (
+                <MemePickerModal
+                    isOpen={isMemePickerOpen}
+                    onClose={() => setIsMemePickerOpen(false)}
+                />
+            )}
         </Box>
     );
 });

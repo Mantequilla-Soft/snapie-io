@@ -1,4 +1,5 @@
-import { Box, Text, HStack, Button, Link, VStack, Flex, Wrap, WrapItem, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalFooter, Textarea, Spinner, useToast } from '@chakra-ui/react';
+import { Box, Text, HStack, Button, Link, VStack, Flex, Wrap, WrapItem, Spinner } from '@chakra-ui/react';
+import dynamic from 'next/dynamic';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
@@ -41,6 +42,9 @@ import { isSnapieCommunityPost } from '@/lib/discovery/snapTrending';
 import { usePatronStatus } from '@/hooks/usePatronStatus';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { translationCache } from '@/lib/utils/translationCache';
+import { lazyToast } from '@/lib/ui/lazyToast';
+
+const SnapEditModal = dynamic(() => import('./SnapEditModal'), { ssr: false });
 
 // Deeper replies than this render flush with their ancestor instead of
 // indenting further — unbounded nesting crushes the card width on mobile.
@@ -83,7 +87,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     const { getTier } = usePatronStatus();
     const { getEquippedBadge } = useMoodBadges();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
-    const toast = useToast();
+    const toast = lazyToast;
     
     // Check if user can edit (is author and post is less than 7 days old)
     const canEdit = useMemo(() => {
@@ -564,36 +568,15 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                 </Flex>
             </Box>
             
-            {/* Edit Modal */}
-            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} size="xl">
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>Edit Post</ModalHeader>
-                    <ModalBody>
-                        <Textarea
-                            value={editedBody}
-                            onChange={(e) => setEditedBody(e.target.value)}
-                            placeholder="Edit your post..."
-                            rows={10}
-                            bg="background"
-                            border="tb1"
-                        />
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button variant="ghost" mr={3} onClick={() => setIsEditModalOpen(false)} isDisabled={isEditing}>
-                            Cancel
-                        </Button>
-                        <Button
-                            colorScheme="blue"
-                            onClick={handleEditPost}
-                            isLoading={isEditing}
-                            loadingText="Updating..."
-                        >
-                            Update
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
+            {isEditModalOpen && (
+                <SnapEditModal
+                    body={editedBody}
+                    isEditing={isEditing}
+                    onChange={setEditedBody}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onSubmit={handleEditPost}
+                />
+            )}
             
             {/* Render replies recursively */}
             {replies && replies.length > 0 && (

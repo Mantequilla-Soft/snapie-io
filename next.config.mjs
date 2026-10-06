@@ -30,6 +30,10 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '10mb', // Increase the body size limit
         },
+        // Rewrite `import { Box } from '@chakra-ui/react'` to the component
+        // file. The package barrel otherwise keeps Modal, Menu, Tooltip, and
+        // their Emotion/framer-motion code in the home graph.
+        optimizePackageImports: ['@chakra-ui/react', '@chakra-ui/icons', 'framer-motion'],
     },
     images: {
         // AVIF when the browser asks for it, WebP otherwise. Sharp (a

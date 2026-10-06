@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { useAioha } from '@aioha/react-ui'
 import { KeyTypes } from '@aioha/aioha'
-import LoginModal from '@/components/auth/LoginModal'
+import dynamic from 'next/dynamic'
 import HiveClient from '@/lib/hive/hiveclient'
 import { useHiveUser } from '@/contexts/UserContext'
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext'
@@ -19,6 +19,8 @@ import { notifyViewerSession } from '@/lib/auth/viewerSession'
 import type { HiveAccount } from '@/hooks/useHiveAccount'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
 import { getLoginProviders } from '@/lib/hive/aioha'
+
+const LoginModal = dynamic(() => import('@/components/auth/LoginModal'), { ssr: false })
 
 interface LoginModalContextValue {
   isOpen: boolean

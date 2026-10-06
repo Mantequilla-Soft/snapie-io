@@ -38,7 +38,7 @@ function Harness() {
 afterEach(cleanup)
 
 describe('LoginModalProvider', () => {
-  it('mounts wallet links only while login is open, including after reopen', () => {
+  it('mounts wallet links only while login is open, including after reopen', async () => {
     render(
       <LoginModalProvider>
         <Harness />
@@ -48,7 +48,7 @@ describe('LoginModalProvider', () => {
     expect(screen.queryByText('Keychain')).toBeNull()
 
     fireEvent.click(screen.getByText('Open login'))
-    expect(screen.getByText('Keychain')).toBeTruthy()
+    expect(await screen.findByText('Keychain')).toBeTruthy()
     expect(screen.getByText('Peak Vault')).toBeTruthy()
     expect(screen.getByText('HiveAuth')).toBeTruthy()
     expect(screen.getByText('Ledger')).toBeTruthy()
@@ -57,7 +57,7 @@ describe('LoginModalProvider', () => {
     expect(screen.queryByText('Keychain')).toBeNull()
 
     fireEvent.click(screen.getByText('Open login'))
-    expect(screen.getByText('Keychain')).toBeTruthy()
+    expect(await screen.findByText('Keychain')).toBeTruthy()
     expect(screen.getByText('Ledger')).toBeTruthy()
   })
 })

@@ -1,5 +1,5 @@
 'use client';
-import { Tooltip, Box } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import { FiStar } from 'react-icons/fi';
 import type { PatronTier } from '@/hooks/usePatronStatus';
 
@@ -48,8 +48,8 @@ export default function PatronBadge({ tier }: PatronBadgeProps) {
   if (!style) return null;
 
   return (
-    <Tooltip label={style.description} hasArrow fontSize="xs">
-      <Box
+    <Box
+        title={style.description}
         as="span"
         display="inline-flex"
         alignItems="center"
@@ -70,7 +70,6 @@ export default function PatronBadge({ tier }: PatronBadgeProps) {
       >
         <FiStar size={9} />
         {style.label}
-      </Box>
-    </Tooltip>
+    </Box>
   );
 }

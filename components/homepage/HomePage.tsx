@@ -7,7 +7,6 @@ import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'rea
 import dynamic from 'next/dynamic';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import { ExtendedComment } from '@/hooks/useComments';
-import Conversation from '@/components/homepage/Conversation';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import { useBlendedFeed } from '@/hooks/useBlendedFeed';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
@@ -29,6 +28,7 @@ import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
 
 const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
 const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
+const Conversation = dynamic(() => import('@/components/homepage/Conversation'), { ssr: false });
 
 /** Sidebar JS (post cards, swiper) waits until the LCP image has painted.
  *  On a phone the sidebar is display:none; this only changes when its

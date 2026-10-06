@@ -1,4 +1,4 @@
-import { Box, Tooltip } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 import ProxiedImage from '@/components/shared/ProxiedImage';
 import { MoodBadgeSku, MOOD_BADGES } from '@/lib/moodBadges/constants';
 
@@ -17,8 +17,8 @@ export interface MoodBadgeIconProps {
 export function MoodBadgeIcon({ sku, username, size = '16px' }: MoodBadgeIconProps) {
   const badge = MOOD_BADGES[sku];
   return (
-    <Tooltip label={`@${username} is feeling ${badge.feeling}`} hasArrow placement="top">
-      <Box
+    <Box
+        title={`@${username} is feeling ${badge.feeling}`}
         position="relative"
         boxSize={size}
         borderRadius="full"
@@ -30,7 +30,6 @@ export function MoodBadgeIcon({ sku, username, size = '16px' }: MoodBadgeIconPro
         <Box position="absolute" inset={0}>
           <ProxiedImage url={badge.imageSrc} alt={badge.label} sizes="48px" />
         </Box>
-      </Box>
-    </Tooltip>
+    </Box>
   );
 }
