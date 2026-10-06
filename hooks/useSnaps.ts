@@ -50,6 +50,12 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
   // container. Resume from the head; permlink dedup drops the snaps already shown.
   const lastContainerRef = useRef<lastContainerInfo | null>(hasSeed ? initialPage!.cursor : null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
+  // One snap container can hold hundreds of replies. Committing them all in
+  // one React update inserts a tall block under the viewport and Chrome
+  // reports the cards on screen as a layout shift. Hold the overflow here
+  // and release `pageMinSize` rows per pagination tick.
+  const pendingRepliesRef = useRef<ExtendedComment[]>([]);
+  const pendingApiHasMoreRef = useRef(true);
   const followingListRef = useRef<string[]>([]);
   const isFetchingRef = useRef(false);
   const isThrottledRef = useRef(false);
@@ -167,7 +173,20 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
   // running to completion in the background, and we skip writing
   // lastContainerRef when cancelled so a stale fetch can never clobber the
   // pagination cursor a newer fetch is relying on.
+  function takePendingPage(): { comments: ExtendedComment[]; hasMoreData: boolean } | null {
+    if (pendingRepliesRef.current.length === 0) return null;
+    const page = pendingRepliesRef.current.slice(0, pageMinSize);
+    pendingRepliesRef.current = pendingRepliesRef.current.slice(pageMinSize);
+    return {
+      comments: page,
+      hasMoreData: pendingRepliesRef.current.length > 0 || pendingApiHasMoreRef.current,
+    };
+  }
+
   async function getMoreSnaps(isCancelled: () => boolean): Promise<{ comments: ExtendedComment[]; hasMoreData: boolean }> {
+    const buffered = takePendingPage();
+    if (buffered) return buffered;
+
     const tag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG || ''
     const author = "peak.snaps";
     const limit = 3;
@@ -214,6 +233,14 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
 
       for (let i = 0; i < result.length; i++) {
         const resultItem = result[i];
+        // The cursor query repeats its start container. Its replies are
+        // already in the feed or in the pending buffer; walking them again
+        // would page out duplicates and stall the next real container.
+        if (fetchedPermlinksRef.current.has(resultItem.permlink)) {
+          permlink = resultItem.permlink;
+          date = resultItem.created;
+          continue;
+        }
         const comments = allReplies[i] as ExtendedComment[];
 
         let filteredComments: ExtendedComment[] = [];
@@ -248,7 +275,17 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
       lastContainerRef.current = { permlink, date };
     }
 
-    return { comments: allFilteredComments, hasMoreData };
+    if (isCancelled()) {
+      return { comments: [], hasMoreData };
+    }
+
+    pendingApiHasMoreRef.current = hasMoreData;
+    const page = allFilteredComments.slice(0, pageMinSize);
+    pendingRepliesRef.current = allFilteredComments.slice(pageMinSize);
+    return {
+      comments: page,
+      hasMoreData: pendingRepliesRef.current.length > 0 || hasMoreData,
+    };
   }
 
   // Reset when filter changes. The mount pass keeps a server-rendered public
@@ -262,6 +299,8 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
     leftSeedRef.current = true;
     lastContainerRef.current = null;
     fetchedPermlinksRef.current.clear();
+    pendingRepliesRef.current = [];
+    pendingApiHasMoreRef.current = true;
     isFetchingRef.current = false;
     setComments([]);
     setHasMore(true);
@@ -373,6 +412,8 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
   const refresh = () => {
     lastContainerRef.current = null;
     fetchedPermlinksRef.current.clear();
+    pendingRepliesRef.current = [];
+    pendingApiHasMoreRef.current = true;
     isFetchingRef.current = false;
     setComments([]);
     setHasMore(true);

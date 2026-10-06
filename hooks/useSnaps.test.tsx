@@ -270,6 +270,33 @@ describe('useSnaps initial server page', () => {
     expect(new Set(permlinks).size).toBe(permlinks.length);
   });
 
+  it('releases a large container a page at a time instead of one tall insert', async () => {
+    const many = Array.from({ length: 25 }, (_, i) => reply(`p${i}`));
+    databaseCallMock
+      .mockResolvedValueOnce([container('c1')])
+      .mockResolvedValueOnce(many);
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'all' }));
+
+    await waitFor(() => expect(result.current.comments).toHaveLength(10));
+    expect(result.current.comments.map(c => c.permlink)).toEqual(many.slice(0, 10).map(c => c.permlink));
+    const callsAfterFirstPage = databaseCallMock.mock.calls.length;
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      result.current.loadNextPage();
+    });
+    await waitFor(() => expect(result.current.comments).toHaveLength(20));
+    expect(databaseCallMock.mock.calls.length).toBe(callsAfterFirstPage);
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      result.current.loadNextPage();
+    });
+    await waitFor(() => expect(result.current.comments).toHaveLength(25));
+    expect(result.current.hasMore).toBe(true);
+  });
+
   it('resumes after the last fully consumed container and dedupes the spilled prefix', async () => {
     const prefix: PublicSnapPage = {
       comments: [reply('a'), reply('b'), reply('c')] as unknown as ExtendedComment[],
