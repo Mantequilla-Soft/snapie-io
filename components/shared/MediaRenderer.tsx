@@ -79,6 +79,8 @@ interface MediaRendererProps {
   priorityUrl?: string;
   /** First-viewport images paint without a fade. Priority still means preload. */
   painted?: boolean;
+  /** First card. Its first photo keeps a src even when it is not the priority file. */
+  lead?: boolean;
   /** Render markdown images only. The home LCP card uses this so an embed
    *  iframe is not a second early document on the critical path. */
   onlyImages?: boolean;
@@ -103,7 +105,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = false, lead = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -251,7 +253,7 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} painted={painted} />
+              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} painted={painted} lead={lead && index === 0} />
             </Box>
           );
         }
@@ -259,7 +261,7 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
         if (group.kind === 'carousel') {
           return (
             <Box key={index} maxW="540px" mx="auto">
-              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} painted={painted} />
+              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} painted={painted} lead={lead && index === 0} />
             </Box>
           );
         }

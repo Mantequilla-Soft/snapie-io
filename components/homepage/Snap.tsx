@@ -68,9 +68,11 @@ interface SnapProps {
     imagePriority?: boolean;
     /** The photo URL that should receive fetchpriority=high. */
     priorityImageUrl?: string;
+    /** First card. Its photo stays in the server HTML when another file is the priority image. */
+    leadPhoto?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, eagerMedia = false, imagePriority = false, priorityImageUrl }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, eagerMedia = false, imagePriority = false, priorityImageUrl, leadPhoto = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -434,6 +436,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         priority={imagePriority}
                                         priorityUrl={priorityImageUrl}
                                         painted
+                                        lead={leadPhoto}
                                         onlyImages
                                     />
                                     {mediaHasEmbed(media) && (
@@ -635,7 +638,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
         prevProps.eagerMedia === nextProps.eagerMedia &&
         prevProps.imagePriority === nextProps.imagePriority &&
-        prevProps.priorityImageUrl === nextProps.priorityImageUrl
+        prevProps.priorityImageUrl === nextProps.priorityImageUrl &&
+        prevProps.leadPhoto === nextProps.leadPhoto
     );
 });
 

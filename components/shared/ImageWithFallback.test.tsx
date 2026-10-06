@@ -106,6 +106,26 @@ describe('ImageWithFallback', () => {
     }
   });
 
+  it('keeps the lead photo in the document while another priority image is loading', () => {
+    const priority = document.createElement('img');
+    priority.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(priority, 'complete', { configurable: true, get: () => false });
+    document.body.appendChild(priority);
+    try {
+      const { container } = render(createElement(ImageWithFallback, {
+        url: 'https://example.com/lead.jpg',
+        alt: 'lead',
+        painted: true,
+        lead: true,
+      }));
+      expect(container.querySelector('[data-feed-image-held]')).toBeNull();
+      expect(decodedSrc(container.querySelector('img'))).toContain('https://example.com/lead.jpg');
+      expect(container.querySelector('img')?.getAttribute('fetchpriority')).not.toBe('high');
+    } finally {
+      priority.remove();
+    }
+  });
+
   it('holds a non-painted photo while the priority image is still loading', async () => {
     const priority = document.createElement('img');
     priority.setAttribute('fetchpriority', 'high');
