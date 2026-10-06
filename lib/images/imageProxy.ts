@@ -16,9 +16,17 @@
  * - redirects are followed manually (capped) and each hop is re-checked
  * - size, timeout, declared content-type, and magic-byte checks; raster
  *   images only (no SVG)
+ *
+ * When the original URL fails with an upstream 4xx/5xx, a non-image body,
+ * or a transport error, one retry goes to Hive's public cache
+ * (`https://images.hive.blog/0x0/<original>`). That hop uses the same SSRF
+ * checks, size cap, and timeout. A URL that is already on images.hive.blog
+ * is not sent there again. A known generic stand-in body from that host is
+ * a failure, so the UI can show its own fallback instead of Hive's picture.
  */
 import http from 'node:http';
 import https from 'node:https';
+import { createHash } from 'node:crypto';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import type { LookupAddress, LookupOptions } from 'node:dns';
 import { BlockList, isIP } from 'node:net';
@@ -107,10 +115,66 @@ export type ProxyUpstream = {
     body: Buffer;
 };
 
+export type ProxiedImage = {
+    body: Buffer;
+    contentType: string;
+    /** Set when the bytes came from Hive's cache after the original URL failed. */
+    fallback?: 'hive';
+};
+
+/**
+ * sha256 hex of a generic image images.hive.blog may return with HTTP 200
+ * for a URL it does not actually have. Observed on 2026-10-06, uncached
+ * misses are 403 text/plain or 400 JSON (already rejected by the status
+ * and content-type checks), not a 200 stand-in, so this set starts empty.
+ * A digest added here is treated as a miss.
+ */
+export const HIVE_PLACEHOLDER_SHA256: ReadonlySet<string> = new Set();
+
+const HIVE_IMAGE_HOST = 'images.hive.blog';
+
+/** Failures worth one Hive-cache retry. Policy rejections are not. */
+const HIVE_FALLBACK_CODES = new Set([
+    'upstream-status',
+    'not-image',
+    'content-type',
+    'upstream-error',
+    'dns-failed',
+    'dns-empty',
+    'timeout',
+    'dns-timeout',
+]);
+
 export type ImageProxyDeps = {
     resolve: (hostname: string, signal: AbortSignal) => Promise<ProxyAddress[]>;
     request: (target: URL, address: ProxyAddress, signal: AbortSignal) => Promise<ProxyUpstream>;
+    /** Defaults to {@link HIVE_PLACEHOLDER_SHA256}. */
+    placeholderHashes?: ReadonlySet<string>;
 };
+
+export function sha256Hex(body: Buffer): string {
+    return createHash('sha256').update(body).digest('hex');
+}
+
+export function isHivePlaceholderImage(body: Buffer, hashes: ReadonlySet<string> = HIVE_PLACEHOLDER_SHA256): boolean {
+    return hashes.size > 0 && hashes.has(sha256Hex(body));
+}
+
+/**
+ * Hive cache URL for an original that is not already on images.hive.blog.
+ * The original href is appended raw (`/0x0/https://...`), which is the
+ * form that host serves. Returns null when a retry would point at itself.
+ */
+export function hiveImageFallbackUrl(originalHref: string): string | null {
+    let original: URL;
+    try {
+        original = new URL(originalHref);
+    } catch {
+        return null;
+    }
+    if (normalizeHostname(original.hostname) === HIVE_IMAGE_HOST) return null;
+    return `https://${HIVE_IMAGE_HOST}/0x0/${original.href}`;
+}
 
 function normalizeHostname(hostname: string): string {
     let host = hostname.trim().toLowerCase();
@@ -409,12 +473,12 @@ async function resolvePublicAddress(url: URL, deps: ImageProxyDeps, signal: Abor
     return records[0];
 }
 
-export async function fetchProxiedImage(
-    rawUrl: string,
-    deps: ImageProxyDeps = defaultDeps,
+async function fetchProxiedOnce(
+    start: URL,
+    deps: ImageProxyDeps,
+    signal: AbortSignal,
 ): Promise<{ body: Buffer; contentType: string }> {
-    const signal = AbortSignal.timeout(TIMEOUT_MS);
-    let current = assertSafeProxyUrl(rawUrl);
+    let current = start;
 
     for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
         const address = await resolvePublicAddress(current, deps, signal);
@@ -439,4 +503,42 @@ export async function fetchProxiedImage(
     }
 
     throw new ImageProxyError(502, 'too-many-redirects');
+}
+
+function canRetryViaHive(err: unknown): err is ImageProxyError {
+    return err instanceof ImageProxyError && HIVE_FALLBACK_CODES.has(err.code);
+}
+
+export async function fetchProxiedImage(
+    rawUrl: string,
+    deps: ImageProxyDeps = defaultDeps,
+): Promise<ProxiedImage> {
+    const signal = AbortSignal.timeout(TIMEOUT_MS);
+    const original = assertSafeProxyUrl(rawUrl);
+
+    try {
+        return await fetchProxiedOnce(original, deps, signal);
+    } catch (err) {
+        if (!canRetryViaHive(err)) throw err;
+        const fallbackHref = hiveImageFallbackUrl(original.href);
+        if (!fallbackHref) throw err;
+
+        let fallbackUrl: URL;
+        try {
+            fallbackUrl = assertSafeProxyUrl(fallbackHref);
+        } catch {
+            throw err;
+        }
+
+        let image: { body: Buffer; contentType: string };
+        try {
+            image = await fetchProxiedOnce(fallbackUrl, deps, signal);
+        } catch {
+            throw err;
+        }
+        if (isHivePlaceholderImage(image.body, deps.placeholderHashes)) {
+            throw new ImageProxyError(502, 'hive-placeholder');
+        }
+        return { ...image, fallback: 'hive' };
+    }
 }
