@@ -62,4 +62,22 @@ describe('installDeferredScriptResponse', () => {
     expect(html).toContain('data-snapie-src="/_next/static/chunks/app-aaa.js"');
     expect(html).toContain('DOMContentLoaded');
   });
+
+  it('replaces Content-Length when writeHead already advertised the original size', async () => {
+    const server = createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.setHeader('content-length', String(Buffer.byteLength(HTML)));
+      res.writeHead(200);
+      res.end(HTML);
+    });
+    servers.push(server);
+    const port = await listen(server);
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    const text = await res.text();
+    expect(res.status).toBe(200);
+    expect(Number(res.headers.get('content-length'))).toBe(Buffer.byteLength(text));
+    expect(text).toContain('data-snapie-src="/_next/static/chunks/app-aaa.js"');
+    expect(text).toContain('</body></html>');
+    expect(text).toContain('DOMContentLoaded');
+  });
 });
