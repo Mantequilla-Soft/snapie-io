@@ -1,13 +1,18 @@
 'use client';
 import { Box, Link, Skeleton, Text } from '@chakra-ui/react';
-import NextImage from 'next/image';
+import NextImage, { type ImageLoader } from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
+import { feedLcpImageUrl } from '@/lib/images/feedLcp';
 
 interface ImageWithFallbackProps {
   url: string;
   alt: string;
+  /** First feed image. Visible in the server HTML, preloaded, fixed 640px. */
+  priority?: boolean;
 }
+
+const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, quality);
 
 /**
  * A failed image load (dead link, expired CDN URL, or a browser/ad-blocker
@@ -89,7 +94,7 @@ function ImageFallback({ url }: { url: string }) {
   );
 }
 
-const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWithFallbackProps) {
+const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const resolved = resolveFeedImageSrc(url);
@@ -98,23 +103,30 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWit
     return <ImageFallback url={url} />;
   }
 
+  // A priority image is the home LCP candidate. It has to paint from the
+  // server HTML: an opacity of 0 until onLoad stays invisible until
+  // hydration, and a shimmer of the same box can become the LCP element
+  // instead of the photo. Later images keep the fade.
+  const hiddenUntilLoad = !priority;
+
   return (
     <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
-      {/* Shimmer while the image downloads — the fixed-aspect box otherwise
-          sits blank with no hint anything is happening, which on mobile
-          bandwidth reads as the feed being stuck rather than loading. */}
-      {!isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
+      {hiddenUntilLoad && !isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
       <NextImage
         src={resolved.src}
         alt={alt}
         fill
         sizes={FEED_IMAGE_SIZES}
-        loading="eager"
+        loader={priority && !resolved.unoptimized ? feedLcpLoader : undefined}
+        priority={priority}
+        loading={priority ? undefined : 'eager'}
+        decoding={priority ? 'sync' : 'async'}
         unoptimized={resolved.unoptimized}
         style={{
           objectFit: 'cover',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 0.15s ease-out',
+          ...(hiddenUntilLoad
+            ? { opacity: isLoaded ? 1 : 0, transition: 'opacity 0.15s ease-out' }
+            : null),
         }}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}

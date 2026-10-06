@@ -43,6 +43,8 @@ DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
 
 interface MediaRendererProps {
   mediaContent: string;
+  /** Preload the first plain image. Home feed only, for the LCP card. */
+  priority?: boolean;
 }
 
 // Module-scope caches, deliberately outside React state: SnapList's Virtuoso
@@ -238,7 +240,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -313,6 +315,10 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
     return null;
   }
 
+  const priorityIndex = priority
+    ? groupedItems.findIndex((group) => group.kind === 'single-image' || group.kind === 'carousel')
+    : -1;
+
   return (
     <Box mb={4} ref={wrapperRef} data-snapie-media-layout>
       {lightboxUrl && typeof document !== 'undefined' && createPortal(
@@ -367,7 +373,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <ImageWithFallback url={group.url} alt="Post media" />
+              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} />
             </Box>
           );
         }
@@ -375,7 +381,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
         if (group.kind === 'carousel') {
           return (
             <Box key={index} maxW="540px" mx="auto">
-              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} />
+              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} />
             </Box>
           );
         }
