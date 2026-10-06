@@ -18,6 +18,7 @@ import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
+import { resolveFeedImageSrc } from "@/lib/images/feedImageSrc";
 
 /**
  * This module's DOMPurify.sanitize() call below allows the `style` attribute on
@@ -342,7 +343,7 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
             onClick={() => setLightboxUrl(null)}
           />
           <Image
-            src={lightboxUrl}
+            src={resolveFeedImageSrc(lightboxUrl)?.src ?? ''}
             alt="Full size image"
             maxH="90vh"
             maxW="90vw"
