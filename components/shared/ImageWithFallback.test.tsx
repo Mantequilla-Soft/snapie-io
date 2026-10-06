@@ -137,10 +137,11 @@ describe('ImageWithFallback', () => {
 
   it('holds an extensionless file the server marked as a GIF', () => {
     const url = 'https://ipfs.3speak.tv/ipfs/QmExample';
-    const { container } = render(createElement(DeferredMediaUrlProvider, {
-      urls: [url],
-      children: createElement(ImageWithFallback, { url, alt: 'ipfs', painted: true }),
-    }));
+    const { container } = render(createElement(
+      DeferredMediaUrlProvider,
+      { urls: [url] },
+      createElement(ImageWithFallback, { url, alt: 'ipfs', painted: true }),
+    ));
     expect(container.querySelector('img')).toBeNull();
     expect(container.innerHTML).not.toContain('QmExample');
   });
