@@ -14,12 +14,20 @@ import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
 // OffscreenGate's doc comment for how this differs from SnapList's
 // whole-card gate.
 const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
+
+/** The 4/3 slot matches ImageWithFallback. Embeds and players size themselves
+ *  differently, so reserving 4/3 for those would shift the card when they mount. */
+function isImageOnlyMedia(media: string): boolean {
+    if (!/!\[.*?\]\(.*?\)/.test(media)) return false;
+    return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
+}
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
@@ -54,9 +62,11 @@ interface SnapProps {
      *  Optional since not every data source has one yet. */
     refreshComment?: (author: string, permlink: string) => Promise<void> | void;
     level?: number; // Added level for indentation
+    /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
+    reserveMediaSpace?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0 }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -316,13 +326,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                             href={`/@${comment.author}`}
                                             fontWeight="semibold"
                                             fontSize="sm"
+                                            lineHeight="24px"
+                                            minH="24px"
+                                            display="inline-flex"
+                                            alignItems="center"
                                             noOfLines={1}
                                             _hover={{ color: 'primary' }}
                                         >
                                             @{comment.author}
                                         </Link>
                                         <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
-                                        <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
+                                        <Text fontSize="sm" color="overlay.500" flexShrink={0} suppressHydrationWarning>{commentDate}</Text>
                                     </HStack>
                                 </WrapItem>
                                 {getTier(comment.author) && <WrapItem><PatronBadge tier={getTier(comment.author)} /></WrapItem>}
@@ -376,7 +390,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                            <OffscreenGate
+                                rootMargin={MEDIA_GATE_MARGIN}
+                                unmountedAspectRatio={
+                                    reserveMediaSpace && isImageOnlyMedia(media) ? IMAGE_ASPECT_RATIO : undefined
+                                }
+                            >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
                         )}
@@ -476,7 +495,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2} pr={2}>
                             <VoteControls
                                 initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
-                                initialVoteCount={comment.active_votes?.length || 0}
+                                initialVoteCount={comment.active_votes?.length ?? comment.voteCount ?? 0}
                                 onVote={handleVote}
                                 onVoteOptimistic={async (weight) => setOptimisticDeltaHBD(await calculateDelta(weight))}
                                 onVoteRollback={() => setOptimisticDeltaHBD(0)}
@@ -561,8 +580,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     // Only re-render if the comment permlink or active_votes length changes
     return (
         prevProps.comment.permlink === nextProps.comment.permlink &&
-        prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
-        prevProps.level === nextProps.level
+        (prevProps.comment.active_votes?.length ?? prevProps.comment.voteCount) ===
+            (nextProps.comment.active_votes?.length ?? nextProps.comment.voteCount) &&
+        prevProps.level === nextProps.level &&
+        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace
     );
 });
 

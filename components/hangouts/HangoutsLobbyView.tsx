@@ -135,7 +135,22 @@ function GuestLobby() {
   );
 }
 
-export default function HangoutsLobbyView({ roomName }: HangoutsLobbyViewProps) {
+export default function HangoutsLobbyView(props: HangoutsLobbyViewProps) {
+  // CI and any build without NEXT_PUBLIC_HANGOUTS_API_URL used to skip this
+  // tree entirely (the layout bailed out of SSR). Now that the page renders
+  // on the server, constructing HangoutsApiClient with an empty base URL
+  // throws. Show a plain fallback instead of failing the build.
+  if (!API_URL) {
+    return (
+      <Center p={12}>
+        <Text color="primary" fontSize="sm">Hangouts are not configured.</Text>
+      </Center>
+    );
+  }
+  return <ConfiguredHangoutsLobby {...props} />;
+}
+
+function ConfiguredHangoutsLobby({ roomName }: HangoutsLobbyViewProps) {
   const { aioha } = useAioha();
   const { username: user, isSnapie } = useCurrentUser();
   const aiohaAdapter = useHangoutsAiohaAdapter();

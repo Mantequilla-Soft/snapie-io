@@ -63,6 +63,9 @@ interface SnapListProps {
    *  defines for itself — see PostPage's own call site for why it needs to
    *  pass something else. */
   scrollableTargetId?: string
+  /** Leading cards whose contents are in the first HTML. 0 keeps every card
+   *  unmounted until the observer approaches it. */
+  paintedCount?: number
 }
 
 interface InfiniteScrollData {
@@ -96,6 +99,7 @@ export default function SnapList(
     discoveryItems,
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
+    paintedCount = 0,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -346,7 +350,7 @@ export default function SnapList(
         </HStack>
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
-        {displayComments.map(comment => (
+        {displayComments.map((comment, index) => (
           // One element serves three roles: the data-snap-key anchor the
           // pagination/reconciliation observers track (must never
           // disappear), the content-visibility target (native
@@ -358,10 +362,17 @@ export default function SnapList(
           // nested divs — see OffscreenGate's doc comment for why a nested
           // IntersectionObserver target inside a content-visibility:auto
           // ancestor is fragile.
+          // The leading `paintedCount` cards start mounted so their author,
+          // body, and counts are in the server HTML. The rest reserve 400px
+          // (the same stand-in as contain-intrinsic-size) so a collapsed
+          // list doesn't pull the sentinel into the 2000px prefetch margin.
+          // Media stays behind its own gate — a placeholder, not a video.
           <OffscreenGate
             key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
             rootMargin={CARD_GATE_MARGIN}
+            initiallyMounted={index < paintedCount}
+            unmountedMinHeight={paintedCount > 0 && index >= paintedCount ? 400 : 0}
             sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
           >
             <Snap
@@ -369,6 +380,7 @@ export default function SnapList(
               onOpen={onOpen}
               setReply={setReply}
               refreshComment={refreshComment}
+              reserveMediaSpace={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>

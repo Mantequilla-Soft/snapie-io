@@ -16,6 +16,9 @@ interface ActiveVote {
 }
 export interface ExtendedComment extends Comment {
     active_votes?: ActiveVote[]
+    /** Vote total when the raw `active_votes` array was not serialized (the
+     *  public feed seed). Cards prefer `active_votes.length` when present. */
+    voteCount?: number
     replies?: ExtendedComment[]
     /** Set only by useBlendedFeed — undefined everywhere else means "snap". */
     source?: 'snap' | 'wave'
