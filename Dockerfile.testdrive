@@ -5,7 +5,12 @@
 # navigator.language does not. That read now falls back to "en". After the
 # fix, route handlers, middleware, streaming SSR, node:http/https in
 # /api/image-proxy, and the sharp /_next/image optimizer all run on Bun.
-# The runtime stage stays on Bun.
+#
+# The final stage is oven/bun:1.4.2-distroless. It does not include the
+# Debian slim rootfs, the install tree, or the build cache. sharp's glibc
+# build needs libstdc++ and libgcc, which that base does not ship, so those
+# two libraries are copied in. The musl libvips build is not: this runtime
+# is glibc.
 
 FROM oven/bun:1.4.2 AS deps
 WORKDIR /app
@@ -23,9 +28,11 @@ COPY . .
 COPY .env.testdrive.example .env.production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN bun run build
+RUN bun run build \
+ && find .next/standalone/node_modules -name '*linuxmusl*' -prune -exec rm -rf {} + \
+ && mkdir -p /tmp/next-cache
 
-FROM oven/bun:1.4.2-slim AS runner
+FROM oven/bun:1.4.2-distroless AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -36,24 +43,25 @@ ENV HOSTNAME=0.0.0.0
 # Off unless set to 1. The rewrite reads this at server start.
 ENV SNAPIE_DEFER_FRAMEWORK_SCRIPTS=0
 
-RUN groupadd --system --gid 1001 snapie \
-  && useradd --system --uid 1001 --gid snapie --home-dir /app --shell /usr/sbin/nologin snapie
+COPY --from=build /lib/x86_64-linux-gnu/libstdc++.so.6.0.33 /lib/x86_64-linux-gnu/libstdc++.so.6
+COPY --from=build /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
 
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
+COPY --from=build --chown=65532:65532 /app/public ./public
+COPY --from=build --chown=65532:65532 /app/.next/standalone ./
+COPY --from=build --chown=65532:65532 /app/.next/static ./.next/static
 # instrumentation.ts require()s these from the working directory. Next does
 # not trace that dynamic path into standalone on its own.
-COPY --from=build \
+COPY --from=build --chown=65532:65532 \
   /app/lib/perf/installDeferredScriptResponse.js \
   /app/lib/perf/deferFrameworkScripts.js \
   ./lib/perf/
-RUN mkdir -p .next/cache && chown -R snapie:snapie /app
+COPY --from=build --chown=65532:65532 /tmp/next-cache ./.next/cache
 
-USER snapie
+USER 65532
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=25s --retries=12 \
-  CMD bun -e "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD ["/usr/local/bin/bun", "-e", "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 
-CMD ["bun", "server.js"]
+ENTRYPOINT ["/usr/local/bin/bun"]
+CMD ["server.js"]
