@@ -50,11 +50,28 @@ describe('OffscreenGate', () => {
   it('mounts when the clip scroller says the card is near', () => {
     vi.stubGlobal('IntersectionObserver', FakeObserver);
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
-    const { queryByText } = renderGate();
+    const { queryByText, container } = renderGate();
     act(() => {
       FakeObserver.instances[0].trigger(true, 220);
     });
     expect(queryByText('card body')).not.toBeNull();
+    const gate = container.firstElementChild as HTMLElement;
+    expect(gate.style.minHeight).toBe('');
+  });
+
+  it('keeps a media slot from collapsing once it has been measured', () => {
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const { container } = render(
+      <OffscreenGate rootMargin="100px 0px 100px 0px" unmountedAspectRatio={16 / 9} preserveHeight>
+        <p>player</p>
+      </OffscreenGate>,
+    );
+    act(() => {
+      FakeObserver.instances[0].trigger(true, 173);
+    });
+    const gate = container.firstElementChild as HTMLElement;
+    expect(gate.style.minHeight).toBe('173px');
   });
 
   it('keeps a card mounted once it has been shown', () => {
