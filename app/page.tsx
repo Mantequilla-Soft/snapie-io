@@ -415,6 +415,7 @@ export default function Home() {
               }
               discoveryItems={discoveryEnabled ? discoveryItems : undefined}
               discoveryEveryN={DISCOVERY_INTERLEAVE_EVERY_N}
+              optimizeHomeLcp
             />
           </>
         ) : (

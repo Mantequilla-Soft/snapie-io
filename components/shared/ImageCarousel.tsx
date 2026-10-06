@@ -7,9 +7,12 @@ import ImageWithFallback from '@/components/shared/ImageWithFallback';
 interface ImageCarouselProps {
   urls: string[];
   onImageClick: (url: string) => void;
+  /** Home-feed LCP photo, when this carousel's first slide is that photo. */
+  priorityUrl?: string | null;
+  deferUrls?: readonly string[];
 }
 
-export default function ImageCarousel({ urls, onImageClick }: ImageCarouselProps) {
+export default function ImageCarousel({ urls, onImageClick, priorityUrl = null, deferUrls }: ImageCarouselProps) {
   const [index, setIndex] = useState(0);
   const total = urls.length;
 
@@ -32,7 +35,13 @@ export default function ImageCarousel({ urls, onImageClick }: ImageCarouselProps
             component instance otherwise keeps yesterday's failure showing
             even after the url prop moves on to an image that hasn't
             actually failed yet. */}
-        <ImageWithFallback key={urls[index]} url={urls[index]} alt={`Image ${index + 1} of ${total}`} />
+        <ImageWithFallback
+          key={urls[index]}
+          url={urls[index]}
+          alt={`Image ${index + 1} of ${total}`}
+          priority={priorityUrl === urls[index]}
+          defer={deferUrls?.includes(urls[index]) ?? false}
+        />
       </Box>
 
       {/* Prev arrow */}
