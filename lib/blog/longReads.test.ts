@@ -5,6 +5,7 @@ import {
   isObviousTestPost,
   isRepeatedTestTokenText,
   isWithinLongReadWindow,
+  LONG_READS_MAX_AGE_DAYS,
   LONG_READS_MAX_AGE_MS,
   LONG_READS_MIN_WORDS,
   parseHiveCreatedMs,
@@ -45,6 +46,29 @@ describe('parseHiveCreatedMs', () => {
     expect(parseHiveCreatedMs('   ')).toBeNull();
     expect(parseHiveCreatedMs('not-a-date')).toBeNull();
     expect(parseHiveCreatedMs(undefined)).toBeNull();
+  });
+});
+
+describe('long read thresholds', () => {
+  it('is a 30-day window and a 300-word minimum', () => {
+    expect(LONG_READS_MAX_AGE_DAYS).toBe(30);
+    expect(LONG_READS_MIN_WORDS).toBe(300);
+    expect(LONG_READS_MAX_AGE_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it('keeps a 300-word post dated exactly 30 days ago and drops the day before', () => {
+    expect(qualifiesAsLongRead(post({
+      created: '2026-09-06T12:00:00',
+      body: words(300),
+    }), { now: NOW })).toBe(true);
+    expect(qualifiesAsLongRead(post({
+      created: '2026-09-05T12:00:00',
+      body: words(300),
+    }), { now: NOW })).toBe(false);
+    expect(qualifiesAsLongRead(post({
+      created: '2026-10-01T12:00:00',
+      body: words(299),
+    }), { now: NOW })).toBe(false);
   });
 });
 

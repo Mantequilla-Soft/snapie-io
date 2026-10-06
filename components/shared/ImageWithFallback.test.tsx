@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import { createElement } from 'react';
 import ImageWithFallback from './ImageWithFallback';
 import { DeferredMediaUrlProvider } from './DeferredFeedMedia';
+import { FEED_IMAGE_ASPECT_RATIO } from '@/lib/images/feedLcp';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  document.body.innerHTML = '';
+  vi.useRealTimers();
+});
 
 // Regression test: a failed image (dead link, expired CDN URL, or a
 // browser/ad-blocker silently refusing the request) used to just vanish —
@@ -141,6 +146,53 @@ describe('ImageWithFallback', () => {
     expect(screen.queryByRole('link')).toBeNull();
   });
 
+  it('releases a held photo on the priority-image timeout', async () => {
+    vi.useFakeTimers();
+    const priority = document.createElement('img');
+    priority.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(priority, 'complete', { configurable: true, get: () => false });
+    document.body.appendChild(priority);
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://example.com/other.jpg',
+      alt: 'other',
+      painted: true,
+    }));
+    const held = container.querySelector('[data-feed-image-held]') as HTMLElement | null;
+    expect(held).not.toBeNull();
+    expect(held?.style.aspectRatio).toBe(String(FEED_IMAGE_ASPECT_RATIO));
+    expect(container.querySelector('img')).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(decodedSrc(container.querySelector('img'))).toContain('https://example.com/other.jpg');
+    expect(container.querySelector('[data-feed-image-held]')).toBeNull();
+  });
+
+  it('keeps a 4/3 tile when the proxied image errors', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://cdn.discordapp.com/attachments/1/2/missing.png',
+      alt: 'a photo',
+    }));
+    const img = container.querySelector('img');
+    expect(decodedSrc(img)).toContain('/api/image-proxy?url=');
+    expect(decodedSrc(img)).not.toMatch(/^https?:\/\/cdn\.discordapp\.com/);
+    fireEvent.error(img!);
+    const tile = screen.getByRole('img', { name: 'Image unavailable' }) as HTMLElement;
+    expect(tile.getAttribute('data-image-fallback')).toBe('');
+    expect(tile.style.aspectRatio).toBe(String(FEED_IMAGE_ASPECT_RATIO));
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('shows the tile for a private host without requesting it', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'http://127.0.0.1/secret.jpg',
+      alt: 'secret',
+    }));
+    expect(container.querySelector('img')).toBeNull();
+    const tile = screen.getByRole('img', { name: 'Image unavailable' }) as HTMLElement;
+    expect(tile.style.aspectRatio).toBe(String(FEED_IMAGE_ASPECT_RATIO));
+  });
+
   it('does not request a non-priority GIF until play', () => {
     const { container } = render(createElement(ImageWithFallback, {
       url: 'https://media.giphy.com/media/abc/giphy.gif',
@@ -150,7 +202,10 @@ describe('ImageWithFallback', () => {
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('video')).toBeNull();
     expect(container.innerHTML).not.toContain('giphy.gif');
-    fireEvent.click(screen.getByRole('button', { name: 'Play media' }));
+    const poster = screen.getByRole('button', { name: 'Play media' }) as HTMLElement;
+    expect(poster.style.aspectRatio).toBe(String(FEED_IMAGE_ASPECT_RATIO));
+    expect(poster.style.width).toBe('100%');
+    fireEvent.click(poster);
     const img = container.querySelector('img');
     expect(img).not.toBeNull();
     expect(decodedSrc(img)).toContain('giphy.gif');
@@ -165,8 +220,14 @@ describe('ImageWithFallback', () => {
     }));
     expect(container.querySelector('video')).toBeNull();
     expect(container.innerHTML).not.toContain('clip.mp4');
-    fireEvent.click(screen.getByRole('button', { name: 'Play media' }));
-    expect(container.querySelector('video')?.getAttribute('src')).toBe('https://cdn.example.com/clip.mp4');
+    const poster = screen.getByRole('button', { name: 'Play media' }) as HTMLElement;
+    expect(poster.style.aspectRatio).toBe(String(FEED_IMAGE_ASPECT_RATIO));
+    fireEvent.click(poster);
+    const video = container.querySelector('video');
+    expect(video?.getAttribute('src')).toBe('https://cdn.example.com/clip.mp4');
+    expect(video?.getAttribute('autoplay')).toBeNull();
+    expect(video?.autoplay).toBe(false);
+    expect(video?.getAttribute('preload')).toBe('metadata');
   });
 
   it('still paints a GIF immediately when it is the priority image', () => {
@@ -182,11 +243,11 @@ describe('ImageWithFallback', () => {
 
   it('holds an extensionless file the server marked as a GIF', () => {
     const url = 'https://ipfs.3speak.tv/ipfs/QmExample';
-    const { container } = render(createElement(
-      DeferredMediaUrlProvider,
-      { urls: [url] },
-      createElement(ImageWithFallback, { url, alt: 'ipfs', painted: true }),
-    ));
+    const { container } = render(
+      <DeferredMediaUrlProvider urls={[url]}>
+        <ImageWithFallback url={url} alt="ipfs" painted />
+      </DeferredMediaUrlProvider>,
+    );
     expect(container.querySelector('img')).toBeNull();
     expect(container.innerHTML).not.toContain('QmExample');
   });

@@ -84,6 +84,7 @@ function ImageFallback() {
       role="img"
       aria-label="Image unavailable"
       data-image-fallback=""
+      style={{ aspectRatio: String(IMAGE_ASPECT_RATIO), width: '100%' }}
     />
   );
 }
@@ -157,6 +158,7 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
         width="100%"
         bg="whiteAlpha.200"
         data-feed-image-held=""
+        style={{ aspectRatio: String(IMAGE_ASPECT_RATIO), width: '100%' }}
       />
     );
   }
