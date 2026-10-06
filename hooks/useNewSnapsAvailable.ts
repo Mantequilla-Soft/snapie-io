@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -51,11 +52,16 @@ export function useNewSnapsAvailable({ source = 'snaps' }: UseNewSnapsAvailableP
       }
     }
 
-    poll();
-    const id = setInterval(poll, POLL_INTERVAL_MS);
+    let id = 0;
+    const cancelSchedule = scheduleAfterPriorityImage(() => {
+      if (cancelled) return;
+      poll();
+      id = window.setInterval(poll, POLL_INTERVAL_MS);
+    });
     return () => {
       cancelled = true;
-      clearInterval(id);
+      cancelSchedule();
+      window.clearInterval(id);
     };
   }, [source]);
 

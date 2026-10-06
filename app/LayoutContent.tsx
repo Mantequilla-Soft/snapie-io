@@ -5,7 +5,7 @@ import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect, ty
 import dynamic from 'next/dynamic';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import { afterPriorityImage } from '@/lib/perf/afterPriorityImage';
+import { afterPriorityImage, scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import { chatService } from '@/lib/chat/ChatService';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -123,9 +123,15 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (isEmbedMode) return;
-    refreshChatUnread();
-    const id = setInterval(refreshChatUnread, 30000);
-    return () => clearInterval(id);
+    let id = 0;
+    const cancel = scheduleAfterPriorityImage(() => {
+      refreshChatUnread();
+      id = window.setInterval(refreshChatUnread, 30000);
+    });
+    return () => {
+      cancel();
+      window.clearInterval(id);
+    };
   }, [isEmbedMode, refreshChatUnread]);
 
   useEffect(() => {

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { MoodBadgeSku, isMoodBadgeSku } from '@/lib/moodBadges/constants';
 import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 // Same shape as usePatronStatus.ts — a mood badge renders next to an avatar
 // wherever one appears, many components, no single shared ancestor worth
@@ -66,7 +67,9 @@ export function useMoodBadges() {
         }
       });
     };
-    load();
+    // The first fetch waits for the home priority photo. A login event
+    // still fetches immediately. Pages with no priority image start now.
+    const cancelSchedule = scheduleAfterPriorityImage(load);
 
     // Refetch every mounted consumer immediately after this device's own
     // equip/buy, instead of each one waiting up to CACHE_DURATION_MS for the
@@ -83,6 +86,7 @@ export function useMoodBadges() {
 
     return () => {
       cancelled = true;
+      cancelSchedule();
       window.removeEventListener(MOOD_BADGE_CHANGED_EVENT, onChanged);
       window.removeEventListener(VIEWER_SESSION_EVENT, load);
       window.removeEventListener('hiveuser-saved', load);

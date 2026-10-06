@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { Box, Button, HStack, Spinner, Text } from '@chakra-ui/react';
 import Snap from './Snap';
 import { ExtendedComment, useComments } from '@/hooks/useComments';
 import { useSnaps } from '@/hooks/useSnaps';
-import SnapComposer from './SnapComposer';
+import HomeComposer from './HomeComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { findClipScroller } from '@/lib/dom/scrollParent';
 import { bodyHasMarkdownImageUrl, paintedPriorityImageUrl } from '@/lib/images/feedLcp';
+import { useAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 type SortOrder = 'new' | 'top';
 
@@ -113,7 +114,12 @@ export default function SnapList(
   const [sortOrder, setSortOrder] = useState<SortOrder>('new');
 
   const [scrollParentEl, setScrollParentEl] = useState<HTMLElement | null>(null);
+  // Scroll and card observers read layout and queue a Hive refresh for
+  // every visible snap. That work waits until the priority photo has
+  // loaded so it is not on the critical path. The flip is a transition.
+  const interactionsReady = useAfterPriorityImage();
   useEffect(() => {
+    if (!interactionsReady) return;
     // The id the page passes is not always the box that clips. On desktop
     // the feed column scrolls; on a phone the layout scroller does. A root
     // that does not clip makes the sentinel look permanently visible.
@@ -122,7 +128,7 @@ export default function SnapList(
       && explicit.clientHeight <= window.innerHeight + 2;
     const fromList = findClipScroller(listRef.current);
     setScrollParentEl(explicitClips ? explicit : (fromList ?? explicit));
-  }, [scrollableTargetId, comments.length]);
+  }, [scrollableTargetId, comments.length, interactionsReady]);
 
   // `refresh`'s own identity changes every render (it's a plain closure
   // from useSnaps, not memoized) — read the latest value through a ref
@@ -300,6 +306,7 @@ export default function SnapList(
   loadNextPageRef.current = loadNextPage;
 
   useEffect(() => {
+    if (!interactionsReady) return;
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(([entry]) => {
@@ -308,16 +315,16 @@ export default function SnapList(
     }, { root: scrollParentEl, rootMargin: '2000px 0px' });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [scrollParentEl, hasMore]);
+  }, [scrollParentEl, hasMore, interactionsReady]);
 
   useEffect(() => {
-    if (isLoading || !hasMore) return;
+    if (!interactionsReady || isLoading || !hasMore) return;
     if (sentinelVisibleRef.current) loadNextPageRef.current();
     const retry = setTimeout(() => {
       if (sentinelVisibleRef.current) loadNextPageRef.current();
     }, 1100);
     return () => clearTimeout(retry);
-  }, [isLoading, hasMore, comments.length]);
+  }, [isLoading, hasMore, comments.length, interactionsReady]);
 
   if (isLoading && comments.length === 0) {
     return (
@@ -346,7 +353,7 @@ export default function SnapList(
 
   return (
     <>
-      {!post && <Box id="snap-composer"><SnapComposer pa={author} pp={permlink} onNewComment={handleNewComment} onClose={() => null} /></Box>}
+      {!post && <HomeComposer pa={author} pp={permlink} onNewComment={handleNewComment} />}
       {showSortToggle && (
         <HStack spacing={2} px={2} pt={3} pb={1}>
           {SORT_OPTIONS.map(opt => (
@@ -387,8 +394,11 @@ export default function SnapList(
           // card's photo is in the HTML too: a later card's image is often
           // the largest box in the first viewport, and a client-only mount
           // would make it the LCP after hydration.
-          index === 0 ? (
-            <Box key={snapKey(comment)} data-snap-key={snapKey(comment)}>
+          // Suspense is a hydration yield point so five cards are not one
+          // long task. The children do not suspend; fallback stays unused.
+          <Suspense key={snapKey(comment)} fallback={null}>
+          {index === 0 ? (
+            <Box data-snap-key={snapKey(comment)}>
               <Snap
                 comment={comment}
                 onOpen={onOpen}
@@ -403,7 +413,6 @@ export default function SnapList(
             </Box>
           ) : (
           <OffscreenGate
-            key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
             rootMargin={CARD_GATE_MARGIN}
             initiallyMounted={index < paintedCount}
@@ -422,7 +431,8 @@ export default function SnapList(
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
-          )
+          )}
+          </Suspense>
           );
         })}
       </Box>
