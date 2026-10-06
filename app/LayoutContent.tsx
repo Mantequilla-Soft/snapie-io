@@ -1,7 +1,7 @@
 'use client'
 import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
@@ -26,11 +26,18 @@ const DebugConsole = dynamic(() => import('@/components/debug/DebugConsole'), { 
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isComposePage = pathname === '/compose';
   const isShortsPage = pathname === '/shorts';
-  const isEmbedMode = searchParams.get('embed') === 'true';
-  const isChatPopoutMode = searchParams.get('chat_popout') === '1';
+  // useSearchParams() on this component bails the layout's suspense boundary
+  // out to client rendering (`BAILOUT_TO_CLIENT_SIDE_RENDERING`), so the home
+  // feed never makes it into the HTML. The flags are read in a nested
+  // boundary instead. Defaults match a normal visit; embed/popout URLs
+  // update before paint.
+  const [queryFlags, setQueryFlags] = useState({ embed: false, chatPopout: false });
+  const onQueryFlags = useCallback((flags: { embed: boolean; chatPopout: boolean }) => {
+    setQueryFlags(prev => (prev.embed === flags.embed && prev.chatPopout === flags.chatPopout ? prev : flags));
+  }, []);
+  const isEmbedMode = queryFlags.embed;
+  const isChatPopoutMode = queryFlags.chatPopout;
   const { activeRoom, closeRoom } = useHangout();
   const { settings } = useUserSettings();
   const { username: currentUsername } = useCurrentUser();
@@ -140,6 +147,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       minH="100dvh"
       bgGradient={baseGradient}
     >
+      <Suspense fallback={null}>
+        <LayoutQueryFlags onChange={onQueryFlags} />
+      </Suspense>
       <Box maxW="1320px" mx="auto" h="100dvh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100dvh">
           {!isEmbedMode && !isChatPopoutMode && (
@@ -228,4 +238,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <DebugConsole />
     </Box>
   );
+}
+
+function LayoutQueryFlags({ onChange }: { onChange: (flags: { embed: boolean; chatPopout: boolean }) => void }) {
+  const searchParams = useSearchParams();
+  const embed = searchParams.get('embed') === 'true';
+  const chatPopout = searchParams.get('chat_popout') === '1';
+  useLayoutEffect(() => {
+    onChange({ embed, chatPopout });
+  }, [embed, chatPopout, onChange]);
+  return null;
 }

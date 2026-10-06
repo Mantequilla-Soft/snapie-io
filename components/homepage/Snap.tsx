@@ -54,9 +54,11 @@ interface SnapProps {
      *  Optional since not every data source has one yet. */
     refreshComment?: (author: string, permlink: string) => Promise<void> | void;
     level?: number; // Added level for indentation
+    /** First-screen cards paint their media into the server HTML. */
+    priority?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0 }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priority = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -322,7 +324,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                             @{comment.author}
                                         </Link>
                                         <Text fontSize="sm" color="overlay.400" flexShrink={0}>·</Text>
-                                        <Text fontSize="sm" color="overlay.500" flexShrink={0}>{commentDate}</Text>
+                                        <Text fontSize="sm" color="overlay.500" flexShrink={0} suppressHydrationWarning>{commentDate}</Text>
                                     </HStack>
                                 </WrapItem>
                                 {getTier(comment.author) && <WrapItem><PatronBadge tier={getTier(comment.author)} /></WrapItem>}
@@ -376,7 +378,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN} initiallyMounted={priority}>
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
                         )}
@@ -562,7 +564,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     return (
         prevProps.comment.permlink === nextProps.comment.permlink &&
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
-        prevProps.level === nextProps.level
+        prevProps.level === nextProps.level &&
+        prevProps.priority === nextProps.priority
     );
 });
 
