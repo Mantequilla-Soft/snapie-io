@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
+import PostPage from '@/components/blog/PostPage';
+import NotificationsComp from '@/components/notifications/NotificationsComp';
+import ProfilePage from '@/components/profile/ProfilePage';
+import WalletPage from '@/components/wallet/WalletPage';
 import { getPostForMetadata, getProfileForMetadata } from '@/lib/hive/metadata-functions';
 import { buildPostMetadata, buildProfileMetadata } from '@/lib/utils/buildMetadata';
-import SlugPageClient from './SlugPageClient';
 
 interface PageProps {
   params: { slug: string[] };
@@ -55,6 +58,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {};
 }
 
+// Static imports, same as before the client next/dynamic() split. A dynamic()
+// import only started the view chunk after the shell executed, and Lantern
+// counted that second wave on the profile LCP. These imports are part of the
+// first HTML instead.
 export default function SlugPage({ params }: PageProps) {
-  return <SlugPageClient slug={params.slug} />;
+  const slug = params.slug ?? [];
+  const decoded0 = slug[0] ? decodeURIComponent(slug[0]) : '';
+  const decoded1 = slug[1] ? decodeURIComponent(slug[1]) : '';
+  const decoded2 = slug[2] ? decodeURIComponent(slug[2]) : '';
+
+  if (slug.length === 1 && decoded0.startsWith('@')) {
+    return <ProfilePage username={decoded0.substring(1)} />;
+  }
+  if (slug.length === 2 && decoded0.startsWith('@') && slug[1] === 'wallet') {
+    return <WalletPage username={decoded0.substring(1)} />;
+  }
+  if (slug.length === 2 && decoded0.startsWith('@') && slug[1] === 'notifications') {
+    return <NotificationsComp username={decoded0.substring(1)} />;
+  }
+  if (slug.length === 2 && decoded0.startsWith('@')) {
+    return <PostPage author={decoded0.substring(1)} permlink={decoded1} />;
+  }
+  if (slug.length === 3 && decoded1.startsWith('@')) {
+    return <PostPage author={decoded1.substring(1)} permlink={decoded2} />;
+  }
+  return null;
 }
