@@ -214,6 +214,38 @@ describe('RpcCoalescer', () => {
     expect(sendSingle).toHaveBeenCalledTimes(2);
   });
 
+  it('does not hold a per-snap lookup behind a discussion fetch', async () => {
+    const { coalescer, sendSingle, sendBatch, drain } = createHarness();
+    const heavy = coalescer.call('condenser_api', 'get_discussions_by_comments', [{ start_author: 'meno', start_permlink: '', limit: 20 }]);
+    const content = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+    const other = coalescer.call('condenser_api', 'get_content', ['b', 'two']);
+    expect(sendSingle).toHaveBeenCalledTimes(1);
+    expect(sendSingle.mock.calls[0][1]).toBe('get_discussions_by_comments');
+    await drain();
+    expect(sendBatch).toHaveBeenCalledTimes(1);
+    expect(sendBatch.mock.calls[0][0].map((request) => request.method)).toEqual([
+      'condenser_api.get_content',
+      'condenser_api.get_content',
+    ]);
+    await expect(heavy).resolves.toEqual({ single: [{ start_author: 'meno', start_permlink: '', limit: 20 }] });
+    await expect(content).resolves.toMatchObject({ params: ['a', 'one'] });
+    await expect(other).resolves.toMatchObject({ params: ['b', 'two'] });
+  });
+
+  it('dedupes an in-flight discussion fetch without batching it', async () => {
+    const gate = deferred<unknown>();
+    const sendSingle = vi.fn(() => gate.promise);
+    const sendBatch = vi.fn(async () => []);
+    const coalescer = new RpcCoalescer({ sendSingle, sendBatch, schedule: () => {} });
+    const first = coalescer.call('condenser_api', 'get_ranked_posts', { sort: 'created', limit: 8 });
+    const second = coalescer.call('condenser_api', 'get_ranked_posts', { sort: 'created', limit: 8 });
+    expect(second).toBe(first);
+    expect(sendSingle).toHaveBeenCalledTimes(1);
+    expect(sendBatch).not.toHaveBeenCalled();
+    gate.resolve({ posts: [] });
+    await expect(first).resolves.toEqual({ posts: [] });
+  });
+
   it('splits a turn that exceeds the batch size into several requests', async () => {
     const { coalescer, sendBatch, sendSingle, drain } = createHarness(2);
     const pending = [
