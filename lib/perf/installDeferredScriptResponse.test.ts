@@ -60,6 +60,6 @@ describe('installDeferredScriptResponse', () => {
 
     const html = await (await fetch(`http://127.0.0.1:${port}/`)).text();
     expect(html).toContain('data-snapie-src="/_next/static/chunks/app-aaa.js"');
-    expect(html).toContain('requestAnimationFrame');
+    expect(html).toContain('largest-contentful-paint');
   });
 });

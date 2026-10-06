@@ -24,8 +24,9 @@ describe('deferFrameworkScripts', () => {
     expect(mainPreload).toBeGreaterThan(preloadAt);
     expect(out.match(/rel="preload" as="script"/g)).toHaveLength(2);
 
-    expect(out).toContain('requestAnimationFrame');
-    expect(out.indexOf('data-snapie-src')).toBeLessThan(out.lastIndexOf('requestAnimationFrame'));
+    expect(out).toContain('largest-contentful-paint');
+    expect(out).toContain('setTimeout(release,80)');
+    expect(out.indexOf('data-snapie-src')).toBeLessThan(out.lastIndexOf('largest-contentful-paint'));
     expect(out.endsWith('</script></body></html>') || out.includes('</script></body>')).toBe(true);
   });
 
