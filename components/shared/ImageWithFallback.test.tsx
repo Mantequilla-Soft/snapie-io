@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { createElement } from 'react';
 import ImageWithFallback from './ImageWithFallback';
 import { DeferredMediaUrlProvider } from './DeferredFeedMedia';
@@ -75,6 +75,30 @@ describe('ImageWithFallback', () => {
     expect(img?.getAttribute('fetchpriority')).not.toBe('high');
     expect(img?.getAttribute('style') ?? '').not.toContain('opacity: 0');
     expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
+  });
+
+  it('does not request a painted sibling while the priority image is still loading', async () => {
+    const priority = document.createElement('img');
+    priority.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(priority, 'complete', { configurable: true, get: () => false });
+    document.body.appendChild(priority);
+    try {
+      const { container } = render(createElement(ImageWithFallback, {
+        url: 'https://example.com/other.jpg',
+        alt: 'other',
+        painted: true,
+      }));
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.querySelector('[data-feed-image-held]')).not.toBeNull();
+      priority.dispatchEvent(new Event('load'));
+      await waitFor(() => {
+        expect(container.querySelector('img')).not.toBeNull();
+      });
+      expect(decodedSrc(container.querySelector('img'))).toContain('https://example.com/other.jpg');
+      expect(container.querySelector('img')?.getAttribute('fetchpriority')).not.toBe('high');
+    } finally {
+      priority.remove();
+    }
   });
 
   it('optimizes a same-origin path directly instead of proxying it', () => {
