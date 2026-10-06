@@ -2,7 +2,8 @@ import { preload } from 'react-dom';
 import HomePage from '@/components/homepage/HomePage';
 import { getInitialPublicSnapPage } from '@/lib/hive/publicSnapFeed';
 import { renderSnapBodyHtml } from '@/lib/hive/renderSnapBodyHtml';
-import { firstScreenLcpImageUrl } from '@/lib/images/feedLcp';
+import { selectFirstScreenLcpImage } from '@/lib/images/feedLcp';
+import { probeFeedImageHead } from '@/lib/images/feedLcpProbe';
 import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
 // Short window: the public first page is shared by every logged-out visitor.
@@ -27,13 +28,22 @@ export default async function Page() {
   const blended = process.env.NEXT_PUBLIC_ENABLE_BLENDED_FEED === 'true';
   const initialSnapPage = blended ? null : withRenderedBody(await getInitialPublicSnapPage());
   // A photo in the first screen is the home LCP element once it paints.
-  // Card 0 is often text; the next painted snap's image is then larger.
-  // Preload that URL from this server component so it matches next/image.
-  const lcpImage = firstScreenLcpImageUrl(
-    (initialSnapPage?.comments ?? []).slice(0, SSR_PAINTED_SNAP_COUNT).map((comment) => comment.body),
-  );
+  // GIF, video, and anything over the size cap are not preloaded; the next
+  // suitable photo is. Framework-script deferral stays off unless
+  // SNAPIE_DEFER_FRAMEWORK_SCRIPTS is exactly "1".
+  const lcpBodies = (initialSnapPage?.comments ?? [])
+    .slice(0, SSR_PAINTED_SNAP_COUNT)
+    .map((comment) => comment.body);
+  const lcpImage = initialSnapPage
+    ? await selectFirstScreenLcpImage(lcpBodies, probeFeedImageHead)
+    : null;
   if (lcpImage) {
-    preload(lcpImage, { as: 'image', fetchPriority: 'high' });
+    preload(lcpImage.optimizerUrl, { as: 'image', fetchPriority: 'high' });
   }
-  return <HomePage initialSnapPage={initialSnapPage} />;
+  return (
+    <HomePage
+      initialSnapPage={initialSnapPage}
+      lcpImageUrl={initialSnapPage ? (lcpImage?.rawUrl ?? null) : undefined}
+    />
+  );
 }

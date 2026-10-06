@@ -18,6 +18,7 @@ import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
+import { classifyFeedMediaUrl } from "@/lib/images/feedLcp";
 
 /**
  * This module's DOMPurify.sanitize() call below allows the `style` attribute on
@@ -45,6 +46,8 @@ interface MediaRendererProps {
   mediaContent: string;
   /** Preload the first plain image. Home feed only, for the LCP card. */
   priority?: boolean;
+  /** When set, only this URL gets fetchpriority=high. GIF and video stay off it. */
+  priorityUrl?: string;
   /** First-viewport images paint without a fade. Priority still means preload. */
   painted?: boolean;
   /** Render markdown images only. The home LCP card uses this so an embed
@@ -247,7 +250,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent, priority = false, painted = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -323,7 +326,13 @@ const MediaRenderer = ({ mediaContent, priority = false, painted = false, onlyIm
   }
 
   const priorityIndex = priority
-    ? groupedItems.findIndex((group) => group.kind === 'single-image' || group.kind === 'carousel')
+    ? groupedItems.findIndex((group) => {
+        const url = group.kind === 'single-image' ? group.url : group.kind === 'carousel' ? group.urls[0] : '';
+        if (!url) return false;
+        if (priorityUrl) return url === priorityUrl;
+        const kind = classifyFeedMediaUrl(url);
+        return kind !== 'gif' && kind !== 'video';
+      })
     : -1;
 
   return (

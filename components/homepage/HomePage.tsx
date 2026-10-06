@@ -108,7 +108,14 @@ function HomeSearchParams() {
   return <ScrollJumpProbe scrollableId="scrollableDiv" />;
 }
 
-export default function Home({ initialSnapPage = null }: { initialSnapPage?: PublicSnapPage | null }) {
+export default function Home({
+  initialSnapPage = null,
+  lcpImageUrl,
+}: {
+  initialSnapPage?: PublicSnapPage | null;
+  /** Server-chosen priority photo. Null means none of the painted images qualified. */
+  lcpImageUrl?: string | null;
+}) {
   //console.log('author', process.env.NEXT_PUBLIC_THREAD_AUTHOR);
   const thread_author = 'peak.snaps';
   const thread_permlink = 'snaps';
@@ -455,6 +462,7 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
               discoveryItems={discoveryEnabled ? discoveryItems : undefined}
               discoveryEveryN={DISCOVERY_INTERLEAVE_EVERY_N}
               paintedCount={paintedCount}
+              lcpImageUrl={lcpImageUrl}
               // scrollableDiv grows to its content (flex min-height), so the
               // element that actually clips the feed is the layout scroller.
               // Observing the inner box treated the sentinel as already

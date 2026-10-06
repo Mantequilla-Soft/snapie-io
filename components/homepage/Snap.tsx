@@ -62,9 +62,11 @@ interface SnapProps {
     eagerMedia?: boolean;
     /** Preload this card's first photo. Only one card on the page sets this. */
     imagePriority?: boolean;
+    /** The photo URL that should receive fetchpriority=high. */
+    priorityImageUrl?: string;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false, imagePriority = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false, imagePriority = false, priorityImageUrl }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -400,6 +402,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         key={`media-${comment.permlink}`}
                                         mediaContent={media}
                                         priority={imagePriority}
+                                        priorityUrl={priorityImageUrl}
                                         painted
                                         onlyImages
                                     />
@@ -608,7 +611,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.level === nextProps.level &&
         prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
         prevProps.eagerMedia === nextProps.eagerMedia &&
-        prevProps.imagePriority === nextProps.imagePriority
+        prevProps.imagePriority === nextProps.imagePriority &&
+        prevProps.priorityImageUrl === nextProps.priorityImageUrl
     );
 });
 

@@ -7,6 +7,7 @@ import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { bodyHasMarkdownImageUrl, paintedPriorityImageUrl } from '@/lib/images/feedLcp';
 
 type SortOrder = 'new' | 'top';
 
@@ -40,15 +41,6 @@ const SORT_OPTIONS = ['new', 'top'] as const;
 
 const snapKey = (c: ExtendedComment) => `${c.author}/${c.permlink}`;
 
-function firstPaintedImageIndex(comments: ExtendedComment[], paintedCount: number): number {
-  // Card 0 is always eager, even when a caller does not pass paintedCount.
-  const limit = Math.max(paintedCount, 1);
-  for (let i = 0; i < Math.min(limit, comments.length); i++) {
-    if (/!\[[^\]]*]\([^)]*\)/.test(comments[i].body || '')) return i;
-  }
-  return -1;
-}
-
 interface SnapListProps {
   author: string
   permlink: string
@@ -75,6 +67,8 @@ interface SnapListProps {
   /** Leading cards whose contents are in the first HTML. 0 keeps every card
    *  unmounted until the observer approaches it. */
   paintedCount?: number
+  /** Photo the server preloaded. Null means do not mark any image priority. */
+  lcpImageUrl?: string | null
 }
 
 interface InfiniteScrollData {
@@ -109,6 +103,7 @@ export default function SnapList(
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
     paintedCount = 0,
+    lcpImageUrl,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -334,6 +329,12 @@ export default function SnapList(
   }
 
   const showSortToggle = post && comments.length > 1;
+  const priorityLimit = Math.max(paintedCount, 1);
+  const priorityImageUrl = paintedPriorityImageUrl(
+    displayComments.map((item) => item.body),
+    paintedCount,
+    lcpImageUrl,
+  );
 
   return (
     <>
@@ -360,7 +361,9 @@ export default function SnapList(
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
         {displayComments.map((comment, index) => {
-          const imagePriority = index === firstPaintedImageIndex(displayComments, paintedCount);
+          const imagePriority = index < priorityLimit
+            && priorityImageUrl != null
+            && bodyHasMarkdownImageUrl(comment.body || '', priorityImageUrl);
           return (
           // One element serves three roles: the data-snap-key anchor the
           // pagination/reconciliation observers track (must never
@@ -391,6 +394,7 @@ export default function SnapList(
                 reserveMediaSpace
                 eagerMedia
                 imagePriority={imagePriority}
+                priorityImageUrl={imagePriority ? priorityImageUrl ?? undefined : undefined}
                 {...(!post ? { setConversation } : {})}
               />
             </Box>
@@ -411,6 +415,7 @@ export default function SnapList(
               reserveMediaSpace={index < paintedCount}
               eagerMedia={index < paintedCount}
               imagePriority={imagePriority}
+              priorityImageUrl={imagePriority ? priorityImageUrl ?? undefined : undefined}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
