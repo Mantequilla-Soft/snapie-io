@@ -332,6 +332,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                             href={`/@${comment.author}`}
                                             fontWeight="semibold"
                                             fontSize="sm"
+                                            lineHeight="24px"
+                                            minH="24px"
+                                            display="inline-flex"
+                                            alignItems="center"
                                             noOfLines={1}
                                             _hover={{ color: 'primary' }}
                                         >
