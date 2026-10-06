@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Box, Heading, Text, Spinner, Alert, AlertIcon, Image, Container,
+  Box, Heading, Text, Spinner, Alert, AlertIcon, Container,
   Flex, Icon, Tabs, TabList, Tab, TabPanels, TabPanel,
   Button, useDisclosure,
 } from '@chakra-ui/react';
@@ -37,6 +37,7 @@ import { usePatronStatus } from '@/hooks/usePatronStatus';
 import PatronBadge from '@/components/shared/PatronBadge';
 import WitnessBadge from '@/components/shared/WitnessBadge';
 import AccountBadges from './AccountBadges';
+import ProfileCover from '@/components/shared/ProfileCover';
 
 interface ProfilePageProps {
   username: string;
@@ -266,12 +267,9 @@ export default function ProfilePage({ username }: ProfilePageProps) {
       {/* Cover image */}
       <Box position="relative" height="200px">
         <Container id="cover" maxW="container.lg" p={0} overflow="hidden" position="relative" height="100%">
-          <Image
-            src={coverImage}
+          <ProfileCover
+            url={coverImage}
             alt={`${hiveAccount?.name} cover`}
-            width="100%"
-            height="100%"
-            objectFit="cover"
             fallback={
               <Box
                 width="100%"
