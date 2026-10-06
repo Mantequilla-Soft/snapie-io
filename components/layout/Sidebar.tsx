@@ -160,6 +160,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/"
                                 aria-label="Home"
                                 onClick={handleHomeClick}
@@ -180,6 +181,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/explore"
                                 aria-label="Explore"
                                 variant="ghost"
@@ -198,6 +200,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/blog"
                                 aria-label="Blogs"
                                 variant="ghost"
@@ -217,6 +220,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Box w="full">
                                 <Button
                                     as={NextLink}
+                                prefetch={false}
                                     href="/leaderboard"
                                     aria-label="Leaderboard"
                                     variant="ghost"
@@ -237,6 +241,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Box w="full">
                                 <Button
                                     as={NextLink}
+                                prefetch={false}
                                     href="/games"
                                     aria-label="Games"
                                     variant="ghost"
@@ -256,6 +261,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/shorts"
                                 aria-label="Shorts"
                                 variant="ghost"
@@ -274,6 +280,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full" position="relative">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/hangouts"
                                 aria-label="OpenPods"
                                 variant="ghost"
@@ -295,6 +302,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Box w="full" position="relative">
                                     <Button
                                         as={NextLink}
+                                prefetch={false}
                                         href={`/@${user}/notifications`}
                                         aria-label="Notifications"
                                         variant="ghost"
@@ -325,6 +333,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Box w="full" position="relative">
                                     <Button
                                         as={NextLink}
+                                prefetch={false}
                                         href={`/@${user}/wallet`}
                                         aria-label="Wallet"
                                         variant="ghost"
@@ -382,6 +391,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Box w="full">
                                 <Button
                                     as={NextLink}
+                                prefetch={false}
                                     href="/settings"
                                     aria-label="Settings"
                                     variant="ghost"
@@ -403,6 +413,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Box w="full">
                                 <Button
                                     as={NextLink}
+                                prefetch={false}
                                     href="/settings/admin"
                                     aria-label="Admin"
                                     variant="ghost"
@@ -423,6 +434,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         <Box w="full">
                             <Button
                                 as={NextLink}
+                                prefetch={false}
                                 href="/support"
                                 aria-label="Support Snapie"
                                 variant="ghost"
@@ -476,6 +488,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 >
                                     <Flex
                                         as={NextLink}
+                                prefetch={false}
                                         href={`/@${user}`}
                                         align="center"
                                         gap={2}
@@ -520,6 +533,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     <Box display={compactBreakpoint} w="full">
                                         <Button
                                             as={NextLink}
+                                prefetch={false}
                                             href={`/@${user}`}
                                             aria-label={`@${user}`}
                                             variant="ghost"
@@ -566,6 +580,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     <Box w="full">
                                         <Button
                                             as={NextLink}
+                                prefetch={false}
                                             href="/join"
                                             aria-label="Create account"
                                             variant="ghost"

@@ -114,6 +114,7 @@ function Tab({ href, icon, label, active, dot, onClick }: TabProps) {
   return (
     <Flex
       as={NextLink}
+      prefetch={false}
       href={href}
       onClick={onClick}
       flex={1}
