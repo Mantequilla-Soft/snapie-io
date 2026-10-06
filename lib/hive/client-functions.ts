@@ -6,7 +6,7 @@ import { Account, Discussion, Notifications, PublicKey, PrivateKey, KeyRole } fr
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
 import {
-  getAioha,
+  ensureAioha,
   KeyTypes,
   Providers,
   broadcastOps,
@@ -768,9 +768,12 @@ export async function uploadImageWithKeychain(
     onProgress?: (progress: number) => void;
   }
 ): Promise<string> {
-  const aioha = getAioha();
   const { isSnapieMode } = await import('@/lib/hive/signing');
-  if (!isSnapieMode() && !aioha.isLoggedIn()) {
+  if (isSnapieMode()) {
+    return uploadTo3Speak(file, options);
+  }
+  const aioha = await ensureAioha();
+  if (!aioha.isLoggedIn()) {
     throw new Error('Not logged in');
   }
 
@@ -785,7 +788,7 @@ export async function uploadImageWithKeychain(
   // trimming this down without breaking the signature — the server
   // independently reconstructs sha256('ImageSigningChallenge' + the file it
   // received), so the challenge is inherently exactly as large as the file.
-  if (isSnapieMode() || aioha.getCurrentProvider() === Providers.HiveAuth) {
+  if (aioha.getCurrentProvider() === Providers.HiveAuth) {
     return uploadTo3Speak(file, options);
   }
 

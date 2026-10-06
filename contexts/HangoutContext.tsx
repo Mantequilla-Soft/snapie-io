@@ -1,8 +1,8 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { HangoutsApiClient, loginWithSignFn, type CreateEventInput, type HangoutsEvent, type StartEventResponse } from '@snapie/hangouts-core';
-import { KeyTypes } from '@aioha/aioha';
-import { useAioha } from '@aioha/react-ui';
+import { KeyTypes } from '@/lib/aioha/enums';
+import { useAioha } from '@/lib/aioha/facade-react-ui';
 import { signMessageWithAioha } from '@/lib/hive/aioha';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 

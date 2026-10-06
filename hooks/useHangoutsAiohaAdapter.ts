@@ -1,6 +1,6 @@
 'use client'
 import { useMemo } from 'react'
-import { KeyTypes } from '@aioha/aioha'
+import { KeyTypes } from '@/lib/aioha/enums'
 import type { AiohaLike } from '@snapie/hangouts-core'
 import { signMessageWithAioha, transferWithAioha } from '@/lib/hive/aioha'
 import { useCurrentUser } from './useCurrentUser'

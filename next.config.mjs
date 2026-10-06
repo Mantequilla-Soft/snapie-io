@@ -1,3 +1,15 @@
+import path from 'path';
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+    enabled: process.env.ANALYZE === 'true',
+    openAnalyzer: false,
+});
+
+const projectDir = import.meta.dirname;
+const facadeAioha = path.join(projectDir, 'lib/aioha/facade-aioha.ts');
+const facadeReactUi = path.join(projectDir, 'lib/aioha/facade-react-ui.tsx');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     experimental: {
@@ -93,9 +105,30 @@ const nextConfig = {
             type: 'asset/resource',
         });
 
+        // App imports of the wallet libraries resolve to tiny facades. The real
+        // packages stay an async chunk, loaded when a session exists or login
+        // opens the wallet modal. Imports from node_modules and from lib/aioha
+        // (the loader) keep the real packages.
+        config.plugins.push({
+            apply(compiler) {
+                compiler.hooks.normalModuleFactory.tap('LazyAiohaFacades', (nmf) => {
+                    nmf.hooks.beforeResolve.tap('LazyAiohaFacades', (resolveData) => {
+                        if (!resolveData) return;
+                        const request = resolveData.request;
+                        if (request !== '@aioha/aioha' && request !== '@aioha/react-ui') return;
+                        const from = resolveData.contextInfo?.issuer || resolveData.context || '';
+                        if (!from.includes(projectDir)) return;
+                        if (from.includes(`${path.sep}node_modules${path.sep}`)) return;
+                        if (from.includes(`${path.sep}lib${path.sep}aioha${path.sep}`)) return;
+                        resolveData.request = request === '@aioha/aioha' ? facadeAioha : facadeReactUi;
+                    });
+                });
+            },
+        });
+
         return config;
     }
 }
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
 
