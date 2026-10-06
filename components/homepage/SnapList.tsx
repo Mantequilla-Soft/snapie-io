@@ -40,6 +40,15 @@ const SORT_OPTIONS = ['new', 'top'] as const;
 
 const snapKey = (c: ExtendedComment) => `${c.author}/${c.permlink}`;
 
+function firstPaintedImageIndex(comments: ExtendedComment[], paintedCount: number): number {
+  // Card 0 is always eager, even when a caller does not pass paintedCount.
+  const limit = Math.max(paintedCount, 1);
+  for (let i = 0; i < Math.min(limit, comments.length); i++) {
+    if (/!\[[^\]]*]\([^)]*\)/.test(comments[i].body || '')) return i;
+  }
+  return -1;
+}
+
 interface SnapListProps {
   author: string
   permlink: string
@@ -350,7 +359,9 @@ export default function SnapList(
         </HStack>
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
-        {displayComments.map((comment, index) => (
+        {displayComments.map((comment, index) => {
+          const imagePriority = index === firstPaintedImageIndex(displayComments, paintedCount);
+          return (
           // One element serves three roles: the data-snap-key anchor the
           // pagination/reconciliation observers track (must never
           // disappear), the content-visibility target (native
@@ -379,6 +390,7 @@ export default function SnapList(
                 refreshComment={refreshComment}
                 reserveMediaSpace
                 eagerMedia
+                imagePriority={imagePriority}
                 {...(!post ? { setConversation } : {})}
               />
             </Box>
@@ -389,7 +401,7 @@ export default function SnapList(
             rootMargin={CARD_GATE_MARGIN}
             initiallyMounted={index < paintedCount}
             unmountedMinHeight={paintedCount > 0 && index >= paintedCount ? 400 : 0}
-            sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
+            sx={index < paintedCount ? undefined : { contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
           >
             <Snap
               comment={comment}
@@ -398,11 +410,13 @@ export default function SnapList(
               refreshComment={refreshComment}
               reserveMediaSpace={index < paintedCount}
               eagerMedia={index < paintedCount}
+              imagePriority={imagePriority}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
           )
-        ))}
+          );
+        })}
       </Box>
       {hasMore && (
         <Box ref={sentinelRef} display="flex" justifyContent="center" alignItems="center" py={5}>

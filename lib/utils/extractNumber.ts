@@ -1,5 +1,3 @@
-import { Asset } from "@hiveio/dhive";
-
 export function extractNumber(value: string): number {
 
     const match = value.match(/([\d.]+)/);

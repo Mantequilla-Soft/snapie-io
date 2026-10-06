@@ -2,6 +2,8 @@ import { unstable_cache } from 'next/cache';
 import HiveClient from '@/lib/hive/hiveclient';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import type { ExtendedComment } from '@/hooks/useComments';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { PUBLIC_SNAP_SEED_COUNT, type PublicSnapPage, type SnapFeedCursor } from '@/lib/hive/publicSnapPage';
 
 /**
@@ -147,9 +149,22 @@ const getCachedPublicSnapPage = unstable_cache(
   { revalidate: 30 }
 );
 
+/** Measurement switch. `SNAPIE_PINNED_FEED=1` serves the checked-in first
+ *  page instead of Hive, so two Lighthouse runs compare the same snaps.
+ *  Unset (production) always uses the live feed. */
+export function pinnedHomeFeedEnabled(): boolean {
+  return process.env.SNAPIE_PINNED_FEED === '1';
+}
+
+export function loadPinnedHomeFeed(): PublicSnapPage {
+  const raw = readFileSync(join(process.cwd(), 'lib/hive/pinnedHomeFeed.json'), 'utf8');
+  return JSON.parse(raw) as PublicSnapPage;
+}
+
 /** Cached first page, or null when Hive is unreachable so the client can
  *  fall back to today's fetch instead of failing the route. */
 export async function getInitialPublicSnapPage(): Promise<PublicSnapPage | null> {
+  if (pinnedHomeFeedEnabled()) return loadPinnedHomeFeed();
   try {
     return await getCachedPublicSnapPage();
   } catch (error) {

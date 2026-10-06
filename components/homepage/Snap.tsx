@@ -15,7 +15,7 @@ import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
-import { isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
+import { hasMarkdownImage, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -59,11 +59,13 @@ interface SnapProps {
     level?: number; // Added level for indentation
     /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
     reserveMediaSpace?: boolean;
-    /** First home card. Its media is in the server HTML, not behind a gate. */
+    /** First-viewport card. Its photos are in the server HTML, not behind a gate. */
     eagerMedia?: boolean;
+    /** Preload this card's first photo. Only one card on the page sets this. */
+    imagePriority?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false, eagerMedia = false, imagePriority = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -387,15 +389,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            eagerMedia && isPlainFeedImageMedia(media) ? (
+                            eagerMedia && hasMarkdownImage(media) ? (
                                 <>
-                                    {/* The photo is the LCP element: in the server HTML,
-                                        not behind a gate. Embeds on the same card stay
-                                        gated so their iframe is not on the critical path. */}
+                                    {/* Photos in the first viewport are in the server HTML,
+                                        visible without hydration. Embeds on the same card
+                                        stay gated so their iframe is not on the critical path.
+                                        A 3speak CDN url inside markdown is still a photo. */}
                                     <MediaRenderer
                                         key={`media-${comment.permlink}`}
                                         mediaContent={media}
-                                        priority
+                                        priority={imagePriority}
+                                        painted
                                         onlyImages
                                     />
                                     {mediaHasEmbed(media) && (
@@ -410,7 +414,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                 unmountedAspectRatio={
                                     // 4/3 matches ImageWithFallback. Embeds size themselves,
                                     // so reserving 4/3 for those would shift the card on mount.
-                                    reserveMediaSpace && isPlainFeedImageMedia(media) ? IMAGE_ASPECT_RATIO : undefined
+                                    reserveMediaSpace && (isPlainFeedImageMedia(media) || hasMarkdownImage(media)) ? IMAGE_ASPECT_RATIO : undefined
                                 }
                             >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
@@ -602,7 +606,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
             (nextProps.comment.active_votes?.length ?? nextProps.comment.voteCount) &&
         prevProps.level === nextProps.level &&
         prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
-        prevProps.eagerMedia === nextProps.eagerMedia
+        prevProps.eagerMedia === nextProps.eagerMedia &&
+        prevProps.imagePriority === nextProps.imagePriority
     );
 });
 

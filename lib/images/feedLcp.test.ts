@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEED_LCP_WIDTH, feedLcpImageUrl, firstScreenLcpImageUrl, homeFeedLcpImageUrl, isPlainFeedImageMedia, mediaHasEmbed } from './feedLcp';
+import { FEED_LCP_WIDTH, feedLcpImageUrl, firstScreenLcpImageUrl, hasMarkdownImage, homeFeedLcpImageUrl, isPlainFeedImageMedia, mediaHasEmbed } from './feedLcp';
 
 describe('feedLcpImageUrl', () => {
   it('asks the optimizer for a fixed 640px image through the same-origin proxy', () => {
@@ -50,6 +50,14 @@ describe('homeFeedLcpImageUrl', () => {
     expect(mediaHasEmbed(media)).toBe(true);
     expect(isPlainFeedImageMedia(media)).toBe(true);
     expect(mediaHasEmbed('![](https://images.hive.blog/photo.jpg)')).toBe(false);
+  });
+
+  it('treats a 3speak CDN photo as an image, and a 3speak player url as an embed', () => {
+    const photo = '![](https://ipfs.3speak.tv/ipfs/QmExample)';
+    expect(hasMarkdownImage(photo)).toBe(true);
+    expect(isPlainFeedImageMedia(photo)).toBe(true);
+    expect(homeFeedLcpImageUrl(photo)).toContain('w=640');
+    expect(isPlainFeedImageMedia('https://3speak.tv/watch?v=abc')).toBe(false);
   });
 
   it('skips text-only snaps', () => {

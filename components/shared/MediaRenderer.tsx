@@ -45,6 +45,8 @@ interface MediaRendererProps {
   mediaContent: string;
   /** Preload the first plain image. Home feed only, for the LCP card. */
   priority?: boolean;
+  /** First-viewport images paint without a fade. Priority still means preload. */
+  painted?: boolean;
   /** Render markdown images only. The home LCP card uses this so an embed
    *  iframe is not a second early document on the critical path. */
   onlyImages?: boolean;
@@ -245,7 +247,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false, painted = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -381,7 +383,7 @@ const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, ski
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} />
+              <ImageWithFallback url={group.url} alt="Post media" priority={index === priorityIndex} painted={painted} />
             </Box>
           );
         }
@@ -389,7 +391,7 @@ const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, ski
         if (group.kind === 'carousel') {
           return (
             <Box key={index} maxW="540px" mx="auto">
-              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} />
+              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} priority={index === priorityIndex} painted={painted} />
             </Box>
           );
         }

@@ -1,4 +1,4 @@
-import { Client } from "@hiveio/dhive"
+import type { Client } from "@hiveio/dhive"
 import { withTimeout } from "@/lib/utils/withTimeout"
 
 const FALLBACK_NODES = [
@@ -36,13 +36,30 @@ const IS_BROWSER = typeof window !== "undefined"
 export const HIVE_RPC_TIMEOUT_MS = 65000
 
 // Proxy object so reassigning .client propagates to all importers
-// (export default captures a value, not a binding)
-const hive = {
-  client: IS_BROWSER
-    // Browser: route through our own API proxy — eliminates CORS entirely
-    ? new Client([window.location.origin + "/api/hive-rpc"])
-    // Server: call Hive nodes directly (no CORS constraints)
-    : new Client(filterNodeList(FALLBACK_NODES)),
+// (export default captures a value, not a binding).
+// The dhive constructor stays behind a dynamic import. A static import pulls
+// secp256k1 and bytebuffer into the home page's first script tags, and
+// Lighthouse then charges that download against the text paint.
+const hive: { client: Client | null } = { client: null }
+let clientReady: Promise<Client> | null = null
+
+function loadDhive(): Promise<typeof import("@hiveio/dhive")> {
+  return import("@hiveio/dhive")
+}
+
+function ensureClient(): Promise<Client> {
+  if (hive.client) return Promise.resolve(hive.client)
+  if (!clientReady) {
+    clientReady = loadDhive().then(({ Client: DhiveClient }) => {
+      if (!hive.client) {
+        hive.client = IS_BROWSER
+          ? new DhiveClient([window.location.origin + "/api/hive-rpc"])
+          : new DhiveClient(filterNodeList(FALLBACK_NODES))
+      }
+      return hive.client
+    })
+  }
+  return clientReady
 }
 
 function isExcludedNode(endpoint: string): boolean {
@@ -98,8 +115,9 @@ export async function fetchHealthyNodes(): Promise<string[]> {
 // Server-side only: initialize with beacon nodes on first load.
 // The browser always uses the proxy route — no direct node access needed.
 if (!IS_BROWSER) {
-  fetchHealthyNodes().then(nodes => {
-    hive.client = new Client(nodes)
+  fetchHealthyNodes().then(async nodes => {
+    const { Client: DhiveClient } = await loadDhive()
+    hive.client = new DhiveClient(nodes)
     if (process.env.NODE_ENV === "development") {
       console.log("🔗 HiveClient (server) initialized with beacon nodes:", nodes)
     }
@@ -114,7 +132,8 @@ if (!IS_BROWSER) {
 export async function refreshHiveNodes(): Promise<void> {
   if (IS_BROWSER) return // Browser always uses the proxy — nothing to refresh
   const nodes = await fetchHealthyNodes()
-  hive.client = new Client(nodes)
+  const { Client: DhiveClient } = await loadDhive()
+  hive.client = new DhiveClient(nodes)
 }
 
 // Recursive proxy that delegates all property access to the current
@@ -131,26 +150,33 @@ export async function refreshHiveNodes(): Promise<void> {
 // No receiver is passed to Reflect.get (unlike the old flat proxy): dhive
 // has no getters/accessors, so it's a no-op today, and passing this proxy
 // itself as receiver would risk infinite recursion if dhive ever added one.
-function wrapWithTimeout(getTarget: () => any): any {
-  const subProxies = new Map<string | symbol, any>()
-  return new Proxy({}, {
+// Path proxy: `HiveClient.database.call(...)` does not touch dhive until the
+// call. Intermediate gets only append a property name.
+function lazyHiveApi(path: Array<string | symbol> = []): any {
+  const callable = function hiveLazyCall() { /* invoked via the apply trap */ }
+  return new Proxy(callable, {
     get(_target, prop) {
-      const value = Reflect.get(getTarget(), prop)
-      if (typeof value === "function") {
-        return (...args: any[]) =>
-          withTimeout(value.apply(getTarget(), args), HIVE_RPC_TIMEOUT_MS, `HiveClient timed out: ${String(prop)}`)
-      }
-      if (value !== null && typeof value === "object") {
-        if (!subProxies.has(prop)) {
-          subProxies.set(prop, wrapWithTimeout(() => Reflect.get(getTarget(), prop)))
+      if (prop === "then" || prop === "catch" || prop === "finally") return undefined
+      return lazyHiveApi([...path, prop])
+    },
+    apply(_target, _thisArg, args) {
+      return ensureClient().then((client) => {
+        let receiver: any = client
+        for (let i = 0; i < path.length - 1; i++) {
+          receiver = receiver[path[i]]
         }
-        return subProxies.get(prop)
-      }
-      return value
+        const methodName = path[path.length - 1]
+        const method = methodName === undefined ? receiver : receiver[methodName]
+        return withTimeout(
+          method.apply(receiver, args),
+          HIVE_RPC_TIMEOUT_MS,
+          `HiveClient timed out: ${String(methodName ?? "call")}`,
+        )
+      })
     },
   })
 }
 
-const HiveClient: Client = wrapWithTimeout(() => hive.client)
+const HiveClient = lazyHiveApi() as Client
 
 export default HiveClient

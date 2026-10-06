@@ -17,10 +17,20 @@ export function feedLcpImageUrl(src: string, quality = 75): string {
   return `/_next/image?url=${encodeURIComponent(src)}&w=${FEED_LCP_WIDTH}&q=${quality}`;
 }
 
-/** Plain markdown images only. Video and iframe markup size themselves. */
+const MARKDOWN_IMAGE = /!\[[^\]]*]\([^)]*\)/;
+
+/** True when the media block contains at least one markdown image. */
+export function hasMarkdownImage(media: string): boolean {
+  return MARKDOWN_IMAGE.test(media);
+}
+
+/** Plain markdown images only. Video and iframe markup size themselves.
+ *  A photo whose URL is on ipfs.3speak.tv is still a photo: the embed check
+ *  looks at the text left after image markdown is removed. */
 export function isPlainFeedImageMedia(media: string): boolean {
-  if (!/!\[.*?\]\(.*?\)/.test(media)) return false;
-  return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
+  if (!hasMarkdownImage(media)) return false;
+  const withoutImages = media.replace(/!\[[^\]]*]\([^)]*\)/g, '');
+  return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(withoutImages);
 }
 
 /** True when the media block also has a non-image line (embed URL, iframe). */

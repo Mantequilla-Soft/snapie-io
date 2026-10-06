@@ -1,8 +1,7 @@
 'use client';
 import HiveClient from "./hiveclient";
-import crypto from 'crypto';
 import { signImageHash } from "./server-functions";
-import { Account, Discussion, Notifications, PublicKey, PrivateKey, KeyRole } from "@hiveio/dhive";
+import type { Discussion, Notifications } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
 import {
@@ -579,7 +578,8 @@ export function getFileSignature(file: File): Promise<string> {
     reader.onload = async () => {
       if (reader.result) {
         const content = Buffer.from(reader.result as ArrayBuffer);
-        const hash = crypto.createHash('sha256')
+        const { createHash } = await import('crypto');
+        const hash = createHash('sha256')
           .update('ImageSigningChallenge')
           .update(content as any)
           .digest('hex');

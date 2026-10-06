@@ -10,6 +10,8 @@ interface ImageWithFallbackProps {
   alt: string;
   /** First feed image. Visible in the server HTML, preloaded, fixed 640px. */
   priority?: boolean;
+  /** Other first-viewport images. In the HTML at 640px, no fade, not preloaded. */
+  painted?: boolean;
 }
 
 const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, quality);
@@ -94,7 +96,7 @@ function ImageFallback({ url }: { url: string }) {
   );
 }
 
-const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false }: ImageWithFallbackProps) {
+const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false, painted = false }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const resolved = resolveFeedImageSrc(url);
@@ -103,11 +105,12 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
     return <ImageFallback url={url} />;
   }
 
-  // A priority image is the home LCP candidate. It has to paint from the
-  // server HTML: an opacity of 0 until onLoad stays invisible until
-  // hydration, and a shimmer of the same box can become the LCP element
-  // instead of the photo. Later images keep the fade.
-  const hiddenUntilLoad = !priority;
+  // A first-viewport image has to paint from the server HTML. Opacity 0
+  // until onLoad stays invisible until hydration, and a shimmer of the same
+  // box can become the LCP element instead of the photo. Below-fold images
+  // keep the fade. Only the first image is preloaded.
+  const immediate = priority || painted;
+  const hiddenUntilLoad = !immediate;
 
   return (
     <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
@@ -117,7 +120,7 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
         alt={alt}
         fill
         sizes={FEED_IMAGE_SIZES}
-        loader={priority && !resolved.unoptimized ? feedLcpLoader : undefined}
+        loader={immediate && !resolved.unoptimized ? feedLcpLoader : undefined}
         priority={priority}
         loading={priority ? undefined : 'eager'}
         decoding={priority ? 'sync' : 'async'}

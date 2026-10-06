@@ -63,6 +63,19 @@ describe('ImageWithFallback', () => {
     expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
   });
 
+  it('paints a non-priority first-viewport image at 640px without a fade or preload', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://example.com/pic.jpg',
+      alt: 'a photo',
+      painted: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src') ?? '').toContain('w=640');
+    expect(img?.getAttribute('fetchpriority')).not.toBe('high');
+    expect(img?.getAttribute('style') ?? '').not.toContain('opacity: 0');
+    expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
+  });
+
   it('optimizes a same-origin path directly instead of proxying it', () => {
     const { container } = render(createElement(ImageWithFallback, { url: '/logo.png', alt: 'logo' }));
     const src = decodedSrc(container.querySelector('img'));
