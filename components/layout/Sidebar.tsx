@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, Tooltip, useBreakpointValue, useToast } from '@chakra-ui/react';
+import { Box, VStack, Button, Icon, Image, Spinner, Flex, Text, useBreakpointValue } from '@chakra-ui/react';
 import { CountBadge } from '@/components/ui/CountBadge';
 import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
@@ -10,7 +10,6 @@ import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquar
 import { POINTS_FEATURE_FLAG, GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
-import { motion } from 'framer-motion';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
@@ -34,6 +33,26 @@ interface CommunityInfo {
 
 const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
+/**
+ * Compact-rail labels only. Chakra Tooltip pulls framer-motion into the
+ * layout graph, and the rail is icon-only below the md breakpoint.
+ */
+function Tooltip({
+    label,
+    isDisabled,
+    children,
+}: {
+    label?: React.ReactNode;
+    isDisabled?: boolean;
+    placement?: string;
+    hasArrow?: boolean;
+    children: React.ReactElement;
+}) {
+    if (isDisabled || label == null || label === '') return children;
+    const title = typeof label === 'string' ? label : undefined;
+    return React.cloneElement(children as React.ReactElement<{ title?: string }>, { title });
+}
+
 interface SidebarProps {
     isChatOpen?: boolean;
     setIsChatOpen?: (v: boolean) => void;
@@ -48,7 +67,6 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
     const [loading, setLoading] = useState(true);
-    const toast = useToast();
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useNotifications();
     const hasUnclaimed = useUnclaimedRewards();
@@ -310,12 +328,20 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         justifyContent={iconJustify}
                                         leftIcon={
                                             unreadCount > 0 ? (
-                                                <motion.div
-                                                    animate={{ rotate: [0, 45, 0, -45, 0] }}
-                                                    transition={{ duration: 0.6, repeat: Infinity }}
+                                                <Box
+                                                    as="span"
+                                                    display="inline-flex"
+                                                    sx={{
+                                                        '@keyframes snapie-bell': {
+                                                            '0%, 100%': { transform: 'rotate(0deg)' },
+                                                            '25%': { transform: 'rotate(45deg)' },
+                                                            '75%': { transform: 'rotate(-45deg)' },
+                                                        },
+                                                        animation: 'snapie-bell 0.6s linear infinite',
+                                                    }}
                                                 >
                                                     <Icon as={FiBell} boxSize={4} color="red" />
-                                                </motion.div>
+                                                </Box>
                                             ) : (
                                                 <Icon as={FiBell} boxSize={4} />
                                             )
