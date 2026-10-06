@@ -34,6 +34,10 @@ interface OffscreenGateProps extends BoxProps {
   rootMargin: string;
   /** Paint children on the first render (SSR). Default stays unmounted. */
   initiallyMounted?: boolean;
+  /** Height reserved while unmounted, before a real render has been measured.
+   *  The SSR feed uses this so a few hundred not-yet-painted cards don't
+   *  collapse to 0px and pull the infinite-scroll sentinel into view. */
+  unmountedMinHeight?: number;
 }
 
 // Extra Box props (data-*, sx, id, ...) land on THIS component's own
@@ -48,6 +52,7 @@ const OffscreenGate = memo(function OffscreenGate({
   children,
   rootMargin,
   initiallyMounted = false,
+  unmountedMinHeight = 0,
   ...boxProps
 }: OffscreenGateProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -86,7 +91,11 @@ const OffscreenGate = memo(function OffscreenGate({
   }, [rootMargin]);
 
   return (
-    <Box ref={wrapperRef} {...boxProps} minH={mounted ? undefined : `${lastHeightRef.current}px`}>
+    <Box
+      ref={wrapperRef}
+      {...boxProps}
+      minH={mounted ? undefined : `${lastHeightRef.current || unmountedMinHeight}px`}
+    >
       {mounted ? children : null}
     </Box>
   );
