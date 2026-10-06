@@ -66,22 +66,34 @@ describe('parseMediaContent private-network filtering', () => {
         expect(items[0].type).toBe('image');
     });
 
-    it('keeps a filename that contains parentheses', () => {
-        const url = 'https://images.hive.blog/DQmerj5ka4MkkXwTr5atPeNe3eVVwXWA2LGogbTWDHz9h9y/Screenshot%20(88).jpg';
-        const items = parseMediaContent(`![shot](${url})`);
-        expect(items).toHaveLength(1);
-        expect(items[0].type).toBe('image');
-        const captured = /!\[.*?\]\((.*?)\)/.exec(items[0].content);
-        expect(captured?.[1].endsWith('.jpg')).toBe(true);
-        expect(captured?.[1]).toContain('Screenshot%20%2888%29.jpg');
-        const { media, text } = separateContent(`hello\n![shot](${url})`);
-        expect(text).toBe('hello');
-        expect(media).toContain('Screenshot%20%2888%29.jpg');
-    });
-
     it('drops a raw iframe pointing at a private LAN address', () => {
         const items = parseMediaContent('<iframe src="http://192.168.1.1/admin"></iframe>');
         expect(items).toHaveLength(0);
+    });
+
+    it('keeps ipfs images, direct videos, and 3speak audio iframes', () => {
+        const hash = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG';
+        const ipfsImage = parseMediaContent(`![pic](https://ipfs.io/ipfs/${hash})`);
+        expect(ipfsImage[0]).toMatchObject({
+            type: 'image',
+        });
+
+        const video = parseMediaContent('![clip](https://cdn.example/clip.mp4)');
+        expect(video[0]).toMatchObject({ type: 'video', src: 'https://cdn.example/clip.mp4' });
+
+        const ipfsVideo = parseMediaContent(`![clip](ipfs://${hash}/clip.mp4)`);
+        expect(ipfsVideo[0]).toMatchObject({ type: 'video' });
+
+        const ipfsStill = parseMediaContent(`![pic](ipfs://${hash}/still.png)`);
+        expect(ipfsStill[0]).toMatchObject({ type: 'image' });
+
+        const audio = parseMediaContent('<iframe src="http://audio.3speak.tv/play?a=abc"></iframe>');
+        expect(audio[0].type).toBe('iframe');
+        expect(audio[0].src).toContain('audio.3speak.tv');
+        expect(audio[0].src).toContain('mode=compact');
+
+        const broken = parseMediaContent('<iframe src="http://[play.3speak.tv/embed?v=alice/hi"></iframe>');
+        expect(broken[0].src).toContain('noscroll=1');
     });
 });
 
@@ -105,6 +117,7 @@ describe('snap and embed helpers', () => {
     expect(portrait.searchParams.get('noscroll')).toBe('1');
     expect(new URL(speakPlaybackUrl('https://play.3speak.tv/watch?v=alice/hi', false)).searchParams.get('layout')).toBe('desktop');
     expect(speakPlaybackUrl('http://[', true)).toBe('http://[');
+    expect(speakPlaybackUrl('http://[play.3speak.tv', true)).toBe('http://[play.3speak.tv');
 
     expect(finalizeAudio3SpeakEmbedUrl('https://example.com/a')).toBe('https://example.com/a');
     const audio = new URL(finalizeAudio3SpeakEmbedUrl('http://audio.3speak.tv/play?a=abc'));
@@ -211,5 +224,7 @@ describe('snap and embed helpers', () => {
     await expect(fetchSnapieAudioMetadata('not a url')).resolves.toBeNull();
     vi.stubGlobal('fetch', vi.fn());
     await expect(fetchSnapieAudioMetadata('https://audio.3speak.tv/play')).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
+    await expect(fetchSnapieAudioMetadata('https://audio.3speak.tv/play?a=missing')).resolves.toBeNull();
   });
 });

@@ -1,14 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createHash } from 'node:crypto';
+
+const dns = vi.hoisted(() => ({
+    lookup: vi.fn(async (_hostname?: string, _options?: unknown) => [{ address: '1.1.1.1', family: 4 as const }]),
+}));
+
+vi.mock('node:dns/promises', () => ({
+    lookup: (hostname: string, options?: unknown) => dns.lookup(hostname, options),
+}));
+
 import {
     assertSafeProxyUrl,
     fetchProxiedImage,
-    hiveImageFallbackUrl,
-    probeProxiedImage,
     ImageProxyError,
     isBlockedHostname,
     isBlockedIpAddress,
-    isHivePlaceholderImage,
+    MAX_IMAGE_BYTES,
     type ImageProxyDeps,
     type ProxyUpstream,
 } from './imageProxy';
@@ -264,121 +270,22 @@ describe('fetchProxiedImage', () => {
         expect(image.contentType).toBe('image/jpeg');
     });
 
+    it('rejects a sniffed image whose declared type is not a raster', async () => {
+        await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
+            request: vi.fn(async () => upstream({
+                status: 200,
+                contentType: 'image/svg+xml',
+            })),
+        }))).rejects.toMatchObject({ status: 415, code: 'content-type' });
+    });
+
     it('does not turn an upstream error into a redirect or a successful body', async () => {
         await expect(fetchProxiedImage('https://example.com/missing.jpg', deps({
             request: vi.fn(async () => upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' })),
         }))).rejects.toMatchObject({ status: 502, code: 'upstream-status' });
     });
 
-    it('reuses a successful response from the caller cache and does not reuse a failure', async () => {
-        const cache = new Map();
-        const request = vi.fn(async () => upstream({ status: 200 }));
-        const fake = deps({ request, cache });
-        const url = 'https://example.com/cached.jpg';
-        const first = await fetchProxiedImage(url, fake);
-        const second = await fetchProxiedImage(url, fake);
-        expect(second.body.equals(first.body)).toBe(true);
-        expect(second.fallback).toBeUndefined();
-        expect(request).toHaveBeenCalledTimes(1);
-
-        const entry = cache.get(new URL(url).href);
-        expect(entry).toBeTruthy();
-        entry.expires = Date.now() - 1;
-        await fetchProxiedImage(url, fake);
-        expect(request).toHaveBeenCalledTimes(2);
-    });
-
-    it('caches a Hive fallback under the original url, including the fallback flag', async () => {
-        const cache = new Map();
-        const request = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            return upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' });
-        });
-        const fake = deps({ request, cache });
-        const url = 'https://cdn.discordapp.com/attachments/1/2/banner.png';
-        const first = await fetchProxiedImage(url, fake);
-        const second = await fetchProxiedImage(url, fake);
-        expect(first.fallback).toBe('hive');
-        expect(second.fallback).toBe('hive');
-        expect(second.body.equals(first.body)).toBe(true);
-        expect(request).toHaveBeenCalledTimes(2);
-        expect(cache.size).toBe(1);
-    });
-
-    it('does not cache an upstream miss', async () => {
-        const cache = new Map();
-        const request = vi.fn(async () => upstream({
-            status: 404,
-            body: Buffer.from('missing'),
-            contentType: 'text/plain',
-        }));
-        const fake = deps({ request, cache });
-        await expect(fetchProxiedImage('https://example.com/gone.jpg', fake)).rejects.toMatchObject({ status: 502 });
-        await expect(fetchProxiedImage('https://example.com/gone.jpg', fake)).rejects.toMatchObject({ status: 502 });
-        // Each attempt tries the original host and then the Hive cache.
-        expect(request).toHaveBeenCalledTimes(4);
-        expect(cache.size).toBe(0);
-    });
-
-    it('retries a dead upstream through the Hive cache and marks the fallback', async () => {
-        const original = 'https://cdn.discordapp.com/attachments/1/2/Meno_banner_Blue.png';
-        const request = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            return upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' });
-        });
-        const image = await fetchProxiedImage(original, deps({ request }));
-        expect(image.fallback).toBe('hive');
-        expect(image.contentType).toBe('image/jpeg');
-        expect(request).toHaveBeenCalledTimes(2);
-        const fallbackTarget = request.mock.calls[1][0] as URL;
-        expect(fallbackTarget.hostname).toBe('images.hive.blog');
-        expect(fallbackTarget.pathname).toContain('/0x0/');
-        expect(decodeURIComponent(fallbackTarget.pathname)).toContain(original);
-    });
-
-    it('retries a non-image response and a transport failure', async () => {
-        const html = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            return upstream({
-                status: 200,
-                contentType: 'text/html',
-                body: Buffer.from('<html><body>gone</body></html>'),
-            });
-        });
-        const fromHtml = await fetchProxiedImage('https://example.com/page', deps({ request: html }));
-        expect(fromHtml.fallback).toBe('hive');
-
-        const transport = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            throw new ImageProxyError(502, 'upstream-error');
-        });
-        const fromTransport = await fetchProxiedImage('https://example.com/down.jpg', deps({ request: transport }));
-        expect(fromTransport.fallback).toBe('hive');
-        expect(transport).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not ask Hive to fetch an images.hive.blog URL or a blocked host', async () => {
-        const request = vi.fn(async () => upstream({
-            status: 404,
-            body: Buffer.from('missing'),
-            contentType: 'text/plain',
-        }));
-        await expect(fetchProxiedImage('https://images.hive.blog/DQmmissing.jpg', deps({ request }))).rejects.toMatchObject({
-            status: 502,
-            code: 'upstream-status',
-        });
-        expect(request).toHaveBeenCalledTimes(1);
-        expect(hiveImageFallbackUrl('https://images.hive.blog/0x0/https://cdn.discordapp.com/a.png')).toBeNull();
-
-        const blocked = deps();
-        await expect(fetchProxiedImage('http://169.254.169.254/latest/meta-data/', blocked)).rejects.toMatchObject({
-            status: 403,
-        });
-        expect(blocked.request).not.toHaveBeenCalled();
-        expect(blocked.resolve).not.toHaveBeenCalled();
-    });
-
-    it('does not fall back when our own size limit rejects the body', async () => {
+    it('rejects a body whose declared length is over the limit', async () => {
         const request = vi.fn(async () => upstream({
             status: 200,
             contentLength: 11 * 1024 * 1024,
@@ -388,35 +295,6 @@ describe('fetchProxiedImage', () => {
             status: 413,
         });
         expect(request).toHaveBeenCalledTimes(1);
-    });
-
-    it('treats Hive generic placeholder bytes as a failure', async () => {
-        const hash = createHash('sha256').update(JPEG).digest('hex');
-        expect(isHivePlaceholderImage(JPEG, new Set([hash]))).toBe(true);
-        expect(isHivePlaceholderImage(JPEG, new Set())).toBe(false);
-
-        const request = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            return upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' });
-        });
-        await expect(fetchProxiedImage('https://example.com/gone.jpg', deps({
-            request,
-            placeholderHashes: new Set([hash]),
-        }))).rejects.toMatchObject({ status: 502, code: 'hive-placeholder' });
-    });
-
-    it('still fails when the Hive retry is not an image', async () => {
-        const request = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') {
-                return upstream({ status: 403, body: Buffer.from('Forbidden'), contentType: 'text/plain' });
-            }
-            return upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' });
-        });
-        await expect(fetchProxiedImage('https://example.com/gone.jpg', deps({ request }))).rejects.toMatchObject({
-            status: 502,
-            code: 'upstream-status',
-        });
-        expect(request).toHaveBeenCalledTimes(2);
     });
 });
 
@@ -469,65 +347,34 @@ describe('image sniffing and address short-circuits', () => {
         }))).rejects.toMatchObject({ code: 'blocked-resolved-ip' });
     });
 
-    it('rejects a redirect with a bad location and a body over the cache size', async () => {
+    it('rejects a redirect with a bad location and a body over the size limit', async () => {
         await expect(fetchProxiedImage('https://example.com/a.jpg', deps({
             request: vi.fn(async () => upstream({ status: 302, location: 'http://[', body: Buffer.alloc(0), contentLength: 0 })),
         }))).rejects.toMatchObject({ code: 'invalid-url' });
 
-        const big = Buffer.alloc(5 * 1024 * 1024);
+        const big = Buffer.alloc(MAX_IMAGE_BYTES + 1);
         big[0] = 0xff; big[1] = 0xd8; big[2] = 0xff;
-        const cache = new Map();
-        const image = await fetchProxiedImage('https://example.com/big.jpg', deps({
-            cache,
-            request: vi.fn(async () => upstream({ status: 200, body: big, contentLength: big.length })),
+        await expect(fetchProxiedImage('https://example.com/huge-body.jpg', deps({
+            request: vi.fn(async () => upstream({
+                status: 200,
+                body: big,
+                contentLength: null,
+                contentType: 'image/jpeg',
+            })),
+        }))).rejects.toMatchObject({ status: 413, code: 'too-large' });
+    });
+
+    it('turns an aborted lookup into a timeout', async () => {
+        const controller = new AbortController();
+        const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(controller.signal);
+        dns.lookup.mockImplementation(() => new Promise(() => {
+            controller.abort();
         }));
-        expect(image.body.length).toBe(big.length);
-        expect(cache.size).toBe(0);
-    });
-
-    it('evicts the oldest cache entry once the cap is passed', async () => {
-        const cache = new Map();
-        const request = vi.fn(async () => upstream({ status: 200 }));
-        for (let i = 0; i < 9; i++) {
-            await fetchProxiedImage(`https://example.com/${i}.jpg`, deps({ cache, request }));
-        }
-        expect(cache.size).toBe(8);
-        expect(cache.has('https://example.com/0.jpg')).toBe(false);
-        expect(cache.has('https://example.com/8.jpg')).toBe(true);
-    });
-});
-
-describe('probeProxiedImage', () => {
-    it('is true only when the upstream image is accepted', async () => {
-        const ok = await probeProxiedImage('https://example.com/pic.jpg', deps());
-        expect(ok).toBe(true);
-    });
-
-    it('is true when the original is dead but the Hive cache still has the image', async () => {
-        const request = vi.fn(async (target: URL) => {
-            if (target.hostname === 'images.hive.blog') return upstream({ status: 200 });
-            return upstream({ status: 404, body: Buffer.from('nope'), contentType: 'text/plain' });
+        await expect(fetchProxiedImage('https://example.com/slow.jpg')).rejects.toMatchObject({
+            status: 504,
+            code: 'timeout',
         });
-        const ok = await probeProxiedImage('https://cdn.discordapp.com/attachments/1/2/banner.png', deps({ request }));
-        expect(ok).toBe(true);
-    });
-
-    it('is false for a 404 and for a private host, without fetching the private host', async () => {
-        const missing = await probeProxiedImage('https://cdn.discordapp.com/attachments/1/2/banner.png', deps({
-            request: vi.fn(async () => upstream({ status: 404, body: Buffer.from('nope'), contentType: 'text/plain' })),
-        }));
-        expect(missing).toBe(false);
-
-        const fake = deps();
-        const blocked = await probeProxiedImage('http://169.254.169.254/latest/meta-data/', fake);
-        expect(blocked).toBe(false);
-        expect(fake.resolve).not.toHaveBeenCalled();
-        expect(fake.request).not.toHaveBeenCalled();
-    });
-
-    it('rethrows an unexpected failure instead of treating it as a missing image', async () => {
-        await expect(probeProxiedImage('https://example.com/a.jpg', deps({
-            request: vi.fn(async () => { throw new Error('socket hang up'); }),
-        }))).rejects.toThrow('socket hang up');
+        timeout.mockRestore();
+        dns.lookup.mockReset();
     });
 });

@@ -15,6 +15,7 @@ const env = vi.hoisted(() => {
     commentWithAioha: vi.fn(),
     signMessageWithAioha: vi.fn(),
     ensureAioha: vi.fn(),
+    getAioha: vi.fn(),
     isSnapieMode: vi.fn(() => false),
     emitNeedsWallet: vi.fn(),
     signImageHash: vi.fn(),
@@ -40,7 +41,7 @@ vi.mock('./hiveclient', () => ({
 }));
 
 vi.mock('./aioha', async () => {
-  const enums = await vi.importActual<typeof import('@/lib/aioha/enums')>('@/lib/aioha/enums');
+  const enums = await vi.importActual<typeof import('@aioha/aioha')>('@aioha/aioha');
   return {
     KeyTypes: enums.KeyTypes,
     Providers: enums.Providers,
@@ -51,6 +52,7 @@ vi.mock('./aioha', async () => {
     commentWithAioha: (...args: unknown[]) => env.commentWithAioha(...args),
     signMessageWithAioha: (...args: unknown[]) => env.signMessageWithAioha(...args),
     ensureAioha: (...args: unknown[]) => env.ensureAioha(...args),
+    getAioha: () => env.getAioha(),
   };
 });
 
@@ -77,7 +79,7 @@ vi.mock('@/lib/snapie-auth/client', () => ({
   witnessVote: (...args: unknown[]) => env.witnessVote(...args),
 }));
 
-import { Providers } from '@/lib/aioha/enums';
+import { Providers } from '@aioha/aioha';
 import {
   broadcastWithKeychain,
   changeFollow,
@@ -224,6 +226,10 @@ beforeEach(() => {
   env.signMessageWithAioha.mockResolvedValue({ result: 'SIG' });
   env.signImageHash.mockResolvedValue('sig');
   env.ensureAioha.mockImplementation(async () => ({
+    isLoggedIn: () => wallet.loggedIn,
+    getCurrentProvider: () => wallet.provider,
+  }));
+  env.getAioha.mockImplementation(() => ({
     isLoggedIn: () => wallet.loggedIn,
     getCurrentProvider: () => wallet.provider,
   }));
