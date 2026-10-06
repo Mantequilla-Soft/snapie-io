@@ -4,9 +4,6 @@ const nextConfig = {
         serverActions: {
             bodySizeLimit: '10mb', // Increase the body size limit
         },
-        // Loads instrumentation.ts, which keeps framework scripts off the
-        // first-paint critical path. See lib/perf/deferFrameworkScripts.ts.
-        instrumentationHook: true,
     },
     images: {
         // AVIF when the browser asks for it, WebP otherwise. Sharp (a
