@@ -107,4 +107,29 @@ describe('installDeferredScriptResponse', () => {
       expect(text).toContain('<p>Hello</p>');
     }
   });
+
+  it('holds framework scripts on a priority-image document when the flag is off', async () => {
+    delete process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+    const html = HTML.replace(
+      '<body>',
+      '<body><img alt="Post media" fetchPriority="high" src="/photo.jpg">',
+    );
+    const server = createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.setHeader('content-length', String(Buffer.byteLength(html)));
+      res.writeHead(200);
+      res.write(html.slice(0, 40));
+      res.end(html.slice(40));
+    });
+    servers.push(server);
+    const port = await listen(server);
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    const text = await res.text();
+    expect(res.status).toBe(200);
+    expect(Number(res.headers.get('content-length'))).toBe(Buffer.byteLength(text));
+    expect(text).toContain('data-snapie-src="/_next/static/chunks/app-aaa.js"');
+    expect(text).not.toContain('<script src="/_next/static/chunks/app-aaa.js"');
+    expect(text).toContain('fetchPriority="high"');
+    expect(text).toContain('DOMContentLoaded');
+  });
 });

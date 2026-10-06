@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deferFrameworkScripts } from './deferFrameworkScripts.js';
+import { deferFrameworkScripts, holdScriptsBehindPriorityImage } from './deferFrameworkScripts.js';
 
 const SAMPLE = `<!DOCTYPE html><html><head><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-aaa.js"/><script src="/_next/static/chunks/webpack-aaa.js" async=""></script><script src="/_next/static/chunks/main-bbb.js" async=""></script><script src="/_next/static/chunks/polyfills-ccc.js" noModule=""></script></head><body><script>self.__next_f.push(1)</script><p>Street art in town</p><script src="https://example.com/extra.js" async=""></script></body></html>`;
 
@@ -32,5 +32,34 @@ describe('deferFrameworkScripts', () => {
   it('leaves documents without framework scripts alone', () => {
     const html = '<html><head></head><body><p>Hi</p></body></html>';
     expect(deferFrameworkScripts(html)).toBe(html);
+  });
+});
+
+describe('holdScriptsBehindPriorityImage', () => {
+  it('holds framework scripts when the document already has a priority image', () => {
+    const html = SAMPLE.replace(
+      '<body>',
+      '<body><img alt="Post media" fetchPriority="high" src="/photo.jpg">',
+    );
+    const out = holdScriptsBehindPriorityImage(html);
+    expect(out).toContain('data-snapie-src="/_next/static/chunks/webpack-aaa.js"');
+    expect(out).not.toContain('<script src="/_next/static/chunks/webpack-aaa.js"');
+    expect(out).toContain('<script src="/_next/static/chunks/polyfills-ccc.js" noModule=""></script>');
+    expect(out).toContain('fetchPriority="high"');
+    expect(out).toContain('DOMContentLoaded');
+  });
+
+  it('also matches a lowercase image preload', () => {
+    const html = SAMPLE.replace(
+      '<head>',
+      '<head><link rel="preload" as="image" fetchpriority="high" href="/photo.jpg"/>',
+    );
+    const out = holdScriptsBehindPriorityImage(html);
+    expect(out).toContain('data-snapie-src="/_next/static/chunks/main-bbb.js"');
+    expect(out).not.toContain('rel="preload" as="script"');
+  });
+
+  it('leaves documents without a priority image unchanged', () => {
+    expect(holdScriptsBehindPriorityImage(SAMPLE)).toBe(SAMPLE);
   });
 });
