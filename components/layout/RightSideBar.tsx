@@ -307,7 +307,10 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
           visitor. A shorter result leaves a gap; a taller one can still
           move Long Reads, but the common case does not. */}
       <Box minH={{ base: 0, md: '240px' }}>
-      {/* Community stats bar */}
+      {/* The stats row arrives after the markets list. Keep its slot in the
+          first paint so filling it does not push Prediction Markets and
+          Long Reads down. Measured row, including the divider, is ~97px. */}
+      <Box minH={{ base: 0, md: '100px' }}>
       {communityStats !== null && (
         <>
           <Flex justify="space-around" px={3} pt={4} pb={3}>
@@ -328,6 +331,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
         </>
       )}
+      </Box>
 
       <ContainerVoteWidget />
 
