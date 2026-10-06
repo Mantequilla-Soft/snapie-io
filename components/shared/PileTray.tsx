@@ -8,6 +8,7 @@ import ThrowItemButton from '@/components/shared/ThrowItemButton';
 import PileThrowersModal from '@/components/shared/PileThrowersModal';
 import { ITEM_MARKET_FEATURE_FLAG } from '@/lib/points/config';
 import { MAX_THROWERS_PER_ITEM } from '@/lib/points/marketConfig';
+import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
 
 interface PileTrayProps {
   author: string;
@@ -28,7 +29,19 @@ export default function PileTray({ author, permlink, targetType }: PileTrayProps
 
   useEffect(() => {
     if (!ITEM_MARKET_FEATURE_FLAG) return;
-    getPile(author, permlink).then(setPile);
+    // The pile is public, but the route needs Mongo. Skip it until a session
+    // marker exists so a logged-out view does not 500.
+    const load = () => {
+      if (!hasViewerSessionMarker()) return;
+      getPile(author, permlink).then(setPile);
+    };
+    load();
+    window.addEventListener(VIEWER_SESSION_EVENT, load);
+    window.addEventListener('hiveuser-saved', load);
+    return () => {
+      window.removeEventListener(VIEWER_SESSION_EVENT, load);
+      window.removeEventListener('hiveuser-saved', load);
+    };
   }, [author, permlink]);
 
   useEffect(() => {

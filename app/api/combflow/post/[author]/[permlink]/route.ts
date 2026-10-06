@@ -18,6 +18,12 @@ export async function GET(
         });
     } catch (err) {
         if (err instanceof CombflowHttpError) {
+            // A post CombFlow has not classified is optional enrichment. The
+            // client already ignores an error body. Forwarding the 404 makes
+            // the browser log a failed request on every card that misses.
+            if (err.status === 404) {
+                return NextResponse.json({ error: 'Not found.' });
+            }
             return NextResponse.json({ error: 'Not found.' }, { status: err.status });
         }
         return NextResponse.json({ error: 'CombFlow unreachable.' }, { status: 502 });
