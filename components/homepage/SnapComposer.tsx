@@ -16,6 +16,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { aggregateBeneficiaries, type Beneficiary } from '@/lib/utils/aggregateBeneficiaries';
 import { snapOpenAttributeKey } from '@/lib/utils/openAttribute';
 import MemePickerModal from './MemePickerModal';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 
 // SDK imports
 import { snapieComposer, snapieVideoComposer } from '@/lib/utils/composerSdk';
@@ -637,8 +638,8 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Box>
                 ))}
                 {selectedGif && (
-                    <Box key={selectedGif.id} position="relative">
-                        <Image alt="" src={selectedGif.images.downsized_medium.url} boxSize="100px" borderRadius="base" />
+                    <Box key={selectedGif.id} position="relative" boxSize="100px" borderRadius="base" overflow="hidden">
+                        <ProxiedImage url={selectedGif.images.downsized_medium.url} alt="" sizes="100px" />
                         <IconButton
                             aria-label="Remove GIF"
                             icon={<CloseIcon />}
