@@ -45,7 +45,7 @@ function createHiveClient(): Client {
     return new Client(filterNodeList(FALLBACK_NODES))
   }
   // Browser: one origin, our proxy. Reads that start in the same turn share
-  // a JSON-RPC batch. The proxy still picks and races the Hive nodes.
+  // a JSON-RPC batch. The proxy still picks a Hive node and fails over.
   const endpoint = window.location.origin + "/api/hive-rpc"
   const client = new Client([endpoint])
   installBrowserRpcCoalescer(client, endpoint)
