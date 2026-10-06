@@ -8,9 +8,27 @@
 #
 # The final stage is oven/bun:1.4.2-distroless. It does not include the
 # Debian slim rootfs, the install tree, or the build cache. sharp's glibc
-# build needs libstdc++ and libgcc, which that base does not ship, so those
-# two libraries are copied in. The musl libvips build is not: this runtime
-# is glibc.
+# build needs libstdc++ and libgcc, which that base does not ship. Those two
+# libraries are resolved from the Debian image at build time (the directory
+# is x86_64-linux-gnu or aarch64-linux-gnu). The musl libvips build is not
+# copied, and neither is the glibc build for the other CPU.
+
+FROM oven/bun:1.4.2 AS runtime-libs
+# ldconfig prints the real multiarch path for this image's architecture.
+# cp -L follows the soname symlink so the loader finds a file named
+# libstdc++.so.6 / libgcc_s.so.1 under /lib/<multiarch> after the copy.
+RUN <<'EOF'
+set -eu
+stdcpp=$(ldconfig -p | awk '/libstdc\+\+\.so\.6 / { print $NF; exit }')
+libgcc=$(ldconfig -p | awk '/libgcc_s\.so\.1 / { print $NF; exit }')
+test -n "$stdcpp"
+test -n "$libgcc"
+multiarch=$(basename "$(dirname "$stdcpp")")
+mkdir -p "/runtime-libs/lib/${multiarch}"
+cp -L "$stdcpp" "/runtime-libs/lib/${multiarch}/libstdc++.so.6"
+cp -L "$libgcc" "/runtime-libs/lib/${multiarch}/libgcc_s.so.1"
+ls -l "/runtime-libs/lib/${multiarch}"
+EOF
 
 FROM oven/bun:1.4.2 AS deps
 WORKDIR /app
@@ -28,9 +46,24 @@ COPY . .
 COPY .env.testdrive.example .env.production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN bun run build \
- && find .next/standalone/node_modules -name '*linuxmusl*' -prune -exec rm -rf {} + \
- && mkdir -p /tmp/next-cache
+# Keep the glibc sharp/libvips build that matches this CPU. linux-x64 on
+# amd64, linux-arm64 on arm64. Drop musl and the other architecture so an
+# arm64 image does not try to load the x64 addon (and the reverse).
+RUN <<'EOF'
+set -eu
+bun run build
+arch=$(uname -m)
+case "$arch" in
+  x86_64) keep=linux-x64 ;;
+  aarch64) keep=linux-arm64 ;;
+  *) echo "unsupported architecture: $arch" >&2; exit 1 ;;
+esac
+find .next/standalone/node_modules \
+  \( -name '*linuxmusl*' -o -name '*linux-x64*' -o -name '*linux-arm64*' \) \
+  ! -name "*${keep}*" \
+  -prune -exec rm -rf {} +
+mkdir -p /tmp/next-cache
+EOF
 
 FROM oven/bun:1.4.2-distroless AS runner
 WORKDIR /app
@@ -43,8 +76,10 @@ ENV HOSTNAME=0.0.0.0
 # Off unless set to 1. The rewrite reads this at server start.
 ENV SNAPIE_DEFER_FRAMEWORK_SCRIPTS=0
 
-COPY --from=build /lib/x86_64-linux-gnu/libstdc++.so.6.0.33 /lib/x86_64-linux-gnu/libstdc++.so.6
-COPY --from=build /lib/x86_64-linux-gnu/libgcc_s.so.1 /lib/x86_64-linux-gnu/libgcc_s.so.1
+# /lib is a symlink on distroless. Copy into the real /usr/lib tree so the
+# multiarch directory (x86_64-linux-gnu or aarch64-linux-gnu) merges with
+# the one the loader already searches.
+COPY --from=runtime-libs /runtime-libs/lib/ /usr/lib/
 
 COPY --from=build --chown=65532:65532 /app/public ./public
 COPY --from=build --chown=65532:65532 /app/.next/standalone ./
