@@ -77,18 +77,22 @@ const OffscreenGate = memo(function OffscreenGate({
       ([entry]) => {
         if (entry.isIntersecting) {
           setMounted(true);
-        } else {
-          // Capture the real rendered height while still mounted, then
-          // swap to a placeholder of exactly that height.
-          lastHeightRef.current = el.getBoundingClientRect().height;
-          setMounted(false);
+          return;
         }
+        // The viewport root is clipped by the page scroller, so rootMargin
+        // does not cover cards that are only just below the fold. Unmounting
+        // a server-painted card there collapses the height the HTML reserved
+        // and shifts the feed. Leave that first screen mounted.
+        if (initiallyMounted) return;
+        const height = entry.boundingClientRect.height;
+        if (height > 0) lastHeightRef.current = height;
+        setMounted(false);
       },
       { rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [rootMargin]);
+  }, [rootMargin, initiallyMounted]);
 
   return (
     <Box
