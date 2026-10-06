@@ -2,7 +2,7 @@ import { preload } from 'react-dom';
 import HomePage from '@/components/homepage/HomePage';
 import { getInitialPublicSnapPage } from '@/lib/hive/publicSnapFeed';
 import { renderSnapBodyHtml } from '@/lib/hive/renderSnapBodyHtml';
-import { selectFirstScreenLcpImage } from '@/lib/images/feedLcp';
+import { inspectFirstScreenMedia } from '@/lib/images/feedLcp';
 import { probeFeedImageHead } from '@/lib/images/feedLcpProbe';
 import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
@@ -34,9 +34,12 @@ export default async function Page() {
   const lcpBodies = (initialSnapPage?.comments ?? [])
     .slice(0, SSR_PAINTED_SNAP_COUNT)
     .map((comment) => comment.body);
-  const lcpImage = initialSnapPage
-    ? await selectFirstScreenLcpImage(lcpBodies, probeFeedImageHead)
+  // GIF and video stay out of the priority slot. Their URLs are passed down
+  // so a file with no extension still is not fetched beside the LCP photo.
+  const mediaPlan = initialSnapPage
+    ? await inspectFirstScreenMedia(lcpBodies, probeFeedImageHead)
     : null;
+  const lcpImage = mediaPlan?.lcp ?? null;
   if (lcpImage) {
     preload(lcpImage.optimizerUrl, { as: 'image', fetchPriority: 'high' });
   }
@@ -44,6 +47,7 @@ export default async function Page() {
     <HomePage
       initialSnapPage={initialSnapPage}
       lcpImageUrl={initialSnapPage ? (lcpImage?.rawUrl ?? null) : undefined}
+      deferredMediaUrls={mediaPlan?.deferredUrls}
     />
   );
 }

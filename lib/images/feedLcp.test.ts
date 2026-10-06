@@ -14,7 +14,11 @@ import {
   lcpCandidateNeedsProbe,
   mediaHasEmbed,
   paintedPriorityImageUrl,
+  deferredEmbedAspect,
+  inspectFirstScreenMedia,
+  isDeferredVideoEmbed,
   selectFirstScreenLcpImage,
+  shouldDeferNonPriorityMedia,
 } from './feedLcp';
 
 describe('feedLcpImageUrl', () => {
@@ -219,10 +223,74 @@ describe('selectFirstScreenLcpImage', () => {
     expect(url).toBe('https://images.hive.blog/small.webp');
   });
 
+  it('lists GIF and video urls to defer and still picks the next photo', async () => {
+    const clip = '![](https://cdn.example.com/clip.mp4)';
+    const probe = vi.fn(async (url: string) => {
+      if (url.endsWith('huge.jpg')) return { contentType: 'image/jpeg', contentLength: 2_000_000 };
+      if (url.endsWith('small.webp')) return { contentType: 'image/webp', contentLength: 80_000 };
+      return { contentType: 'image/gif', contentLength: 6_000_000 };
+    });
+    const plan = await inspectFirstScreenMedia([gif, clip, big, small], probe);
+    expect(plan.lcp?.rawUrl).toBe('https://images.hive.blog/small.webp');
+    expect(plan.deferredUrls).toEqual([
+      'https://media.giphy.com/media/abc/giphy.gif',
+      'https://cdn.example.com/clip.mp4',
+    ]);
+    expect(plan.deferredUrls).not.toContain('https://images.hive.blog/huge.jpg');
+    expect(probe.mock.calls.map((call) => call[0])).not.toContain('https://media.giphy.com/media/abc/giphy.gif');
+    expect(probe.mock.calls.map((call) => call[0])).not.toContain('https://cdn.example.com/clip.mp4');
+  });
+
+  it('defers a photo URL that HEADs as a GIF and does not pick it', async () => {
+    const disguised = 'https://images.hive.blog/not-really.jpg';
+    const plan = await inspectFirstScreenMedia([
+      `![](${disguised})`,
+      small,
+    ], async (url) => (
+      url.endsWith('.jpg')
+        ? { contentType: 'image/gif', contentLength: 1_700_000 }
+        : { contentType: 'image/webp', contentLength: 20_000 }
+    ));
+    expect(plan.lcp?.rawUrl).toContain('small.webp');
+    expect(plan.deferredUrls).toEqual([disguised]);
+  });
+
   it('falls back to the next photo when the server choice is gone, and still skips GIFs', () => {
     expect(paintedPriorityImageUrl([
       gif,
       '![](https://images.hive.blog/small.webp)',
     ], 5, 'https://images.hive.blog/gone.jpg')).toBe('https://images.hive.blog/small.webp');
+  });
+});
+
+describe('shouldDeferNonPriorityMedia', () => {
+  it('defers a GIF or video that is not the priority image', () => {
+    expect(shouldDeferNonPriorityMedia('https://media.giphy.com/media/abc/giphy.gif', false)).toBe(true);
+    expect(shouldDeferNonPriorityMedia('https://cdn.example.com/clip.mp4', false)).toBe(true);
+    expect(shouldDeferNonPriorityMedia('https://images.hive.blog/photo.jpg', false)).toBe(false);
+  });
+
+  it('does not defer the priority image, even if the url looks like a GIF', () => {
+    expect(shouldDeferNonPriorityMedia('https://media.giphy.com/media/abc/giphy.gif', true)).toBe(false);
+  });
+
+  it('defers an extensionless url only when the server marked it heavy', () => {
+    const url = 'https://ipfs.3speak.tv/ipfs/QmExample';
+    const heavy = new Set([url]);
+    expect(shouldDeferNonPriorityMedia(url, false)).toBe(false);
+    expect(shouldDeferNonPriorityMedia(url, false, heavy)).toBe(true);
+    expect(shouldDeferNonPriorityMedia(url, true, heavy)).toBe(false);
+  });
+});
+
+describe('isDeferredVideoEmbed', () => {
+  it('defers video players and leaves audio and tweets alone', () => {
+    expect(isDeferredVideoEmbed('https://play.3speak.tv/embed?v=alice/post')).toBe(true);
+    expect(isDeferredVideoEmbed('https://www.youtube.com/embed/abc')).toBe(true);
+    expect(isDeferredVideoEmbed('https://youtube.com/shorts/abc')).toBe(true);
+    expect(deferredEmbedAspect('https://youtube.com/shorts/abc')).toBe(9 / 16);
+    expect(deferredEmbedAspect('https://www.youtube.com/embed/abc')).toBe(16 / 9);
+    expect(isDeferredVideoEmbed('https://audio.3speak.tv/play?a=alice/post')).toBe(false);
+    expect(isDeferredVideoEmbed('https://platform.twitter.com/embed/Tweet.html?id=1')).toBe(false);
   });
 });
