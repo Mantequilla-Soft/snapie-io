@@ -4,7 +4,7 @@ import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useState, useEffect } from 'react';
-import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
+import { HangoutsApiClient, type Room } from '@snapie/hangouts-core';
 import { useHangout } from '@/contexts/HangoutContext';
 
 interface HangoutPreviewCardProps {
