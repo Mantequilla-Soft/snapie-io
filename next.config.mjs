@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     experimental: {
-        // Loads instrumentation.ts, which holds framework scripts until the
-        // server-rendered feed has painted. See lib/perf/deferFrameworkScripts.js.
+        // Loads instrumentation.ts. Framework-script deferral runs only when
+        // SNAPIE_DEFER_FRAMEWORK_SCRIPTS=1. See lib/perf/deferFrameworkScripts.js.
         instrumentationHook: true,
         serverActions: {
             bodySizeLimit: '10mb', // Increase the body size limit

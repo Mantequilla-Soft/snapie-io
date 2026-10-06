@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { installDeferredScriptResponse } from './installDeferredScriptResponse.js';
 
 const HTML = '<!DOCTYPE html><html><head><script src="/_next/static/chunks/app-aaa.js" async=""></script></head><body><p>Hello</p></body></html>';
@@ -19,6 +19,15 @@ function listen(server: ReturnType<typeof createServer>): Promise<number> {
 
 describe('installDeferredScriptResponse', () => {
   const servers: Array<ReturnType<typeof createServer>> = [];
+  let previousFlag: string | undefined;
+  beforeEach(() => {
+    previousFlag = process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+    process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = '1';
+  });
+  afterEach(() => {
+    if (previousFlag === undefined) delete process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+    else process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = previousFlag;
+  });
   afterAll(async () => {
     await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))));
   });
@@ -81,10 +90,10 @@ describe('installDeferredScriptResponse', () => {
     expect(text).toContain('DOMContentLoaded');
   });
 
-  it('leaves the script tags in place when the flag is off', async () => {
-    const previous = process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
-    process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = '0';
-    try {
+  it('leaves the script tags in place unless the flag is exactly 1', async () => {
+    for (const value of [undefined, '', '0', 'true', 'yes'] as const) {
+      if (value === undefined) delete process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+      else process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = value;
       const server = createServer((_req, res) => {
         res.setHeader('content-type', 'text/html; charset=utf-8');
         res.writeHead(200);
@@ -93,12 +102,9 @@ describe('installDeferredScriptResponse', () => {
       servers.push(server);
       const port = await listen(server);
       const text = await (await fetch(`http://127.0.0.1:${port}/`)).text();
-      expect(text).toContain('<script src="/_next/static/chunks/app-aaa.js" async=""></script>');
-      expect(text).not.toContain('data-snapie-src');
+      expect(text, `flag ${String(value)}`).toContain('<script src="/_next/static/chunks/app-aaa.js" async=""></script>');
+      expect(text, `flag ${String(value)}`).not.toContain('data-snapie-src');
       expect(text).toContain('<p>Hello</p>');
-    } finally {
-      if (previous === undefined) delete process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
-      else process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = previous;
     }
   });
 });
