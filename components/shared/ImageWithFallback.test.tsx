@@ -85,22 +85,22 @@ describe('ImageWithFallback', () => {
     expect(src).not.toContain('/api/image-proxy');
   });
 
-  it('shows a visible fallback with a working link once the image fails to load, instead of vanishing', () => {
+  it('keeps a neutral tile with no broken image once the load fails', () => {
     const { container } = render(createElement(ImageWithFallback, { url: 'https://example.com/dead.jpg', alt: 'a photo' }));
     const img = container.querySelector('img')!;
 
     fireEvent.error(img);
 
-    expect(container.querySelector('img')).toBeNull(); // no longer just a hidden broken <img>
-    expect(screen.getByText('Image failed to load.')).toBeTruthy();
-    const link = screen.getByText('Open image directly') as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('https://example.com/dead.jpg');
+    expect(container.querySelector('img')).toBeNull();
+    const tile = screen.getByRole('img', { name: 'Image unavailable' });
+    expect(tile.getAttribute('data-image-fallback')).toBe('');
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
-  it('does not render a javascript: link when the url can never be an image', () => {
+  it('shows the same tile when the url can never be an image', () => {
     const { container } = render(createElement(ImageWithFallback, { url: 'javascript:alert(1)', alt: 'a photo' }));
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByText('Image failed to load.')).toBeTruthy();
-    expect(screen.queryByText('Open image directly')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Image unavailable' })).toBeTruthy();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 });
