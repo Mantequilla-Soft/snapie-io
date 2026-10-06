@@ -33,8 +33,8 @@ ENV PORT=3000
 # Docker sets HOSTNAME to the container id. Next's standalone server binds
 # that name unless this is pinned to all interfaces inside the container.
 ENV HOSTNAME=0.0.0.0
-# Default on. The rewrite reads this at server start. 0 turns the hold off.
-ENV SNAPIE_DEFER_FRAMEWORK_SCRIPTS=1
+# Off unless set to 1. The rewrite reads this at server start.
+ENV SNAPIE_DEFER_FRAMEWORK_SCRIPTS=0
 
 RUN groupadd --system --gid 1001 snapie \
   && useradd --system --uid 1001 --gid snapie --home-dir /app --shell /usr/sbin/nologin snapie

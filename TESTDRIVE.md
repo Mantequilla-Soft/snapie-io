@@ -27,7 +27,7 @@ Started from upstream `main` (`cfcde147`). Includes the home LCP work.
 - Chat, wallet providers, and games are lazy-loaded (#14)
 - Profile headers are server-rendered on their own routes (#15, stacked on #14)
 - Dead image hosts fall back through the Hive image cache, and feed images go through `/api/image-proxy` (#16, #17)
-- The first feed image is a priority image with no fade-in. Later images still fade in. A failed image stays a neutral tile. Framework scripts are held until that image can paint (`SNAPIE_DEFER_FRAMEWORK_SCRIPTS=1` in the testdrive env; `0` turns the hold off) (#18)
+- The first feed image is a priority image with no fade-in. Later images still fade in. A failed image stays a neutral tile (#18). The experimental script hold is off (`SNAPIE_DEFER_FRAMEWORK_SCRIPTS=0`). Set it to 1 to enable the experimental script hold.
 
 ## Merge conflicts
 
