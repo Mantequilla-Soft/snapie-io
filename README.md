@@ -28,34 +28,14 @@ Snapie.io is a Next.js app for Hive-native social experiences: short-form Snaps,
 
 ## Quick Start
 
-CI installs with **pnpm 9.15.9** on **Node.js 22** (`pnpm-lock.yaml`). Use that pair locally. The Docker loop below is the same toolchain without installing Node, pnpm, or Mongo on the host.
+CI installs with **pnpm 9.15.9** on **Node.js 22** (`pnpm-lock.yaml`). Use that pair locally.
 
-### One-command loop (Docker)
-
-Docker Compose v2.20 or newer (current Docker Desktop). No host Node or pnpm.
-
-`node:22-bookworm` and `mongo:7` are official multi-arch images (`linux/arm64` and `linux/amd64`). Apple Silicon pulls arm64. Do not set `platform` or `DOCKER_DEFAULT_PLATFORM`.
-
-Feed only (Mongo is not started; `.env.local` is created from the example on first run):
-
-```bash
-docker compose up
-```
-
-App runs on `http://localhost:3310`.
-
-Hangouts/chat, with a local Mongo stub:
-
-```bash
-docker compose --profile chat up
-```
-
-Equivalent scripts when pnpm is already on the host: `pnpm dev:docker` and `pnpm dev:docker:chat`.
-
-### Host toolchain (same as CI)
+### Requirements
 
 - Node.js 22 (`.nvmrc`)
 - pnpm 9.15.9 (`packageManager` in `package.json`; Corepack can activate it)
+
+### Install and run
 
 ```bash
 corepack enable
@@ -65,11 +45,7 @@ cp .env.local.example .env.local
 pnpm dev
 ```
 
-Mongo only, app still on the host (then set `MONGODB_URI=mongodb://127.0.0.1:27017/snapiechat` in `.env.local`):
-
-```bash
-docker compose --profile chat up mongo
-```
+App runs on `http://localhost:3310`.
 
 ### Configure env
 
@@ -82,8 +58,6 @@ The example boots a **feed-only** dev path: community defaults are set, `CHAT_JW
 ## Scripts
 
 - `pnpm dev` - start local dev server on port `3310`
-- `pnpm dev:docker` - same server via Docker Compose (Node 22 + pnpm 9)
-- `pnpm dev:docker:chat` - Docker Compose with the Mongo stub (`--profile chat`)
 - `pnpm build` - production build (`CHAT_JWT_SECRET` must be non-empty)
 - `pnpm start` - run production server on port `3310`
 - `pnpm lint` - run Next.js ESLint
@@ -116,9 +90,9 @@ Use `.env.local` for local development.
 
 ### Chat profile (hangouts + chat)
 
-Not required to boot the feed. Unset `MONGODB_URI` and chat connects only when a route calls it. See the chat profile section of `.env.local.example` and `docker compose --profile chat up`.
+Not required to boot the feed. Leave `MONGODB_URI` unset and chat connects only when a route calls it. See the chat profile section of `.env.local.example`.
 
-- `MONGODB_URI` - MongoDB connection string. Inside Compose with the chat profile the dev entrypoint defaults this to `mongodb://mongo:27017/snapiechat` when the example leaves it unset. From the host, with only Mongo in Docker: `mongodb://127.0.0.1:27017/snapiechat`.
+- `MONGODB_URI` - MongoDB connection string. Example for a local database: `mongodb://127.0.0.1:27017/snapiechat`. Leave unset for a feed-only checkout.
 - `MONGODB_DB_NAME` - chat database name (default in code: `snapiechat`)
 - `NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL` - initial channel id/name (e.g. `general`)
 
@@ -256,7 +230,7 @@ This script normalizes missing fields in existing `channels` and `chatusers` doc
 
 - `next build` or a chat route throws `CHAT_JWT_SECRET is not defined`: set a non-empty `CHAT_JWT_SECRET`. An empty value fails the same way. The example file and CI both use placeholders; shared environments need their own secret.
 - Chat auth failing (`401`): verify `CHAT_JWT_SECRET`, challenge/verify flow, and wallet signature support.
-- Feed loads with `MONGODB_URI` unset. Chat requests then fail with `MONGODB_URI is not defined` until the chat profile Mongo stub is configured (`MONGODB_URI`, optional `MONGODB_DB_NAME`).
+- Feed loads with `MONGODB_URI` unset. Chat requests then fail with `MONGODB_URI is not defined` until the chat profile sets `MONGODB_URI` (and optionally `MONGODB_DB_NAME`).
 - No push notifications: verify:
   - `NEXT_PUBLIC_FIREBASE_CONFIG`
   - `NEXT_PUBLIC_FIREBASE_VAPID_KEY`

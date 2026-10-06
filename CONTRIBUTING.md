@@ -19,8 +19,6 @@ pnpm test
 
 `pnpm typecheck` writes the gitignored `next-env.d.ts` (ambient types for static asset imports) and then runs `tsc --noEmit`, matching CI. A fresh checkout fails `tsc` alone because that file is not committed.
 
-The Docker loop in the README (`docker compose up`) is the same Node 22 + pnpm 9 pair if you would rather not install them on the host.
-
 ## Feed and performance changes
 
 When a change can affect feed loading, layout shift, or other user-visible performance, include before/after [Lighthouse](https://developer.chrome.com/docs/lighthouse/overview/) notes in the pull request (scores and the relevant metrics, plus what you measured). Skip this when the change cannot affect those paths.

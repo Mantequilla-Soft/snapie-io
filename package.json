@@ -9,8 +9,6 @@
   },
   "scripts": {
     "dev": "next dev -p 3310",
-    "dev:docker": "docker compose up",
-    "dev:docker:chat": "docker compose --profile chat up",
     "build": "next build",
     "start": "next start -p 3310",
     "lint": "next lint",
