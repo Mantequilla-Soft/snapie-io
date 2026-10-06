@@ -1,14 +1,19 @@
 'use client';
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Box, Flex, HStack, VStack, Text, Image, Divider } from '@chakra-ui/react';
 import { getPile, ITEM_THROWN_EVENT, ItemThrownDetail } from '@/lib/points/marketClient';
 import type { PileEntry } from '@/lib/points/marketService';
 import type { ItemThrowTargetType } from '@/lib/db/models/ItemThrow';
-import ThrowItemButton from '@/components/shared/ThrowItemButton';
-import PileThrowersModal from '@/components/shared/PileThrowersModal';
 import { ITEM_MARKET_FEATURE_FLAG } from '@/lib/points/config';
 import { MAX_THROWERS_PER_ITEM } from '@/lib/points/marketConfig';
 import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
+
+// Throw picker and the "who threw this" list both mount Chakra Modal, which
+// pulls framer-motion into the home page graph. The tray itself is a few
+// chips; load the modals when the control is actually shown.
+const ThrowItemButton = dynamic(() => import('@/components/shared/ThrowItemButton'), { ssr: false });
+const PileThrowersModal = dynamic(() => import('@/components/shared/PileThrowersModal'), { ssr: false });
 
 interface PileTrayProps {
   author: string;
@@ -147,7 +152,9 @@ export default function PileTray({ author, permlink, targetType }: PileTrayProps
         <ThrowItemButton targetAuthor={author} targetPermlink={permlink} targetType={targetType} />
       </Flex>
 
-      <PileThrowersModal isOpen={!!selected} onClose={() => setSelected(null)} entry={selected} />
+      {selected && (
+        <PileThrowersModal isOpen onClose={() => setSelected(null)} entry={selected} />
+      )}
     </Box>
   );
 }
