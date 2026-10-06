@@ -7,6 +7,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import snapieVictory from '@/components/games/puff-quest/assets/snapie-victory.png';
 import snapieBlastCard from '@/components/games/snapie-blast/assets/snapie-blast-card.png';
+import snapieRushCard from '@/components/games/snapie-rush/assets/snapie-rush-card.png';
 import type { GameId } from '@/lib/games/config';
 
 const GAMES_CATALOG: {
@@ -33,6 +34,14 @@ const GAMES_CATALOG: {
     tagline: 'Blast the swarm in this 8-bit shooting gallery. 60 seconds, 3 lives.',
     href: '/games/snapie-blast',
     image: snapieBlastCard,
+    imageFit: 'contain',
+  },
+  {
+    id: 'snapie-rush',
+    name: 'Snapie Rush',
+    tagline: 'Race the hover-bike through five routes. Watch the fuel, dodge the traffic.',
+    href: '/games/snapie-rush',
+    image: snapieRushCard,
     imageFit: 'contain',
   },
 ];
