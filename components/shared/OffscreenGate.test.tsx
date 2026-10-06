@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
-import { createElement } from 'react';
 import OffscreenGate from './OffscreenGate';
 
 type Callback = (entries: Array<{ isIntersecting: boolean; boundingClientRect: { height: number } }>) => void;
@@ -27,15 +26,15 @@ afterEach(() => {
 });
 
 function renderGate(keepMounted = false) {
-  return render(createElement(
-    OffscreenGate,
-    {
-      rootMargin: '100px 0px 100px 0px',
-      unmountedMinHeight: 400,
-      keepMounted,
-    },
-    createElement('p', null, 'card body'),
-  ));
+  return render(
+    <OffscreenGate
+      rootMargin="100px 0px 100px 0px"
+      unmountedMinHeight={400}
+      keepMounted={keepMounted}
+    >
+      <p>card body</p>
+    </OffscreenGate>,
+  );
 }
 
 describe('OffscreenGate', () => {
