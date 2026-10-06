@@ -15,7 +15,7 @@ import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
-import { isPlainFeedImageMedia } from '@/lib/images/feedLcp';
+import { isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -387,12 +387,23 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            eagerMedia ? (
-                                <MediaRenderer
-                                    key={`media-${comment.permlink}`}
-                                    mediaContent={media}
-                                    priority={isPlainFeedImageMedia(media)}
-                                />
+                            eagerMedia && isPlainFeedImageMedia(media) ? (
+                                <>
+                                    {/* The photo is the LCP element: in the server HTML,
+                                        not behind a gate. Embeds on the same card stay
+                                        gated so their iframe is not on the critical path. */}
+                                    <MediaRenderer
+                                        key={`media-${comment.permlink}`}
+                                        mediaContent={media}
+                                        priority
+                                        onlyImages
+                                    />
+                                    {mediaHasEmbed(media) && (
+                                        <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                                            <MediaRenderer mediaContent={media} skipImages />
+                                        </OffscreenGate>
+                                    )}
+                                </>
                             ) : (
                             <OffscreenGate
                                 rootMargin={MEDIA_GATE_MARGIN}

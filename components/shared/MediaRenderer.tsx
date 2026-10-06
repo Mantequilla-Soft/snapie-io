@@ -45,6 +45,11 @@ interface MediaRendererProps {
   mediaContent: string;
   /** Preload the first plain image. Home feed only, for the LCP card. */
   priority?: boolean;
+  /** Render markdown images only. The home LCP card uses this so an embed
+   *  iframe is not a second early document on the critical path. */
+  onlyImages?: boolean;
+  /** Skip markdown images. Paired with onlyImages when a card has both. */
+  skipImages?: boolean;
 }
 
 // Module-scope caches, deliberately outside React state: SnapList's Virtuoso
@@ -240,7 +245,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent, priority = false }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, skipImages = false }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -361,6 +366,9 @@ const MediaRenderer = ({ mediaContent, priority = false }: MediaRendererProps) =
         document.body
       )}
       {groupedItems.map((group, index) => {
+        const isImage = group.kind === 'single-image' || group.kind === 'carousel';
+        if (onlyImages && !isImage) return null;
+        if (skipImages && isImage) return null;
         if (group.kind === 'single-image') {
           return (
             <Box

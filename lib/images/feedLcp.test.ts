@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FEED_LCP_WIDTH, feedLcpImageUrl, homeFeedLcpImageUrl, isPlainFeedImageMedia } from './feedLcp';
+import { FEED_LCP_WIDTH, feedLcpImageUrl, homeFeedLcpImageUrl, isPlainFeedImageMedia, mediaHasEmbed } from './feedLcp';
 
 describe('feedLcpImageUrl', () => {
   it('asks the optimizer for a fixed 640px image through the same-origin proxy', () => {
@@ -40,6 +40,16 @@ describe('homeFeedLcpImageUrl', () => {
   it('skips a card whose media is a video embed', () => {
     expect(isPlainFeedImageMedia('https://www.youtube.com/watch?v=abc\n![](https://images.hive.blog/a.jpg)')).toBe(false);
     expect(homeFeedLcpImageUrl('Watch\nhttps://youtu.be/abc\n![](https://images.hive.blog/a.jpg)')).toBeNull();
+  });
+
+  it('treats a reddit link beside photos as an embed, not as the image', () => {
+    const media = [
+      'https://www.reddit.com/r/streetart/comments/abc/from_town/',
+      '![](https://images.hive.blog/photo.jpg)',
+    ].join('\n');
+    expect(mediaHasEmbed(media)).toBe(true);
+    expect(isPlainFeedImageMedia(media)).toBe(true);
+    expect(mediaHasEmbed('![](https://images.hive.blog/photo.jpg)')).toBe(false);
   });
 
   it('skips text-only snaps', () => {

@@ -23,6 +23,14 @@ export function isPlainFeedImageMedia(media: string): boolean {
   return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
 }
 
+/** True when the media block also has a non-image line (embed URL, iframe). */
+export function mediaHasEmbed(media: string): boolean {
+  return media.split('\n').some((line) => {
+    const trimmed = line.trim();
+    return trimmed.length > 0 && !/^!\[[^\]]*]\([^)]*\)$/.test(trimmed);
+  });
+}
+
 /**
  * Optimizer URL for the first card's first image, or null when that card
  * has no plain image. The page preloads this from the server so the
