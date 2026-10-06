@@ -1,9 +1,9 @@
 'use client';
 import { Box, Skeleton } from '@chakra-ui/react';
-import NextImage from 'next/image';
+import NextImage, { type ImageLoader } from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
-import { feedImageLoad } from '@/lib/images/feedLcp';
+import { feedImageLoad, feedLcpImageUrl } from '@/lib/images/feedLcp';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -12,7 +12,11 @@ interface ImageWithFallbackProps {
   priority?: boolean;
   /** Probe rejected this URL (oversized, or a photo that is actually a GIF). */
   defer?: boolean;
+  /** Other first-viewport images. In the HTML at 640px, no fade, not preloaded. */
+  painted?: boolean;
 }
+
+const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, quality);
 
 /**
  * A failed image load (dead link, expired CDN URL, or a browser/ad-blocker
@@ -49,6 +53,11 @@ interface ImageWithFallbackProps {
  * GIF, and a multi-megabyte file in the first card becomes LCP if it is
  * eager. Those URLs load lazy at low priority, and `priority` cannot
  * override that. An oversized photo the home feed probed is passed `defer`.
+ *
+ * A first-viewport photo has to paint from the server HTML. Opacity 0
+ * until onLoad stays invisible until hydration, and a shimmer of the same
+ * box can become the LCP element instead of the photo. Below-fold images
+ * keep the fade. Only the chosen photo is preloaded, at a fixed 640px.
  */
 export const IMAGE_ASPECT_RATIO = 4 / 3;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
@@ -73,6 +82,7 @@ const ImageWithFallback = memo(function ImageWithFallback({
   alt,
   priority = false,
   defer = false,
+  painted = false,
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -83,26 +93,30 @@ const ImageWithFallback = memo(function ImageWithFallback({
   }
 
   const load = feedImageLoad(url, { priority, defer });
+  // GIF, video, and oversized media stay lazy even in the first viewport.
+  const deferred = load.loading === 'lazy';
+  const immediate = !deferred && (priority || painted || load.priority);
+  const hiddenUntilLoad = !immediate;
 
   return (
     <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
-      {/* Shimmer while the image downloads — the fixed-aspect box otherwise
-          sits blank with no hint anything is happening, which on mobile
-          bandwidth reads as the feed being stuck rather than loading. */}
-      {!isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
+      {hiddenUntilLoad && !isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
       <NextImage
         src={resolved.src}
         alt={alt}
         fill
         sizes={FEED_IMAGE_SIZES}
+        loader={immediate && !resolved.unoptimized ? feedLcpLoader : undefined}
         priority={load.priority}
         loading={load.loading}
         fetchPriority={load.fetchPriority}
+        decoding={load.priority ? 'sync' : 'async'}
         unoptimized={resolved.unoptimized}
         style={{
           objectFit: 'cover',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 0.15s ease-out',
+          ...(hiddenUntilLoad
+            ? { opacity: isLoaded ? 1 : 0, transition: 'opacity 0.15s ease-out' }
+            : null),
         }}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}

@@ -22,6 +22,10 @@ export interface ExtendedComment extends Comment {
     replies?: ExtendedComment[]
     /** Set only by useBlendedFeed — undefined everywhere else means "snap". */
     source?: 'snap' | 'wave'
+    /** Server-rendered markdown HTML for this snap's text. Present on the
+     *  home seed so the client card does not need the markdown package to
+     *  hydrate. Absent on client-fetched pages; those render after load. */
+    bodyHtml?: string
     /** Set only by the discovery candidate routes — undefined everywhere else means "organic". */
     isDiscovery?: boolean
     discoveryReason?: 'trending' | 'category-match' | 'community-fallback' | 'resurrected'

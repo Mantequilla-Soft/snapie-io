@@ -48,6 +48,7 @@ describe('ImageWithFallback', () => {
       url: 'https://media.giphy.com/media/abc/giphy.gif',
       alt: 'a gif',
       priority: true,
+      painted: true,
     }));
     const img = container.querySelector('img');
     expect(img?.getAttribute('loading')).toBe('lazy');
@@ -64,6 +65,10 @@ describe('ImageWithFallback', () => {
     const img = container.querySelector('img');
     expect(img?.getAttribute('loading')).toBe('eager');
     expect(img?.getAttribute('fetchpriority')).toBe('high');
+    expect(img?.getAttribute('decoding')).toBe('sync');
+    expect(img?.getAttribute('src') ?? '').toContain('w=640');
+    expect(img?.getAttribute('style') ?? '').not.toContain('opacity: 0');
+    expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
   });
 
   it('defers a photo the size probe rejected', () => {
@@ -72,10 +77,45 @@ describe('ImageWithFallback', () => {
       alt: 'a large photo',
       priority: true,
       defer: true,
+      painted: true,
     }));
     const img = container.querySelector('img');
     expect(img?.getAttribute('loading')).toBe('lazy');
     expect(img?.getAttribute('fetchpriority')).toBe('low');
+  });
+
+  it('paints the priority image immediately at a fixed 640px optimizer width', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://example.com/pic.jpg',
+      alt: 'a photo',
+      priority: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    const src = img?.getAttribute('src') ?? '';
+    const decoded = decodedSrc(img);
+    expect(src).toContain('/_next/image');
+    expect(src).toContain('w=640');
+    expect(decoded).toContain('/api/image-proxy?url=');
+    expect(decoded).toContain('https://example.com/pic.jpg');
+    expect(img?.getAttribute('fetchpriority')).toBe('high');
+    expect(img?.getAttribute('loading')).not.toBe('lazy');
+    expect(img?.getAttribute('decoding')).toBe('sync');
+    expect(img?.getAttribute('style') ?? '').not.toContain('opacity: 0');
+    expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
+  });
+
+  it('paints a non-priority first-viewport image at 640px without a fade or preload', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://example.com/pic.jpg',
+      alt: 'a photo',
+      painted: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('src') ?? '').toContain('w=640');
+    expect(img?.getAttribute('fetchpriority')).not.toBe('high');
+    expect(img?.getAttribute('style') ?? '').not.toContain('opacity: 0');
+    expect(container.querySelector('[class*="chakra-skeleton"]')).toBeNull();
   });
 
   it('optimizes a same-origin path directly instead of proxying it', () => {

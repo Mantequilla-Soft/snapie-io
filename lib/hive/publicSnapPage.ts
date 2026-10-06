@@ -1,10 +1,10 @@
 import type { ExtendedComment } from '@/hooks/useComments';
 
-/** How many leading snaps are painted into the first HTML. Enough for the
- *  first screen. The rest of the seed stays in the payload behind
- *  OffscreenGate — painting every body pulls extra controls into the
- *  accessibility tree and shifts the desktop layout. */
-export const SSR_PAINTED_SNAP_COUNT = 3;
+/** How many leading snaps are painted into the first HTML.
+ *  Mobile is 823px tall and desktop is 940px. After the composer and tabs,
+ *  about four short cards fit; five covers a text run before the first photo
+ *  on both. The rest of the seed stays behind OffscreenGate. */
+export const SSR_PAINTED_SNAP_COUNT = 5;
 
 /** Snaps serialized into the first HTML. A phone shows about one card and
  *  the top of the next; 15 covers that screen plus a short scroll so the
