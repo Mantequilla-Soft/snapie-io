@@ -80,4 +80,25 @@ describe('installDeferredScriptResponse', () => {
     expect(text).toContain('</body></html>');
     expect(text).toContain('DOMContentLoaded');
   });
+
+  it('leaves the script tags in place when the flag is off', async () => {
+    const previous = process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+    process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = '0';
+    try {
+      const server = createServer((_req, res) => {
+        res.setHeader('content-type', 'text/html; charset=utf-8');
+        res.writeHead(200);
+        res.end(HTML);
+      });
+      servers.push(server);
+      const port = await listen(server);
+      const text = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+      expect(text).toContain('<script src="/_next/static/chunks/app-aaa.js" async=""></script>');
+      expect(text).not.toContain('data-snapie-src');
+      expect(text).toContain('<p>Hello</p>');
+    } finally {
+      if (previous === undefined) delete process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS;
+      else process.env.SNAPIE_DEFER_FRAMEWORK_SCRIPTS = previous;
+    }
+  });
 });
