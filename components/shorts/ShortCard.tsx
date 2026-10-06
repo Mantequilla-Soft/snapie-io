@@ -1,12 +1,13 @@
 'use client';
 import {
-  Box, Flex, Text, Image, VStack, HStack, IconButton, useToast,
+  Box, Flex, Text, VStack, HStack, IconButton, useToast,
   Slider, SliderTrack, SliderFilledTrack, SliderThumb,
   Menu, MenuButton, MenuList, MenuItem, Spinner,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
   Avatar as ChakraAvatar, Input,
 } from '@chakra-ui/react';
 import { Avatar } from '@/components/shared/Avatar';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { CloseIcon } from '@chakra-ui/icons';
@@ -373,15 +374,9 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
         />
       ) : (
         short.thumbnailUrl && (
-          <Image
-            src={short.thumbnailUrl}
-            alt={short.title}
-            position="absolute"
-            inset="0"
-            w="100%"
-            h="100%"
-            objectFit="cover"
-          />
+          <Box position="absolute" inset="0">
+            <ProxiedImage url={short.thumbnailUrl} alt={short.title} sizes="100vw" />
+          </Box>
         )
       )}
 
