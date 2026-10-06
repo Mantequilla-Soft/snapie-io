@@ -1,4 +1,5 @@
 import type { Client } from "@hiveio/dhive"
+import { afterLcpPaint } from "@/lib/perf/afterLcpPaint"
 import { withTimeout } from "@/lib/utils/withTimeout"
 
 const FALLBACK_NODES = [
@@ -44,7 +45,11 @@ const hive: { client: Client | null } = { client: null }
 let clientReady: Promise<Client> | null = null
 
 function loadDhive(): Promise<typeof import("@hiveio/dhive")> {
-  return import("@hiveio/dhive")
+  // Server renders and API routes need the client immediately. In the
+  // browser, wait until the home LCP image has painted so this download
+  // is not in the critical path. Pages without that image resolve at once.
+  if (!IS_BROWSER) return import("@hiveio/dhive")
+  return afterLcpPaint().then(() => import("@hiveio/dhive"))
 }
 
 function ensureClient(): Promise<Client> {

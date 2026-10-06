@@ -8,9 +8,9 @@ import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "r
 import { FaXTwitter } from "react-icons/fa6";
 import { MdTranslate } from "react-icons/md";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
+import { separateContent, extractHivePostUrls, extractHangoutUrls, snapTextForMarkdown } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
@@ -25,7 +25,6 @@ const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
 
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
-import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
@@ -110,26 +109,28 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         [comment.body]
     );
 
-    // Remove Hive post URLs and hangout URLs from text since we'll render them as preview cards
-    const textWithoutHiveUrls = useMemo(() => {
-        let cleanText = text;
-        hivePostUrls.forEach(({ url }) => {
-            cleanText = cleanText.replace(url, '');
-        });
-        hangoutRoomNames.forEach((roomName) => {
-            cleanText = cleanText.replace(
-                new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, 'g'),
-                ''
-            );
-        });
-        return cleanText.trim();
-    }, [text, hivePostUrls, hangoutRoomNames]);
-
-    // Render text as HTML using markdown renderer
-    const renderedText = useMemo(
-        () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }) : '',
-        [textWithoutHiveUrls, comment.author]
+    // Hive post URLs and hangout links render as cards, so they are not
+    // also markdown. The home seed already carries the HTML (`bodyHtml`);
+    // other pages load the renderer after paint.
+    const textWithoutHiveUrls = useMemo(
+        () => snapTextForMarkdown(comment.body || ''),
+        [comment.body]
     );
+    const seededHtml = comment.bodyHtml;
+    const [lazyHtml, setLazyHtml] = useState('');
+    useEffect(() => {
+        if (typeof seededHtml === 'string') return;
+        if (!textWithoutHiveUrls) return;
+        let cancel = false;
+        import('@/lib/utils/MarkdownRenderer').then((mod) => {
+            if (cancel) return;
+            setLazyHtml(mod.default(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }));
+        });
+        return () => {
+            cancel = true;
+        };
+    }, [seededHtml, textWithoutHiveUrls, comment.author]);
+    const renderedText = typeof seededHtml === 'string' ? seededHtml : lazyHtml;
 
     const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
     const detectedLang = useMemo(() => detectLang(text), [text]);

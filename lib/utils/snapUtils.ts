@@ -346,6 +346,27 @@ export const separateContent = (body: string) => {
 };
 
 /**
+ * Text half of a snap, with Hive post URLs and hangout links removed.
+ * Those render as preview cards, so they must not also be markdown.
+ * Shared by the server HTML pass and the client card so both agree.
+ */
+export function snapTextForMarkdown(body: string): string {
+  const source = body || "";
+  const { text } = separateContent(source);
+  let cleanText = text;
+  extractHivePostUrls(source).forEach(({ url }) => {
+    cleanText = cleanText.replace(url, "");
+  });
+  extractHangoutUrls(source).forEach((roomName) => {
+    cleanText = cleanText.replace(
+      new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, "g"),
+      ""
+    );
+  });
+  return cleanText.trim();
+}
+
+/**
  * Remove the last URL from content if it's at the end
  * This prevents duplicate rendering of OpenGraph previews
  */
