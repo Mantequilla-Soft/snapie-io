@@ -1,5 +1,5 @@
 'use client';
-import { Tooltip, Box } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 
 /** Marks a snap surfaced by content resurrection — dormant, then genuinely
  *  spiking against its own baseline (see lib/discovery/contentResurrection.ts).
@@ -7,8 +7,8 @@ import { Tooltip, Box } from '@chakra-ui/react';
  *  meant to read as a rare, delightful find, not routine. */
 export default function VaultBadge() {
   return (
-    <Tooltip label="From the Vault! This one went quiet for a while and just caught fire again" hasArrow fontSize="xs">
-      <Box
+    <Box
+        title="From the Vault! This one went quiet for a while and just caught fire again"
         as="span"
         display="inline-flex"
         alignItems="center"
@@ -26,7 +26,6 @@ export default function VaultBadge() {
         lineHeight="1.4"
       >
         Vault
-      </Box>
-    </Tooltip>
+    </Box>
   );
 }

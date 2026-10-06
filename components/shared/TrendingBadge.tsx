@@ -1,11 +1,11 @@
 'use client';
-import { Tooltip, Box } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 
 /** Marks a snap surfaced by the comment-velocity discovery detector, not the normal feed order. */
 export default function TrendingBadge() {
   return (
-    <Tooltip label="Trending — lots of comments relative to its age" hasArrow fontSize="xs">
-      <Box
+    <Box
+        title="Trending — lots of comments relative to its age"
         as="span"
         display="inline-flex"
         alignItems="center"
@@ -23,7 +23,6 @@ export default function TrendingBadge() {
         lineHeight="1.4"
       >
         Trending
-      </Box>
-    </Tooltip>
+    </Box>
   );
 }

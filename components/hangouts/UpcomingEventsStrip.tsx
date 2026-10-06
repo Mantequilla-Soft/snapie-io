@@ -1,5 +1,5 @@
 'use client';
-import { Box, Flex, Text, HStack, Image, Link as ChakraLink, Icon, Badge, IconButton, Tooltip } from '@chakra-ui/react';
+import { Box, Flex, Text, HStack, Image, Link as ChakraLink, Icon, Badge, IconButton } from '@chakra-ui/react';
 import { FaCalendarAlt, FaCheck, FaPlus } from 'react-icons/fa';
 import NextLink from 'next/link';
 import { useState } from 'react';
@@ -104,9 +104,9 @@ function EventCard({ event }: { event: HangoutsEvent }) {
 
       <Flex direction="column" alignItems="center" flexShrink={0} pl={1} gap={0.5}>
         {user && !isLive && (
-          <Tooltip label={attending ? 'Remove RSVP' : 'RSVP'} placement="top" hasArrow>
-            <IconButton
+          <IconButton
               aria-label={attending ? 'Remove RSVP' : 'RSVP'}
+              title={attending ? 'Remove RSVP' : 'RSVP'}
               icon={attending ? <FaCheck /> : <FaPlus />}
               size="xs"
               variant="ghost"
@@ -115,8 +115,7 @@ function EventCard({ event }: { event: HangoutsEvent }) {
               isLoading={rsvpLoading}
               onClick={handleRsvp}
               _hover={{ color: attending ? 'green.300' : 'text', bg: 'overlay.100' }}
-            />
-          </Tooltip>
+          />
         )}
         {count > 0 && (
           <Text fontSize="10px" color="overlay.500">{count}</Text>

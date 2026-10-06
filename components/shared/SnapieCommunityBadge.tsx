@@ -1,5 +1,5 @@
 'use client';
-import { Tooltip, Box } from '@chakra-ui/react';
+import { Box } from '@chakra-ui/react';
 
 /** Cosmetic easter-egg badge — marks a post/snap/wave that happens to carry
  *  the Snapie community tag, regardless of "For You" state (cold or warm).
@@ -7,8 +7,8 @@ import { Tooltip, Box } from '@chakra-ui/react';
  *  lib/discovery/snapTrending.ts:isSnapieCommunityPost). */
 export default function SnapieCommunityBadge() {
   return (
-    <Tooltip label="Posted in the Snapie community" hasArrow fontSize="xs">
-      <Box
+    <Box
+        title="Posted in the Snapie community"
         as="span"
         display="inline-flex"
         alignItems="center"
@@ -26,7 +26,6 @@ export default function SnapieCommunityBadge() {
         lineHeight="1.4"
       >
         Snapie
-      </Box>
-    </Tooltip>
+    </Box>
   );
 }

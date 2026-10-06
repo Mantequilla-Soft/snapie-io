@@ -81,7 +81,7 @@ describe('chat shell', () => {
       </ChakraProvider>,
     );
 
-    expect(screen.getByText('Site nav')).toBeTruthy();
+    expect(await screen.findByText('Site nav')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Sign in to chat' })).toBeTruthy();
     expect(screen.queryByText('Chat panel')).toBeNull();
 

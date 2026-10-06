@@ -3,10 +3,9 @@ import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
-import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import MeSheet from '@/components/layout/MeSheet';
+import { afterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import { chatService } from '@/lib/chat/ChatService';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -15,6 +14,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
 
+const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), { ssr: false });
+const MeSheet = dynamic(() => import('@/components/layout/MeSheet'), { ssr: false });
 const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
@@ -23,6 +24,34 @@ const InterestPicker = dynamic(() => import('@/components/onboarding/InterestPic
 const WhatsNewModal = dynamic(() => import('@/components/whatsnew/WhatsNewModal'), { ssr: false });
 const PointsToaster = dynamic(() => import('@/components/points/PointsToaster'), { ssr: false });
 const DebugConsole = dynamic(() => import('@/components/debug/DebugConsole'), { ssr: false });
+
+function SidebarSlot() {
+  return (
+    <Box
+      as="nav"
+      aria-hidden
+      display={{ base: 'none', sm: 'block' }}
+      w={{ base: 'full', sm: '72px', md: '260px' }}
+      h="100vh"
+      flexShrink={0}
+    />
+  );
+}
+
+function DeferredSidebar(props: { isChatOpen: boolean; setIsChatOpen?: (v: boolean) => void; chatUnreadCount: number }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    afterPriorityImage().then(() => {
+      if (!cancel) setReady(true);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+  if (!ready) return <SidebarSlot />;
+  return <Sidebar {...props} />;
+}
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -159,7 +188,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <Box maxW="1320px" mx="auto" h="100dvh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100dvh">
           {!isEmbedMode && !isChatPopoutMode && (
-            <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+            <DeferredSidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
           )}
           <Box
             as="main"
@@ -200,12 +229,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           {/* Mobile chrome */}
           <MobileHeader onMePress={() => setIsMeSheetOpen(true)} />
           <BottomTabBar />
-          <MeSheet
-            isOpen={isMeSheetOpen}
-            onClose={() => setIsMeSheetOpen(false)}
-            onToggleChat={() => setIsChatOpen(c => !c)}
-            chatUnreadCount={chatUnreadCount}
-          />
+          {isMeSheetOpen && (
+            <MeSheet
+              isOpen={isMeSheetOpen}
+              onClose={() => setIsMeSheetOpen(false)}
+              onToggleChat={() => setIsChatOpen(c => !c)}
+              chatUnreadCount={chatUnreadCount}
+            />
+          )}
 
           {/* Chat panel (all screen sizes). Loaded on first open. */}
           {chatActivated && <ChatPanel

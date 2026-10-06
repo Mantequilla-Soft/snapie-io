@@ -1,8 +1,11 @@
-import { Box, Button, Flex, Icon, Slider, SliderTrack, SliderFilledTrack, SliderThumb, HStack, Text, useToast } from '@chakra-ui/react';
+import { Box, Button, Flex, Icon, Slider, SliderTrack, SliderFilledTrack, SliderThumb, HStack } from '@chakra-ui/react';
+import dynamic from 'next/dynamic';
 import { memo, useState } from 'react';
 import { FaHeart, FaRegHeart } from 'react-icons/fa';
 import { useRememberedVoteWeight } from '@/hooks/useRememberedVoteWeight';
-import VotersModal from '@/components/shared/VotersModal';
+import { lazyToast } from '@/lib/ui/lazyToast';
+
+const VotersModal = dynamic(() => import('@/components/shared/VotersModal'), { ssr: false });
 
 interface VoteControlsProps {
     initialVoted: boolean;
@@ -22,7 +25,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
     const [showVotersModal, setShowVotersModal] = useState(false);
     const { weight: sliderValue, setWeight: setSliderValue, rememberWeight } = useRememberedVoteWeight(5);
     const [isVoting, setIsVoting] = useState(false);
-    const toast = useToast();
+    const toast = lazyToast;
 
     async function handleVote() {
         // Optimistic update
@@ -112,7 +115,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
                     {voteCount}
                 </Button>
             </HStack>
-            {author && permlink && (
+            {showVotersModal && author && permlink && (
                 <VotersModal
                     isOpen={showVotersModal}
                     onClose={() => setShowVotersModal(false)}
