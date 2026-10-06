@@ -3,14 +3,19 @@ import { Box, Button, Center, Heading, HStack, Link as ChakraLink, Spinner, Text
 import NextLink from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
-import { PuffQuest } from '@/components/games/puff-quest';
 import { saveGameScore } from '@/lib/games/scoreClient';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 import type { PuffQuestResult, PuffQuestEvent } from '@/components/games/puff-quest';
+
+const PuffQuest = dynamic(
+  () => import('@/components/games/puff-quest').then((m) => m.PuffQuest),
+  { ssr: false },
+);
 
 export default function PuffQuestPage() {
   const { username, isLoggedIn } = useCurrentUser();

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Center, Spinner, Text, VStack, Button, Box, useToast } from '@chakra-ui/react';
 import { HangoutsProvider, HangoutsRoom, useHangoutsRoom, HangoutsApiClient } from '@snapie/hangouts-react';
 import type { GameResultPayload, ChessGameResult, FastDrawGameResult } from '@snapie/hangouts-react';
-import { useAioha } from '@aioha/react-ui';
+import { useAioha } from '@/lib/aioha/facade-react-ui';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
 import { useHangout } from '@/contexts/HangoutContext';

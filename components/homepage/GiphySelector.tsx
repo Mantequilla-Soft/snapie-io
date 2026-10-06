@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Input, Center, Spinner, InputGroup, InputRightElement } from '@chakra-ui/react';
-import { Grid } from '@giphy/react-components';
-import { GiphyFetch, GifsResult } from '@giphy/js-fetch-api';
-import { IGif } from '@giphy/js-types';
+import type { GiphyFetch, GifsResult } from '@giphy/js-fetch-api';
+import type { IGif } from '@giphy/js-types';
 import { FaSearch } from 'react-icons/fa';
 
 interface GiphySelectorProps {
@@ -10,13 +9,42 @@ interface GiphySelectorProps {
     onSelect: (gif: IGif, e: React.SyntheticEvent<HTMLElement>) => void;
 }
 
+type GifGrid = React.ComponentType<{
+    width: number;
+    columns: number;
+    fetchGifs: (offset: number) => Promise<GifsResult>;
+    onGifClick: (gif: IGif, e: React.SyntheticEvent<HTMLElement>) => void;
+}>;
+
+// The Giphy UI is only mounted while the picker is open. Keep its packages out
+// of the feed's first-load chunk and pull them in when this component mounts.
 const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
-    const gf = new GiphyFetch(apiKey);
+    const gfRef = useRef<GiphyFetch | null>(null);
+    // Hold the component in an object so setState does not treat it as an updater.
+    const [grid, setGrid] = useState<{ Comp: GifGrid } | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [key, setKey] = useState(0); // Add a key state to force re-render
+    const [key, setKey] = useState(0);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            const [ui, api] = await Promise.all([
+                import('@giphy/react-components'),
+                import('@giphy/js-fetch-api'),
+            ]);
+            if (cancelled) return;
+            gfRef.current = new api.GiphyFetch(apiKey);
+            setGrid({ Comp: ui.Grid as unknown as GifGrid });
+        })();
+        return () => { cancelled = true; };
+    }, [apiKey]);
 
     const fetchGifs = async (offset: number): Promise<GifsResult> => {
+        const gf = gfRef.current;
+        if (!gf) {
+            return { data: [], pagination: { total_count: 0, count: 0, offset }, meta: { status: 200, msg: 'OK', response_id: '' } };
+        }
         setIsLoading(true);
         const result = searchTerm
             ? await gf.search(searchTerm, { offset, limit: 10 })
@@ -30,8 +58,8 @@ const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
     };
 
     const handleSearchIconClick = () => {
-        fetchGifs(0); // Fetch GIFs from the start when the search icon is clicked
-        setKey(key + 1); // Increment the key to force re-render of the Grid component
+        fetchGifs(0);
+        setKey(key + 1);
     };
 
     const handleGifClick = (gif: IGif, e: React.SyntheticEvent<HTMLElement>) => {
@@ -39,16 +67,19 @@ const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
     };
 
     useEffect(() => {
+        if (!grid) return;
         fetchGifs(0);
-        setKey(k => k + 1); // Increment the key to force re-render of the Grid component
+        setKey(k => k + 1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm]); // fetchGifs excluded - only want to trigger on searchTerm change
+    }, [searchTerm, grid]);
+
+    const Grid = grid?.Comp;
 
     return (
         <>
             <InputGroup>
                 <InputRightElement>
-                    {isLoading ? <Spinner /> : <FaSearch cursor="pointer" onClick={handleSearchIconClick} />}
+                    {isLoading || !Grid ? <Spinner /> : <FaSearch cursor="pointer" onClick={handleSearchIconClick} />}
                 </InputRightElement>
                 <Input
                     pr="4.5rem"
@@ -57,20 +88,22 @@ const GiphySelector: React.FC<GiphySelectorProps> = ({ apiKey, onSelect }) => {
                     onChange={(e) => handleSearchTermChange(e.target.value)}
                     onKeyPress={(e) => {
                         if (e.key === 'Enter') {
-                            fetchGifs(0); // Allows pressing Enter to search
-                            setKey(key + 1); // Increment the key to force re-render of the Grid component
+                            fetchGifs(0);
+                            setKey(key + 1);
                         }
                     }}
                 />
             </InputGroup>
             <Center mt={4}>
-                <Grid
-                    key={key} // Use the key prop to force re-rendering when the search term changes
-                    width={450}
-                    columns={3}
-                    fetchGifs={fetchGifs} // Use the fetchGifs function to get GIFs based on the current search term
-                    onGifClick={handleGifClick}
-                />
+                {Grid && (
+                    <Grid
+                        key={key}
+                        width={450}
+                        columns={3}
+                        fetchGifs={fetchGifs}
+                        onGifClick={handleGifClick}
+                    />
+                )}
             </Center>
         </>
     );
