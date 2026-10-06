@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { authenticateWithEmail } from './client';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { authenticateWithEmail, getMe } from './client';
 import { SnapieAuthError } from './types';
 
 // The email form's tab is only a hint. authenticateWithEmail decides between
@@ -212,5 +212,49 @@ describe('authenticateWithEmail — fallback failure handling', () => {
     await expect(
       authenticateWithEmail('a@b.c', 'pw', 'login', ops(register, login)),
     ).rejects.toMatchObject({ code: BAD_CREDENTIALS });
+  });
+});
+
+const ME_USER = {
+  id: 'u1',
+  name: 'tester',
+  picture: null,
+  hiveUsername: 'tester',
+  custodyMode: 'custodial' as const,
+  isAdmin: false,
+  email: 'a@b.c',
+  accountValueUsd: null,
+  emancipationRequired: false,
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve({
+    status,
+    ok: status >= 200 && status < 300,
+    json: async () => body,
+  });
+}
+
+describe('getMe', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns null for the logged-out 200, without treating it as a user', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ authenticated: false })));
+
+    await expect(getMe()).resolves.toBeNull();
+  });
+
+  it('returns the user when a session is present', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ user: ME_USER })));
+
+    await expect(getMe()).resolves.toEqual(ME_USER);
+  });
+
+  it('still rejects a non-OK response so an invalid session cookie is not a user', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => jsonResponse({ error: 'Unauthorized' }, 401)));
+
+    await expect(getMe()).rejects.toMatchObject({ status: 401 });
   });
 });

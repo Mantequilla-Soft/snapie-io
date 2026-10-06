@@ -15,6 +15,7 @@ import HiveClient from '@/lib/hive/hiveclient'
 import { useHiveUser } from '@/contexts/UserContext'
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext'
 import { setSigningAuthMode } from '@/lib/hive/signing'
+import { notifyViewerSession } from '@/lib/auth/viewerSession'
 import type { HiveAccount } from '@/hooks/useHiveAccount'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
 import { getLoginProviders } from '@/lib/hive/aioha'
@@ -79,6 +80,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
     if (!aiohaUser || isSnapieLoggedIn) return
     setSigningAuthMode('aioha')
     setCookie('hive_username', aiohaUser, 30)
+    notifyViewerSession()
     fetchAndStoreAccount(aiohaUser).then((acc) => {
       if (acc) setHiveUser(acc)
     })
@@ -90,6 +92,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
     setSigningAuthMode(null)
     deleteCookie('hive_username')
     localStorage.removeItem('hiveuser')
+    notifyViewerSession()
     setHiveUser(null)
   }, [aiohaUser, setHiveUser, isSnapieLoggedIn])
 
@@ -101,6 +104,7 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
       if (!username) return
       setSigningAuthMode('aioha')
       setCookie('hive_username', username, 30)
+      notifyViewerSession()
       const acc = await fetchAndStoreAccount(username)
       if (acc) setHiveUser(acc)
       setIsOpen(false)
