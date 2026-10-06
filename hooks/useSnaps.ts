@@ -46,6 +46,8 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
   // Staying false through a Strict Mode double-invoke is what keeps the
   // first paint from refetching; pagination checks currentPage instead.
   const leftSeedRef = useRef(false);
+  // A null seed cursor means the server only shipped a prefix of the newest
+  // container. Resume from the head; permlink dedup drops the snaps already shown.
   const lastContainerRef = useRef<lastContainerInfo | null>(hasSeed ? initialPage!.cursor : null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const followingListRef = useRef<string[]>([]);

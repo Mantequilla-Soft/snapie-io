@@ -513,7 +513,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         <Flex wrap="wrap" justify="space-between" align="center" mt={3} width="100%" gap={2} pr={2}>
                             <VoteControls
                                 initialVoted={comment.active_votes?.some(item => item.voter === user) ?? false}
-                                initialVoteCount={comment.active_votes?.length || 0}
+                                initialVoteCount={comment.active_votes?.length ?? comment.voteCount ?? 0}
                                 onVote={handleVote}
                                 onVoteOptimistic={async (weight) => setOptimisticDeltaHBD(await calculateDelta(weight))}
                                 onVoteRollback={() => setOptimisticDeltaHBD(0)}
@@ -598,7 +598,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     // Only re-render if the comment permlink or active_votes length changes
     return (
         prevProps.comment.permlink === nextProps.comment.permlink &&
-        prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
+        (prevProps.comment.active_votes?.length ?? prevProps.comment.voteCount) ===
+            (nextProps.comment.active_votes?.length ?? nextProps.comment.voteCount) &&
         prevProps.level === nextProps.level &&
         prevProps.priorityUrl === nextProps.priorityUrl &&
         sameUrlList(prevProps.deferUrls, nextProps.deferUrls) &&
