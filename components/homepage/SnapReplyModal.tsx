@@ -13,6 +13,7 @@ import MediaRenderer from '@/components/shared/MediaRenderer';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import NextLink from 'next/link';
 import { translationCache } from '@/lib/utils/translationCache';
+import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 
 interface SnapReplyModalProps {
     isOpen: boolean;
@@ -41,7 +42,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
         if (isTranslating || !text || !comment) return;
         setIsTranslating(true);
         try {
-            const targetLang = navigator.language.split('-')[0];
+            const targetLang = browserLanguageTag();
             const res = await fetch('/api/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

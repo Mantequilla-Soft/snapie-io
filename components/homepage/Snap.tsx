@@ -12,6 +12,7 @@ import { useState, useMemo, memo, useCallback } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
+import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
@@ -132,7 +133,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         [textWithoutHiveUrls, comment.author]
     );
 
-    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
+    const browserLang = browserLanguageTag();
     const detectedLang = useMemo(() => detectLang(text), [text]);
     // Show translate when: we detected a language and it differs from the browser's,
     // OR the text is too short/ambiguous to detect (detectedLang === null) — offer it anyway.
@@ -197,7 +198,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         if (isTranslating || !text) return;
         setIsTranslating(true);
         try {
-            const targetLang = navigator.language.split('-')[0];
+            const targetLang = browserLanguageTag();
             const res = await fetch('/api/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

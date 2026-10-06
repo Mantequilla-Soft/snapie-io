@@ -1,10 +1,11 @@
 # Local testdrive image. Bun 1.4.2 is the runtime that produced bun.lock
 # (migrated from pnpm-lock.yaml; the resolved versions match).
 #
-# The standalone server was checked under this Bun runtime: route handlers,
-# middleware, streaming SSR, node:http/https in /api/image-proxy, and the
-# sharp-backed /_next/image optimizer all answered. The runtime stage stays
-# on Bun for that reason.
+# SSR under Bun threw while prerendering / because navigator exists but
+# navigator.language does not. That read now falls back to "en". After the
+# fix, route handlers, middleware, streaming SSR, node:http/https in
+# /api/image-proxy, and the sharp /_next/image optimizer all run on Bun.
+# The runtime stage stays on Bun.
 
 FROM oven/bun:1.4.2 AS deps
 WORKDIR /app

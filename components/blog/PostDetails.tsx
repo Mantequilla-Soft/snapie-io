@@ -21,6 +21,7 @@ import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
+import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -90,7 +91,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
     const { postData } = useCombflowPost(author, post.permlink);
     const { getEquippedBadge } = useMoodBadges();
 
-    const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
+    const browserLang = browserLanguageTag();
     const showTranslate = !translatedText && (!postData || postData.primary_language !== browserLang);
     const isNsfw = !isEmbedMode && (postData?.is_nsfw ?? false);
 
@@ -104,7 +105,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
         if (isTranslating) return;
         setIsTranslating(true);
         try {
-            const targetLang = navigator.language.split('-')[0];
+            const targetLang = browserLanguageTag();
             const res = await fetch('/api/translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

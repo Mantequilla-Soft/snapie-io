@@ -67,6 +67,7 @@ There is no session server in this setup, and one is not faked. Custodial Snapie
 - Translation is off.
 - The activity sidecar is not running. Those routes return an empty payload.
 - The image is built with Bun 1.4.2 and runs `next start` via the standalone `server.js` under Bun, as the user `snapie`, on port 3000. `bun.lock` was migrated from `pnpm-lock.yaml` and resolves the same package versions.
+- Bun's server `navigator` object exists, but `navigator.language` is missing. The first image build prerendered `/` and threw on `navigator.language.split`. Language detection now treats a missing language as `en`, the same fallback as a missing `navigator`. After that, install, build, and the runtime all stay on Bun. Image proxy (`node:http` / `node:https`), the sharp optimizer, route handlers, and middleware did not need a Node runtime.
 
 ## Checks on this branch
 
