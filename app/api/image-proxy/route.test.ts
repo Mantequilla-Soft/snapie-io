@@ -70,6 +70,32 @@ describe('GET /api/image-proxy', () => {
         const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://i.imgur.com/TyZjlBu.jpg')}`, '203.0.113.14');
         expect(res.status).toBe(200);
         expect(res.headers.get('content-type')).toBe('image/jpeg');
+        expect(res.headers.get('x-image-proxy-fallback')).toBeNull();
         expect(probeProxiedImage).not.toHaveBeenCalled();
+    });
+
+    it('serves image bytes and marks a Hive-cache fallback', async () => {
+        vi.mocked(fetchProxiedImage).mockResolvedValue({
+            body: JPEG,
+            contentType: 'image/jpeg',
+            fallback: 'hive',
+        });
+        const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://cdn.discordapp.com/a.png')}`, '203.0.113.20');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toBe('image/jpeg');
+        expect(res.headers.get('x-image-proxy-fallback')).toBe('hive');
+    });
+
+    it('does not set the fallback header for a direct hit', async () => {
+        vi.mocked(fetchProxiedImage).mockResolvedValue({ body: JPEG, contentType: 'image/jpeg' });
+        const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://i.imgur.com/TyZjlBu.jpg')}`, '203.0.113.21');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('x-image-proxy-fallback')).toBeNull();
+    });
+
+    it('still returns an error status when the original and the Hive cache both fail', async () => {
+        vi.mocked(fetchProxiedImage).mockRejectedValue(new ImageProxyError(502, 'upstream-status'));
+        const res = await call(`/api/image-proxy?url=${encodeURIComponent('https://cdn.discordapp.com/missing.png')}`, '203.0.113.22');
+        expect(res.status).toBe(502);
     });
 });
