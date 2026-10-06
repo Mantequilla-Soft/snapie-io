@@ -58,8 +58,6 @@ interface SnapProps {
     priorityUrl?: string | null;
     /** GIF, video, and oversized URLs in the home LCP scan. */
     deferUrls?: readonly string[];
-    /** First-screen cards paint their media into the server HTML. */
-    priority?: boolean;
 }
 
 function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
@@ -71,7 +69,7 @@ function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
     return true;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls, priority = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -391,7 +389,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN} initiallyMounted={priority}>
+                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
                                 <MediaRenderer
                                     key={`media-${comment.permlink}`}
                                     mediaContent={media}
@@ -584,8 +582,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
         prevProps.level === nextProps.level &&
         prevProps.priorityUrl === nextProps.priorityUrl &&
-        sameUrlList(prevProps.deferUrls, nextProps.deferUrls) &&
-        prevProps.priority === nextProps.priority
+        sameUrlList(prevProps.deferUrls, nextProps.deferUrls)
     );
 });
 

@@ -375,13 +375,16 @@ export default function SnapList(
           // IntersectionObserver target inside a content-visibility:auto
           // ancestor is fragile.
           // The leading `paintedCount` cards start mounted so their author,
-          // body, and counts are in the server HTML. The observer still
-          // owns them after that.
+          // body, and counts are in the server HTML. The rest reserve 400px
+          // (the same stand-in as contain-intrinsic-size) so a collapsed
+          // list doesn't pull the sentinel into the 2000px prefetch margin.
+          // Media stays behind its own gate — a placeholder, not a video.
           <OffscreenGate
             key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
             rootMargin={CARD_GATE_MARGIN}
             initiallyMounted={index < paintedCount}
+            unmountedMinHeight={paintedCount > 0 && index >= paintedCount ? 400 : 0}
             sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
           >
             <Snap
@@ -391,7 +394,6 @@ export default function SnapList(
               refreshComment={refreshComment}
               priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
               deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
-              priority={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
