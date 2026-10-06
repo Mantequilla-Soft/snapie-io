@@ -153,6 +153,11 @@ export default function AccountSetupPanel({ onComplete }: Props) {
 
       if (status === 'confirmed') {
         const updated = await getMe()
+        if (!updated) {
+          setSubmitError('Account creation did not complete. Please try again.')
+          setSubmitting(false)
+          return
+        }
         onComplete(updated)
       } else {
         setSubmitError('Account creation did not complete. Please try again.')

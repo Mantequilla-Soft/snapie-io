@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { POINTS_EARNED_EVENT, PointsEarnedDetail, POINTS_SPENT_EVENT, PointsSpentDetail } from '@/lib/points/client';
+import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
 
 export interface PointsSummary {
   balance: number;
@@ -20,7 +21,10 @@ export function usePointsSummary(username: string | null | undefined): PointsSum
   const [summary, setSummary] = useState<PointsSummary | null>(null);
 
   const refetch = useCallback(async () => {
-    if (!username) {
+    // Profile and wallet pass the account in the URL, which is set even when
+    // the viewer is logged out. The summary route needs Mongo, so wait until
+    // this browser has a session marker. Logged-in reloads already have one.
+    if (!username || !hasViewerSessionMarker()) {
       setSummary(null);
       return;
     }
@@ -36,6 +40,13 @@ export function usePointsSummary(username: string | null | undefined): PointsSum
 
   useEffect(() => {
     refetch();
+    const onSession = () => { refetch(); };
+    window.addEventListener(VIEWER_SESSION_EVENT, onSession);
+    window.addEventListener('hiveuser-saved', onSession);
+    return () => {
+      window.removeEventListener(VIEWER_SESSION_EVENT, onSession);
+      window.removeEventListener('hiveuser-saved', onSession);
+    };
   }, [refetch]);
 
   useEffect(() => {

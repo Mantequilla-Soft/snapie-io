@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { MoodBadgeSku, isMoodBadgeSku } from '@/lib/moodBadges/constants';
+import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
 
 // Same shape as usePatronStatus.ts — a mood badge renders next to an avatar
 // wherever one appears, many components, no single shared ancestor worth
@@ -36,18 +37,36 @@ async function fetchEquipped(): Promise<Map<string, MoodBadgeSku>> {
 
 const MOOD_BADGE_CHANGED_EVENT = 'snapie:mood-badge-changed';
 
+/** Test-only. The module cache would otherwise leak across cases. */
+export function resetMoodBadgeCacheForTests(): void {
+  cache = null;
+  cacheTimestamp = 0;
+  inFlight = null;
+}
+
 export function useMoodBadges() {
   const [byAccount, setByAccount] = useState<Map<string, MoodBadgeSku>>(cache ?? new Map());
   const [isLoading, setIsLoading] = useState(!cache);
 
   useEffect(() => {
     let cancelled = false;
-    fetchEquipped().then(map => {
-      if (!cancelled) {
-        setByAccount(map);
-        setIsLoading(false);
+
+    // Equipped badges are public, but the route needs Mongo. A logged-out
+    // visit has no session marker, so skip the request instead of logging a
+    // 500. A later login (VIEWER_SESSION_EVENT / hiveuser-saved) fetches.
+    const load = () => {
+      if (!hasViewerSessionMarker()) {
+        if (!cancelled) setIsLoading(false);
+        return;
       }
-    });
+      fetchEquipped().then(map => {
+        if (!cancelled) {
+          setByAccount(map);
+          setIsLoading(false);
+        }
+      });
+    };
+    load();
 
     // Refetch every mounted consumer immediately after this device's own
     // equip/buy, instead of each one waiting up to CACHE_DURATION_MS for the
@@ -56,13 +75,17 @@ export function useMoodBadges() {
     const onChanged = () => {
       cache = null;
       cacheTimestamp = 0;
-      fetchEquipped().then(map => { if (!cancelled) setByAccount(map); });
+      load();
     };
     window.addEventListener(MOOD_BADGE_CHANGED_EVENT, onChanged);
+    window.addEventListener(VIEWER_SESSION_EVENT, load);
+    window.addEventListener('hiveuser-saved', load);
 
     return () => {
       cancelled = true;
       window.removeEventListener(MOOD_BADGE_CHANGED_EVENT, onChanged);
+      window.removeEventListener(VIEWER_SESSION_EVENT, load);
+      window.removeEventListener('hiveuser-saved', load);
     };
   }, []);
 

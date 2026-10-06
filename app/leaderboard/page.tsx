@@ -9,6 +9,7 @@ import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { POINTS_FEATURE_FLAG } from '@/lib/points/config';
+import { hasViewerSessionMarker, VIEWER_SESSION_EVENT } from '@/lib/auth/viewerSession';
 
 interface LeaderboardEntry {
   rank: number;
@@ -29,12 +30,21 @@ export default function LeaderboardPage() {
   const { username: me } = useCurrentUser();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const { getEquippedBadge } = useMoodBadges();
   const mySummary = usePointsSummary(me);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
+      if (!hasViewerSessionMarker()) {
+        if (cancelled) return;
+        setEntries([]);
+        setNeedsLogin(true);
+        setInitialLoad(false);
+        return;
+      }
+      setNeedsLogin(false);
       try {
         const res = await fetch(`/api/points/leaderboard?limit=${TOP_N}&offset=0`);
         if (!res.ok) return;
@@ -44,9 +54,15 @@ export default function LeaderboardPage() {
       } finally {
         if (!cancelled) setInitialLoad(false);
       }
-    })();
+    };
+    load();
+    const onSession = () => { load(); };
+    window.addEventListener(VIEWER_SESSION_EVENT, onSession);
+    window.addEventListener('hiveuser-saved', onSession);
     return () => {
       cancelled = true;
+      window.removeEventListener(VIEWER_SESSION_EVENT, onSession);
+      window.removeEventListener('hiveuser-saved', onSession);
     };
   }, []);
 
@@ -100,7 +116,7 @@ export default function LeaderboardPage() {
           </Flex>
         ) : entries.length === 0 ? (
           <Text color="overlay.500" fontSize="sm" px={6} py={10} textAlign="center">
-            No points earned yet — be the first.
+            {needsLogin ? 'Log in to see the leaderboard.' : 'No points earned yet — be the first.'}
           </Text>
         ) : (
           entries.map((e, i) => {
