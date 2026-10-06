@@ -65,6 +65,14 @@ const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, qu
 export const IMAGE_ASPECT_RATIO = FEED_IMAGE_ASPECT_RATIO;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
+/** True when the home priority photo is in the document and still downloading.
+ *  Server render has no document, so this stays false there. */
+function priorityPhotoStillLoading(): boolean {
+  if (typeof document === 'undefined') return false;
+  const img = document.querySelector('img[fetchpriority="high"]');
+  return img instanceof HTMLImageElement && !img.complete;
+}
+
 /** Neutral tile in the same 4/3 box. No `<img>`, so a dead file does not
  *  flash the browser's broken-image icon or change the card height. */
 function ImageFallback() {
@@ -86,10 +94,12 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
   const knownHeavy = useKnownHeavyMediaUrls();
   const resolved = resolveFeedImageSrc(url);
   const defer = shouldDeferNonPriorityMedia(url, priority, knownHeavy);
-  // Painted siblings are in the server HTML. Omit their src until the
-  // priority photo finishes so they do not share that connection. The
-  // first render matches the server (held), then the effect releases.
-  const holdForPriority = painted && !priority && !defer;
+  // Painted siblings are in the server HTML. The offscreen gate also mounts
+  // further cards during hydration; those are not painted, but a w=750
+  // request from them still shares the priority photo's connection.
+  // Both wait. A page with no priority photo, and a card mounted after
+  // that photo has finished, fetch immediately.
+  const holdForPriority = !priority && !defer && (painted || priorityPhotoStillLoading());
   const [released, setReleased] = useState(!holdForPriority);
   useEffect(() => {
     if (!holdForPriority) return;

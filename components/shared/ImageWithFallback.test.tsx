@@ -101,6 +101,27 @@ describe('ImageWithFallback', () => {
     }
   });
 
+  it('holds a non-painted photo while the priority image is still loading', async () => {
+    const priority = document.createElement('img');
+    priority.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(priority, 'complete', { configurable: true, get: () => false });
+    document.body.appendChild(priority);
+    try {
+      const { container } = render(createElement(ImageWithFallback, {
+        url: 'https://example.com/below.jpg',
+        alt: 'below',
+      }));
+      expect(container.querySelector('img')).toBeNull();
+      expect(container.querySelector('[data-feed-image-held]')).not.toBeNull();
+      priority.dispatchEvent(new Event('load'));
+      await waitFor(() => {
+        expect(decodedSrc(container.querySelector('img'))).toContain('https://example.com/below.jpg');
+      });
+    } finally {
+      priority.remove();
+    }
+  });
+
   it('optimizes a same-origin path directly instead of proxying it', () => {
     const { container } = render(createElement(ImageWithFallback, { url: '/logo.png', alt: 'logo' }));
     const src = decodedSrc(container.querySelector('img'));
