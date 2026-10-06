@@ -4,7 +4,7 @@ import {
   matchBatchResponses,
   buildRpcRequest,
   isBroadcastCall,
-  type JsonRpcRequest,
+  type RpcCoalescerOptions,
 } from './rpcBatch';
 
 function deferred<T>() {
@@ -19,7 +19,9 @@ function deferred<T>() {
 
 function createHarness(maxBatchSize?: number) {
   const sendSingle = vi.fn(async (_api: string, _method: string, params: unknown) => ({ single: params }));
-  const sendBatch = vi.fn(async (requests: JsonRpcRequest[]) => (
+  // The coalescer treats a batch body as unknown: a node may return an
+  // array of results, a per-item error, or one object for the whole call.
+  const sendBatch = vi.fn<RpcCoalescerOptions['sendBatch']>(async (requests) => (
     requests.map((request) => ({ jsonrpc: '2.0', id: request.id, result: { method: request.method, params: request.params } }))
   ));
   let flush: (() => void | Promise<void>) | null = null;
