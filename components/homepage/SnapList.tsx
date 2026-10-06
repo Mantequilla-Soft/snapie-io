@@ -394,6 +394,7 @@ export default function SnapList(
               refreshComment={refreshComment}
               priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
               deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
+              reserveMediaSpace={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>

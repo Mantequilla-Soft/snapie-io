@@ -51,7 +51,7 @@ interface ImageWithFallbackProps {
  * eager. Those URLs load lazy at low priority, and `priority` cannot
  * override that. An oversized photo the home feed probed is passed `defer`.
  */
-const IMAGE_ASPECT_RATIO = 4 / 3;
+export const IMAGE_ASPECT_RATIO = 4 / 3;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
 function canOpenDirectly(url: string): boolean {

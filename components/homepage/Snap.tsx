@@ -14,6 +14,7 @@ import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -58,6 +59,8 @@ interface SnapProps {
     priorityUrl?: string | null;
     /** GIF, video, and oversized URLs in the home LCP scan. */
     deferUrls?: readonly string[];
+    /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
+    reserveMediaSpace?: boolean;
 }
 
 function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
@@ -69,7 +72,7 @@ function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
     return true;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls, reserveMediaSpace = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -389,7 +392,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                            <OffscreenGate
+                                rootMargin={MEDIA_GATE_MARGIN}
+                                unmountedAspectRatio={reserveMediaSpace ? IMAGE_ASPECT_RATIO : undefined}
+                            >
                                 <MediaRenderer
                                     key={`media-${comment.permlink}`}
                                     mediaContent={media}
@@ -582,7 +588,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
         prevProps.level === nextProps.level &&
         prevProps.priorityUrl === nextProps.priorityUrl &&
-        sameUrlList(prevProps.deferUrls, nextProps.deferUrls)
+        sameUrlList(prevProps.deferUrls, nextProps.deferUrls) &&
+        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace
     );
 });
 
