@@ -23,6 +23,10 @@
  * checks, size cap, and timeout. A URL that is already on images.hive.blog
  * is not sent there again. A known generic stand-in body from that host is
  * a failure, so the UI can show its own fallback instead of Hive's picture.
+ *
+ * Successful fetches can be kept in a short in-memory cache (the default
+ * deps use one). Callers that pass their own deps, including tests, do not
+ * share it. The cache does not change which URLs are allowed.
  */
 import http from 'node:http';
 import https from 'node:https';
@@ -145,12 +149,58 @@ const HIVE_FALLBACK_CODES = new Set([
     'dns-timeout',
 ]);
 
+const CACHE_TTL_MS = 60_000;
+const CACHE_MAX_ENTRIES = 8;
+const CACHE_MAX_BYTES = 4 * 1024 * 1024;
+
+type CacheEntry = {
+    body: Buffer;
+    contentType: string;
+    expires: number;
+    fallback?: 'hive';
+};
+export type ProxiedImageCache = Map<string, CacheEntry>;
+
 export type ImageProxyDeps = {
     resolve: (hostname: string, signal: AbortSignal) => Promise<ProxyAddress[]>;
     request: (target: URL, address: ProxyAddress, signal: AbortSignal) => Promise<ProxyUpstream>;
     /** Defaults to {@link HIVE_PLACEHOLDER_SHA256}. */
     placeholderHashes?: ReadonlySet<string>;
+    /** Successful images only. Omitted deps do not cache. */
+    cache?: ProxiedImageCache;
 };
+
+const sharedCache: ProxiedImageCache = new Map();
+
+function readCache(cache: ProxiedImageCache | undefined, key: string): ProxiedImage | null {
+    if (!cache) return null;
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (hit.expires <= Date.now()) {
+        cache.delete(key);
+        return null;
+    }
+    cache.delete(key);
+    cache.set(key, hit);
+    return { body: hit.body, contentType: hit.contentType, fallback: hit.fallback };
+}
+
+function writeCache(cache: ProxiedImageCache | undefined, key: string, value: ProxiedImage): void {
+    if (!cache) return;
+    if (value.body.length === 0 || value.body.length > CACHE_MAX_BYTES) return;
+    cache.delete(key);
+    cache.set(key, {
+        body: value.body,
+        contentType: value.contentType,
+        expires: Date.now() + CACHE_TTL_MS,
+        fallback: value.fallback,
+    });
+    while (cache.size > CACHE_MAX_ENTRIES) {
+        const oldest = cache.keys().next().value;
+        if (oldest === undefined) break;
+        cache.delete(oldest);
+    }
+}
 
 export function sha256Hex(body: Buffer): string {
     return createHash('sha256').update(body).digest('hex');
@@ -448,6 +498,7 @@ function defaultRequest(target: URL, address: ProxyAddress, signal: AbortSignal)
 const defaultDeps: ImageProxyDeps = {
     resolve: defaultResolve,
     request: defaultRequest,
+    cache: sharedCache,
 };
 
 async function resolvePublicAddress(url: URL, deps: ImageProxyDeps, signal: AbortSignal): Promise<ProxyAddress> {
@@ -515,9 +566,14 @@ export async function fetchProxiedImage(
 ): Promise<ProxiedImage> {
     const signal = AbortSignal.timeout(TIMEOUT_MS);
     const original = assertSafeProxyUrl(rawUrl);
+    const cacheKey = original.href;
+    const cached = readCache(deps.cache, cacheKey);
+    if (cached) return cached;
 
     try {
-        return await fetchProxiedOnce(original, deps, signal);
+        const image = await fetchProxiedOnce(original, deps, signal);
+        writeCache(deps.cache, cacheKey, image);
+        return image;
     } catch (err) {
         if (!canRetryViaHive(err)) throw err;
         const fallbackHref = hiveImageFallbackUrl(original.href);
@@ -539,6 +595,27 @@ export async function fetchProxiedImage(
         if (isHivePlaceholderImage(image.body, deps.placeholderHashes)) {
             throw new ImageProxyError(502, 'hive-placeholder');
         }
-        return { ...image, fallback: 'hive' };
+        const viaHive: ProxiedImage = { ...image, fallback: 'hive' };
+        writeCache(deps.cache, cacheKey, viaHive);
+        return viaHive;
+    }
+}
+
+/**
+ * Whether `rawUrl` is an image this proxy is willing to serve.
+ * Failures (missing file, blocked host, non-image) are `false` rather than
+ * a thrown status, so a caller can answer the browser with HTTP 200.
+ * Unexpected errors still throw. Uses the same checks as `fetchProxiedImage`.
+ */
+export async function probeProxiedImage(
+    rawUrl: string,
+    deps: ImageProxyDeps = defaultDeps,
+): Promise<boolean> {
+    try {
+        await fetchProxiedImage(rawUrl, deps);
+        return true;
+    } catch (err) {
+        if (err instanceof ImageProxyError) return false;
+        throw err;
     }
 }

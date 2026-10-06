@@ -24,6 +24,7 @@ import { ITEM_MARKET_FEATURE_FLAG } from '@/lib/points/config';
 import { getMyInventory } from '@/lib/points/marketClient';
 import type { InventoryEntry } from '@/lib/points/marketService';
 import useHiveAccount from '@/hooks/useHiveAccount';
+import ProfileCover from '@/components/shared/ProfileCover';
 import {
   getProfile,
   convertVestToHive,
@@ -430,13 +431,10 @@ export default function WalletPage({ username }: WalletPageProps) {
 
       {/* Profile Header */}
       <Box position="relative" height="200px" borderTopRadius="xl" overflow="hidden">
-        <Image
-          src={profileMetadata.coverImage}
+        <ProfileCover
+          url={profileMetadata.coverImage}
           alt={`${hiveAccount?.name} cover`}
-          width="100%"
-          height="100%"
-          objectFit="cover"
-          fallback={<div />}
+          fallback={<Box width="100%" height="100%" />}
         />
       </Box>
 
