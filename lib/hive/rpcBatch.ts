@@ -3,12 +3,14 @@
  * batch POST against /api/hive-rpc.
  *
  * The feed's vote/payout refresh calls condenser_api.get_content once per
- * visible snap, and the shell fires several more reads at the same time
- * (mutes, community, the daily container). Each of those is its own HTTP
- * request today. Hive nodes accept a JSON-RPC array and answer with one
- * array, matched by id, where a single item may carry an error while the
- * rest succeed. Broadcasts stay on the single-call path so a write is never
- * delayed or combined with a read.
+ * visible snap, and the shell fires several small reads at the same time
+ * (mutes, community, accounts). Each of those is its own HTTP request today.
+ * Hive nodes accept a JSON-RPC array and answer with one array, matched by
+ * id, where a single item may carry an error while the rest succeed.
+ *
+ * Discussion and ranked-post reads stay on their own request. They are
+ * large, and folding one into a batch makes every other call wait on it.
+ * Broadcasts are never batched or deduped.
  */
 
 export interface JsonRpcRequest {
@@ -50,8 +52,31 @@ interface QueueEntry {
 
 const DEFAULT_MAX_BATCH = 20
 
+/** List-shaped condenser/bridge reads. Sent alone so a fat container or
+ *  ranked-post page does not delay the small calls that started with it. */
+const HEAVY_METHODS = new Set([
+  "get_discussions_by_author_before_date",
+  "get_discussions_by_comments",
+  "get_discussions_by_created",
+  "get_discussions_by_trending",
+  "get_discussions_by_blog",
+  "get_discussions_by_feed",
+  "get_discussions_by_hot",
+  "get_content_replies",
+  "get_ranked_posts",
+  "get_account_posts",
+  "get_state",
+  "get_account_history",
+])
+
 export function isBroadcastCall(api: string, method: string): boolean {
   return api === "network_broadcast_api" || method.startsWith("broadcast_")
+}
+
+export function shouldCoalesce(api: string, method: string): boolean {
+  if (isBroadcastCall(api, method)) return false
+  if (HEAVY_METHODS.has(method)) return false
+  return true
 }
 
 export function rpcCacheKey(api: string, method: string, params: unknown): string {
@@ -121,20 +146,32 @@ export class RpcCoalescer {
     const existing = this.inflight.get(key)
     if (existing) return existing
 
+    // Large reads start immediately. Identical ones already in flight still
+    // share the promise above, so two mounts don't pay for the same list twice.
+    if (!shouldCoalesce(api, method)) {
+      const promise = this.options.sendSingle(api, method, normalized)
+      this.track(key, promise)
+      return promise
+    }
+
     let resolve!: (value: unknown) => void
     let reject!: (reason: unknown) => void
     const promise = new Promise<unknown>((res, rej) => {
       resolve = res
       reject = rej
     })
+    this.track(key, promise)
+    this.queue.push({ key, api, method, params: normalized, resolve, reject })
+    this.scheduleFlush()
+    return promise
+  }
+
+  private track(key: string, promise: Promise<unknown>) {
+    this.inflight.set(key, promise)
     const clear = () => {
       if (this.inflight.get(key) === promise) this.inflight.delete(key)
     }
     promise.then(clear, clear)
-    this.inflight.set(key, promise)
-    this.queue.push({ key, api, method, params: normalized, resolve, reject })
-    this.scheduleFlush()
-    return promise
   }
 
   private scheduleFlush() {
