@@ -1,8 +1,9 @@
 'use client';
 import { Avatar as ChakraAvatar, Box, Link as ChakraLink, SystemStyleObject, useImage } from '@chakra-ui/react';
 import NextLink from 'next/link';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import {
   AVATAR_TOKEN_PX, AvatarSizeToken, ResponsiveAvatarSize, resolveAvatarToken, urlSizeForAvatarToken,
 } from '@/lib/utils/avatarSizing';
@@ -33,7 +34,12 @@ export function Avatar({
 }: AvatarProps) {
   const token = resolveAvatarToken(size);
   const boxSize = typeof size === 'string' && size in AVATAR_TOKEN_PX ? undefined : size;
-  const primarySrc = src ?? getHiveAvatarUrl(username, urlSizeForAvatarToken(token));
+  // Avatar files are small, but a first screen of them still shares the
+  // connection with the priority photo. Initials hold the box until that
+  // photo has loaded. Pages with no priority image fetch on the first effect.
+  const [allowRemote, setAllowRemote] = useState(false);
+  useEffect(() => scheduleAfterPriorityImage(() => setAllowRemote(true)), []);
+  const primarySrc = allowRemote ? (src ?? getHiveAvatarUrl(username, urlSizeForAvatarToken(token))) : undefined;
 
   // Chakra's Avatar has no built-in "try a second image, not just initials"
   // fallback, so track the primary image's load status ourselves and swap
