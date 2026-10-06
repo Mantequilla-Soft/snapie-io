@@ -380,6 +380,7 @@ export default function SnapList(
               onOpen={onOpen}
               setReply={setReply}
               refreshComment={refreshComment}
+              reserveMediaSpace={index < paintedCount}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>

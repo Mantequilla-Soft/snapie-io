@@ -14,6 +14,7 @@ import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -54,9 +55,11 @@ interface SnapProps {
      *  Optional since not every data source has one yet. */
     refreshComment?: (author: string, permlink: string) => Promise<void> | void;
     level?: number; // Added level for indentation
+    /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
+    reserveMediaSpace?: boolean;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0 }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, reserveMediaSpace = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -376,7 +379,10 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
-                            <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                            <OffscreenGate
+                                rootMargin={MEDIA_GATE_MARGIN}
+                                unmountedAspectRatio={reserveMediaSpace ? IMAGE_ASPECT_RATIO : undefined}
+                            >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
                         )}
@@ -562,7 +568,8 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     return (
         prevProps.comment.permlink === nextProps.comment.permlink &&
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
-        prevProps.level === nextProps.level
+        prevProps.level === nextProps.level &&
+        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace
     );
 });
 

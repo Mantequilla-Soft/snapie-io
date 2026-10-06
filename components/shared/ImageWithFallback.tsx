@@ -43,7 +43,7 @@ interface ImageWithFallbackProps {
  * case (a remount where `complete` is already true) that used to need a
  * manual ref check.
  */
-const IMAGE_ASPECT_RATIO = 4 / 3;
+export const IMAGE_ASPECT_RATIO = 4 / 3;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
 function canOpenDirectly(url: string): boolean {
