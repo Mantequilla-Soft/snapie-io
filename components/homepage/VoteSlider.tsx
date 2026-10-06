@@ -100,7 +100,7 @@ const VoteControls = memo(({ initialVoted, initialVoteCount, onVote, onVoteOptim
     return (
         <>
             <HStack spacing={0}>
-                <Button variant="ghost" onClick={toggleSlider} px={2}>
+                <Button variant="ghost" onClick={toggleSlider} px={2} aria-label={voted ? 'Remove vote' : 'Upvote'}>
                     <Icon as={voted ? FaHeart : FaRegHeart} color={voted ? "red.400" : undefined} />
                 </Button>
                 <Button

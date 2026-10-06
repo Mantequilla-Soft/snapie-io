@@ -217,6 +217,7 @@ export default function SupportPage() {
             <InputGroup maxW="160px">
               <Input
                 type="number"
+                aria-label="Monthly HBD amount"
                 min="0"
                 step="0.1"
                 value={subAmount}
@@ -262,6 +263,7 @@ export default function SupportPage() {
             <InputGroup maxW="160px">
               <Input
                 type="number"
+                aria-label="Hive Power to delegate"
                 min="0"
                 step="1"
                 value={delAmount}

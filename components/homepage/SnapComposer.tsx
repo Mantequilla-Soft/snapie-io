@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem } from '@chakra-ui/react';
+import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem, VisuallyHidden } from '@chakra-ui/react';
 import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
@@ -507,11 +507,13 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
+                        <VisuallyHidden>Add image</VisuallyHidden>
                         <FaImage size={20} />
                         <ImageUploader onUpload={handleImageSelection} />
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add GIF"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
@@ -547,6 +549,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Menu>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add video"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={handleVideoButtonClick}
                         isDisabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme} size={{ base: 'sm', md: 'md' }}
@@ -556,6 +559,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add audio"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
@@ -563,6 +567,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add meme"
                         color={hasMeme ? 'primary' : 'overlay.600'}
                         _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setIsMemePickerOpen(true)}

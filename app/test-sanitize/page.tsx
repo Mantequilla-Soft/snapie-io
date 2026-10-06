@@ -50,15 +50,16 @@ export default function TestSanitizePage() {
           <Text fontWeight="bold" mb={2}>1. Raw Text (with LRM characters - U+200E):</Text>
           <Box 
             p={4} 
-            bg="red.50" 
+            bg="rgba(241, 94, 94, 0.12)" 
             borderRadius="md" 
             border="2px solid"
-            borderColor="red.300"
+            borderColor="red.400"
+            color="text"
             fontSize="sm"
             maxHeight="300px"
             overflowY="auto"
           >
-            <Code whiteSpace="pre-wrap" wordBreak="break-all" bg="transparent">
+            <Code whiteSpace="pre-wrap" wordBreak="break-all" bg="transparent" color="text">
               {PROBLEMATIC_TEXT_WITH_LRM}
             </Code>
           </Box>
@@ -71,15 +72,16 @@ export default function TestSanitizePage() {
           <Text fontWeight="bold" mb={2}>2. After Sanitization (cleaned text):</Text>
           <Box 
             p={4} 
-            bg="blue.50" 
+            bg="rgba(50, 185, 255, 0.12)" 
             borderRadius="md"
             border="2px solid"
-            borderColor="blue.300"
+            borderColor="blue.400"
+            color="text"
             fontSize="sm"
             maxHeight="300px"
             overflowY="auto"
           >
-            <Code whiteSpace="pre-wrap" wordBreak="break-all" bg="transparent">
+            <Code whiteSpace="pre-wrap" wordBreak="break-all" bg="transparent" color="text">
               {sanitizedText}
             </Code>
           </Box>
@@ -92,10 +94,11 @@ export default function TestSanitizePage() {
           <Text fontWeight="bold" mb={2}>3. Rendered HTML (WITHOUT sanitization - BAD):</Text>
           <Box 
             p={4} 
-            bg="red.50" 
+            bg="rgba(241, 94, 94, 0.12)" 
             borderRadius="md"
             border="2px solid"
-            borderColor="red.300"
+            borderColor="red.400"
+            color="text"
             maxHeight="300px"
             overflowY="auto"
             dangerouslySetInnerHTML={{ __html: markdownRenderer(PROBLEMATIC_TEXT_WITH_LRM) }}
@@ -103,7 +106,7 @@ export default function TestSanitizePage() {
               '& p': { marginBottom: '0.5em' }
             }}
           />
-          <Text fontSize="xs" color="red.600" mt={2}>
+          <Text fontSize="xs" color="red.300" mt={2}>
             ⚠️ But our renderer auto-sanitizes, so this should still look OK!
           </Text>
         </Box>
@@ -112,10 +115,11 @@ export default function TestSanitizePage() {
           <Text fontWeight="bold" mb={2}>4. Rendered HTML (with manual sanitization first - GOOD):</Text>
           <Box 
             p={4} 
-            bg="green.50" 
+            bg="rgba(16, 185, 129, 0.12)" 
             borderRadius="md"
             border="2px solid"
-            borderColor="green.300"
+            borderColor="green.400"
+            color="text"
             maxHeight="300px"
             overflowY="auto"
             dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
@@ -123,7 +127,7 @@ export default function TestSanitizePage() {
               '& p': { marginBottom: '0.5em' }
             }}
           />
-          <Text fontSize="xs" color="green.600" mt={2}>
+          <Text fontSize="xs" color="green.300" mt={2}>
             ✅ Explicitly sanitized before rendering - guaranteed clean
           </Text>
         </Box>
