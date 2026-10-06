@@ -20,12 +20,19 @@ interface Palette {
 const darkColors: Palette = {
     background: '#1a2332', // Dark navy background from branding
     text: '#ffffff', // White text for dark mode
-    primary: '#00a8ff', // Bright cyan blue from logo
-    secondary: '#2563eb', // Medium blue from branding
+    // Lightened from #00a8ff so primary text clears 4.5:1 on tinted cards
+    // (the wallet pill composites to about #2b4259). Solid buttons do not
+    // use this token for their fill — white on it is still too faint.
+    primary: '#32b9ff',
+    // Lightened from #2563eb. Secondary is body text (timestamps, blockquotes
+    // on `muted`), and #2563eb was about 3:1 on #1a2332 and 2.3:1 on #2d3748.
+    secondary: '#7aa0f3',
     accent: '#06b6d4', // Cyan accent from wings/elements
     muted: '#2d3748', // Dark gray for muted elements
     border: '#374151', // Subtle border color
-    error: '#ef4444', // Modern red for errors
+    // Lightened from #ef4444 so dark label text on an error fill clears 4.5:1
+    // (#1a2332 on #ef4444 was 4.19:1).
+    error: '#f15e5e',
     success: '#10b981', // Modern green for success
     warning: '#f59e0b', // Modern orange for warnings
     surface: 'rgba(8, 24, 40, 0.72)', // Glass-card background
@@ -152,7 +159,12 @@ const sharedBase = {
 // Two spots reference a hardcoded rgba tint of `primary` rather than the
 // token itself, so they need an explicit value per mode.
 function buildComponents(mode: ColorMode) {
-    const primaryHoverTint = mode === 'dark' ? 'rgba(0, 168, 255, 0.1)' : 'rgba(3, 105, 161, 0.1)';
+    const primaryHoverTint = mode === 'dark' ? 'rgba(50, 185, 255, 0.1)' : 'rgba(3, 105, 161, 0.1)';
+    // White on the bright primary (#00a8ff, 2.61:1) fails WCAG AA. Dark mode
+    // keeps that brighter blue for text and links, and fills solid buttons
+    // with the nearest darker shade that clears 4.5:1 for white text (~4.7:1).
+    // Light mode primary is already darkened for white fills.
+    const solidButtonBg = mode === 'dark' ? '#006eee' : 'primary';
     // Menu hover previously keyed off `background` reading darker than `muted`,
     // a relationship that isn't guaranteed to hold in the light palette. Use
     // this theme's own overlay scale instead (see buildOverlay).
@@ -193,7 +205,7 @@ function buildComponents(mode: ColorMode) {
             },
             variants: {
                 solid: {
-                    bg: 'primary',
+                    bg: solidButtonBg,
                     color: 'white',
                     _hover: {
                         bg: 'accent',
@@ -359,10 +371,17 @@ function buildComponents(mode: ColorMode) {
 // way: a solid, fairly dark gray (~#536471) for secondary text, not a faint
 // wash. The light-mode curve below is tuned so overlay.500 (the most common
 // "muted body text" step) clears WCAG AA (~4.5:1) against white.
+//
+// Dark mode used to keep the low alphas (overlay.500 at 0.36 is about 3.3:1
+// on #0d1b2b, and overlay.400 at 0.24 is about 2.2:1). Those steps are body
+// text, timestamps, and labels, including on the lightest dark surfaces
+// (muted cards ~#2d3748 and tinted chips ~#2e3e4c). 400 and above are raised
+// just enough to clear 4.5:1 there. 50–300 stay faint: they are fills,
+// hairlines, and hover washes, not text.
 function buildOverlay(mode: ColorMode) {
     const base = mode === 'dark' ? '255, 255, 255' : '15, 23, 42';
     const steps: Record<string, number> = mode === 'dark'
-        ? { 50: 0.04, 100: 0.06, 200: 0.08, 300: 0.16, 400: 0.24, 500: 0.36, 600: 0.48, 700: 0.64 }
+        ? { 50: 0.04, 100: 0.06, 200: 0.08, 300: 0.16, 400: 0.60, 500: 0.74, 600: 0.86, 700: 0.94 }
         : { 50: 0.06, 100: 0.10, 200: 0.16, 300: 0.26, 400: 0.40, 500: 0.60, 600: 0.72, 700: 0.85 };
     return Object.fromEntries(
         Object.entries(steps).map(([step, alpha]) => [step, `rgba(${base}, ${alpha})`])
@@ -376,7 +395,17 @@ function buildTheme(colors: Palette, mode: ColorMode) {
         // `colorMode` user setting instead of Chakra's internal mechanism.
         initialColorMode: 'dark',
         useSystemColorMode: false,
-        colors: { ...colors, overlay: buildOverlay(mode) },
+        colors: {
+            ...colors,
+            overlay: buildOverlay(mode),
+            // Chakra gray.500 (#718096) and gray.600 (#4a5568) are used as text
+            // on #1a2332 and on muted cards. Both miss 4.5:1. Lighten only the
+            // dark theme, and only these two steps, so gray.600 stays the
+            // darker of the pair while both clear the lightest card (~#2c3e54).
+            ...(mode === 'dark'
+                ? { gray: { 500: '#a8b1bf', 600: '#a0aab9' } }
+                : {}),
+        },
         ...sharedBase,
         borders: {
             tb1: `1px solid ${colors.border}`,

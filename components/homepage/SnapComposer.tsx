@@ -505,6 +505,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 <HStack flexShrink={1} minW={0}>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
+                        aria-label="Add image"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
@@ -513,6 +514,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add GIF"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setGiphyModalOpen(!isGiphyModalOpen)} isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
@@ -548,6 +550,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Menu>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add video"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={handleVideoButtonClick}
                         isDisabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme} size={{ base: 'sm', md: 'md' }}
@@ -557,6 +560,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add audio"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setAudioRecorderOpen(true)} isDisabled={!user || isLoading || hasVideoInProgress || hasAudio} size={{ base: 'sm', md: 'md' }}
                     >
@@ -564,6 +568,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     </Button>
                     <Button
                         variant="ghost" borderRadius="full"
+                        aria-label="Add meme"
                         color={hasMeme ? 'primary' : 'overlay.600'}
                         _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         onClick={() => setIsMemePickerOpen(true)}

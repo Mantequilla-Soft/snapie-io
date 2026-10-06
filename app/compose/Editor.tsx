@@ -971,7 +971,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             />
                         </Box>
                         <Box {...getRootProps()} position="relative" flex="1">
-                            <input {...getInputProps()} />
+                            <input {...getInputProps({ 'aria-label': 'Upload images' })} />
                             <MentionHighlightedTextarea
                                 ref={textareaRef}
                                 value={markdown}
