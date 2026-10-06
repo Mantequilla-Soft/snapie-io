@@ -1,5 +1,5 @@
 'use client'
-import { useAioha } from '@aioha/react-ui'
+import { useAioha } from '@/lib/aioha/facade-react-ui'
 import { useSnapieAuth } from '@/contexts/SnapieAuthContext'
 
 /**
@@ -14,7 +14,7 @@ export function useCurrentUser() {
   const isLoggedIn = !!username
 
   const logout = () => {
-    if (aiohaUser) {
+    if (aiohaUser && aioha) {
       aioha.logout()
     } else if (isSnapieLoggedIn) {
       logoutFromSnapie()
