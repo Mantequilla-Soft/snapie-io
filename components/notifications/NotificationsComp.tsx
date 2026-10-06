@@ -776,7 +776,7 @@ function EmptyState({ title }: { title: string }) {
         <Icon as={FiBell} boxSize={7} opacity={0.5} />
       </Flex>
       <Text fontWeight="semibold" fontSize="lg" mb={1}>{title}</Text>
-      <Text fontSize="sm" opacity={0.5}>Check back later for updates.</Text>
+      <Text fontSize="sm" color="overlay.500">Check back later for updates.</Text>
     </Box>
   );
 }

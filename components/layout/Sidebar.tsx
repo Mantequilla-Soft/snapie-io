@@ -157,6 +157,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/"
+                                aria-label="Home"
                                 onClick={handleHomeClick}
                                 variant="ghost"
                                 w="full"
@@ -176,6 +177,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/explore"
+                                aria-label="Explore"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -193,6 +195,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/blog"
+                                aria-label="Blogs"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -211,6 +214,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Button
                                     as={NextLink}
                                     href="/leaderboard"
+                                    aria-label="Leaderboard"
                                     variant="ghost"
                                     w="full"
                                     justifyContent={iconJustify}
@@ -230,6 +234,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Button
                                     as={NextLink}
                                     href="/games"
+                                    aria-label="Games"
                                     variant="ghost"
                                     w="full"
                                     justifyContent={iconJustify}
@@ -266,6 +271,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/hangouts"
+                                aria-label="OpenPods"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -286,6 +292,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     <Button
                                         as={NextLink}
                                         href={`/@${user}/notifications`}
+                                        aria-label="Notifications"
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -315,6 +322,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     <Button
                                         as={NextLink}
                                         href={`/@${user}/wallet`}
+                                        aria-label="Wallet"
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -346,6 +354,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Box w="full" position="relative">
                                     <Button
                                         onClick={() => setIsChatOpen?.(!isChatOpen)}
+                                        aria-label="Chat"
                                         variant="ghost"
                                         w="full"
                                         justifyContent={iconJustify}
@@ -370,6 +379,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Button
                                     as={NextLink}
                                     href="/settings"
+                                    aria-label="Settings"
                                     variant="ghost"
                                     w="full"
                                     justifyContent={iconJustify}
@@ -390,6 +400,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                 <Button
                                     as={NextLink}
                                     href="/settings/admin"
+                                    aria-label="Admin"
                                     variant="ghost"
                                     w="full"
                                     justifyContent={iconJustify}
@@ -409,6 +420,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as={NextLink}
                                 href="/support"
+                                aria-label="Support Snapie"
                                 variant="ghost"
                                 w="full"
                                 justifyContent={iconJustify}
@@ -427,6 +439,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             <Button
                                 as="a"
                                 href="https://about.snapie.io"
+                                aria-label="About Snapie"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 variant="ghost"
@@ -504,6 +517,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         <Button
                                             as={NextLink}
                                             href={`/@${user}`}
+                                            aria-label={`@${user}`}
                                             variant="ghost"
                                             w="full"
                                             justifyContent="center"
@@ -531,6 +545,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                     <Box w="full" mb={2}>
                                         <Button
                                             onClick={openLoginModal}
+                                            aria-label="Login"
                                             variant="solid"
                                             colorScheme="teal"
                                             w="full"
@@ -548,6 +563,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                                         <Button
                                             as={NextLink}
                                             href="/join"
+                                            aria-label="Create account"
                                             variant="ghost"
                                             w="full"
                                             justifyContent={iconJustify}

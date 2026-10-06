@@ -131,7 +131,7 @@ export default function WitnessVotingPage() {
                       <HStack spacing={1.5}>
                         <Text fontSize="sm" fontWeight="medium" color="text" noOfLines={1}>@{witness.owner}</Text>
                         {witness.url && (
-                          <ChakraLink href={witness.url} isExternal color="overlay.400" _hover={{ color: 'primary' }}>
+                          <ChakraLink href={witness.url} isExternal aria-label={`Witness site for @${witness.owner}`} color="overlay.400" _hover={{ color: 'primary' }}>
                             <FiExternalLink size={11} />
                           </ChakraLink>
                         )}

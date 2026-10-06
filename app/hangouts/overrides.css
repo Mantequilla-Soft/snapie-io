@@ -1,3 +1,34 @@
+/* Guest lobby copy ships as #666/#888 (about 2.7:1 and 4.45:1 on the navy
+   surfaces). #d5dee6 clears 4.5:1 on both #1a2332 and #16213e. Inline colors
+   and the package's own stylesheet need !important to lose. */
+:root,
+[data-hh-theme="dark"] {
+  --hh-text-secondary: #d5dee6;
+  --hh-text-muted: #d5dee6;
+}
+
+.hh-lobby__header span,
+.hh-lobby__empty,
+.hh-gm-subtext,
+.hh-gm-signin,
+.hh-gm-signin-cta,
+.hh-gm-sep-label {
+  color: #d5dee6 !important;
+}
+
+/* "Join as Guest" fades the whole control to 0.38 opacity while the name
+   field is empty, which drops the label to about 2.7:1. Keep it readable
+   and show the not-ready state with a flat fill instead of transparency. */
+.hh-gm-btn-primary,
+.hh-gm-btn-primary--inactive {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.hh-gm-btn-primary--inactive {
+  background: #4c1d95 !important;
+}
+
 .hh-room-card__bg {
   height: 200px;
 }

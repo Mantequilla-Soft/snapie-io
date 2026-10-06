@@ -40,7 +40,7 @@ function JoinPageInner() {
             position="absolute"
             top="-12px"
             left={4}
-            bg="blue.400"
+            bg="blue.600"
             color="white"
             fontSize="xs"
             fontWeight="bold"

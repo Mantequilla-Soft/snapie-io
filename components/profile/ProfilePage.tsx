@@ -285,7 +285,7 @@ export default function ProfilePage({ username }: ProfilePageProps) {
 
       {/* Profile header */}
       <Flex position="relative" mt={-16} p={4} alignItems="center" boxShadow="lg" justifyContent="space-between">
-        <Box position="absolute" top={0} left={0} right={0} bottom={0} bg="muted" opacity={0.85} zIndex={1} />
+        <Box position="absolute" top={0} left={0} right={0} bottom={0} bg="muted" opacity={1} zIndex={1} />
 
         <Flex alignItems="center" zIndex={2} position="relative">
           <Avatar
