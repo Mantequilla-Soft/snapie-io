@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { afterPriorityImage, scheduleAfterPriorityImage } from './afterPriorityImage';
+import { renderHook, waitFor } from '@testing-library/react';
+import { afterPriorityImage, scheduleAfterPriorityImage, useAfterPriorityImage } from './afterPriorityImage';
 
 function pendingImage(): HTMLImageElement {
   const img = document.createElement('img');
@@ -59,6 +60,16 @@ describe('afterPriorityImage', () => {
     await pending;
     expect(resolved).toBe(true);
   });
+
+  it('ignores a second settle after the timeout already resolved', async () => {
+    vi.useFakeTimers();
+    const img = pendingImage();
+    const pending = afterPriorityImage();
+    await vi.advanceTimersByTimeAsync(2500);
+    await pending;
+    img.dispatchEvent(new Event('load'));
+    img.dispatchEvent(new Event('error'));
+  });
 });
 
 describe('scheduleAfterPriorityImage', () => {
@@ -80,5 +91,36 @@ describe('scheduleAfterPriorityImage', () => {
     const started: string[] = [];
     scheduleAfterPriorityImage(() => started.push('now'));
     expect(started).toEqual(['now']);
+  });
+
+  it('starts immediately when the priority image is already complete', () => {
+    const img = document.createElement('img');
+    img.setAttribute('fetchpriority', 'high');
+    Object.defineProperty(img, 'complete', { configurable: true, get: () => true });
+    document.body.appendChild(img);
+    const started: string[] = [];
+    const cancel = scheduleAfterPriorityImage(() => started.push('done'));
+    expect(started).toEqual(['done']);
+    cancel();
+  });
+});
+
+describe('useAfterPriorityImage', () => {
+  it('stays false until the priority image loads, then flips in a transition', async () => {
+    const img = pendingImage();
+    const { result } = renderHook(() => useAfterPriorityImage());
+    expect(result.current).toBe(false);
+    img.dispatchEvent(new Event('load'));
+    await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it('does not flip after unmount', async () => {
+    const img = pendingImage();
+    const { result, unmount } = renderHook(() => useAfterPriorityImage());
+    unmount();
+    img.dispatchEvent(new Event('load'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(result.current).toBe(false);
   });
 });
