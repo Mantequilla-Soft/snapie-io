@@ -132,11 +132,16 @@ var DOMPURIFY_CONFIG = {
     "title",
     "width",
     "height",
+    // `role` has to stay: hivemoji is a span with role="img" plus an
+    // aria-label. DOMPurify keeps aria-* by default but drops `role`
+    // unless it is listed here, and a nameless generic with aria-label
+    // fails the aria-prohibited-attr audit.
     "class",
     "id",
     "style",
     "target",
     "rel",
+    "role",
     "controls",
     "muted",
     "preload",

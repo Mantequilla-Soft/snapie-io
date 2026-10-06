@@ -96,13 +96,14 @@ export default function ProposalVotingPage() {
                 const voted = myVotes.has(proposal.id);
                 return (
                   <Box key={proposal.id} bg={proposal.isReturnProposal ? 'rgba(28, 161, 241, 0.05)' : undefined}>
-                    <Flex align="center" gap={3} px={5} py={4} opacity={proposal.isFunded ? 1 : 0.6}>
+                    <Flex align="center" gap={3} px={5} py={4}>
                       <Box flex={1} minW={0}>
                         <HStack spacing={1.5}>
                           <Text fontSize="sm" fontWeight="medium" color="text" noOfLines={1}>{proposal.subject}</Text>
                           <ChakraLink
                             as={NextLink}
                             href={`/@${proposal.creator}/${proposal.permlink}`}
+                            aria-label={`View proposal: ${proposal.subject}`}
                             color="overlay.400"
                             _hover={{ color: 'primary' }}
                           >
@@ -186,6 +187,7 @@ export default function ProposalVotingPage() {
                             <ChakraLink
                               as={NextLink}
                               href={`/@${proposal.creator}/${proposal.permlink}`}
+                              aria-label={`View proposal: ${proposal.subject}`}
                               color="overlay.400"
                               _hover={{ color: 'primary' }}
                             >

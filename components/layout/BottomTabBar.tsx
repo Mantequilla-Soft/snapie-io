@@ -69,6 +69,7 @@ export default function BottomTabBar() {
         <Flex flex={1} justify="center" align="center">
           <Box
             as="button"
+            aria-label="Compose"
             onClick={handleComposeTap}
             display="flex"
             alignItems="center"
