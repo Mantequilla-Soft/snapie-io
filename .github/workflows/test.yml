@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   pull_request:
 
 concurrency:
@@ -97,7 +97,29 @@ jobs:
           CHAT_JWT_SECRET: ci-build-placeholder
         run: pnpm build
 
-  deploy:
+  deploy-staging:
+    needs: [lint, typecheck, test, build]
+    # Only after a real push to staging — same fork-PR reasoning as below.
+    if: github.ref == 'refs/heads/staging' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - name: Deploy to staging
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd /var/www/snapie-io-staging
+            bash deploy.sh staging
+
+  deploy-production:
     needs: [lint, typecheck, test, build]
     # Only after a real push to main, never on pull_request — a fork PR must
     # never get access to the deploy key, and there's nothing to deploy for
@@ -105,6 +127,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: production
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     steps:
       - name: Deploy to production
         uses: appleboy/ssh-action@v1.2.0
@@ -115,4 +141,4 @@ jobs:
           script: |
             set -euo pipefail
             cd /var/www/snapie-io
-            bash deploy.sh
+            bash deploy.sh production
