@@ -25,7 +25,7 @@ describe('deferFrameworkScripts', () => {
     expect(out.match(/rel="preload" as="script"/g)).toHaveLength(2);
 
     expect(out).toContain('largest-contentful-paint');
-    expect(out).toContain('setTimeout(release,80)');
+    expect(out).toContain('setTimeout(release,400)');
     expect(out.indexOf('data-snapie-src')).toBeLessThan(out.lastIndexOf('largest-contentful-paint'));
     expect(out.endsWith('</script></body></html>') || out.includes('</script></body>')).toBe(true);
   });
