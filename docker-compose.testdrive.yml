@@ -1,0 +1,27 @@
+name: snapie-testdrive
+
+services:
+  snapie:
+    build:
+      context: .
+      dockerfile: Dockerfile.testdrive
+    image: snapie-testdrive:local
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - path: .env.testdrive.example
+        required: true
+      - path: .env.testdrive
+        required: false
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 25s

@@ -12,6 +12,9 @@ const facadeReactUi = path.join(projectDir, 'lib/aioha/facade-react-ui.tsx');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    // Testdrive image copies .next/standalone into a slim runtime. A normal
+    // `next start` of the full build still works from the same output.
+    output: 'standalone',
     experimental: {
         serverActions: {
             bodySizeLimit: '10mb', // Increase the body size limit

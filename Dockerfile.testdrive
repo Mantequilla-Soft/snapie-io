@@ -1,0 +1,50 @@
+# Local testdrive image. Bun 1.4.2 is the runtime that produced bun.lock
+# (migrated from pnpm-lock.yaml; the resolved versions match).
+#
+# The standalone server was checked under this Bun runtime: route handlers,
+# middleware, streaming SSR, node:http/https in /api/image-proxy, and the
+# sharp-backed /_next/image optimizer all answered. The runtime stage stays
+# on Bun for that reason.
+
+FROM oven/bun:1.4.2 AS deps
+WORKDIR /app
+COPY package.json bun.lock pnpm-workspace.yaml ./
+COPY packages ./packages
+RUN bun install --frozen-lockfile
+
+FROM oven/bun:1.4.2 AS build
+WORKDIR /app
+COPY --from=deps /app ./
+COPY . .
+# NEXT_PUBLIC_* values are inlined here. The example file is the default
+# testdrive config. A runtime env file cannot change those client values
+# without a rebuild.
+COPY .env.testdrive.example .env.production
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN bun run build
+
+FROM oven/bun:1.4.2-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+# Docker sets HOSTNAME to the container id. Next's standalone server binds
+# that name unless this is pinned to all interfaces inside the container.
+ENV HOSTNAME=0.0.0.0
+
+RUN groupadd --system --gid 1001 snapie \
+  && useradd --system --uid 1001 --gid snapie --home-dir /app --shell /usr/sbin/nologin snapie
+
+COPY --from=build /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+RUN mkdir -p .next/cache && chown -R snapie:snapie /app
+
+USER snapie
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=25s --retries=12 \
+  CMD bun -e "fetch('http://127.0.0.1:3000/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["bun", "server.js"]

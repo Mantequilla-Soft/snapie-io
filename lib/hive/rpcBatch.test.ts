@@ -19,7 +19,7 @@ function deferred<T>() {
 
 function createHarness(maxBatchSize?: number) {
   const sendSingle = vi.fn(async (_api: string, _method: string, params: unknown) => ({ single: params }));
-  const sendBatch = vi.fn(async (requests: JsonRpcRequest[]) => (
+  const sendBatch = vi.fn(async (requests: JsonRpcRequest[]): Promise<unknown> => (
     requests.map((request) => ({ jsonrpc: '2.0', id: request.id, result: { method: request.method, params: request.params } }))
   ));
   let flush: (() => void | Promise<void>) | null = null;
