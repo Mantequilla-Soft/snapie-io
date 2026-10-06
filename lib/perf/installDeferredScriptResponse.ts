@@ -1,5 +1,5 @@
-import { ServerResponse } from 'node:http';
-import { gzipSync, gunzipSync } from 'node:zlib';
+import { ServerResponse } from 'http';
+import { gzipSync, gunzipSync } from 'zlib';
 import { deferFrameworkScripts } from './deferFrameworkScripts';
 
 const INSTALLED = Symbol('snapieDeferredScriptsInstalled');
