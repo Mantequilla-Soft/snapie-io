@@ -13,6 +13,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
+  // `body` is either one JSON-RPC object or a batch array. Both are forwarded
+  // unchanged. Node choice stays in the proxy: one node at a time, failing
+  // over only when that node is unhealthy. A batch response is an array that
+  // may mix results and per-item errors; that array is the success payload.
+  // Do not collapse a partial item error into a 503.
   const nodes = await getHiveRpcNodes()
   const outcome = await dispatchHiveRpc(body, nodes)
   if (!outcome.ok) {
