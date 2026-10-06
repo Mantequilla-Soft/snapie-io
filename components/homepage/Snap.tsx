@@ -8,13 +8,14 @@ import { FaRegComment, FaRegHeart, FaShare, FaHeart, FaEdit, FaRetweet } from "r
 import { FaXTwitter } from "react-icons/fa6";
 import { MdTranslate } from "react-icons/md";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
-import { separateContent, extractHivePostUrls, extractHangoutUrls } from '@/lib/utils/snapUtils';
+import { separateContent, extractHivePostUrls, extractHangoutUrls, snapTextForMarkdown } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
+import { hasMarkdownImage, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
 
 // Tight margin — media (iframes/videos/images) is the expensive part, so
 // only cards genuinely close to the viewport keep it warm. See
@@ -22,15 +23,8 @@ import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 // whole-card gate.
 const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
 
-/** The 4/3 slot matches ImageWithFallback. Embeds and players size themselves
- *  differently, so reserving 4/3 for those would shift the card when they mount. */
-function isImageOnlyMedia(media: string): boolean {
-    if (!/!\[.*?\]\(.*?\)/.test(media)) return false;
-    return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
-}
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
-import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { useCurrencyDisplay } from '@/hooks/useCurrencyDisplay';
 import { useVoteCalculator } from '@/hooks/useVoteCalculator';
 import { vote, commentWithKeychain } from '@/lib/hive/client-functions';
@@ -68,6 +62,10 @@ interface SnapProps {
     deferUrls?: readonly string[];
     /** Keep a 4/3 media slot in the first paint so the image does not grow the card. */
     reserveMediaSpace?: boolean;
+    /** First-viewport card. Its photos are in the server HTML, not behind a gate. */
+    eagerMedia?: boolean;
+    /** Preload this card's first photo. Only one card on the page sets this. */
+    imagePriority?: boolean;
 }
 
 function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
@@ -79,7 +77,7 @@ function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
     return true;
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls, reserveMediaSpace = false }: SnapProps) => {
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls, reserveMediaSpace = false, eagerMedia = false, imagePriority = false }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -124,26 +122,28 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         [comment.body]
     );
 
-    // Remove Hive post URLs and hangout URLs from text since we'll render them as preview cards
-    const textWithoutHiveUrls = useMemo(() => {
-        let cleanText = text;
-        hivePostUrls.forEach(({ url }) => {
-            cleanText = cleanText.replace(url, '');
-        });
-        hangoutRoomNames.forEach((roomName) => {
-            cleanText = cleanText.replace(
-                new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, 'g'),
-                ''
-            );
-        });
-        return cleanText.trim();
-    }, [text, hivePostUrls, hangoutRoomNames]);
-
-    // Render text as HTML using markdown renderer
-    const renderedText = useMemo(
-        () => textWithoutHiveUrls ? markdownRenderer(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }) : '',
-        [textWithoutHiveUrls, comment.author]
+    // Hive post URLs and hangout links render as cards, so they are not
+    // also markdown. The home seed already carries the HTML (`bodyHtml`);
+    // other pages load the renderer after paint.
+    const textWithoutHiveUrls = useMemo(
+        () => snapTextForMarkdown(comment.body || ''),
+        [comment.body]
     );
+    const seededHtml = comment.bodyHtml;
+    const [lazyHtml, setLazyHtml] = useState('');
+    useEffect(() => {
+        if (typeof seededHtml === 'string') return;
+        if (!textWithoutHiveUrls) return;
+        let cancel = false;
+        import('@/lib/utils/MarkdownRenderer').then((mod) => {
+            if (cancel) return;
+            setLazyHtml(mod.default(textWithoutHiveUrls, { defaultEmojiOwner: comment.author }));
+        });
+        return () => {
+            cancel = true;
+        };
+    }, [seededHtml, textWithoutHiveUrls, comment.author]);
+    const renderedText = typeof seededHtml === 'string' ? seededHtml : lazyHtml;
 
     const browserLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en';
     const detectedLang = useMemo(() => detectLang(text), [text]);
@@ -403,10 +403,34 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {/* Media — gated so far-offscreen embeds/videos/images
                             release their resources; see OffscreenGate. */}
                         {media && (
+                            eagerMedia && hasMarkdownImage(media) ? (
+                                <>
+                                    {/* Photos in the first viewport are in the server HTML,
+                                        visible without hydration. Embeds on the same card
+                                        stay gated so their iframe is not on the critical path.
+                                        A 3speak CDN url inside markdown is still a photo. */}
+                                    <MediaRenderer
+                                        key={`media-${comment.permlink}`}
+                                        mediaContent={media}
+                                        priority={imagePriority}
+                                        painted
+                                        onlyImages
+                                        priorityUrl={priorityUrl}
+                                        deferUrls={deferUrls}
+                                    />
+                                    {mediaHasEmbed(media) && (
+                                        <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
+                                            <MediaRenderer mediaContent={media} skipImages />
+                                        </OffscreenGate>
+                                    )}
+                                </>
+                            ) : (
                             <OffscreenGate
                                 rootMargin={MEDIA_GATE_MARGIN}
                                 unmountedAspectRatio={
-                                    reserveMediaSpace && isImageOnlyMedia(media) ? IMAGE_ASPECT_RATIO : undefined
+                                    // 4/3 matches ImageWithFallback. Embeds size themselves,
+                                    // so reserving 4/3 for those would shift the card on mount.
+                                    reserveMediaSpace && (isPlainFeedImageMedia(media) || hasMarkdownImage(media)) ? IMAGE_ASPECT_RATIO : undefined
                                 }
                             >
                                 <MediaRenderer
@@ -416,6 +440,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                     deferUrls={deferUrls}
                                 />
                             </OffscreenGate>
+                            )
                         )}
 
                         {/* Text content */}
@@ -603,7 +628,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
         prevProps.level === nextProps.level &&
         prevProps.priorityUrl === nextProps.priorityUrl &&
         sameUrlList(prevProps.deferUrls, nextProps.deferUrls) &&
-        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace
+        prevProps.reserveMediaSpace === nextProps.reserveMediaSpace &&
+        prevProps.eagerMedia === nextProps.eagerMedia &&
+        prevProps.imagePriority === nextProps.imagePriority
     );
 });
 

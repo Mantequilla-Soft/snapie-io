@@ -13,6 +13,7 @@ import {
   isWaveContainer,
   parseMediaContent,
   separateContent,
+  snapTextForMarkdown,
   speakPlaybackUrl,
   speakVideoKeyFromUrl,
 } from './snapUtils';
@@ -240,4 +241,16 @@ describe('snap and embed helpers', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
     await expect(fetchSnapieAudioMetadata('https://audio.3speak.tv/play?a=missing')).resolves.toBeNull();
   });
+});
+
+describe('snapTextForMarkdown', () => {
+    it('keeps the words and drops a hive post url that renders as a card', () => {
+        const text = snapTextForMarkdown(
+            'See https://hive.blog/@alice/hello-world for context\n![pic](https://images.hive.blog/x.jpg)'
+        );
+        expect(text).toContain('See');
+        expect(text).toContain('for context');
+        expect(text).not.toContain('hive.blog/@alice');
+        expect(text).not.toContain('![');
+    });
 });

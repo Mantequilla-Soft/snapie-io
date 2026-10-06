@@ -2,13 +2,12 @@
 
 import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
-import RightSidebar from '@/components/layout/RightSideBar';
 import ScrollToTopButton from '@/components/homepage/ScrollToTopButton';
 import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import { ExtendedComment } from '@/hooks/useComments';
 import Conversation from '@/components/homepage/Conversation';
-import SnapReplyModal from '@/components/homepage/SnapReplyModal';
 import { useSnaps, SnapFilterType } from '@/hooks/useSnaps';
 import { useBlendedFeed } from '@/hooks/useBlendedFeed';
 import FeedTabFilter from '@/components/homepage/FeedTabFilter';
@@ -26,6 +25,28 @@ import { useTrendingFeed } from '@/hooks/useTrendingFeed';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
+import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
+
+const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
+const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
+
+/** Sidebar JS (post cards, swiper) waits until the LCP image has painted.
+ *  On a phone the sidebar is display:none; this only changes when its
+ *  scripts start. */
+function DeferredRightSidebar({ engagedAuthors }: { engagedAuthors: Set<string> }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let cancel = false;
+    afterLcpPaint().then(() => {
+      if (!cancel) setReady(true);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, []);
+  if (!ready) return null;
+  return <RightSidebar engagedAuthors={engagedAuthors} />;
+}
 
 interface CommunityInfo {
   title: string;
@@ -454,7 +475,7 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
           />
         )}
       </Box>
-      <RightSidebar engagedAuthors={engagedAuthors} />
+      <DeferredRightSidebar engagedAuthors={engagedAuthors} />
       {isOpen && <SnapReplyModal isOpen={isOpen} onClose={onClose} comment={reply} onNewReply={handleReply} />}
       <ScrollToTopButton visible={showScrollTop && !conversation} onClick={handleScrollTopClick} />
     </Flex>
