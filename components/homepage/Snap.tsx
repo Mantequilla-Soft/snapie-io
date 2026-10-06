@@ -21,6 +21,13 @@ import { IMAGE_ASPECT_RATIO } from '@/components/shared/ImageWithFallback';
 // OffscreenGate's doc comment for how this differs from SnapList's
 // whole-card gate.
 const MEDIA_GATE_MARGIN = '3000px 0px 3000px 0px';
+
+/** The 4/3 slot matches ImageWithFallback. Embeds and players size themselves
+ *  differently, so reserving 4/3 for those would shift the card when they mount. */
+function isImageOnlyMedia(media: string): boolean {
+    if (!/!\[.*?\]\(.*?\)/.test(media)) return false;
+    return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
+}
 import HivePostPreview from '@/components/shared/HivePostPreview';
 import HangoutPreviewCard from '@/components/hangouts/HangoutPreviewCard';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
@@ -385,7 +392,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                         {media && (
                             <OffscreenGate
                                 rootMargin={MEDIA_GATE_MARGIN}
-                                unmountedAspectRatio={reserveMediaSpace ? IMAGE_ASPECT_RATIO : undefined}
+                                unmountedAspectRatio={
+                                    reserveMediaSpace && isImageOnlyMedia(media) ? IMAGE_ASPECT_RATIO : undefined
+                                }
                             >
                                 <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
                             </OffscreenGate>
