@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { gzipSync } from 'node:zlib';
 import { afterAll, describe, expect, it } from 'vitest';
-import { installDeferredScriptResponse } from './installDeferredScriptResponse';
+import { installDeferredScriptResponse } from './installDeferredScriptResponse.js';
 
 const HTML = '<!DOCTYPE html><html><head><script src="/_next/static/chunks/app-aaa.js" async=""></script></head><body><p>Hello</p></body></html>';
 
