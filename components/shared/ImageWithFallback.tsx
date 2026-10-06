@@ -3,10 +3,15 @@ import { Box, Link, Skeleton, Text } from '@chakra-ui/react';
 import NextImage from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
+import { feedImageLoad } from '@/lib/images/feedLcp';
 
 interface ImageWithFallbackProps {
   url: string;
   alt: string;
+  /** Home-feed LCP photo. Preload and fetchpriority=high. Ignored for GIF and video. */
+  priority?: boolean;
+  /** Probe rejected this URL (oversized, or a photo that is actually a GIF). */
+  defer?: boolean;
 }
 
 /**
@@ -34,14 +39,17 @@ interface ImageWithFallbackProps {
  *
  * The bytes come through `next/image`. Remote user-content URLs are rewritten
  * to `/api/image-proxy` (same origin) so the optimizer does not need a
- * wildcard remotePatterns entry. `loading="eager"` keeps the previous
- * behavior: SnapList's virtualization already bounds how many cards exist,
- * and Virtuoso mounts cards ~3500px ahead of the viewport — further out than
- * the browser's own lazy-load threshold, so lazy was delaying the fetch
- * until the user was nearly on top of the image. Eager lets the download
- * start the moment the card mounts. next/image also covers the cached-image
- * case (a remount where `complete` is already true) that used to need a
- * manual ref check.
+ * wildcard remotePatterns entry. Photos stay `loading="eager"`: the feed
+ * mounts cards ahead of the viewport, further out than the browser's own
+ * lazy-load threshold, so lazy was delaying the fetch until the user was
+ * nearly on top of the image. Eager lets a photo start the moment the card
+ * mounts. next/image also covers the cached-image case (a remount where
+ * `complete` is already true) that used to need a manual ref check.
+ *
+ * GIF and video are the exception. next/image does not usefully shrink a
+ * GIF, and a multi-megabyte file in the first card becomes LCP if it is
+ * eager. Those URLs load lazy at low priority, and `priority` cannot
+ * override that. An oversized photo the home feed probed is passed `defer`.
  */
 const IMAGE_ASPECT_RATIO = 4 / 3;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
@@ -89,7 +97,12 @@ function ImageFallback({ url }: { url: string }) {
   );
 }
 
-const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWithFallbackProps) {
+const ImageWithFallback = memo(function ImageWithFallback({
+  url,
+  alt,
+  priority = false,
+  defer = false,
+}: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const resolved = resolveFeedImageSrc(url);
@@ -97,6 +110,8 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWit
   if (hasError || !resolved) {
     return <ImageFallback url={url} />;
   }
+
+  const load = feedImageLoad(url, { priority, defer });
 
   return (
     <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
@@ -109,7 +124,9 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt }: ImageWit
         alt={alt}
         fill
         sizes={FEED_IMAGE_SIZES}
-        loading="eager"
+        priority={load.priority}
+        loading={load.loading}
+        fetchPriority={load.fetchPriority}
         unoptimized={resolved.unoptimized}
         style={{
           objectFit: 'cover',

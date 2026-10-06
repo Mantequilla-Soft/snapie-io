@@ -43,6 +43,10 @@ DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
 
 interface MediaRendererProps {
   mediaContent: string;
+  /** Home-feed photo that should be fetchpriority=high. GIF and video never match. */
+  priorityUrl?: string | null;
+  /** URLs the LCP probe rejected (oversized, or a declared GIF/video type). */
+  deferUrls?: readonly string[];
 }
 
 // Module-scope caches, deliberately outside React state: SnapList's Virtuoso
@@ -238,7 +242,7 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
+const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -367,7 +371,12 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
               cursor="zoom-in"
               onClick={() => setLightboxUrl(group.url)}
             >
-              <ImageWithFallback url={group.url} alt="Post media" />
+              <ImageWithFallback
+                url={group.url}
+                alt="Post media"
+                priority={priorityUrl === group.url}
+                defer={deferUrls?.includes(group.url) ?? false}
+              />
             </Box>
           );
         }
@@ -375,7 +384,12 @@ const MediaRenderer = ({ mediaContent }: MediaRendererProps) => {
         if (group.kind === 'carousel') {
           return (
             <Box key={index} maxW="540px" mx="auto">
-              <ImageCarousel urls={group.urls} onImageClick={setLightboxUrl} />
+              <ImageCarousel
+                urls={group.urls}
+                onImageClick={setLightboxUrl}
+                priorityUrl={priorityUrl}
+                deferUrls={deferUrls}
+              />
             </Box>
           );
         }

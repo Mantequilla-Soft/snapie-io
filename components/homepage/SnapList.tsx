@@ -7,6 +7,8 @@ import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { HOME_FEED_LCP_SCAN } from '@/lib/images/feedLcp';
+import { useHomeFeedLcp } from '@/hooks/useHomeFeedLcp';
 
 type SortOrder = 'new' | 'top';
 
@@ -63,6 +65,8 @@ interface SnapListProps {
    *  defines for itself — see PostPage's own call site for why it needs to
    *  pass something else. */
   scrollableTargetId?: string
+  /** Home feed only. GIF, video, and oversized media are not the LCP image. */
+  optimizeHomeLcp?: boolean
 }
 
 interface InfiniteScrollData {
@@ -96,6 +100,7 @@ export default function SnapList(
     discoveryItems,
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
+    optimizeHomeLcp = false,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -147,6 +152,13 @@ export default function SnapList(
   const displayComments = sortOrder === 'new'
     ? interleaveAppendOnly(interleaveStateRef.current, comments, discoveryItems ?? [], discoveryEveryN)
     : comments;
+
+  // Leading snaps only. A photo further down the infinite list is not LCP.
+  const homeLcp = useHomeFeedLcp(
+    optimizeHomeLcp
+      ? displayComments.slice(0, HOME_FEED_LCP_SCAN).map((comment) => comment.body)
+      : null,
+  );
 
   // ── Viewport-entry vote/payout reconciliation ──────────────────────────
   // A comment's vote data is frozen at fetch time (see refreshComment's doc
@@ -369,6 +381,8 @@ export default function SnapList(
               onOpen={onOpen}
               setReply={setReply}
               refreshComment={refreshComment}
+              priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
+              deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
