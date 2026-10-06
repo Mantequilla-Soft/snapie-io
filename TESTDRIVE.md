@@ -15,7 +15,7 @@ The published port is bound to `127.0.0.1` only. Copy `.env.testdrive.example` t
 
 ## Included changes
 
-Started from upstream `main` (`cfcde147`). The home LCP branch is not included.
+Started from upstream `main` (`cfcde147`). Includes the home LCP work.
 
 - Hive RPC proxy failover: one node at a time, instead of calling every node at once (fork #6, upstream #160)
 - `robots.txt`, and the closed login modal no longer emits links without `href` (#8)
@@ -26,6 +26,8 @@ Started from upstream `main` (`cfcde147`). The home LCP branch is not included.
 - Per-snap Hive content lookups are batched (#13, stacked on #7)
 - Chat, wallet providers, and games are lazy-loaded (#14)
 - Profile headers are server-rendered on their own routes (#15, stacked on #14)
+- Dead image hosts fall back through the Hive image cache, and feed images go through `/api/image-proxy` (#16, #17)
+- The first feed image is a priority image with no fade-in. Later images still fade in. A failed image stays a neutral tile. Framework scripts are held until that image can paint (`SNAPIE_DEFER_FRAMEWORK_SCRIPTS=1` in the testdrive env; `0` turns the hold off) (#18)
 
 ## Merge conflicts
 
@@ -38,6 +40,10 @@ The batch branch still carried the older handler that races every node and added
 `components/profile/ProfilePage.tsx`, while merging `cursor/ssr-profile-header`:
 
 The cover-image branch imports `ProfileCover`. The profile-header branch imports `ProfileSeedAccount` for the server-rendered header. Both imports stay. The cover still goes through the image proxy, and `initialAccount` still types the server-rendered header. The earlier contrast change (`opacity={1}` on the header scrim) is still there.
+
+`components/shared/ImageWithFallback.tsx`, while merging `cursor/home-mobile-lcp-eb26`:
+
+The image-proxy branch renders a neutral tile when a feed image fails (`data-image-fallback`, no link, no "Image failed to load" text). The LCP branch paints the first card's image immediately (`priority`, no opacity fade, no skeleton) and still fades later images. Both stay: a priority image is visible in the server HTML, and `onError` still swaps in the neutral tile.
 
 ## What works logged out
 
