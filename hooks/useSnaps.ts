@@ -6,6 +6,7 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { usePatronStatus } from './usePatronStatus';
 import { useUserSettings } from './useUserSettings';
+import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
 interface lastContainerInfo {
   permlink: string;
@@ -25,16 +26,27 @@ interface UseSnapsProps {
    *  another data source covering the current filter (e.g. the blended feed
    *  standing in for 'all') and doesn't want useSnaps duplicating the RPC walk. */
   skip?: boolean;
+  /** Server-rendered first page of the public Latest feed. Seeded only for
+   *  that filter; a logged-in username or muted tags still refetch. */
+  initialPage?: PublicSnapPage | null;
 }
 
-export const useSnaps = ({ filterType = 'community', username, skip = false }: UseSnapsProps = {}) => {
+export const useSnaps = ({ filterType = 'community', username, skip = false, initialPage = null }: UseSnapsProps = {}) => {
   const { settings } = useUserSettings();
   // A stable, value-compared key (not the array reference) for the reset
   // effect below — same pattern as the blog feed's interestTagsKey, so
   // muting a tag in Settings refetches this feed immediately rather than
   // waiting for a manual refresh.
   const mutedTagsKey = settings.mutedTags.join(',');
-  const lastContainerRef = useRef<lastContainerInfo | null>(null);
+  // Public Latest page from the server. The first client render must use it
+  // (hydration matches the HTML) and must not immediately refetch it. A
+  // later username or mute change still goes through the reset below.
+  const hasSeed = Boolean(initialPage && initialPage.comments.length > 0 && !skip && filterType === 'all');
+  // Set only when we leave that server page (login, mutes, another tab).
+  // Staying false through a Strict Mode double-invoke is what keeps the
+  // first paint from refetching; pagination checks currentPage instead.
+  const leftSeedRef = useRef(false);
+  const lastContainerRef = useRef<lastContainerInfo | null>(hasSeed ? initialPage!.cursor : null);
   const fetchedPermlinksRef = useRef<Set<string>>(new Set());
   const followingListRef = useRef<string[]>([]);
   const isFetchingRef = useRef(false);
@@ -55,10 +67,10 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
   const mutedDuringFetchRef = useRef<Set<string>>(new Set());
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [comments, setComments] = useState<ExtendedComment[]>([]);
+  const [comments, setComments] = useState<ExtendedComment[]>(hasSeed ? initialPage!.comments : []);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [hasMore, setHasMore] = useState(hasSeed ? initialPage!.hasMore : true);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(hasSeed);
   const [followingListLoaded, setFollowingListLoaded] = useState(false);
   const [fetchTrigger, setFetchTrigger] = useState(0);
 
@@ -237,8 +249,15 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     return { comments: allFilteredComments, hasMoreData };
   }
 
-  // Reset when filter changes
+  // Reset when filter changes. The mount pass keeps a server-rendered public
+  // page in place; anything else (following, a logged-in user, muted tags)
+  // still clears and refetches.
   useEffect(() => {
+    const publicDefault = filterType === 'all' && !username && mutedTagsKey === '';
+    if (!leftSeedRef.current && publicDefault && initialPage && initialPage.comments.length > 0 && !skip) {
+      return;
+    }
+    leftSeedRef.current = true;
     lastContainerRef.current = null;
     fetchedPermlinksRef.current.clear();
     isFetchingRef.current = false;
@@ -247,7 +266,7 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     setHasFetchedOnce(false);
     setCurrentPage(1);
     setFetchTrigger(prev => prev + 1);
-  }, [filterType, username, mutedTagsKey]);
+  }, [filterType, username, mutedTagsKey, initialPage, skip]);
 
   // A mute that succeeds while this walk is on screen has to drop that
   // author now. The next page would also hide them once getMutedList
@@ -265,6 +284,22 @@ export const useSnaps = ({ filterType = 'community', username, skip = false }: U
     // A caller (currently: the blended feed standing in for 'all') is covering
     // this filter already — don't duplicate the RPC walk in the background.
     if (skip) {
+      return;
+    }
+    // Mount of the public Latest page: the server already rendered this
+    // batch. Pagination (currentPage > 1) and refresh (fetchTrigger > 0)
+    // still fetch. `leftSeedRef` flips only when the reset effect actually
+    // drops the server page.
+    if (
+      !leftSeedRef.current &&
+      filterType === 'all' &&
+      !username &&
+      mutedTagsKey === '' &&
+      initialPage &&
+      initialPage.comments.length > 0 &&
+      currentPage === 1 &&
+      fetchTrigger === 0
+    ) {
       return;
     }
     // Only wait for following list if we're on the following filter
