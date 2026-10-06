@@ -7,7 +7,6 @@ import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import MeSheet from '@/components/layout/MeSheet';
-import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -16,6 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
 
+const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
 const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHandler'), { ssr: false });
@@ -45,9 +45,15 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  // The panel chunk stays out of the first load until chat is opened, then
+  // stays mounted so close/minimize does not drop the conversation.
+  const [chatActivated, setChatActivated] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isMeSheetOpen, setIsMeSheetOpen] = useState(false);
   const popoutRef = useRef<Window | null>(null);
+  if ((isChatOpen || isChatMinimized || isChatPopoutMode) && !chatActivated) {
+    setChatActivated(true);
+  }
 
   useEffect(() => {
     if (isEmbedMode) {
@@ -190,8 +196,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             chatUnreadCount={chatUnreadCount}
           />
 
-          {/* Chat panel (all screen sizes) */}
-          <ChatPanel
+          {/* Chat panel (all screen sizes). Loaded on first open. */}
+          {chatActivated && <ChatPanel
             isOpen={isChatOpen}
             onClose={() => setIsChatOpen(false)}
             isMinimized={isChatMinimized}
@@ -199,10 +205,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             onRestore={() => { setIsChatMinimized(false); setIsChatOpen(true); }}
             onPopout={handlePopoutChat}
             onUnreadChange={setChatUnreadCount}
-          />
+          />}
         </>
       )}
-      {isChatPopoutMode && (
+      {isChatPopoutMode && chatActivated && (
         <ChatPanel
           isOpen={isChatOpen}
           onClose={() => {

@@ -1,9 +1,13 @@
 'use client';
 
-import PostPage from "@/components/blog/PostPage";
-import NotificationsComp from "@/components/notifications/NotificationsComp";
-import ProfilePage from "@/components/profile/ProfilePage";
-import WalletPage from "@/components/wallet/WalletPage";
+import dynamic from 'next/dynamic';
+
+// Each view is its own chunk. A post visit does not download the wallet,
+// and a profile visit does not download the notification list.
+const PostPage = dynamic(() => import('@/components/blog/PostPage'));
+const NotificationsComp = dynamic(() => import('@/components/notifications/NotificationsComp'));
+const ProfilePage = dynamic(() => import('@/components/profile/ProfilePage'));
+const WalletPage = dynamic(() => import('@/components/wallet/WalletPage'));
 
 interface SlugPageClientProps {
   slug: string[];

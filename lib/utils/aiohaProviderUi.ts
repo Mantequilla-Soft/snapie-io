@@ -1,4 +1,4 @@
-import { Providers } from '@aioha/aioha';
+import { Providers } from '@/lib/aioha/enums';
 
 const PROVIDER_LABELS: Partial<Record<Providers, string>> = {
   [Providers.Keychain]:     'Hive Keychain',

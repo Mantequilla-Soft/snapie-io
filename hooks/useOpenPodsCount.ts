@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { HangoutsApiClient, type Room } from '@snapie/hangouts-react';
+import { HangoutsApiClient, type Room } from '@snapie/hangouts-core';
 
 const API_URL = process.env.NEXT_PUBLIC_HANGOUTS_API_URL;
 const POLL_INTERVAL_MS = 30_000;

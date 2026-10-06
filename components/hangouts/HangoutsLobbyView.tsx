@@ -4,7 +4,7 @@ import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import '@/app/hangouts/overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
-import { useAioha } from '@aioha/react-ui';
+import { useAioha } from '@/lib/aioha/facade-react-ui';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useHangoutsAiohaAdapter } from '@/hooks/useHangoutsAiohaAdapter';
 import { snapieHangoutComposer } from '@/lib/utils/composerSdk';

@@ -41,7 +41,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signMessageWithAioha } from '@/lib/hive/aioha';
 import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiCornerUpLeft, FiExternalLink, FiHash, FiImage, FiMaximize2, FiMessageSquare, FiMinus, FiPlus, FiSend, FiUsers, FiX } from 'react-icons/fi';
 import { FaPlay } from 'react-icons/fa';
-import { KeyTypes } from '@aioha/aioha';
+import { KeyTypes } from '@/lib/aioha/enums';
 import { chatService, Channel, Conversation, DmStatusInfo, Message } from '@/lib/chat/ChatService';
 import { shouldShowChatAuthGate } from '@/lib/chat/authGate';
 // Same parser the server uses to decide what mentions you, so highlighting and
