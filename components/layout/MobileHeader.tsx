@@ -73,6 +73,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
             <Box position="relative">
               <IconButton
                 as={NextLink}
+                prefetch={false}
                 href={`/@${user}/notifications`}
                 aria-label="Notifications"
                 icon={<Icon as={FiBell} boxSize={5} />}
@@ -90,6 +91,7 @@ export default function MobileHeader({ onMePress }: MobileHeaderProps) {
               <Box position="relative">
                 <IconButton
                   as={NextLink}
+                prefetch={false}
                   href="/hangouts"
                   aria-label={`${openPodsCount} OpenPod${openPodsCount !== 1 ? 's' : ''} live`}
                   icon={<Icon as={FaMicrophone} boxSize={4} animation={`${micPulse} 2s ease-in-out infinite`} />}
