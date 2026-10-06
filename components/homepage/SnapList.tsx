@@ -7,6 +7,7 @@ import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
+import { findClipScroller } from '@/lib/dom/scrollParent';
 
 type SortOrder = 'new' | 'top';
 
@@ -109,8 +110,15 @@ export default function SnapList(
 
   const [scrollParentEl, setScrollParentEl] = useState<HTMLElement | null>(null);
   useEffect(() => {
-    setScrollParentEl(document.getElementById(scrollableTargetId));
-  }, [scrollableTargetId]);
+    // The id the page passes is not always the box that clips. On desktop
+    // the feed column scrolls; on a phone the layout scroller does. A root
+    // that does not clip makes the sentinel look permanently visible.
+    const explicit = document.getElementById(scrollableTargetId);
+    const explicitClips = !!explicit && explicit.scrollHeight > explicit.clientHeight + 1
+      && explicit.clientHeight <= window.innerHeight + 2;
+    const fromList = findClipScroller(listRef.current);
+    setScrollParentEl(explicitClips ? explicit : (fromList ?? explicit));
+  }, [scrollableTargetId, comments.length]);
 
   // `refresh`'s own identity changes every render (it's a plain closure
   // from useSnaps, not memoized) — read the latest value through a ref
@@ -351,17 +359,12 @@ export default function SnapList(
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
         {displayComments.map((comment, index) => (
-          // One element serves three roles: the data-snap-key anchor the
-          // pagination/reconciliation observers track (must never
-          // disappear), the content-visibility target (native
-          // render-skipping for cards outside the viewport, whose own
-          // scroll anchoring preserves each card's last-rendered size —
-          // 'auto' in contain-intrinsic-size), and the wide-margin
-          // whole-card gate that bounds total mounted cards for a long
-          // session (see CARD_GATE_MARGIN above). Deliberately NOT three
-          // nested divs — see OffscreenGate's doc comment for why a nested
-          // IntersectionObserver target inside a content-visibility:auto
-          // ancestor is fragile.
+          // One element is the data-snap-key anchor the pagination observers
+          // track (it must never disappear) and the wide-margin whole-card
+          // gate that bounds mounted cards (see CARD_GATE_MARGIN). Not
+          // content-visibility: skipping a card's descendants reports them
+          // as a move to 0×0, which is a layout shift on every card that
+          // enters the viewport. The gate's own placeholder holds the height.
           // The leading `paintedCount` cards start mounted so their author,
           // body, and counts are in the server HTML. The rest reserve 400px
           // (the same stand-in as contain-intrinsic-size) so a collapsed
@@ -389,7 +392,7 @@ export default function SnapList(
             rootMargin={CARD_GATE_MARGIN}
             initiallyMounted={index < paintedCount}
             unmountedMinHeight={paintedCount > 0 && index >= paintedCount ? 400 : 0}
-            sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
+            keepMounted
           >
             <Snap
               comment={comment}
