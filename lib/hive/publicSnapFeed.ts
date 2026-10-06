@@ -112,7 +112,11 @@ export async function fetchPublicSnapPage(): Promise<PublicSnapPage> {
       CONTAINER_AUTHOR,
       container.permlink,
     ]) as HiveReply[];
+    // SnapList orders the feed by created, newest first. Hive's reply array
+    // is not that order, so slicing it would paint older snaps and then jump
+    // when the client loads the rest of the container and sorts.
     const visible = replies.filter(comment => !hidden(comment.author));
+    visible.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
     const room = PUBLIC_SNAP_SEED_COUNT - comments.length;
 
     if (visible.length > room) {

@@ -72,17 +72,20 @@ describe('fetchPublicSnapPage', () => {
     expect(page.hasMore).toBe(false);
   });
 
-  it('seeds only the first viewport and leaves the cursor at the head when the container is longer', async () => {
-    const replies = Array.from({ length: PUBLIC_SNAP_SEED_COUNT + 5 }, (_, i) => reply('alice', `p${i}`));
+  it('seeds the newest viewport and leaves the cursor at the head when the container is longer', async () => {
+    const replies = Array.from({ length: PUBLIC_SNAP_SEED_COUNT + 5 }, (_, i) =>
+      reply('alice', `p${i}`, { created: `2026-08-29T00:${String(i).padStart(2, '0')}:00` })
+    );
     databaseCallMock
       .mockResolvedValueOnce([container('c1')])
       .mockResolvedValueOnce(replies);
 
     const page = await fetchPublicSnapPage();
 
+    const newest = [...replies].sort((a, b) => (a.created < b.created ? 1 : -1));
     expect(page.comments).toHaveLength(PUBLIC_SNAP_SEED_COUNT);
     expect(page.comments.map(c => c.permlink)).toEqual(
-      replies.slice(0, PUBLIC_SNAP_SEED_COUNT).map(c => c.permlink)
+      newest.slice(0, PUBLIC_SNAP_SEED_COUNT).map(c => c.permlink)
     );
     expect(page.cursor).toBeNull();
     expect(page.hasMore).toBe(true);
