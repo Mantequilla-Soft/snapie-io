@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem } from '@chakra-ui/react';
+import { Box, HStack, Button, Image, IconButton, Wrap, Spinner, Progress, Text, VStack, Menu, MenuButton, MenuList, MenuItem, VisuallyHidden } from '@chakra-ui/react';
 import MentionHighlightedTextarea from '@/components/shared/MentionHighlightedTextarea';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import GiphySelector from './GiphySelector';
@@ -504,10 +504,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 <HStack flexShrink={1} minW={0}>
                     <Button
                         as="label" variant="ghost" borderRadius="full"
-                        aria-label="Add image"
                         color="overlay.600" _hover={{ bg: 'rgba(28, 161, 241, 0.10)', color: 'overlay.700' }}
                         isDisabled={!user || isLoading} size={{ base: 'sm', md: 'md' }}
                     >
+                        <VisuallyHidden>Add image</VisuallyHidden>
                         <FaImage size={20} />
                         <ImageUploader onUpload={handleImageSelection} />
                     </Button>
