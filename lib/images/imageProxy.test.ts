@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     assertSafeProxyUrl,
     fetchProxiedImage,
+    probeProxiedImage,
     ImageProxyError,
     isBlockedHostname,
     isBlockedIpAddress,
@@ -264,5 +265,56 @@ describe('fetchProxiedImage', () => {
         await expect(fetchProxiedImage('https://example.com/missing.jpg', deps({
             request: vi.fn(async () => upstream({ status: 404, body: Buffer.from('missing'), contentType: 'text/plain' })),
         }))).rejects.toMatchObject({ status: 502, code: 'upstream-status' });
+    });
+
+    it('reuses a successful response from the caller cache and does not reuse a failure', async () => {
+        const cache = new Map();
+        const request = vi.fn(async () => upstream({ status: 200 }));
+        const fake = deps({ request, cache });
+        const url = 'https://example.com/cached.jpg';
+        const first = await fetchProxiedImage(url, fake);
+        const second = await fetchProxiedImage(url, fake);
+        expect(second.body.equals(first.body)).toBe(true);
+        expect(request).toHaveBeenCalledTimes(1);
+
+        const entry = cache.get(new URL(url).href);
+        expect(entry).toBeTruthy();
+        entry.expires = Date.now() - 1;
+        await fetchProxiedImage(url, fake);
+        expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not cache an upstream miss', async () => {
+        const cache = new Map();
+        const request = vi.fn(async () => upstream({
+            status: 404,
+            body: Buffer.from('missing'),
+            contentType: 'text/plain',
+        }));
+        const fake = deps({ request, cache });
+        await expect(fetchProxiedImage('https://example.com/gone.jpg', fake)).rejects.toMatchObject({ status: 502 });
+        await expect(fetchProxiedImage('https://example.com/gone.jpg', fake)).rejects.toMatchObject({ status: 502 });
+        expect(request).toHaveBeenCalledTimes(2);
+        expect(cache.size).toBe(0);
+    });
+});
+
+describe('probeProxiedImage', () => {
+    it('is true only when the upstream image is accepted', async () => {
+        const ok = await probeProxiedImage('https://example.com/pic.jpg', deps());
+        expect(ok).toBe(true);
+    });
+
+    it('is false for a 404 and for a private host, without fetching the private host', async () => {
+        const missing = await probeProxiedImage('https://cdn.discordapp.com/attachments/1/2/banner.png', deps({
+            request: vi.fn(async () => upstream({ status: 404, body: Buffer.from('nope'), contentType: 'text/plain' })),
+        }));
+        expect(missing).toBe(false);
+
+        const fake = deps();
+        const blocked = await probeProxiedImage('http://169.254.169.254/latest/meta-data/', fake);
+        expect(blocked).toBe(false);
+        expect(fake.resolve).not.toHaveBeenCalled();
+        expect(fake.request).not.toHaveBeenCalled();
     });
 });
