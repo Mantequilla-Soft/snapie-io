@@ -260,4 +260,36 @@ describe('submitGameScore', () => {
     expect(second.status).toBe('duplicate');
     expect(accountStore.get('alice')?.balance).toBe(1004); // charged once (1000 + 4)
   });
+  describe('snapie-rush', () => {
+    it('is a known game and converts score at 0.2%', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-rush', 'rush-1', 12000, 3, 2, false, 90000, Date.now());
+
+      expect(result.status).toBe('awarded');
+      expect(result.pointsAwarded).toBe(24); // floor(12000 * 0.2 / 100)
+      expect(accountStore.get('alice')?.balance).toBe(24);
+    });
+
+    it('rejects a score above its 100,000 ceiling', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-rush', 'rush-1', 100_001, 5, 5, true, 200000, Date.now());
+
+      expect(result.status).toBe('invalid_score');
+      expect(result.pointsAwarded).toBe(0);
+      expect(accountStore.get('alice')?.balance).toBe(0);
+    });
+
+    it('awards each run separately when the host issues a fresh sessionId', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const first = await submitGameScore('alice', 'snapie-rush', 'rush-1', 5000, 1, 0, false, 60000, Date.now());
+      const second = await submitGameScore('alice', 'snapie-rush', 'rush-2', 5000, 1, 0, false, 60000, Date.now());
+
+      expect(first.status).toBe('awarded');
+      expect(second.status).toBe('awarded');
+      expect(accountStore.get('alice')?.balance).toBe(20);
+    });
+  });
 });

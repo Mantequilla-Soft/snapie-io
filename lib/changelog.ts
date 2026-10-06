@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-06',
+    date: '2026-10-06',
+    title: 'Snapie Rush joins Games',
+    items: [
+      { type: 'feature', text: 'Snapie Rush is here! A top-down arcade racer — steer the Snapie hover-bike through five routes, dodge trucks, swerving cars, oil slicks and drones, and grab fuel cells before the tank runs dry. Near misses and higher speed earn bonus score. Save your run to convert your score into Snapie Points.' },
+    ],
+  },
+  {
     id: '2026-09-14',
     date: '2026-09-14',
     items: [
