@@ -14,6 +14,9 @@ interface ImageWithFallbackProps {
   priority?: boolean;
   /** Other first-viewport images. In the HTML at 640px, no fade, not preloaded. */
   painted?: boolean;
+  /** First card's photo. Kept in the server HTML even when a later, smaller
+   *  file is the fetchpriority image, because this box is the one that paints largest. */
+  lead?: boolean;
 }
 
 const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, quality);
@@ -89,7 +92,7 @@ function ImageFallback() {
   );
 }
 
-const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false, painted = false }: ImageWithFallbackProps) {
+const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority = false, painted = false, lead = false }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const knownHeavy = useKnownHeavyMediaUrls();
@@ -100,7 +103,10 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
   // request from them still shares the priority photo's connection.
   // Both wait. A page with no priority photo, and a card mounted after
   // that photo has finished, fetch immediately.
-  const holdForPriority = !priority && !defer && (painted || priorityPhotoStillLoading());
+  // The lead photo stays discoverable in the document. Holding it made
+  // Lighthouse's LCP element a script-initiated request once a later file
+  // was the one marked fetchpriority=high.
+  const holdForPriority = !priority && !lead && !defer && (painted || priorityPhotoStillLoading());
   const [released, setReleased] = useState(!holdForPriority);
   useEffect(() => {
     if (!holdForPriority) return;

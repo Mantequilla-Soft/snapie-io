@@ -407,6 +407,7 @@ export default function SnapList(
                 eagerMedia
                 imagePriority={imagePriority}
                 priorityImageUrl={imagePriority ? priorityImageUrl ?? undefined : undefined}
+                leadPhoto
                 {...(!post ? { setConversation } : {})}
               />
             </Box>
