@@ -18,11 +18,8 @@ describe('deferFrameworkScripts', () => {
     expect(out).toContain('<script src="https://example.com/extra.js" async=""></script>');
     expect(out).toContain('Street art in town');
 
-    const preloadAt = out.indexOf('rel="preload" as="script" fetchpriority="low" href="/_next/static/chunks/webpack-aaa.js"');
-    const mainPreload = out.indexOf('href="/_next/static/chunks/main-bbb.js"');
-    expect(preloadAt).toBeGreaterThan(-1);
-    expect(mainPreload).toBeGreaterThan(preloadAt);
-    expect(out.match(/rel="preload" as="script"/g)).toHaveLength(2);
+    expect(out).not.toContain('rel="preload" as="script"');
+    expect(out).not.toContain('webpack-aaa.js"/>');
 
     expect(out).toContain('DOMContentLoaded');
     expect(out).toContain('img[fetchpriority="high"]');
