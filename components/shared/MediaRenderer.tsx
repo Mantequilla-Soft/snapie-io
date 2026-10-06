@@ -101,6 +101,12 @@ const MediaRenderer = ({ mediaContent, priority = false, onlyImages = false, ski
           const rawSrc = iframe.getAttribute('src');
           const key = rawSrc ? speakVideoKeyFromUrl(rawSrc) : null;
           if (key) {
+            // Switching 16/9 to 3/4 grows and narrows the box. Doing that
+            // to a player at or above the viewport moves the feed. Only
+            // adopt the portrait box while the player is still below the
+            // fold; this instance stays 16/9 if the message arrives late.
+            const rect = iframe.getBoundingClientRect();
+            if (rect.top < window.innerHeight) break;
             knownVerticalSpeakKeys.add(key);
             setVerticalSpeakKeys((prev) => {
               if (prev.has(key)) return prev;

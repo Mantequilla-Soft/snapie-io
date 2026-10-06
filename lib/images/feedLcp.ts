@@ -23,6 +23,27 @@ export function isPlainFeedImageMedia(media: string): boolean {
   return !/3speak\.tv|youtube\.com|youtu\.be|instagram\.com|<iframe/i.test(media);
 }
 
+/** Width/height reserved for a plain feed photo. Matches ImageWithFallback. */
+export const FEED_IMAGE_ASPECT_RATIO = 4 / 3;
+
+/**
+ * Aspect ratio (width / height) to reserve before a media slot mounts.
+ * Images use the feed tile. Horizontal embeds use 16/9. Audio and tweets
+ * size themselves in pixels, so they are left unset — a wrong ratio would
+ * move the card when the real player mounts.
+ */
+export function feedMediaSlotAspect(media: string): number | undefined {
+  if (isPlainFeedImageMedia(media)) return FEED_IMAGE_ASPECT_RATIO;
+  if (/audio\.3speak\.tv/i.test(media)) return undefined;
+  if (/platform\.twitter\.com|twitter\.com|x\.com/i.test(media)) return undefined;
+  if (/instagram\.com/i.test(media)) return 4 / 5;
+  if (/\/shorts\/|youtube\.com\/shorts/i.test(media)) return 9 / 16;
+  if (/youtube\.com|youtu\.be|3speak\.tv|<iframe|player\.vimeo|dailymotion|odysee\.com|rumble\.com/i.test(media)) {
+    return 16 / 9;
+  }
+  return undefined;
+}
+
 /** True when the media block also has a non-image line (embed URL, iframe). */
 export function mediaHasEmbed(media: string): boolean {
   return media.split('\n').some((line) => {

@@ -3,7 +3,7 @@ import { Box, Skeleton } from '@chakra-ui/react';
 import NextImage, { type ImageLoader } from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
-import { feedLcpImageUrl } from '@/lib/images/feedLcp';
+import { FEED_IMAGE_ASPECT_RATIO, feedLcpImageUrl } from '@/lib/images/feedLcp';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -47,7 +47,7 @@ const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, qu
  * case (a remount where `complete` is already true) that used to need a
  * manual ref check.
  */
-export const IMAGE_ASPECT_RATIO = 4 / 3;
+export const IMAGE_ASPECT_RATIO = FEED_IMAGE_ASPECT_RATIO;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
 /** Neutral tile in the same 4/3 box. No `<img>`, so a dead file does not

@@ -295,13 +295,22 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       borderRadius={0}
       backdropFilter="blur(18px)"
       ref={sidebarRef}
-      id="scrollableDiv"
+      id="right-sidebar-scroll"
       sx={{
         '&::-webkit-scrollbar': { display: 'none' },
         scrollbarWidth: 'none',
       }}
     >
-      {/* Community stats bar */}
+      {/* Async widgets used to push Long Reads down after paint. The slot
+          stays at least as tall as stats + the daily vote row + a short
+          markets list, which is what actually lands here for a logged-out
+          visitor. A shorter result leaves a gap; a taller one can still
+          move Long Reads, but the common case does not. */}
+      <Box minH={{ base: 0, md: '240px' }}>
+      {/* The stats row arrives after the markets list. Keep its slot in the
+          first paint so filling it does not push Prediction Markets and
+          Long Reads down. Measured row, including the divider, is ~97px. */}
+      <Box minH={{ base: 0, md: '100px' }}>
       {communityStats !== null && (
         <>
           <Flex justify="space-around" px={3} pt={4} pb={3}>
@@ -322,6 +331,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
         </>
       )}
+      </Box>
 
       <ContainerVoteWidget />
 
@@ -330,6 +340,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
       <SidebarEventsWidget />
 
       <TrendingMarketsWidget />
+      </Box>
 
       <Box px={2}>
         <Text
@@ -344,7 +355,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         >
           Long Reads
         </Text>
-        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" hasMore={hasMore} />
+        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" hasMore={hasMore} scrollableTarget="right-sidebar-scroll" />
         {!isLoading && allPosts.length === 0 && !hasMore && (
           <Text fontSize="sm" color="overlay.500" px={2} pb={4}>
             No recent long reads
