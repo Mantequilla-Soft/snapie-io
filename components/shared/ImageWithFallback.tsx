@@ -1,10 +1,11 @@
 'use client';
 import { Box, Skeleton } from '@chakra-ui/react';
 import NextImage, { type ImageLoader } from 'next/image';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
 import { FEED_IMAGE_ASPECT_RATIO, classifyFeedMediaUrl, feedLcpImageUrl, shouldDeferNonPriorityMedia } from '@/lib/images/feedLcp';
 import { DeferredMediaGate, useKnownHeavyMediaUrls } from '@/components/shared/DeferredFeedMedia';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -53,6 +54,13 @@ const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, qu
  * GIF and video files are the exception. They are never the priority image,
  * and an eager request still competes with that image on the critical
  * connection. Those stay a poster until play or a near-viewport scroll.
+ *
+ * Other first-viewport photos are the same kind of contention. On a pinned
+ * mobile run the priority file was a few kilobytes, but sibling optimizer
+ * requests on the same connection stretched its load from under a second
+ * to several seconds. Those photos keep the 4/3 box and gain a src only
+ * after the priority image has loaded. Below-fold cards are not in the
+ * first HTML, so they still fetch when they mount.
  */
 export const IMAGE_ASPECT_RATIO = FEED_IMAGE_ASPECT_RATIO;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
@@ -78,6 +86,15 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
   const knownHeavy = useKnownHeavyMediaUrls();
   const resolved = resolveFeedImageSrc(url);
   const defer = shouldDeferNonPriorityMedia(url, priority, knownHeavy);
+  // Painted siblings are in the server HTML. Omit their src until the
+  // priority photo finishes so they do not share that connection. The
+  // first render matches the server (held), then the effect releases.
+  const holdForPriority = painted && !priority && !defer;
+  const [released, setReleased] = useState(!holdForPriority);
+  useEffect(() => {
+    if (!holdForPriority) return;
+    return scheduleAfterPriorityImage(() => setReleased(true));
+  }, [holdForPriority]);
 
   if (hasError || !resolved) {
     return <ImageFallback />;
@@ -122,6 +139,18 @@ const ImageWithFallback = memo(function ImageWithFallback({ url, alt, priority =
   // until onLoad stays invisible until hydration, and a shimmer of the same
   // box can become the LCP element instead of the photo. Below-fold images
   // keep the fade. Only the first image is preloaded.
+  if (holdForPriority && !released) {
+    return (
+      <Box
+        position="relative"
+        aspectRatio={IMAGE_ASPECT_RATIO}
+        width="100%"
+        bg="whiteAlpha.200"
+        data-feed-image-held=""
+      />
+    );
+  }
+
   const immediate = priority || painted;
   const hiddenUntilLoad = !immediate;
 
