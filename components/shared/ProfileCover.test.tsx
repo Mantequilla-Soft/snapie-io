@@ -51,7 +51,9 @@ describe('ProfileCover', () => {
   });
 
   it('does not render an image or the remote host when the cover 404s', async () => {
-    const fetchMock = vi.fn(async () => jsonResponse({ ok: false }));
+    const fetchMock = vi.fn<(input: RequestInfo | URL) => Promise<ReturnType<typeof jsonResponse>>>(
+      async () => jsonResponse({ ok: false }),
+    );
     vi.stubGlobal('fetch', fetchMock);
     const { container } = renderCover(DISCORD);
 
