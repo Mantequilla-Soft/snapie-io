@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from '@chakra-ui/react';
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { afterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 /**
@@ -107,7 +107,7 @@ export function DeferredMediaGate({
         type="button"
         aria-label="Play media"
         data-deferred-media=""
-        onClick={(event) => {
+        onClick={(event: MouseEvent<HTMLButtonElement>) => {
           event.stopPropagation();
           setPlaying(true);
         }}

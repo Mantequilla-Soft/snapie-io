@@ -55,20 +55,21 @@ describe('DeferredMediaGate', () => {
       y: 2000,
       toJSON() { return {}; },
     });
-    let callback: ((entries: Array<{ isIntersecting: boolean }>) => void) | null = null;
+    const obs: { callback: ((entries: Array<{ isIntersecting: boolean }>) => void) | null } = { callback: null };
     vi.stubGlobal('IntersectionObserver', class {
       constructor(cb: (entries: Array<{ isIntersecting: boolean }>) => void) {
-        callback = cb;
+        obs.callback = cb;
       }
       observe() {}
       disconnect() {}
     });
     const { container } = render(gate());
     expect(container.querySelector('img')).toBeNull();
-    expect(callback).not.toBeNull();
-    callback?.([{ isIntersecting: false }]);
+    const callback = obs.callback;
+    if (!callback) throw new Error('observer was not created');
+    callback([{ isIntersecting: false }]);
     expect(container.querySelector('img')).toBeNull();
-    callback?.([{ isIntersecting: true }]);
+    callback([{ isIntersecting: true }]);
     await waitFor(() => {
       expect(container.querySelector('img')?.getAttribute('src')).toBe('https://example.com/a.gif');
     });

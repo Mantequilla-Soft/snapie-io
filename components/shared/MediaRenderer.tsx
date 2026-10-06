@@ -318,7 +318,7 @@ const MediaRenderer = ({ mediaContent, priority = false, priorityUrl, painted = 
                 defer
                 aspectRatio={deferredEmbedAspect(item.src)}
               >
-                <IframeEmbedBox item={item} isVertical3Speak={isVertical3Speak} />
+                <LazyIframeEmbed item={item} isVertical3Speak={isVertical3Speak} />
               </DeferredMediaGate>
             );
           }
