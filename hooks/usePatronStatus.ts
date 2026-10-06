@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 
 export type PatronTier = 'snaperino' | 'snapian' | 'snap-master';
 
@@ -52,13 +53,18 @@ export function usePatronStatus() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchPatrons().then(map => {
-      if (!cancelled) {
-        setByAccount(map);
-        setIsLoading(false);
-      }
+    const cancelSchedule = scheduleAfterPriorityImage(() => {
+      fetchPatrons().then(map => {
+        if (!cancelled) {
+          setByAccount(map);
+          setIsLoading(false);
+        }
+      });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      cancelSchedule();
+    };
   }, []);
 
   const getTier = (account: string): PatronTier | null => byAccount.get(account) ?? null;

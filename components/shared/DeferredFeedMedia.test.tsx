@@ -11,11 +11,11 @@ afterEach(() => {
 });
 
 function gate() {
-  return createElement(DeferredMediaGate, {
-    defer: true,
-    aspectRatio: 4 / 3,
-    children: createElement('img', { alt: 'gif', src: 'https://example.com/a.gif' }),
-  });
+  return createElement(
+    DeferredMediaGate,
+    { defer: true, aspectRatio: 4 / 3 },
+    createElement('img', { alt: 'gif', src: 'https://example.com/a.gif' }),
+  );
 }
 
 describe('DeferredMediaGate', () => {

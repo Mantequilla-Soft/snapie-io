@@ -25,6 +25,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
+import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import { DeferredMediaUrlProvider } from '@/components/shared/DeferredFeedMedia';
 
 const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
@@ -163,7 +164,10 @@ export default function Home({
       }
     };
 
-    loadCommunityInfo();
+    const cancel = scheduleAfterPriorityImage(() => {
+      loadCommunityInfo();
+    });
+    return cancel;
   }, [communityTag]);
 
   const onOpen = () => setIsOpen(true);

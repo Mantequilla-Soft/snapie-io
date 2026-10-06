@@ -12,8 +12,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import { separateContent, extractHivePostUrls, extractHangoutUrls, SPEAK_AUDIO_IFRAME_HEIGHT_PX, snapTextForMarkdown } from '@/lib/utils/snapUtils';
-import { detectLang } from '@/lib/utils/detectLanguage';
 import { browserLanguageTag } from '@/lib/i18n/browserLanguage';
+import { afterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { feedMediaSlotAspect, hasMarkdownImage, isPlainFeedImageMedia, mediaHasEmbed } from '@/lib/images/feedLcp';
@@ -139,11 +139,36 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     const renderedText = typeof seededHtml === 'string' ? seededHtml : lazyHtml;
 
     const browserLang = browserLanguageTag();
-    const detectedLang = useMemo(() => detectLang(text), [text]);
+    // franc-min stays out of the first render. The button appears once the
+    // check finishes, after the priority photo, so hydration does not run it.
+    const [detectedLang, setDetectedLang] = useState<string | null | undefined>(undefined);
+    useEffect(() => {
+        let cancel = false;
+        let idleId = 0;
+        let timer = 0;
+        afterPriorityImage().then(() => {
+            if (cancel) return;
+            const run = () => {
+                import('@/lib/utils/detectLanguage').then((mod) => {
+                    if (!cancel) setDetectedLang(mod.detectLang(text));
+                });
+            };
+            if (typeof requestIdleCallback === 'function') {
+                idleId = requestIdleCallback(run, { timeout: 2000 });
+            } else {
+                timer = window.setTimeout(run, 1);
+            }
+        });
+        return () => {
+            cancel = true;
+            if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
+            if (timer) window.clearTimeout(timer);
+        };
+    }, [text]);
     // Show translate when: we detected a language and it differs from the browser's,
     // OR the text is too short/ambiguous to detect (detectedLang === null) — offer it anyway.
     // Hides the button when the snap is confidently the same language as the browser.
-    const showTranslate = !!text && !translatedText && (detectedLang === null || detectedLang !== browserLang);
+    const showTranslate = detectedLang !== undefined && !!text && !translatedText && (detectedLang === null || detectedLang !== browserLang);
     const isNsfw = postData?.is_nsfw ?? false;
 
     const replies = comment.replies;
