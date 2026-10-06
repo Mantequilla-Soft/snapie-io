@@ -1,11 +1,21 @@
 import http from 'node:http';
 import https from 'node:https';
 import { lookup as dnsLookup } from 'node:dns/promises';
+import { createBoundedTtlCache } from '@/lib/http/boundedTtlCache';
 import { assertSafeProxyUrl, isBlockedIpAddress } from '@/lib/images/imageProxy';
 import type { LcpImageProbe } from '@/lib/images/feedLcp';
 
 const PROBE_TIMEOUT_MS = 1500;
 const MAX_REDIRECTS = 3;
+
+/** Reuse HEAD results across visitors. 15 minutes sits in the 10–30 minute window. */
+const PROBE_CACHE_TTL_MS = 15 * 60 * 1000;
+const PROBE_CACHE_MAX_ENTRIES = 500;
+
+const probeCache = createBoundedTtlCache<LcpImageProbe | null>({
+  ttlMs: PROBE_CACHE_TTL_MS,
+  maxEntries: PROBE_CACHE_MAX_ENTRIES,
+});
 
 /**
  * HEAD the upstream image for Content-Type and Content-Length.
@@ -14,9 +24,18 @@ const MAX_REDIRECTS = 3;
  * private names, and DNS answers are rejected when any address is blocked.
  * The socket is pinned to the checked address. A failure returns null so
  * the picker can keep a known photo or skip an unclassified URL.
- * This does not download the body.
+ * This does not download the body. Results, including null, are reused from
+ * an in-memory URL cache for 15 minutes, capped at 500 entries.
  */
 export async function probeFeedImageHead(rawUrl: string): Promise<LcpImageProbe | null> {
+  const cached = probeCache.get(rawUrl);
+  if (cached !== undefined) return cached;
+  const result = await probeFeedImageHeadUncached(rawUrl);
+  probeCache.set(rawUrl, result);
+  return result;
+}
+
+async function probeFeedImageHeadUncached(rawUrl: string): Promise<LcpImageProbe | null> {
   try {
     let current = rawUrl;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  FEED_LCP_AUDIT_DEADLINE_MS,
   FEED_LCP_WIDTH,
   HOME_FEED_LCP_SCAN,
   LCP_MEDIA_SIZE_CAP_BYTES,
@@ -271,6 +272,24 @@ describe('selectFirstScreenLcpImage', () => {
       contentLength: LCP_MEDIA_SIZE_CAP_BYTES,
     }));
     expect(chosen?.rawUrl).toContain('huge.jpg');
+  });
+
+  it('falls back to the extension-only pick when the audit exceeds its deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = auditFirstScreenLcp(
+        [gif, big, small],
+        () => new Promise(() => {}),
+      );
+      const assertion = expect(pending).resolves.toEqual({
+        chosen: expect.objectContaining({ rawUrl: 'https://images.hive.blog/huge.jpg' }),
+        deferUrls: ['https://media.giphy.com/media/abc/giphy.gif'],
+      });
+      await vi.advanceTimersByTimeAsync(FEED_LCP_AUDIT_DEADLINE_MS);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not mark priority when the server rejected every candidate', () => {

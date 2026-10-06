@@ -1,26 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, trustedClientIp, type RateLimitEntry } from '@/lib/http/rateLimit';
 import { auditFirstScreenLcp, normalizeFeedLcpBodies } from '@/lib/images/feedLcp';
 import { probeFeedImageHead } from '@/lib/images/feedLcpProbe';
 
 export const runtime = 'nodejs';
 
 // One call per home-feed paint. The limiter is per instance and resets on
-// cold start, same shape as the image proxy.
+// cold start. The key is the Cloudflare client IP, not X-Forwarded-For.
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 60_000;
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count += 1;
-  return true;
-}
+const rateLimitMap = new Map<string, RateLimitEntry>();
 
 /**
  * HEAD the leading home-feed images and return the LCP photo.
@@ -29,10 +18,12 @@ function checkRateLimit(ip: string): boolean {
  * (CORS). This route uses the same URL policy as the image proxy and does
  * not download the body. `rawUrl` is null when every candidate is a GIF, a
  * video, or over the size cap — the client must not fall back to those.
+ * If the audit hits its deadline, `rawUrl` is the extension-only pick
+ * instead: GIF and video stay deferred, and the byte cap is not applied.
  */
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  if (!checkRateLimit(ip)) {
+  const ip = trustedClientIp(request.headers);
+  if (!checkRateLimit(rateLimitMap, ip, RATE_LIMIT, RATE_WINDOW_MS)) {
     return NextResponse.json({ error: 'Too many requests' }, {
       status: 429,
       headers: { 'Retry-After': '60', 'Cache-Control': 'no-store' },

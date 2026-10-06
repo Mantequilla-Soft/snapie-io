@@ -1,4 +1,5 @@
 import { separateContent } from '@/lib/utils/snapUtils';
+import { withTimeout } from '@/lib/utils/withTimeout';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
 
 /**
@@ -22,6 +23,13 @@ export const FEED_LCP_WIDTH = 640;
 
 /** How many leading snaps the home feed considers for the LCP photo. */
 export const HOME_FEED_LCP_SCAN = 8;
+
+/**
+ * Cap for one probed audit. Each DNS lookup and each HEAD hop can take up
+ * to 1.5s, so an uncut audit can sit for around 10s. Past this deadline the
+ * picker uses the extension-only choice and skips the byte cap.
+ */
+export const FEED_LCP_AUDIT_DEADLINE_MS = 2_500;
 
 const MAX_LCP_BODY_CHARS = 50_000;
 
@@ -279,10 +287,44 @@ export function selectFirstScreenLcpImageSync(
 }
 
 /**
+ * Extension-only decision used when the probe does not finish in time.
+ * GIF and video are still deferred. The byte cap is not applied, matching
+ * {@link selectFirstScreenLcpImageSync}.
+ */
+function extensionOnlyFirstScreenLcp(
+  bodies: Array<string | null | undefined>,
+): FirstScreenLcpDecision {
+  return {
+    chosen: selectFirstScreenLcpImageSync(bodies),
+    deferUrls: heavyFeedMediaUrls(bodies),
+  };
+}
+
+/**
  * Probed pick. GIF and video are not requested. The first suitable photo
  * wins; oversized and non-photo URLs are listed so the feed can defer them.
+ * The whole call is capped at {@link FEED_LCP_AUDIT_DEADLINE_MS}. On that
+ * deadline the extension-only pick is returned.
  */
 export async function auditFirstScreenLcp(
+  bodies: Array<string | null | undefined>,
+  probe: (rawUrl: string) => Promise<LcpImageProbe | null>,
+): Promise<FirstScreenLcpDecision> {
+  try {
+    return await withTimeout(
+      probeFirstScreenLcp(bodies, probe),
+      FEED_LCP_AUDIT_DEADLINE_MS,
+      'feed-lcp audit deadline',
+    );
+  } catch (err) {
+    if (err instanceof Error && err.message === 'feed-lcp audit deadline') {
+      return extensionOnlyFirstScreenLcp(bodies);
+    }
+    throw err;
+  }
+}
+
+async function probeFirstScreenLcp(
   bodies: Array<string | null | undefined>,
   probe: (rawUrl: string) => Promise<LcpImageProbe | null>,
 ): Promise<FirstScreenLcpDecision> {
