@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useSnaps } from './useSnaps';
+import type { ExtendedComment } from './useComments';
+import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
 // Same isolation/mocking approach as useComments.test.tsx.
 
@@ -196,8 +198,8 @@ describe('useSnaps.refreshComment', () => {
 });
 
 describe('useSnaps initial server page', () => {
-  const seed = {
-    comments: [reply('already', { author: 'alice', body: 'from the server' })],
+  const seed: PublicSnapPage = {
+    comments: [reply('already', { author: 'alice', body: 'from the server' }) as unknown as ExtendedComment],
     hasMore: true,
     cursor: { permlink: 'container-1', date: '2026-08-29T00:00:00' },
   };
@@ -240,5 +242,55 @@ describe('useSnaps initial server page', () => {
 
     await waitFor(() => expect(databaseCallMock).toHaveBeenCalled());
     expect(result.current.comments).toEqual([]);
+  });
+
+  it('appends the rest of a trimmed container without duplicating or skipping the seed prefix', async () => {
+    const prefix: PublicSnapPage = {
+      comments: [reply('a'), reply('b')] as unknown as ExtendedComment[],
+      hasMore: true,
+      cursor: null,
+    };
+    databaseCallMock
+      .mockResolvedValueOnce([container('c1')])
+      .mockResolvedValueOnce([reply('a'), reply('b'), reply('c'), reply('d')])
+      .mockResolvedValue([]);
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'all', initialPage: prefix }));
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['a', 'b']);
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['a', 'b', 'c', 'd']));
+    const [method, args] = databaseCallMock.mock.calls[0];
+    expect(method).toBe('get_discussions_by_author_before_date');
+    expect(args[1]).toBe('');
+    const permlinks = result.current.comments.map(c => c.permlink);
+    expect(new Set(permlinks).size).toBe(permlinks.length);
+  });
+
+  it('resumes after the last fully consumed container and dedupes the spilled prefix', async () => {
+    const prefix: PublicSnapPage = {
+      comments: [reply('a'), reply('b'), reply('c')] as unknown as ExtendedComment[],
+      hasMore: true,
+      cursor: { permlink: 'c1', date: '2026-08-29T00:00:00' },
+    };
+    databaseCallMock
+      .mockResolvedValueOnce([container('c2')])
+      .mockResolvedValueOnce([reply('c'), reply('d'), reply('e')])
+      .mockResolvedValue([]);
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'all', initialPage: prefix }));
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['a', 'b', 'c', 'd', 'e']));
+    const [method, args] = databaseCallMock.mock.calls[0];
+    expect(method).toBe('get_discussions_by_author_before_date');
+    expect(args[1]).toBe('c1');
+    expect(args[2]).toBe('2026-08-29T00:00:00');
   });
 });
