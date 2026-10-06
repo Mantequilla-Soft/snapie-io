@@ -3,7 +3,7 @@
 import { Box, Flex } from '@chakra-ui/react';
 import SnapList from '@/components/homepage/SnapList';
 import ScrollToTopButton from '@/components/homepage/ScrollToTopButton';
-import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo, useCallback, type ComponentType } from 'react';
 import dynamic from 'next/dynamic';
 import { Comment } from '@hiveio/dhive'; // Ensure this import is consistent
 import { ExtendedComment } from '@/hooks/useComments';
@@ -28,26 +28,43 @@ import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
 import { scheduleAfterPriorityImage } from '@/lib/perf/afterPriorityImage';
 import { DeferredMediaUrlProvider } from '@/components/shared/DeferredFeedMedia';
 
-const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
 const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
 const Conversation = dynamic(() => import('@/components/homepage/Conversation'), { ssr: false });
 
+type RightSidebarProps = { engagedAuthors: Set<string> };
+
+/** Same box the real column uses, so the feed width is final before the chunk. */
+function RightSidebarSlot() {
+  return (
+    <Box
+      as="aside"
+      aria-hidden
+      display={{ base: 'none', md: 'block' }}
+      w={{ base: '100%', md: '300px' }}
+      h="100vh"
+    />
+  );
+}
+
 /** Sidebar JS (post cards, swiper) waits until the LCP image has painted.
- *  On a phone the sidebar is display:none; this only changes when its
- *  scripts start. */
-function DeferredRightSidebar({ engagedAuthors }: { engagedAuthors: Set<string> }) {
-  const [ready, setReady] = useState(false);
+ *  On a phone the column is display:none. The slot stays until the module
+ *  has loaded: swapping to next/dynamic's empty render drops 300px and the
+ *  feed reflow wraps the composer and pushes a card out of the viewport. */
+function DeferredRightSidebar({ engagedAuthors }: RightSidebarProps) {
+  const [SidebarComp, setSidebarComp] = useState<ComponentType<RightSidebarProps> | null>(null);
   useEffect(() => {
     let cancel = false;
-    afterLcpPaint().then(() => {
-      if (!cancel) setReady(true);
-    });
+    afterLcpPaint()
+      .then(() => import('@/components/layout/RightSideBar'))
+      .then((mod) => {
+        if (!cancel) setSidebarComp(() => mod.default);
+      });
     return () => {
       cancel = true;
     };
   }, []);
-  if (!ready) return null;
-  return <RightSidebar engagedAuthors={engagedAuthors} />;
+  if (!SidebarComp) return <RightSidebarSlot />;
+  return <SidebarComp engagedAuthors={engagedAuthors} />;
 }
 
 interface CommunityInfo {
