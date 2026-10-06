@@ -16,6 +16,10 @@
  * - redirects are followed manually (capped) and each hop is re-checked
  * - size, timeout, declared content-type, and magic-byte checks; raster
  *   images only (no SVG)
+ *
+ * Successful fetches can be kept in a short in-memory cache (the default
+ * deps use one). Callers that pass their own deps, including tests, do not
+ * share it. The cache does not change which URLs are allowed.
  */
 import http from 'node:http';
 import https from 'node:https';
@@ -107,10 +111,50 @@ export type ProxyUpstream = {
     body: Buffer;
 };
 
+const CACHE_TTL_MS = 60_000;
+const CACHE_MAX_ENTRIES = 8;
+const CACHE_MAX_BYTES = 4 * 1024 * 1024;
+
+type CacheEntry = { body: Buffer; contentType: string; expires: number };
+export type ProxiedImageCache = Map<string, CacheEntry>;
+
 export type ImageProxyDeps = {
     resolve: (hostname: string, signal: AbortSignal) => Promise<ProxyAddress[]>;
     request: (target: URL, address: ProxyAddress, signal: AbortSignal) => Promise<ProxyUpstream>;
+    /** Successful images only. Omitted deps do not cache. */
+    cache?: ProxiedImageCache;
 };
+
+const sharedCache: ProxiedImageCache = new Map();
+
+function readCache(cache: ProxiedImageCache | undefined, key: string): { body: Buffer; contentType: string } | null {
+    if (!cache) return null;
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (hit.expires <= Date.now()) {
+        cache.delete(key);
+        return null;
+    }
+    cache.delete(key);
+    cache.set(key, hit);
+    return { body: hit.body, contentType: hit.contentType };
+}
+
+function writeCache(
+    cache: ProxiedImageCache | undefined,
+    key: string,
+    value: { body: Buffer; contentType: string },
+): void {
+    if (!cache) return;
+    if (value.body.length === 0 || value.body.length > CACHE_MAX_BYTES) return;
+    cache.delete(key);
+    cache.set(key, { body: value.body, contentType: value.contentType, expires: Date.now() + CACHE_TTL_MS });
+    while (cache.size > CACHE_MAX_ENTRIES) {
+        const oldest = cache.keys().next().value;
+        if (oldest === undefined) break;
+        cache.delete(oldest);
+    }
+}
 
 function normalizeHostname(hostname: string): string {
     let host = hostname.trim().toLowerCase();
@@ -384,6 +428,7 @@ function defaultRequest(target: URL, address: ProxyAddress, signal: AbortSignal)
 const defaultDeps: ImageProxyDeps = {
     resolve: defaultResolve,
     request: defaultRequest,
+    cache: sharedCache,
 };
 
 async function resolvePublicAddress(url: URL, deps: ImageProxyDeps, signal: AbortSignal): Promise<ProxyAddress> {
@@ -415,6 +460,9 @@ export async function fetchProxiedImage(
 ): Promise<{ body: Buffer; contentType: string }> {
     const signal = AbortSignal.timeout(TIMEOUT_MS);
     let current = assertSafeProxyUrl(rawUrl);
+    const cacheKey = current.href;
+    const cached = readCache(deps.cache, cacheKey);
+    if (cached) return cached;
 
     for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
         const address = await resolvePublicAddress(current, deps, signal);
@@ -435,8 +483,29 @@ export async function fetchProxiedImage(
         }
 
         if (upstream.status !== 200) throw new ImageProxyError(502, 'upstream-status');
-        return acceptImage(upstream);
+        const image = acceptImage(upstream);
+        writeCache(deps.cache, cacheKey, image);
+        return image;
     }
 
     throw new ImageProxyError(502, 'too-many-redirects');
+}
+
+/**
+ * Whether `rawUrl` is an image this proxy is willing to serve.
+ * Failures (missing file, blocked host, non-image) are `false` rather than
+ * a thrown status, so a caller can answer the browser with HTTP 200.
+ * Unexpected errors still throw. Uses the same checks as `fetchProxiedImage`.
+ */
+export async function probeProxiedImage(
+    rawUrl: string,
+    deps: ImageProxyDeps = defaultDeps,
+): Promise<boolean> {
+    try {
+        await fetchProxiedImage(rawUrl, deps);
+        return true;
+    } catch (err) {
+        if (err instanceof ImageProxyError) return false;
+        throw err;
+    }
 }
