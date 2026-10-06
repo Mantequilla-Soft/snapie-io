@@ -54,9 +54,22 @@ interface SnapProps {
      *  Optional since not every data source has one yet. */
     refreshComment?: (author: string, permlink: string) => Promise<void> | void;
     level?: number; // Added level for indentation
+    /** Home-feed photo that should be fetchpriority=high. */
+    priorityUrl?: string | null;
+    /** GIF, video, and oversized URLs in the home LCP scan. */
+    deferUrls?: readonly string[];
 }
 
-const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0 }: SnapProps) => {
+function sameUrlList(a?: readonly string[], b?: readonly string[]): boolean {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+}
+
+const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment, level = 0, priorityUrl = null, deferUrls }: SnapProps) => {
     const commentDate = getPostDate(comment.created);
     const { username: user } = useCurrentUser();
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -377,7 +390,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                             release their resources; see OffscreenGate. */}
                         {media && (
                             <OffscreenGate rootMargin={MEDIA_GATE_MARGIN}>
-                                <MediaRenderer key={`media-${comment.permlink}`} mediaContent={media} />
+                                <MediaRenderer
+                                    key={`media-${comment.permlink}`}
+                                    mediaContent={media}
+                                    priorityUrl={priorityUrl}
+                                    deferUrls={deferUrls}
+                                />
                             </OffscreenGate>
                         )}
 
@@ -562,7 +580,9 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     return (
         prevProps.comment.permlink === nextProps.comment.permlink &&
         prevProps.comment.active_votes?.length === nextProps.comment.active_votes?.length &&
-        prevProps.level === nextProps.level
+        prevProps.level === nextProps.level &&
+        prevProps.priorityUrl === nextProps.priorityUrl &&
+        sameUrlList(prevProps.deferUrls, nextProps.deferUrls)
     );
 });
 

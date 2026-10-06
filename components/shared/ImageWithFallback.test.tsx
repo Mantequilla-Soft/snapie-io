@@ -39,7 +39,43 @@ describe('ImageWithFallback', () => {
     expect(src).toContain('https://example.com/pic.jpg');
     expect(img?.getAttribute('alt')).toBe('a photo');
     expect(img?.getAttribute('loading')).toBe('eager');
+    expect(img?.getAttribute('fetchpriority')).not.toBe('low');
     expect(screen.queryByText('Image failed to load.')).toBeNull();
+  });
+
+  it('does not eager-load a GIF, even when asked to prioritize it', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://media.giphy.com/media/abc/giphy.gif',
+      alt: 'a gif',
+      priority: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('loading')).toBe('lazy');
+    expect(img?.getAttribute('fetchpriority')).toBe('low');
+    expect(decodedSrc(img)).toContain('giphy.gif');
+  });
+
+  it('marks only a chosen photo as the high-priority image', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://images.hive.blog/photo.webp',
+      alt: 'a photo',
+      priority: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('loading')).toBe('eager');
+    expect(img?.getAttribute('fetchpriority')).toBe('high');
+  });
+
+  it('defers a photo the size probe rejected', () => {
+    const { container } = render(createElement(ImageWithFallback, {
+      url: 'https://images.hive.blog/huge.jpg',
+      alt: 'a large photo',
+      priority: true,
+      defer: true,
+    }));
+    const img = container.querySelector('img');
+    expect(img?.getAttribute('loading')).toBe('lazy');
+    expect(img?.getAttribute('fetchpriority')).toBe('low');
   });
 
   it('optimizes a same-origin path directly instead of proxying it', () => {
