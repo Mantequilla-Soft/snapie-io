@@ -8,11 +8,10 @@ import { windows95ThemeDark, windows95ThemeLight } from '@/themes/windows95'
 import { UserProvider } from '@/contexts/UserContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
 import { HangoutContextProvider } from '@/contexts/HangoutContext'
-import { AiohaProvider } from '@aioha/react-ui'
+import { AiohaProvider } from '@/lib/aioha/facade-react-ui'
 import { HiveAuthProvider } from '@/contexts/HiveAuthContext'
 import { LoginModalProvider } from '@/contexts/LoginModalContext'
 import { SnapieAuthProvider } from '@/contexts/SnapieAuthContext'
-import { getAioha } from '@/lib/hive/aioha'
 import { useUserSettings } from '@/hooks/useUserSettings'
 
 // Persistent across renders + strict mode remounts
@@ -130,19 +129,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const aioha = getAioha()
   const { settings } = useUserSettings()
   const selectedTheme = settings.colorMode === 'light' ? windows95ThemeLight : windows95ThemeDark
 
-  // Restore the stored aioha session after mount. Doing this synchronously
-  // during module init breaks hydration, because the server renders without
-  // a user but the first client render would already have one.
-  useEffect(() => {
-    aioha.loadAuth()
-  }, [aioha])
-
   return (
-    <AiohaProvider aioha={aioha}>
+    <AiohaProvider>
       <ChakraProvider theme={selectedTheme}>
         <UserProvider>
           <NotificationProvider>

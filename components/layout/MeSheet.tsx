@@ -1,12 +1,14 @@
 'use client';
+import { useState } from 'react';
 import {
   Drawer, DrawerOverlay, DrawerContent, DrawerBody,
   Flex, Box, Text, Icon, Button, VStack, Divider, Badge,
 } from '@chakra-ui/react';
 import {
-  FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare,
+  FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare, FiMessageCircle,
   FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward, FiZap,
 } from 'react-icons/fi';
+import FeedbackModal from '@/components/feedback/FeedbackModal';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
@@ -31,8 +33,10 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
   const { unreadCount } = useNotifications();
   const openPodsCount = useOpenPodsCount();
   const { getEquippedBadge } = useMoodBadges();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   return (
+    <>
     <Drawer isOpen={isOpen} onClose={onClose} placement="bottom">
       <DrawerOverlay bg="blackAlpha.600" backdropFilter="blur(6px)" />
       <DrawerContent
@@ -111,6 +115,11 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
                 onClick={() => { onClose(); onToggleChat(); }}
               />
             )}
+            <SheetButton
+              icon={FiMessageCircle}
+              label="Send feedback"
+              onClick={() => { onClose(); setFeedbackOpen(true); }}
+            />
             <SheetLink href="/support" icon={FiHeart} label="Support Snapie" onClose={onClose} />
             <SheetLink href="https://about.snapie.io" icon={FiInfo} label="About Snapie" external onClose={onClose} />
           </VStack>
@@ -177,6 +186,8 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
         </DrawerBody>
       </DrawerContent>
     </Drawer>
+    <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+    </>
   );
 }
 

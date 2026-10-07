@@ -292,4 +292,85 @@ describe('submitGameScore', () => {
       expect(accountStore.get('alice')?.balance).toBe(20);
     });
   });
+  describe('snapie-jump', () => {
+    it('is a known game and converts score at 0.2%', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 8000, 3, 2, false, 90000, Date.now());
+
+      expect(result.status).toBe('awarded');
+      expect(result.pointsAwarded).toBe(16); // floor(8000 * 0.2 / 100)
+    });
+
+    it('accepts a short run, whose 1-based stage is 1', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 600, 1, 0, false, 15000, Date.now());
+
+      expect(result.status).toBe('awarded');
+    });
+
+    it('rejects a score above its 100,000 ceiling', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 100_001, 5, 5, false, 600000, Date.now());
+
+      expect(result.status).toBe('invalid_score');
+      expect(accountStore.get('alice')?.balance).toBe(0);
+    });
+  });
+
+  describe('snapie-blocks flat win', () => {
+    it('rejects a client score post, including a claimed win', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 10, lifetimeEarned: 10 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-blocks', 'client-1', 1000, 1, 1, true, 10000, Date.now());
+      expect(result.status).toBe('invalid_score');
+      expect(result.pointsAwarded).toBe(0);
+      expect(scoreStore.size).toBe(0);
+      expect(accountStore.get('alice')?.balance).toBe(10);
+    });
+
+    it('awards a flat 20 points once for a server-settled win', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 10, lifetimeEarned: 10 });
+      const { awardFlatWin } = await import('./scoreService');
+      const matchId = 'a'.repeat(24);
+      const first = await awardFlatWin('alice', 'snapie-blocks', matchId);
+      const second = await awardFlatWin('alice', 'snapie-blocks', matchId);
+      expect(first).toMatchObject({ status: 'awarded', pointsAwarded: 20, balance: 30 });
+      expect(second).toMatchObject({ status: 'duplicate', pointsAwarded: 20, balance: 30 });
+      expect(accountStore.get('alice')?.lifetimeEarned).toBe(30);
+    });
+
+    it('does not award a guest id', async () => {
+      const { awardFlatWin } = await import('./scoreService');
+      const result = await awardFlatWin('guest_11111111-1111-4111-8111-111111111111', 'snapie-blocks', 'b'.repeat(24));
+      expect(result.status).toBe('invalid_score');
+      expect(scoreStore.size).toBe(0);
+    });
+
+    it('respects the daily cap on a flat win', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 10, lifetimeEarned: 10 });
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      scoreStore.set(scoreKey('alice', 'snapie-rush', 'earlier'), {
+        username: 'alice',
+        gameId: 'snapie-rush',
+        sessionId: 'earlier',
+        score: 1000,
+        stage: 1,
+        stagesCleared: 0,
+        won: false,
+        durationMs: 1000,
+        clientEndedAt: new Date(),
+        pointsAwarded: 290,
+        createdAt: today,
+      });
+      const { awardFlatWin } = await import('./scoreService');
+      const result = await awardFlatWin('alice', 'snapie-blocks', 'c'.repeat(24));
+      expect(result.status).toBe('capped');
+      expect(result.pointsAwarded).toBe(0);
+      expect(accountStore.get('alice')?.balance).toBe(10);
+    });
+  });
 });

@@ -25,11 +25,26 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-07',
+    date: '2026-10-07',
+    title: 'Snapie Blocks and Snapie Jump join Games',
+    items: [
+      {
+        type: 'feature',
+        text: 'Snapie Blocks is here! A multiplayer falling-block battle — clear lines, send garbage to your opponent, and be the last board standing. Jump into a public Quick match from Games; win to earn Snapie Points (guests can play, but points are for signed-in wins).',
+      },
+      { type: 'feature', text: 'Snapie Jump is here! An endless bouncer — Snapie the cyber bee climbs a hive of platforms, grabbing honey, power-ups (super jump, magnet, shield) and stomping wasps. Steer with the arrow keys or drag anywhere on a phone. Save your run to convert your score into Snapie Points.' },
+    ],
+  },
+  {
     id: '2026-10-06',
     date: '2026-10-06',
     title: 'Snapie Rush joins Games',
     items: [
       { type: 'feature', text: 'Snapie Rush is here! A top-down arcade racer — steer the Snapie hover-bike through five routes, dodge trucks, swerving cars, oil slicks and drones, and grab fuel cells before the tank runs dry. Near misses and higher speed earn bonus score. Save your run to convert your score into Snapie Points.' },
+      { type: 'feature', text: "Added a Feedback option — in the sidebar on desktop, as Send feedback in the mobile menu, and as a card in Settings. Tell the team about a bug or an idea without leaving Snapie. Guests can send feedback too, and it goes straight to the team's issue tracker." },
+      { type: 'improvement', text: 'The first page of the home feed is now prepared on the server, so posts appear straight away instead of after a loading screen, and the home page downloads less JavaScript before it can show anything.' },
+      { type: 'improvement', text: "Big animated GIFs, videos and oversized images near the top of the home feed no longer get loading priority, so a multi-megabyte GIF can't hold up the first photo you see." },
     ],
   },
   {

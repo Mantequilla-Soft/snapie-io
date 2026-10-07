@@ -72,7 +72,7 @@ if (typeof window.matchMedia !== 'function') {
 afterEach(cleanup);
 
 describe('chat shell', () => {
-  it('keeps the page content visible for a guest and opens the panel only when asked', () => {
+  it('keeps the page content visible for a guest and opens the panel only when asked', async () => {
     render(
       <ChakraProvider>
         <LayoutContent>
@@ -85,11 +85,11 @@ describe('chat shell', () => {
     expect(screen.getByRole('heading', { name: 'Sign in to chat' })).toBeTruthy();
     expect(screen.queryByText('Chat panel')).toBeNull();
 
-    act(() => {
+    await act(async () => {
       window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT));
     });
 
-    expect(screen.getByText('Chat panel')).toBeTruthy();
+    expect(await screen.findByText('Chat panel')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Sign in to chat' })).toBeTruthy();
   });
 });

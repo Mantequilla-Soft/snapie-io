@@ -1,11 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { Box, HStack, VStack, Text, Image, Skeleton, SkeletonText, Link } from '@chakra-ui/react';
+import { Box, HStack, VStack, Text, Skeleton, SkeletonText, Link } from '@chakra-ui/react';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 import HiveClient from '@/lib/hive/hiveclient';
 import { getCommunityInfo } from '@/lib/hive/client-functions';
 import NextLink from 'next/link';
-import ReSnap from './ReSnap';
+import dynamic from 'next/dynamic';
 import { Comment } from '@hiveio/dhive';
+
+const ReSnap = dynamic(() => import('./ReSnap'), { ssr: false });
 
 interface HivePostPreviewProps {
   author: string;
@@ -178,15 +181,9 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
       >
         <HStack spacing={3} align="start">
           {postData.image && (
-            <Image
-              src={postData.image}
-              alt={postData.title}
-              width="80px"
-              height="80px"
-              objectFit="cover"
-              borderRadius="md"
-              fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Crect width='80' height='80' fill='%23e2e8f0'/%3E%3C/svg%3E"
-            />
+            <Box position="relative" boxSize="80px" flexShrink={0} borderRadius="md" overflow="hidden">
+              <ProxiedImage url={postData.image} alt={postData.title} sizes="80px" />
+            </Box>
           )}
           <VStack align="start" flex={1} spacing={1}>
             <Text

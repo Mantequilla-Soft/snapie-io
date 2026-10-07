@@ -5,6 +5,7 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useUserSettings } from './useUserSettings';
 import { getPost } from '@/lib/hive/client-functions';
+import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
 interface FeedApiItem {
   source: 'snap' | 'wave';
@@ -25,6 +26,14 @@ interface UseBlendedFeedProps {
    *  isn't the active one right now (a different filter is selected, or the
    *  feature flag is off). Defaults to true for standalone use. */
   enabled?: boolean;
+  /** Server-rendered first page of blended Latest. Kept for a logged-out
+   *  visitor with no muted tags; a username or mute change still refetches. */
+  initialPage?: PublicSnapPage | null;
+}
+
+function seedBefore(page: PublicSnapPage): string | null {
+  if (page.before) return page.before;
+  return page.comments[page.comments.length - 1]?.created ?? null;
 }
 
 function toExtendedComment(item: FeedApiItem): ExtendedComment {
@@ -41,14 +50,22 @@ function toExtendedComment(item: FeedApiItem): ExtendedComment {
  * them by timestamp, and hands back ready-to-render pages. See
  * internal-docs/hive-activity-sidecar-feed.md for the server-side design.
  */
-export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps = {}) => {
+export const useBlendedFeed = ({ username, enabled = true, initialPage = null }: UseBlendedFeedProps = {}) => {
   const { settings } = useUserSettings();
   // Same value-compared key as useSnaps. Settings hydrate from localStorage
   // after mount (mutedTags starts []), and a mute added later must reset
   // Latest instead of leaving the first page unfiltered.
   const mutedTagsKey = settings.mutedTags.join(',');
-  const lastCreatedRef = useRef<string | null>(null);
-  const fetchedPermlinksRef = useRef<Set<string>>(new Set());
+  // Public blended page from the server. The first client render must use
+  // it (hydration matches the HTML) and must not immediately refetch it.
+  const hasSeed = Boolean(initialPage && initialPage.comments.length > 0 && !username && mutedTagsKey === '');
+  // Set only when we leave that server page (login, mutes). Staying false
+  // through a Strict Mode double-invoke keeps the first paint from refetching.
+  const leftSeedRef = useRef(false);
+  const lastCreatedRef = useRef<string | null>(hasSeed ? seedBefore(initialPage!) : null);
+  const fetchedPermlinksRef = useRef<Set<string>>(
+    new Set(hasSeed ? initialPage!.comments.map(comment => comment.permlink) : []),
+  );
   const isFetchingRef = useRef(false);
   const isThrottledRef = useRef(false);
   // Same "generation" guard as useSnaps — a stale fetch (e.g. from a fast
@@ -56,10 +73,10 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
   const fetchGenerationRef = useRef(0);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [comments, setComments] = useState<ExtendedComment[]>([]);
+  const [comments, setComments] = useState<ExtendedComment[]>(hasSeed ? initialPage!.comments : []);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+  const [hasMore, setHasMore] = useState(hasSeed ? initialPage!.hasMore : true);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(hasSeed);
   // currentPage alone doesn't change on a same-page refresh() call — this
   // forces the fetch effect to re-run regardless, same pattern as useSnaps.
   const [fetchTrigger, setFetchTrigger] = useState(0);
@@ -101,8 +118,46 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     return { comments: items.map(toExtendedComment), hasMoreData: data.hasMore };
   }
 
+  // Username is a fetch input: a list loaded before login resolved only
+  // applied community mutes. The mount pass keeps a server-rendered public
+  // page in place; a signed-in account or muted tags still clear and refetch.
+  // Declared before the fetch effect so a reset in this commit clears the
+  // cursor before a new fetch reads it. Bump the generation immediately so
+  // a page fetched with the previous mute list cannot land after this reset.
+  useEffect(() => {
+    const publicDefault = !username && mutedTagsKey === '';
+    if (!leftSeedRef.current && publicDefault && initialPage && initialPage.comments.length > 0) {
+      return;
+    }
+    leftSeedRef.current = true;
+    fetchGenerationRef.current += 1;
+    lastCreatedRef.current = null;
+    fetchedPermlinksRef.current.clear();
+    isFetchingRef.current = false;
+    setComments([]);
+    setHasMore(true);
+    setHasFetchedOnce(false);
+    setCurrentPage(1);
+    setFetchTrigger(prev => prev + 1);
+  }, [username, mutedTagsKey, initialPage]);
+
   useEffect(() => {
     if (!enabled) return;
+    // Mount of the public blended page: the server already rendered this
+    // batch. Pagination (currentPage > 1) and refresh (fetchTrigger > 0)
+    // still fetch. `leftSeedRef` flips only when the reset effect drops
+    // the server page.
+    if (
+      !leftSeedRef.current &&
+      !username &&
+      mutedTagsKey === '' &&
+      initialPage &&
+      initialPage.comments.length > 0 &&
+      currentPage === 1 &&
+      fetchTrigger === 0
+    ) {
+      return;
+    }
 
     const fetchPosts = async () => {
       if (isFetchingRef.current) return;
@@ -134,23 +189,6 @@ export const useBlendedFeed = ({ username, enabled = true }: UseBlendedFeedProps
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, fetchTrigger, enabled]);
-
-  // Username is a fetch input: a list loaded before login resolved only
-  // applied community mutes. Reset the cursor the same way useSnaps does
-  // when the signed-in account or the muted-tag key changes. Bump the
-  // generation immediately so a page fetched with the previous (often
-  // still-empty) mute list cannot land after this reset and stick.
-  useEffect(() => {
-    fetchGenerationRef.current += 1;
-    lastCreatedRef.current = null;
-    fetchedPermlinksRef.current.clear();
-    isFetchingRef.current = false;
-    setComments([]);
-    setHasMore(true);
-    setHasFetchedOnce(false);
-    setCurrentPage(1);
-    setFetchTrigger(prev => prev + 1);
-  }, [username, mutedTagsKey]);
 
   useEffect(() => {
     return mutedAccountsManager.subscribePersonalMute((author) => {

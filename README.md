@@ -28,43 +28,67 @@ Snapie.io is a Next.js app for Hive-native social experiences: short-form Snaps,
 
 ## Quick Start
 
+CI installs with **pnpm 9.15.9** on **Node.js 22** (`pnpm-lock.yaml`). Use that pair locally.
+
 ### Requirements
 
-- Node.js 18+
-- npm or pnpm
-- MongoDB instance (for chat)
+- Node.js 22 (`.nvmrc`)
+- pnpm 9.15.9 (`packageManager` in `package.json`; Corepack can activate it)
 
-### Install
+### Install and run
 
 ```bash
-npm install
+corepack enable
+corepack prepare pnpm@9.15.9 --activate
+pnpm install --frozen-lockfile
+cp .env.local.example .env.local
+pnpm dev
 ```
 
-### Configure env
+App runs on `http://localhost:3310`.
 
-Copy and edit:
+### Docker Compose preview (no host Node)
+
+Apple Silicon and other arm64 machines can boot the app and MongoDB with Docker only. The images are official multi-arch builds (`node:22-bookworm`, `mongo:7.0`); dependencies install inside the image, so nothing is copied from an x86_64 `node_modules`.
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:3310/games/snapie-blocks](http://localhost:3310/games/snapie-blocks). The app listens on host port **3310**. MongoDB stays on the compose network and is not published to the host.
+
+The `web` service uses the `mongo` service's network namespace. In that namespace mongod is on **127.0.0.1**, not the hostname `mongo` (Docker publishes that name as the bridge address, and mongoose times out on it). Compose sets `MONGODB_URI` to `mongodb://127.0.0.1:27017/snapiechat?directConnection=true`. The entrypoint rewrites whatever host is in that variable to `127.0.0.1`, keeps `directConnection=true`, logs `effective MONGODB_URI=...`, and waits for the handshake before Next starts. No `.env` edit is required. Port **3310** is published on the `mongo` service because that service owns the namespace; Mongo's port is not published.
+
+Compose turns on `NEXT_PUBLIC_ENABLE_GAMES` and `NEXT_PUBLIC_ENABLE_POINTS`. Optional overrides live in [`.env.example`](.env.example) — copy to `.env` if you need them. Do not commit `.env` or real secrets. `CHAT_JWT_SECRET` defaults to the local placeholder `local-dev-not-a-secret`.
+
+Two browsers, one match:
+
+1. Start the stack and wait until the Next dev server is ready.
+2. Open the Blocks URL in a normal window and again in a private window (or a second browser).
+3. Both click **Quick match**. They pair on the public queue within a poll or two (~400ms). No room code.
+4. Clearing 2, 3, or 4 lines sends garbage (1, 2, or 4). The other board receives it on the next poll, and the opponent panel shows lines sent plus an HP meter. There is no live mini-board.
+5. Topping out, forfeiting, or closing the tab (disconnect) ends the match. The last board standing wins.
+6. A logged-in winner is credited **20 Snapie Points** once, by the server, on the match document. A guest can finish the match and is not credited. Log in with Hive in one window before queueing if you want to see the points toast.
+
+`docker compose down` stops the stack. Add `-v` if you also want to drop the Mongo volume.
+
+### Configure env
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-At minimum, set your community and chat auth/database values (see full env section below).
-
-### Run
-
-```bash
-npm run dev
-```
-
-App runs on `http://localhost:3310`.
+The example boots a **feed-only** dev path: community defaults are set, `CHAT_JWT_SECRET` is a non-empty local placeholder, and `MONGODB_URI` is unset. `CHAT_JWT_SECRET` must be non-empty even for `pnpm build` — `lib/chat/auth.ts` throws at import, and Next loads that module during `next build`. CI sets `CHAT_JWT_SECRET=ci-build-placeholder` for the build job. Use the **chat profile** section in `.env.local.example` when hangouts or chat need Mongo, LiveKit, or push. Do not commit `.env.local` or real secrets.
 
 ## Scripts
 
-- `npm run dev` - start local dev server on port `3310`
-- `npm run build` - production build
-- `npm run start` - run production server on port `3310`
-- `npm run lint` - run Next.js ESLint
-- `npm run chat:backfill` - backfill legacy chat docs with current schema fields
+- `pnpm dev` - start local dev server on port `3310`
+- `pnpm build` - production build (`CHAT_JWT_SECRET` must be non-empty)
+- `pnpm start` - run production server on port `3310`
+- `pnpm lint` - run Next.js ESLint
+- `pnpm typecheck` - write gitignored `next-env.d.ts`, then `tsc --noEmit` (same as CI)
+- `pnpm test` - run Vitest
+- `pnpm chat:backfill` - backfill legacy chat docs with current schema fields (needs `MONGODB_URI`)
 
 ## Environment Variables
 
@@ -85,18 +109,25 @@ Use `.env.local` for local development.
 - `NEXT_PUBLIC_3SPEAK_API_KEY` - 3Speak upload access
 - `NEXT_PUBLIC_IMAGE_SERVER_API_KEY` - fallback image server key
 
+### Build (required even for a feed-only checkout)
+
+- `CHAT_JWT_SECRET` - must be **non-empty** for `pnpm dev` once chat routes are compiled and for every `pnpm build` / `next build`. `lib/chat/auth.ts` throws `CHAT_JWT_SECRET is not defined` at import time. The example file ships a local placeholder (`local-dev-not-a-secret`). CI uses `ci-build-placeholder`. Use a strong random value in any shared or deployed environment. This is not a `NEXT_PUBLIC_` variable.
+
+### Chat profile (hangouts + chat)
+
+Not required to boot the feed. Leave `MONGODB_URI` unset and chat connects only when a route calls it. See the chat profile section of `.env.local.example`.
+
+- `MONGODB_URI` - MongoDB connection string. Example for a local database: `mongodb://127.0.0.1:27017/snapiechat`. Leave unset for a feed-only checkout.
+- `MONGODB_DB_NAME` - chat database name (default in code: `snapiechat`)
+- `NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL` - initial channel id/name (e.g. `general`)
+
 ### Hangouts / OpenPods
+
+Part of the chat profile in `.env.local.example`. Public endpoints; the feed does not need them, and they do not need Mongo.
 
 - `NEXT_PUBLIC_HANGOUTS_API_URL` - hangouts API base URL
 - `NEXT_PUBLIC_LIVEKIT_URL` - LiveKit websocket URL
 - `NEXT_PUBLIC_HANGOUTS_TOKEN_STORAGE` - `none`, `session`, or `local`
-
-### Chat (Required)
-
-- `MONGODB_URI` - MongoDB connection string
-- `MONGODB_DB_NAME` - chat database name (default in code: `snapiechat`)
-- `CHAT_JWT_SECRET` - signing secret for chat JWT tokens (use strong random value)
-- `NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL` - initial channel id/name (e.g. `general`)
 
 ### Chat sign-in with ButrAuth (Optional)
 
@@ -117,6 +148,20 @@ Off unless both of these are set **and** `@mantequilla-soft/butrauth-client`
 The app's **server** calls `POST /api/chat/auth/butrauth { accessToken }` (or
 `client.authenticateWithButrAuth(token)` in `@snapie/chat-client`) and passes the
 returned `token` + `username` to the browser's `client.useSession(...)`.
+
+### In-app feedback (Optional)
+
+The feedback form (sidebar, the mobile menu, and Settings) posts to
+`POST /api/feedback`. The server opens an issue with `GITHUB_FEEDBACK_TOKEN`.
+That value is server-only — do not prefix it with `NEXT_PUBLIC_`. Leave it
+unset locally; the form stays in the UI and shows a friendly error.
+
+- `GITHUB_FEEDBACK_TOKEN` - GitHub token that can create issues and labels on the feedback repo
+- `GITHUB_FEEDBACK_REPO` - `owner/repo` (default `Mantequilla-Soft/snapie-io`)
+
+Signed-in Hive usernames come from the chat session token or the Snapie Auth
+cookie. Guests are filed without an account. The issue does not include email,
+IP, or cookies. Submissions are limited to about 5 per hour per IP and session.
 
 ### Translation (Optional)
 
@@ -199,7 +244,7 @@ If these are not set, chat still works and falls back to polling behavior.
 When updating from older chat data, run:
 
 ```bash
-npm run chat:backfill
+pnpm chat:backfill
 ```
 
 This script normalizes missing fields in existing `channels` and `chatusers` documents.
@@ -222,8 +267,9 @@ This script normalizes missing fields in existing `channels` and `chatusers` doc
 
 ## Troubleshooting
 
+- `next build` or a chat route throws `CHAT_JWT_SECRET is not defined`: set a non-empty `CHAT_JWT_SECRET`. An empty value fails the same way. The example file and CI both use placeholders; shared environments need their own secret.
 - Chat auth failing (`401`): verify `CHAT_JWT_SECRET`, challenge/verify flow, and wallet signature support.
-- Chat API failing at startup: verify `MONGODB_URI` and `MONGODB_DB_NAME`.
+- Feed loads with `MONGODB_URI` unset. Chat requests then fail with `MONGODB_URI is not defined` until the chat profile sets `MONGODB_URI` (and optionally `MONGODB_DB_NAME`).
 - No push notifications: verify:
   - `NEXT_PUBLIC_FIREBASE_CONFIG`
   - `NEXT_PUBLIC_FIREBASE_VAPID_KEY`
@@ -236,8 +282,5 @@ This script normalizes missing fields in existing `channels` and `chatusers` doc
 
 ## Contributing
 
-1. Create a branch from `main`
-2. Make focused changes
-3. Run `npm run lint`
-4. Open a PR with a clear summary + test plan
+Branch from `staging` and open the pull request against `staging`. Keep it small. Run `pnpm lint`, `pnpm typecheck`, and `pnpm test` before opening. Feed or performance changes should include before/after Lighthouse notes when relevant. Details: [CONTRIBUTING.md](CONTRIBUTING.md).
 

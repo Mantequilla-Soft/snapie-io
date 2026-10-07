@@ -2,8 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Box, Text, Heading, HStack, VStack, Flex, Link, Spinner,
-  Image, Icon,
+  Icon,
 } from '@chakra-ui/react';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 import { FaGlobe, FaMapMarkerAlt } from 'react-icons/fa';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getProfile, getAccountPosts, getSimilarPosts } from '@/lib/hive/client-functions';
@@ -29,15 +30,9 @@ function MiniPostCard({ title, author, permlink, image, date }: {
     <Link href={`/@${author}/${permlink}`} _hover={{ textDecoration: 'none' }}>
       <Flex gap={2} align="flex-start" _hover={{ opacity: 0.8 }} transition="opacity 0.15s">
         {image && (
-          <Image
-            src={image}
-            alt={title}
-            boxSize="52px"
-            objectFit="cover"
-            borderRadius="md"
-            flexShrink={0}
-            fallback={<Box boxSize="52px" borderRadius="md" bg="muted" flexShrink={0} />}
-          />
+          <Box position="relative" boxSize="52px" flexShrink={0} borderRadius="md" overflow="hidden" bg="muted">
+            <ProxiedImage url={image} alt={title} sizes="52px" />
+          </Box>
         )}
         <Box minW={0}>
           <Text fontSize="sm" fontWeight="semibold" color="text" noOfLines={2} lineHeight="1.3">

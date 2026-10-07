@@ -2,14 +2,19 @@
 import { Box, Button, Heading, HStack, Link as ChakraLink, Text, VStack, useToast } from '@chakra-ui/react';
 import NextLink from 'next/link';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
-import { SnapieBlast } from '@/components/games/snapie-blast';
 import { saveGameScore } from '@/lib/games/scoreClient';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 import type { SnapieResult, SnapieEvent } from '@/components/games/snapie-blast';
+
+const SnapieBlast = dynamic(
+  () => import('@/components/games/snapie-blast').then((m) => m.SnapieBlast),
+  { ssr: false },
+);
 
 export default function SnapieBlastPage() {
   const { username, isLoggedIn } = useCurrentUser();

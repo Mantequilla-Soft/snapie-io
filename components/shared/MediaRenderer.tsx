@@ -18,6 +18,7 @@ import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
+import { resolveFeedImageSrc } from "@/lib/images/feedImageSrc";
 
 /**
  * This module's DOMPurify.sanitize() call below allows the `style` attribute on
@@ -47,6 +48,15 @@ interface MediaRendererProps {
   priorityUrl?: string | null;
   /** URLs the LCP probe rejected (oversized, or a declared GIF/video type). */
   deferUrls?: readonly string[];
+  /** Preload the first plain image. Home feed only, for the LCP card. */
+  priority?: boolean;
+  /** First-viewport images paint without a fade. Priority still means preload. */
+  painted?: boolean;
+  /** Render markdown images only. The home LCP card uses this so an embed
+   *  iframe is not a second early document on the critical path. */
+  onlyImages?: boolean;
+  /** Skip markdown images. Paired with onlyImages when a card has both. */
+  skipImages?: boolean;
 }
 
 // Module-scope caches, deliberately outside React state: SnapList's Virtuoso
@@ -242,7 +252,15 @@ type RenderGroup =
   | { kind: 'carousel'; urls: string[] }
   | { kind: 'media'; item: MediaItem };
 
-const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRendererProps) => {
+const MediaRenderer = ({
+  mediaContent,
+  priorityUrl = null,
+  deferUrls,
+  priority = false,
+  painted = false,
+  onlyImages = false,
+  skipImages = false,
+}: MediaRendererProps) => {
   const mediaItems = useMemo(
     () => parseMediaContent(mediaContent),
     [mediaContent]
@@ -317,6 +335,10 @@ const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRen
     return null;
   }
 
+  const priorityIndex = priority
+    ? groupedItems.findIndex((group) => group.kind === 'single-image' || group.kind === 'carousel')
+    : -1;
+
   return (
     <Box mb={4} ref={wrapperRef} data-snapie-media-layout>
       {lightboxUrl && typeof document !== 'undefined' && createPortal(
@@ -346,7 +368,7 @@ const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRen
             onClick={() => setLightboxUrl(null)}
           />
           <Image
-            src={lightboxUrl}
+            src={resolveFeedImageSrc(lightboxUrl)?.src ?? ''}
             alt="Full size image"
             maxH="90vh"
             maxW="90vw"
@@ -359,6 +381,9 @@ const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRen
         document.body
       )}
       {groupedItems.map((group, index) => {
+        const isImage = group.kind === 'single-image' || group.kind === 'carousel';
+        if (onlyImages && !isImage) return null;
+        if (skipImages && isImage) return null;
         if (group.kind === 'single-image') {
           return (
             <Box
@@ -374,8 +399,9 @@ const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRen
               <ImageWithFallback
                 url={group.url}
                 alt="Post media"
-                priority={priorityUrl === group.url}
+                priority={priorityUrl === group.url || (priority && index === priorityIndex)}
                 defer={deferUrls?.includes(group.url) ?? false}
+                painted={painted}
               />
             </Box>
           );
@@ -389,6 +415,8 @@ const MediaRenderer = ({ mediaContent, priorityUrl = null, deferUrls }: MediaRen
                 onImageClick={setLightboxUrl}
                 priorityUrl={priorityUrl}
                 deferUrls={deferUrls}
+                priority={priority && index === priorityIndex}
+                painted={painted}
               />
             </Box>
           );

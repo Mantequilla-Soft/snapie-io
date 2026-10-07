@@ -1,9 +1,9 @@
 'use client';
-import { Box, Link, Skeleton, Text } from '@chakra-ui/react';
-import NextImage from 'next/image';
+import { Box, Skeleton } from '@chakra-ui/react';
+import NextImage, { type ImageLoader } from 'next/image';
 import { memo, useState } from 'react';
 import { resolveFeedImageSrc } from '@/lib/images/feedImageSrc';
-import { feedImageLoad } from '@/lib/images/feedLcp';
+import { feedImageLoad, feedLcpImageUrl } from '@/lib/images/feedLcp';
 
 interface ImageWithFallbackProps {
   url: string;
@@ -12,7 +12,11 @@ interface ImageWithFallbackProps {
   priority?: boolean;
   /** Probe rejected this URL (oversized, or a photo that is actually a GIF). */
   defer?: boolean;
+  /** Other first-viewport images. In the HTML at 640px, no fade, not preloaded. */
+  painted?: boolean;
 }
+
+const feedLcpLoader: ImageLoader = ({ src, quality }) => feedLcpImageUrl(src, quality);
 
 /**
  * A failed image load (dead link, expired CDN URL, or a browser/ad-blocker
@@ -20,10 +24,9 @@ interface ImageWithFallbackProps {
  * thumbnails commonly get filtered by ad-blocklists since they're part of
  * Twitter's ad product) used to just vanish: onError set display:none with
  * no fallback UI at all, so there was no way to tell a broken image from a
- * post that never had one. Same "give the user a way to open it directly"
- * pattern MediaRenderer's IframeEmbedBox already uses for blocked embeds,
- * applied to plain images. Shared by MediaRenderer (single image) and
- * ImageCarousel (multiple images) so both fail the same way.
+ * post that never had one. It now keeps a neutral tile in the same box.
+ * Shared by MediaRenderer (single image) and ImageCarousel (multiple
+ * images) so both fail the same way.
  *
  * Fixed aspect-ratio box (design decision, not a real dimension): the old
  * width=100%/maxH=480px/height=auto layout left the box's height unknown
@@ -50,50 +53,27 @@ interface ImageWithFallbackProps {
  * GIF, and a multi-megabyte file in the first card becomes LCP if it is
  * eager. Those URLs load lazy at low priority, and `priority` cannot
  * override that. An oversized photo the home feed probed is passed `defer`.
+ *
+ * A first-viewport photo has to paint from the server HTML. Opacity 0
+ * until onLoad stays invisible until hydration, and a shimmer of the same
+ * box can become the LCP element instead of the photo. Below-fold images
+ * keep the fade. Only the chosen photo is preloaded, at a fixed 640px.
  */
-const IMAGE_ASPECT_RATIO = 4 / 3;
+export const IMAGE_ASPECT_RATIO = 4 / 3;
 const FEED_IMAGE_SIZES = '(max-width: 600px) 100vw, 540px';
 
-function canOpenDirectly(url: string): boolean {
-  if (url.startsWith('/') && !url.startsWith('//')) return true;
-  try {
-    const parsed = new URL(url);
-    return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !parsed.username && !parsed.password;
-  } catch {
-    return false;
-  }
-}
-
-function ImageFallback({ url }: { url: string }) {
+/** Neutral tile in the same 4/3 box. No `<img>`, so a dead file does not
+ *  flash the browser's broken-image icon or change the card height. */
+function ImageFallback() {
   return (
     <Box
       aspectRatio={IMAGE_ASPECT_RATIO}
-      bg="blackAlpha.700"
-      display="flex"
-      flexDirection="column"
-      alignItems="center"
-      justifyContent="center"
-      px={4}
-      textAlign="center"
-      gap={2}
-    >
-      <Text fontSize="sm" color="whiteAlpha.900">
-        Image failed to load.
-      </Text>
-      {canOpenDirectly(url) && (
-        <Link
-          href={url}
-          isExternal
-          color="blue.200"
-          textDecoration="underline"
-          fontWeight="semibold"
-          fontSize="sm"
-          onClick={(e) => e.stopPropagation()}
-        >
-          Open image directly
-        </Link>
-      )}
-    </Box>
+      width="100%"
+      bg="whiteAlpha.200"
+      role="img"
+      aria-label="Image unavailable"
+      data-image-fallback=""
+    />
   );
 }
 
@@ -102,36 +82,41 @@ const ImageWithFallback = memo(function ImageWithFallback({
   alt,
   priority = false,
   defer = false,
+  painted = false,
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const resolved = resolveFeedImageSrc(url);
 
   if (hasError || !resolved) {
-    return <ImageFallback url={url} />;
+    return <ImageFallback />;
   }
 
   const load = feedImageLoad(url, { priority, defer });
+  // GIF, video, and oversized media stay lazy even in the first viewport.
+  const deferred = load.loading === 'lazy';
+  const immediate = !deferred && (priority || painted || load.priority);
+  const hiddenUntilLoad = !immediate;
 
   return (
     <Box position="relative" aspectRatio={IMAGE_ASPECT_RATIO} width="100%">
-      {/* Shimmer while the image downloads — the fixed-aspect box otherwise
-          sits blank with no hint anything is happening, which on mobile
-          bandwidth reads as the feed being stuck rather than loading. */}
-      {!isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
+      {hiddenUntilLoad && !isLoaded && <Skeleton position="absolute" inset={0} speed={0.9} />}
       <NextImage
         src={resolved.src}
         alt={alt}
         fill
         sizes={FEED_IMAGE_SIZES}
+        loader={immediate && !resolved.unoptimized ? feedLcpLoader : undefined}
         priority={load.priority}
         loading={load.loading}
         fetchPriority={load.fetchPriority}
+        decoding={load.priority ? 'sync' : 'async'}
         unoptimized={resolved.unoptimized}
         style={{
           objectFit: 'cover',
-          opacity: isLoaded ? 1 : 0,
-          transition: 'opacity 0.15s ease-out',
+          ...(hiddenUntilLoad
+            ? { opacity: isLoaded ? 1 : 0, transition: 'opacity 0.15s ease-out' }
+            : null),
         }}
         onLoad={() => setIsLoaded(true)}
         onError={() => setHasError(true)}

@@ -1,14 +1,11 @@
-import { Box, Image, Text, Flex, Link, Spinner } from '@chakra-ui/react';
+import { Box, Text, Flex, Link, Spinner } from '@chakra-ui/react';
+import { extractMarkdownImages } from '@/lib/images/markdownImages';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Navigation, Pagination } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/navigation';
-import 'swiper/css/pagination';
+import dynamic from 'next/dynamic';
 import { getPostDate } from '@/lib/utils/GetPostDate';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,6 +20,8 @@ interface PostCardProps {
 
 /** Fixed preview height — cards must not grow with portrait images or grid row stretch. */
 const CARD_IMAGE_HEIGHT = '200px';
+
+const PostCardCarousel = dynamic(() => import('./PostCardCarousel'), { ssr: false });
 
 export default function PostCard({ post, compact = false }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
@@ -91,12 +90,11 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
     function extractImagesFromBody(rawBody: unknown): string[] {
         if (typeof rawBody !== 'string' || !rawBody) return [];
 
-        const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
-        const htmlImageRegex = /<img\s+[^>]*src="([^"]*)"[^>]*>/g;
-        const markdownMatches = Array.from(rawBody.matchAll(markdownImageRegex)) as RegExpExecArray[];
-        const htmlMatches = Array.from(rawBody.matchAll(htmlImageRegex)) as RegExpExecArray[];
-        const markdownImages = markdownMatches.map(match => match[1]);
-        const htmlImages = htmlMatches.map(match => match[1]);
+        const markdownImages = extractMarkdownImages(rawBody)
+            .map((img) => img.url)
+            .filter((url) => /^https?:\/\//i.test(url));
+        const htmlImages = Array.from(rawBody.matchAll(/<img\s+[^>]*src=["']([^"']*)["'][^>]*>/gi))
+            .map((match) => match[1]);
         return [...markdownImages, ...htmlImages];
     }
 
@@ -204,40 +202,14 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                         '.swiper-slide': { height: CARD_IMAGE_HEIGHT, display: 'flex' },
                     }}
                 >
-                    <Swiper
-                        style={{ height: CARD_IMAGE_HEIGHT, width: '100%' }}
-                        spaceBetween={10}
-                        slidesPerView={1}
-                        pagination={{ clickable: true }}
-                        navigation={true}
-                        modules={[Navigation, Pagination]}
+                    <PostCardCarousel
+                        imageUrls={imageUrls}
+                        visibleImages={visibleImages}
+                        postHref={postHref}
+                        title={title || ''}
+                        onNavigate={navigateToPost}
                         onSlideChange={handleSlideChange}
-                    >
-                        {imageUrls.slice(0, visibleImages).map((url, index) => (
-                            <SwiperSlide key={index}>
-                                <Box
-                                    as="a"
-                                    href={postHref}
-                                    onClick={navigateToPost}
-                                    h={CARD_IMAGE_HEIGHT}
-                                    w="100%"
-                                    cursor="pointer"
-                                    overflow="hidden"
-                                    borderRadius="10px"
-                                >
-                                    <Image
-                                        src={url}
-                                        alt={title}
-                                        objectFit="cover"
-                                        w="100%"
-                                        h={CARD_IMAGE_HEIGHT}
-                                        maxH={CARD_IMAGE_HEIGHT}
-                                        loading="lazy"
-                                    />
-                                </Box>
-                            </SwiperSlide>
-                        ))}
-                    </Swiper>
+                    />
                 </Box>
             )}
         </Box>

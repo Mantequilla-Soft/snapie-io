@@ -1,13 +1,12 @@
 'use client'
 import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import MeSheet from '@/components/layout/MeSheet';
-import ChatPanel from '@/components/chat/ChatPanel';
 import { chatService } from '@/lib/chat/ChatService';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
@@ -16,6 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
 
+const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
 const NeedsWalletHandler = dynamic(() => import('@/components/auth/NeedsWalletHandler'), { ssr: false });
@@ -26,11 +26,18 @@ const DebugConsole = dynamic(() => import('@/components/debug/DebugConsole'), { 
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isComposePage = pathname === '/compose';
   const isShortsPage = pathname === '/shorts';
-  const isEmbedMode = searchParams.get('embed') === 'true';
-  const isChatPopoutMode = searchParams.get('chat_popout') === '1';
+  // useSearchParams() on this component bails the layout's suspense boundary
+  // out to client rendering (`BAILOUT_TO_CLIENT_SIDE_RENDERING`), so the home
+  // feed never makes it into the HTML. The flags are read in a nested
+  // boundary instead. Defaults match a normal visit; embed/popout URLs
+  // update before paint.
+  const [queryFlags, setQueryFlags] = useState({ embed: false, chatPopout: false });
+  const onQueryFlags = useCallback((flags: { embed: boolean; chatPopout: boolean }) => {
+    setQueryFlags(prev => (prev.embed === flags.embed && prev.chatPopout === flags.chatPopout ? prev : flags));
+  }, []);
+  const isEmbedMode = queryFlags.embed;
+  const isChatPopoutMode = queryFlags.chatPopout;
   const { activeRoom, closeRoom } = useHangout();
   const { settings } = useUserSettings();
   const { username: currentUsername } = useCurrentUser();
@@ -45,9 +52,15 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
+  // The panel chunk stays out of the first load until chat is opened, then
+  // stays mounted so close/minimize does not drop the conversation.
+  const [chatActivated, setChatActivated] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isMeSheetOpen, setIsMeSheetOpen] = useState(false);
   const popoutRef = useRef<Window | null>(null);
+  if ((isChatOpen || isChatMinimized || isChatPopoutMode) && !chatActivated) {
+    setChatActivated(true);
+  }
 
   useEffect(() => {
     if (isEmbedMode) {
@@ -140,6 +153,9 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       minH="100dvh"
       bgGradient={baseGradient}
     >
+      <Suspense fallback={null}>
+        <LayoutQueryFlags onChange={onQueryFlags} />
+      </Suspense>
       <Box maxW="1320px" mx="auto" h="100dvh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100dvh">
           {!isEmbedMode && !isChatPopoutMode && (
@@ -190,8 +206,8 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             chatUnreadCount={chatUnreadCount}
           />
 
-          {/* Chat panel (all screen sizes) */}
-          <ChatPanel
+          {/* Chat panel (all screen sizes). Loaded on first open. */}
+          {chatActivated && <ChatPanel
             isOpen={isChatOpen}
             onClose={() => setIsChatOpen(false)}
             isMinimized={isChatMinimized}
@@ -199,10 +215,10 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
             onRestore={() => { setIsChatMinimized(false); setIsChatOpen(true); }}
             onPopout={handlePopoutChat}
             onUnreadChange={setChatUnreadCount}
-          />
+          />}
         </>
       )}
-      {isChatPopoutMode && (
+      {isChatPopoutMode && chatActivated && (
         <ChatPanel
           isOpen={isChatOpen}
           onClose={() => {
@@ -228,4 +244,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <DebugConsole />
     </Box>
   );
+}
+
+function LayoutQueryFlags({ onChange }: { onChange: (flags: { embed: boolean; chatPopout: boolean }) => void }) {
+  const searchParams = useSearchParams();
+  const embed = searchParams.get('embed') === 'true';
+  const chatPopout = searchParams.get('chat_popout') === '1';
+  useLayoutEffect(() => {
+    onChange({ embed, chatPopout });
+  }, [embed, chatPopout, onChange]);
+  return null;
 }

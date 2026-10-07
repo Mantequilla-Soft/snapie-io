@@ -28,13 +28,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        {/* AiohaModal is a pre-built Tailwind v4 artifact served from /public;
-            importing it would push its globals through our v3 pipeline and its
-            resets into the whole app. Not a Next-managed asset on purpose. */}
-        {/* eslint-disable-next-line @next/next/no-css-tags */}
-        <link rel="stylesheet" href="/aioha-modal.css" />
-      </head>
+      {/* aioha-modal.css (Tailwind v4 preflight) loads when the login modal
+          opens, so it is not a render-blocking stylesheet on first paint. */}
       <body>
         {/* Chakra color-mode script: sets the color-mode class on <html>
             synchronously before hydration so server + client render match. */}

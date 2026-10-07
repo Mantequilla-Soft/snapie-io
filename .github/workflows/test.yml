@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -39,22 +39,16 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Generate next-env.d.ts
-        # next-env.d.ts is gitignored (Next.js's own convention) and is what
-        # declares ambient module types for static asset imports (*.png,
-        # etc). `next build`/`next lint` regenerate it as a side effect on
-        # startup, but plain `tsc` doesn't invoke Next at all, so on a fresh
-        # checkout it's simply missing and every asset import 404s as a type
-        # error. Content matches exactly what Next itself writes.
-        run: |
-          printf '/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n' > next-env.d.ts
-      - run: pnpm exec tsc --noEmit
+      - name: Typecheck
+        # Writes gitignored next-env.d.ts, then tsc --noEmit. Same bytes the
+        # job used to printf. See scripts/ensure-next-env.mjs.
+        run: pnpm typecheck
 
   test:
     runs-on: ubuntu-latest
@@ -65,13 +59,16 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
+      - name: Test with coverage gates
+        # vitest.config.ts thresholds fail this step when overall lines drop
+        # under 70, or a feed/image hot path drops under 90% lines.
+        run: pnpm test:coverage
 
   build:
     runs-on: ubuntu-latest
@@ -82,7 +79,7 @@ jobs:
           persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
