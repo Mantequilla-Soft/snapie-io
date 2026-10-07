@@ -27,12 +27,13 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-10-07',
     date: '2026-10-07',
-    title: 'Snapie Blocks joins Games',
+    title: 'Snapie Blocks and Snapie Jump join Games',
     items: [
       {
         type: 'feature',
         text: 'Snapie Blocks is here! A multiplayer falling-block battle — clear lines, send garbage to your opponent, and be the last board standing. Jump into a public Quick match from Games; win to earn Snapie Points (guests can play, but points are for signed-in wins).',
       },
+      { type: 'feature', text: 'Snapie Jump is here! An endless bouncer — Snapie the cyber bee climbs a hive of platforms, grabbing honey, power-ups (super jump, magnet, shield) and stomping wasps. Steer with the arrow keys or drag anywhere on a phone. Save your run to convert your score into Snapie Points.' },
     ],
   },
   {

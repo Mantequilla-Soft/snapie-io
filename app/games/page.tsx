@@ -8,6 +8,7 @@ import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import snapieVictory from '@/components/games/puff-quest/assets/snapie-victory.png';
 import snapieBlastCard from '@/components/games/snapie-blast/assets/snapie-blast-card.png';
 import snapieRushCard from '@/components/games/snapie-rush/assets/snapie-rush-card.png';
+import snapieJumpCard from '@/components/games/snapie-jump/assets/snapie-jump-card.png';
 import type { GameId } from '@/lib/games/config';
 
 const BLOCKS_CARD = { src: '/games/snapie-blocks-card.svg' };
@@ -52,6 +53,14 @@ const GAMES_CATALOG: {
     tagline: '1v1 garbage battle. Last board standing wins.',
     href: '/games/snapie-blocks',
     image: BLOCKS_CARD,
+    imageFit: 'contain',
+  },
+  {
+    id: 'snapie-jump',
+    name: 'Snapie Jump',
+    tagline: 'Bounce up the hive, grab the honey and stomp the wasps. How high can you go?',
+    href: '/games/snapie-jump',
+    image: snapieJumpCard,
     imageFit: 'contain',
   },
 ];
