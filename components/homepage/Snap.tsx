@@ -337,6 +337,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         <Link
                                             as={NextLink}
                                             href={`/@${comment.author}`}
+                                            prefetch={false}
                                             fontWeight="semibold"
                                             fontSize="sm"
                                             lineHeight="24px"
