@@ -1,6 +1,5 @@
 'use client';
 import HiveClient from "./hiveclient";
-import { signImageHash } from "./server-functions";
 import type { Discussion, Notifications } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
@@ -569,36 +568,6 @@ export async function uploadAudioTo3Speak(
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
-}
-
-export function getFileSignature(file: File): Promise<string> {
-  return new Promise<string>(async (resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = async () => {
-      if (reader.result) {
-        const content = Buffer.from(reader.result as ArrayBuffer);
-        const { createHash } = await import('crypto');
-        const hash = createHash('sha256')
-          .update('ImageSigningChallenge')
-          .update(content as any)
-          .digest('hex');
-        try {
-          const signature = await signImageHash(hash);
-          resolve(signature);
-        } catch (error) {
-          console.error('Error signing the hash:', error);
-          reject(error);
-        }
-      } else {
-        reject(new Error('Failed to read file.'));
-      }
-    };
-    reader.onerror = () => {
-      reject(new Error('Error reading file.'));
-    };
-    reader.readAsArrayBuffer(file);
-  });
 }
 
 /**

@@ -18,7 +18,6 @@ const env = vi.hoisted(() => {
     getAioha: vi.fn(),
     isSnapieMode: vi.fn(() => false),
     emitNeedsWallet: vi.fn(),
-    signImageHash: vi.fn(),
     powerUp: vi.fn(),
     powerDown: vi.fn(),
     delegate: vi.fn(),
@@ -61,10 +60,6 @@ vi.mock('@/lib/hive/signing', () => ({
   emitNeedsWallet: (...args: unknown[]) => env.emitNeedsWallet(...args),
 }));
 
-vi.mock('./server-functions', () => ({
-  signImageHash: (...args: unknown[]) => env.signImageHash(...args),
-}));
-
 vi.mock('@/lib/snapie-auth/client', () => ({
   powerUp: (...args: unknown[]) => env.powerUp(...args),
   powerDown: (...args: unknown[]) => env.powerDown(...args),
@@ -101,7 +96,6 @@ import {
   getCommunityMutedAccounts,
   getCommunityRole,
   getCryptoPrices,
-  getFileSignature,
   getFollowing,
   getFollowers,
   getHiveHbdMarketQuote,
@@ -224,7 +218,6 @@ beforeEach(() => {
   env.customJsonWithAioha.mockResolvedValue({ result: 'json' });
   env.commentWithAioha.mockResolvedValue({ result: 'comment', publicKey: 'STM' });
   env.signMessageWithAioha.mockResolvedValue({ result: 'SIG' });
-  env.signImageHash.mockResolvedValue('sig');
   env.ensureAioha.mockImplementation(async () => ({
     isLoggedIn: () => wallet.loggedIn,
     getCurrentProvider: () => wallet.provider,
@@ -599,17 +592,7 @@ describe('uploads', () => {
     await expect(uploadAudioTo3Speak(blob, 1, 'alice')).resolves.toMatchObject({ success: false, error: 'Unknown error' });
   });
 
-  it('signs a file and uploads it, including progress and error responses', async () => {
-    await expect(getFileSignature(file())).resolves.toBe('sig');
-    expect(env.signImageHash).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));
-    readerMode = 'empty';
-    await expect(getFileSignature(file())).rejects.toThrow('Failed to read file.');
-    readerMode = 'error';
-    await expect(getFileSignature(file())).rejects.toThrow('Error reading file.');
-    env.signImageHash.mockRejectedValueOnce(new Error('sign'));
-    readerMode = 'ok';
-    await expect(getFileSignature(file())).rejects.toThrow('sign');
-
+  it('uploads a file, including progress and error responses', async () => {
     const progress: number[][] = [];
     xhrScript = {
       status: 200,
