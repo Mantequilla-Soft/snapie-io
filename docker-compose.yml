@@ -3,13 +3,11 @@
 #   docker compose up --build
 #   open http://localhost:3310/games/snapie-blocks
 #
-# `web` joins the mongo service network namespace instead of a second bridge
-# endpoint. On Docker Desktop (and some Linux iptables setups) the bridge
-# accepts host → container-IP traffic and drops container → container SYNs,
-# so `mongo:27017` from the Next process times out. In the shared namespace
-# mongod is on 127.0.0.1 and the entrypoint maps the hostname `mongo` there.
-# Port 3310 is published on `mongo` because that service owns the namespace.
-# Mongo's own port is not published.
+# `web` joins the mongo service network namespace. Mongod listens on 127.0.0.1
+# there. The hostname `mongo` is the bridge address and mongoose times out on
+# it, so the entrypoint rewrites MONGODB_URI to 127.0.0.1 with
+# directConnection=true before Next starts. Port 3310 is published on `mongo`
+# because that service owns the namespace. Mongo's own port is not published.
 
 name: snapie-blocks
 
@@ -42,10 +40,10 @@ services:
         condition: service_healthy
     environment:
       CHAT_JWT_SECRET: ${CHAT_JWT_SECRET:-local-dev-not-a-secret}
-      # Hardcoded so a host .env MONGODB_URI (127.0.0.1 for pnpm dev) cannot
-      # replace the compose hostname. The entrypoint resolves `mongo` inside
-      # the shared network namespace.
-      MONGODB_URI: mongodb://mongo:27017/snapiechat?directConnection=true
+      # Loopback inside the shared network namespace. The entrypoint rewrites
+      # this again (any host → 127.0.0.1, directConnection=true) so a host .env
+      # cannot leave the process dialing the hostname mongo.
+      MONGODB_URI: mongodb://127.0.0.1:27017/snapiechat?directConnection=true
       MONGODB_DB_NAME: snapiechat
       MONGODB_IP_FAMILY: "4"
       NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"

@@ -1,17 +1,39 @@
 #!/bin/sh
-# The web service shares Mongo's network namespace (see docker-compose.yml),
-# so the bridge is not on the path. Map the compose hostname at 127.0.0.1,
-# where mongod is listening, then wait for an IPv4 handshake.
+# web shares the mongo service network namespace, so mongod is on 127.0.0.1.
+# Docker's hosts entry for the name "mongo" is the bridge address, and mongoose
+# times out on it. Rewrite MONGODB_URI before Next starts. No .env edit required.
 set -eu
 
-if ! grep -q '[[:space:]]mongo$' /etc/hosts; then
-  printf '127.0.0.1 mongo\n' >> /etc/hosts
-fi
+MONGODB_URI="$(node -e '
+const fallback = "mongodb://127.0.0.1:27017/snapiechat?directConnection=true";
+const raw = process.env.MONGODB_URI || "";
+function rewrite(uri) {
+  try {
+    const parsed = new URL(uri);
+    if (parsed.protocol !== "mongodb:") return fallback;
+    parsed.hostname = "127.0.0.1";
+    if (!parsed.port) parsed.port = "27017";
+    parsed.searchParams.set("directConnection", "true");
+    return parsed.toString();
+  } catch {
+    return fallback;
+  }
+}
+process.stdout.write(rewrite(raw));
+')"
+export MONGODB_URI
+
+node -e '
+const parsed = new URL(process.env.MONGODB_URI);
+if (parsed.username) parsed.username = "***";
+if (parsed.password) parsed.password = "***";
+console.log("[snapie] effective MONGODB_URI=" + parsed.toString());
+'
 
 node <<'JS'
 const net = require('net');
 
-const host = 'mongo';
+const host = '127.0.0.1';
 const port = 27017;
 
 function once() {
@@ -45,7 +67,7 @@ function once() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
-  console.error('[snapie] web container cannot reach mongo:27017 over IPv4');
+  console.error('[snapie] web container cannot reach 127.0.0.1:27017 over IPv4');
   process.exit(1);
 })();
 JS
