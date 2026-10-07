@@ -86,7 +86,9 @@ export async function ensureSessionToken(username: string, opts: { silent?: bool
   const mint = sessionMint();
   if (mint.current?.username === username) return mint.current.promise;
 
-  const promise = (async () => {
+  // Assigned before the async body can reach `finally` (it awaits first).
+  let promise!: Promise<string | null>;
+  promise = (async () => {
     try {
       await chatService.authenticate(username, async challenge => {
         const res = await signMessageWithAioha(challenge, KeyTypes.Posting, 'Enable Snapie Points', { silent: opts.silent });
