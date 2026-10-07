@@ -6,7 +6,7 @@ import {
 } from '@chakra-ui/react';
 import {
   FiUser, FiCreditCard, FiBell, FiRadio, FiMessageSquare, FiMessageCircle,
-  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward, FiZap,
+  FiLogIn, FiUserPlus, FiLogOut, FiInfo, FiCompass, FiHeart, FiSettings, FiAward, FiZap, FiPackage,
 } from 'react-icons/fi';
 import FeedbackModal from '@/components/feedback/FeedbackModal';
 import NextLink from 'next/link';
@@ -96,6 +96,7 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
             {GAMES_FEATURE_FLAG && (
               <SheetLink href="/games" icon={FiZap} label="Games" onClose={onClose} />
             )}
+            <SheetLink href="/factory" icon={FiPackage} label="Butter Factory" onClose={onClose} />
             {isLoggedIn && user && (
               <>
                 <SheetLink href={`/@${user}`} icon={FiUser} label="My Profile" onClose={onClose} />

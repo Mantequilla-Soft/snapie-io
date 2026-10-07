@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiMessageCircle, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield, FiZap } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiMessageCircle, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield, FiZap, FiPackage } from 'react-icons/fi';
 import FeedbackModal from '@/components/feedback/FeedbackModal';
 import { POINTS_FEATURE_FLAG, GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
@@ -245,6 +245,24 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                             </Box>
                         </Tooltip>
                     )}
+                    <Tooltip label="Butter Factory" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                as={NextLink}
+                                href="/factory"
+                                aria-label="Butter Factory"
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiPackage} boxSize={4} />}
+                                px={3}
+                                borderRadius="10px"
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                            >
+                                <Text display={textDisplay}>Factory</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
                     <Tooltip label="Shorts" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
