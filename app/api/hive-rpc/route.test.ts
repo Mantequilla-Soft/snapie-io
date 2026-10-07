@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
+import { MAX_HIVE_RPC_BATCH } from '@/lib/hive/rpcRequest';
 
 function rpcCall(id: number) {
   return {
@@ -52,7 +53,7 @@ describe('POST /api/hive-rpc', () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
-    const { POST, MAX_HIVE_RPC_BATCH } = await import('./route');
+    const { POST } = await import('./route');
     const batch = Array.from({ length: MAX_HIVE_RPC_BATCH + 1 }, (_, index) => rpcCall(index + 1));
     const response = await POST(new NextRequest('http://127.0.0.1/api/hive-rpc', {
       method: 'POST',
@@ -88,5 +89,10 @@ describe('POST /api/hive-rpc', () => {
       expect(await response.json()).toEqual({ error: 'Malformed Hive RPC request' });
     }
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('exports only the POST handler from the route module', async () => {
+    const route = await import('./route');
+    expect(Object.keys(route).sort()).toEqual(['POST']);
   });
 });
