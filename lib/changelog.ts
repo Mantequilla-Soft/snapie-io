@@ -25,6 +25,17 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-07',
+    date: '2026-10-07',
+    title: 'Snapie Blocks joins Games',
+    items: [
+      {
+        type: 'feature',
+        text: 'Snapie Blocks is here! A multiplayer falling-block battle — clear lines, send garbage to your opponent, and be the last board standing. Jump into a public Quick match from Games; win to earn Snapie Points (guests can play, but points are for signed-in wins).',
+      },
+    ],
+  },
+  {
     id: '2026-10-06',
     date: '2026-10-06',
     title: 'Snapie Rush joins Games',
