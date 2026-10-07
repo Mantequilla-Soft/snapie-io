@@ -1,0 +1,64 @@
+# Local Snapie preview, including Snapie Blocks.
+# Apple Silicon pulls the arm64 variants of these official images.
+#   docker compose up --build
+#   open http://localhost:3310/games/snapie-blocks
+#
+# `web` joins the mongo service network namespace. Mongod listens on 127.0.0.1
+# there. The hostname `mongo` is the bridge address and mongoose times out on
+# it, so the entrypoint rewrites MONGODB_URI to 127.0.0.1 with
+# directConnection=true before Next starts. Port 3310 is published on `mongo`
+# because that service owns the namespace. Mongo's own port is not published.
+
+name: snapie-blocks
+
+services:
+  mongo:
+    image: mongo:7.0
+    hostname: mongo
+    restart: unless-stopped
+    # Official entrypoint appends these to mongod.
+    command: ["--bind_ip_all"]
+    ports:
+      - "3310:3310"
+    volumes:
+      - snapie-blocks-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: "service:mongo"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      CHAT_JWT_SECRET: ${CHAT_JWT_SECRET:-local-dev-not-a-secret}
+      # Loopback inside the shared network namespace. The entrypoint rewrites
+      # this again (any host → 127.0.0.1, directConnection=true) so a host .env
+      # cannot leave the process dialing the hostname mongo.
+      MONGODB_URI: mongodb://127.0.0.1:27017/snapiechat?directConnection=true
+      MONGODB_DB_NAME: snapiechat
+      MONGODB_IP_FAMILY: "4"
+      NODE_OPTIONS: "--dns-result-order=ipv4first --no-network-family-autoselection"
+      NEXT_PUBLIC_ENABLE_GAMES: ${NEXT_PUBLIC_ENABLE_GAMES:-true}
+      NEXT_PUBLIC_ENABLE_POINTS: ${NEXT_PUBLIC_ENABLE_POINTS:-true}
+      NEXT_PUBLIC_THEME: ${NEXT_PUBLIC_THEME:-nounish}
+      NEXT_PUBLIC_HIVE_COMMUNITY_TAG: ${NEXT_PUBLIC_HIVE_COMMUNITY_TAG:-hive-167980}
+      NEXT_PUBLIC_HIVE_SEARCH_TAG: ${NEXT_PUBLIC_HIVE_SEARCH_TAG:-hive-167980}
+      NEXT_PUBLIC_HIVE_USER: ${NEXT_PUBLIC_HIVE_USER:-skatedev}
+      NEXT_PUBLIC_HIVESIGNER_ENABLED: "false"
+      SNAPIE_AUTH_URL: ${SNAPIE_AUTH_URL:-http://localhost:3500}
+      NEXT_PUBLIC_HANGOUTS_API_URL: ${NEXT_PUBLIC_HANGOUTS_API_URL:-https://hangout-api.3speak.tv}
+      NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL:-wss://livekit.3speak.tv}
+      NEXT_PUBLIC_HANGOUTS_TOKEN_STORAGE: none
+      NEXT_PUBLIC_CHAT_DEFAULT_CHANNEL: general
+
+volumes:
+  snapie-blocks-mongo:
