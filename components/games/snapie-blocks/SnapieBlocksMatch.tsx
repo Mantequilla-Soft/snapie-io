@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Text, VStack, useToast } from '@chakra-ui/react';
 import { ensureSessionToken, POINTS_EARNED_EVENT, type PointsEarnedDetail } from '@/lib/points/client';
+import { clearSignDecline, isSignDeclined } from '@/lib/hive/walletSign';
 import { BLOCKS_POLL_MS, BLOCKS_WIN_POINTS } from '@/lib/games/blocks/constants';
+import {
+  BLOCKS_GUEST_BANNER,
+  BLOCKS_NEXT_MATCH_BANNER,
+  BLOCKS_SKIPPED_BANNER,
+  blocksPointsNotice,
+  blocksYouWonLine,
+  canReplaceBlocksSession,
+} from '@/lib/games/blocks/pointsNotice';
 import type { BlocksView } from '@/lib/games/blocks/matchDomain';
 import { SnapieBlocksBoard } from '@/components/games/snapie-blocks/SnapieBlocks';
 
@@ -60,12 +69,16 @@ async function postJson(path: string, token: string, body: unknown, keepalive = 
 export function SnapieBlocksMatch({ username }: { username: string | null }) {
   const toast = useToast();
   const [session, setSession] = useState<Session | null>(null);
+  const [signDeclined, setSignDeclined] = useState(false);
+  const [enablingPoints, setEnablingPoints] = useState(false);
+  const [armedForNext, setArmedForNext] = useState(false);
   const [booting, setBooting] = useState(true);
   const [phase, setPhase] = useState<BlocksView['phase'] | 'queuing'>('idle');
   const [view, setView] = useState<BlocksView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const sessionRef = useRef<Session | null>(null);
+  const pendingHive = useRef<Session | null>(null);
   const phaseRef = useRef(phase);
   const matchIdRef = useRef<string | null>(null);
   const ackRef = useRef<string[]>([]);
@@ -101,9 +114,11 @@ export function SnapieBlocksMatch({ username }: { username: string | null }) {
           const token = await ensureSessionToken(username, { silent: true });
           if (token && !cancel) {
             setSession({ token, isGuest: false });
+            setSignDeclined(false);
             setBooting(false);
             return;
           }
+          if (!cancel) setSignDeclined(isSignDeclined());
         }
         const guest = await mintGuest();
         if (!cancel) setSession(guest);
@@ -270,7 +285,40 @@ export function SnapieBlocksMatch({ username }: { username: string | null }) {
     };
   }, [leave, phase, view?.matchId]);
 
+  const enablePoints = async () => {
+    if (!username || enablingPoints) return;
+    setEnablingPoints(true);
+    try {
+      clearSignDecline();
+      const token = await ensureSessionToken(username);
+      if (!token) {
+        setSignDeclined(isSignDeclined());
+        return;
+      }
+      const next: Session = { token, isGuest: false };
+      if (canReplaceBlocksSession(phaseRef.current)) {
+        pendingHive.current = null;
+        setArmedForNext(false);
+        setSignDeclined(false);
+        setSession(next);
+        return;
+      }
+      pendingHive.current = next;
+      setSignDeclined(false);
+      setArmedForNext(true);
+    } finally {
+      setEnablingPoints(false);
+    }
+  };
+
   const queue = () => {
+    if (pendingHive.current) {
+      const next = pendingHive.current;
+      pendingHive.current = null;
+      sessionRef.current = next;
+      setSession(next);
+      setArmedForNext(false);
+    }
     koSent.current = false;
     ackRef.current = [];
     celebrated.current = null;
@@ -303,12 +351,14 @@ export function SnapieBlocksMatch({ username }: { username: string | null }) {
   const resultCopy = (() => {
     if (view?.phase !== 'finished') return null;
     if (view.winner === 'you') {
-      if (session?.isGuest) return `You won. Guests don't earn Snapie Points — log in before the next match.`;
-      if (view.awardStatus === 'awarded' || view.awardStatus === 'duplicate') {
-        return `You won. +${view.pointsAwarded || BLOCKS_WIN_POINTS} Snapie Points.`;
-      }
-      if (view.awardStatus === 'capped') return 'You won. The daily points cap is already full.';
-      return 'You won.';
+      return blocksYouWonLine({
+        loggedIn: !!username,
+        guestSession: !!session?.isGuest,
+        armedForNext,
+        awardStatus: view.awardStatus,
+        pointsAwarded: view.pointsAwarded,
+        winPoints: BLOCKS_WIN_POINTS,
+      });
     }
     if (view.winner === 'opponent') {
       const why =
@@ -318,14 +368,41 @@ export function SnapieBlocksMatch({ username }: { username: string | null }) {
     return 'Match over.';
   })();
 
+  const pointsNotice = blocksPointsNotice({
+    loggedIn: !!username,
+    guestSession: !!session?.isGuest,
+    signDeclined,
+  });
+
   return (
     <VStack align="stretch" spacing={4}>
-      {session?.isGuest && (
+      {armedForNext && session?.isGuest && (
         <Text fontSize="sm" color="fg.muted">
-          Playing as a guest. You can finish the match, and a win will not award Snapie Points.
+          {BLOCKS_NEXT_MATCH_BANNER}
         </Text>
       )}
-      {!session?.isGuest && session && (
+      {!armedForNext && pointsNotice === 'guest' && (
+        <Text fontSize="sm" color="fg.muted">
+          {BLOCKS_GUEST_BANNER}
+        </Text>
+      )}
+      {!armedForNext && pointsNotice === 'skipped' && (
+        <VStack align="start" spacing={1}>
+          <Text fontSize="sm" color="fg.muted">
+            {BLOCKS_SKIPPED_BANNER}
+          </Text>
+          <Button
+            variant="link"
+            size="sm"
+            colorScheme="orange"
+            onClick={() => void enablePoints()}
+            isLoading={enablingPoints}
+          >
+            Enable Snapie Points
+          </Button>
+        </VStack>
+      )}
+      {pointsNotice === 'earning' && (
         <Text fontSize="sm" color="fg.muted">
           A win awards {BLOCKS_WIN_POINTS} Snapie Points, settled on the server.
         </Text>
