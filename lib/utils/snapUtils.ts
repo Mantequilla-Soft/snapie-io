@@ -1,4 +1,5 @@
 import { Discussion } from "@hiveio/dhive";
+import { encodeMarkdownImageParentheses, extractMarkdownImages } from "@/lib/images/markdownImages";
 
 /**
  * The snap "container" post that all top-level snaps reply to. Top snaps have this
@@ -337,13 +338,36 @@ export const separateContent = (body: string) => {
     if (line.match(/!\[.*?\]\(.*\)/) ||
         line.match(/<iframe.*<\/iframe>/) ||
         hasBareTrackedUrl) {
-      mediaParts.push(line);
+      // Parentheses in a filename (`Screenshot%20(88).jpg`) must be encoded
+      // before any `)`-terminated image regex sees the line.
+      mediaParts.push(line.includes("![") ? encodeMarkdownImageParentheses(line) : line);
     } else {
       textParts.push(line);
     }
   });
   return { text: textParts.join("\n"), media: mediaParts.join("\n") };
 };
+
+/**
+ * Text half of a snap, with Hive post URLs and hangout links removed.
+ * Those render as preview cards, so they must not also be markdown.
+ * Shared by the server HTML pass and the client card so both agree.
+ */
+export function snapTextForMarkdown(body: string): string {
+  const source = body || "";
+  const { text } = separateContent(source);
+  let cleanText = text;
+  extractHivePostUrls(source).forEach(({ url }) => {
+    cleanText = cleanText.replace(url, "");
+  });
+  extractHangoutUrls(source).forEach((roomName) => {
+    cleanText = cleanText.replace(
+      new RegExp(`https?://hangout\\.3speak\\.tv/room/${roomName}`, "g"),
+      ""
+    );
+  });
+  return cleanText.trim();
+}
 
 /**
  * Remove the last URL from content if it's at the end
@@ -677,13 +701,12 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
 
     // Handle markdown images/videos with any IPFS gateway
     if (trimmedItem.includes("![") && trimmedItem.includes("http")) {
-      // Extract ALL image markdown patterns from the line (there might be multiple or text before/after)
-      const imageRegex = /!\[.*?\]\((https?:\/\/[^)]+)\)/g;
-      let match;
-      
-      while ((match = imageRegex.exec(trimmedItem)) !== null) {
-        const url = match[1];
-        const fullMatch = match[0]; // The complete ![...](url) pattern
+      // Balanced parentheses, so `Screenshot%20(88).jpg` is not cut at `(`.
+      const images = extractMarkdownImages(trimmedItem).filter((img) => /^https?:\/\//i.test(img.url));
+
+      for (const img of images) {
+        const url = img.url;
+        const fullMatch = encodeMarkdownImageParentheses(img.fullMatch);
 
         if (isPrivateNetworkUrl(url)) continue;
 
@@ -728,19 +751,20 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
 
     // Handle markdown images/videos with ipfs: protocol
     if (trimmedItem.includes("![") && trimmedItem.includes("ipfs:")) {
-      const urlMatch = trimmedItem.match(/!\[.*?\]\((.*?)\)/);
-      if (urlMatch && urlMatch[1]) {
-        const url = urlMatch[1];
+      const img = extractMarkdownImages(trimmedItem).find((item) => item.url.startsWith("ipfs:"));
+      if (img) {
+        const url = img.url;
+        const content = encodeMarkdownImageParentheses(img.fullMatch);
         if (isVideoUrl(url)) {
           mediaItems.push({
             type: "video",
-            content: trimmedItem,
+            content,
             src: url,
           });
         } else {
           mediaItems.push({
             type: "image",
-            content: trimmedItem,
+            content,
           });
         }
         return;

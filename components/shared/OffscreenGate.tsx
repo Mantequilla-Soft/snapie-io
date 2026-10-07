@@ -32,6 +32,15 @@ interface OffscreenGateProps extends BoxProps {
   children: React.ReactNode;
   /** e.g. '3000px 0px 3000px 0px' */
   rootMargin: string;
+  /** Paint children on the first render (SSR). Default stays unmounted. */
+  initiallyMounted?: boolean;
+  /** Height reserved while unmounted, before a real render has been measured.
+   *  The SSR feed uses this so a few hundred not-yet-painted cards don't
+   *  collapse to 0px and pull the infinite-scroll sentinel into view. */
+  unmountedMinHeight?: number;
+  /** Aspect ratio reserved while unmounted, so a media slot does not pop
+   *  open when its renderer mounts. */
+  unmountedAspectRatio?: number;
 }
 
 // Extra Box props (data-*, sx, id, ...) land on THIS component's own
@@ -45,6 +54,9 @@ interface OffscreenGateProps extends BoxProps {
 const OffscreenGate = memo(function OffscreenGate({
   children,
   rootMargin,
+  initiallyMounted = false,
+  unmountedMinHeight = 0,
+  unmountedAspectRatio,
   ...boxProps
 }: OffscreenGateProps) {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -56,7 +68,11 @@ const OffscreenGate = memo(function OffscreenGate({
   // viewport mounts essentially immediately; everything else waits until
   // approached. The placeholder starts at 0px, which is fine below the
   // viewport (that's where new content appears) and settles harmlessly.
-  const [mounted, setMounted] = useState(false);
+  //
+  // `initiallyMounted` is only for the server-rendered first screen, which
+  // has to be in the HTML before this effect runs. The observer still
+  // unmounts it if it ends up far from the viewport.
+  const [mounted, setMounted] = useState(initiallyMounted);
 
   useEffect(() => {
     const el = wrapperRef.current;
@@ -65,21 +81,30 @@ const OffscreenGate = memo(function OffscreenGate({
       ([entry]) => {
         if (entry.isIntersecting) {
           setMounted(true);
-        } else {
-          // Capture the real rendered height while still mounted, then
-          // swap to a placeholder of exactly that height.
-          lastHeightRef.current = el.getBoundingClientRect().height;
-          setMounted(false);
+          return;
         }
+        // The viewport root is clipped by the page scroller, so rootMargin
+        // does not cover cards that are only just below the fold. Unmounting
+        // a server-painted card there collapses the height the HTML reserved
+        // and shifts the feed. Leave that first screen mounted.
+        if (initiallyMounted) return;
+        const height = entry.boundingClientRect.height;
+        if (height > 0) lastHeightRef.current = height;
+        setMounted(false);
       },
       { rootMargin },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [rootMargin]);
+  }, [rootMargin, initiallyMounted]);
 
   return (
-    <Box ref={wrapperRef} {...boxProps} minH={mounted ? undefined : `${lastHeightRef.current}px`}>
+    <Box
+      ref={wrapperRef}
+      {...boxProps}
+      minH={mounted ? undefined : `${lastHeightRef.current || unmountedMinHeight}px`}
+      aspectRatio={!mounted && unmountedAspectRatio ? unmountedAspectRatio : undefined}
+    >
       {mounted ? children : null}
     </Box>
   );

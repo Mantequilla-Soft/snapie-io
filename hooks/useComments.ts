@@ -16,9 +16,16 @@ interface ActiveVote {
 }
 export interface ExtendedComment extends Comment {
     active_votes?: ActiveVote[]
+    /** Vote total when the raw `active_votes` array was not serialized (the
+     *  public feed seed). Cards prefer `active_votes.length` when present. */
+    voteCount?: number
     replies?: ExtendedComment[]
     /** Set only by useBlendedFeed — undefined everywhere else means "snap". */
     source?: 'snap' | 'wave'
+    /** Server-rendered markdown HTML for this snap's text. Present on the
+     *  home seed so the client card does not need the markdown package to
+     *  hydrate. Absent on client-fetched pages; those render after load. */
+    bodyHtml?: string
     /** Set only by the discovery candidate routes — undefined everywhere else means "organic". */
     isDiscovery?: boolean
     discoveryReason?: 'trending' | 'category-match' | 'community-fallback' | 'resurrected'

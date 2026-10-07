@@ -1,5 +1,6 @@
 'use client';
-import { Box, Flex, Text, Image, Badge, HStack, Tag, TagLabel } from '@chakra-ui/react';
+import { Box, Flex, Text, Badge, HStack, Tag, TagLabel } from '@chakra-ui/react';
+import ProxiedImage from '@/components/shared/ProxiedImage';
 import { FaRegComment } from 'react-icons/fa';
 import NextLink from 'next/link';
 import { Discussion } from '@hiveio/dhive';
@@ -17,7 +18,7 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
     try {
         const meta = JSON.parse(post.json_metadata || '{}');
         if (Array.isArray(meta.image) && meta.image[0]) {
-            thumbnail = `https://images.hive.blog/400x225/${meta.image[0]}`;
+            thumbnail = meta.image[0];
         }
     } catch {}
 
@@ -44,17 +45,9 @@ export default function TrendingPostCard({ post }: TrendingPostCardProps) {
         >
             <Flex gap={3} align="flex-start">
                 {thumbnail && (
-                    <Image
-                        src={thumbnail}
-                        alt=""
-                        w="80px"
-                        h="56px"
-                        objectFit="cover"
-                        borderRadius="8px"
-                        flexShrink={0}
-                        bg="overlay.100"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                    />
+                    <Box position="relative" w="80px" h="56px" flexShrink={0} borderRadius="8px" overflow="hidden" bg="overlay.100">
+                        <ProxiedImage url={thumbnail} alt="" sizes="80px" />
+                    </Box>
                 )}
                 <Box flex={1} minW={0}>
                     <Flex align="flex-start" gap={2} mb={1}>

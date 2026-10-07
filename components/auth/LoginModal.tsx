@@ -37,6 +37,18 @@ import GoogleLoginButton from './GoogleLoginButton'
 import AccountSetupPanel from './AccountSetupPanel'
 import './login-modal.css'
 
+const AIOHA_MODAL_STYLESHEET_ID = 'aioha-modal-css'
+
+function ensureAiohaModalStylesheet() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById(AIOHA_MODAL_STYLESHEET_ID)) return
+  const link = document.createElement('link')
+  link.id = AIOHA_MODAL_STYLESHEET_ID
+  link.rel = 'stylesheet'
+  link.href = '/aioha-modal.css'
+  document.head.appendChild(link)
+}
+
 type View = 'providers' | 'email-pending' | 'account-setup' | 'hive-wallet'
 type EmailMode = 'login' | 'register'
 
@@ -90,6 +102,7 @@ export default function LoginModal({
   // Reset to requested view whenever the modal reopens.
   useEffect(() => {
     if (displayed) {
+      ensureAiohaModalStylesheet()
       setView(initialView)
       setError('')
       setNotice('')

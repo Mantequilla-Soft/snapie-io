@@ -6,6 +6,7 @@
  */
 
 import { createHiveRenderer, HiveRendererContext, HiveRendererOptions } from '@snapie/renderer';
+import { rewriteHtmlImageSrcs } from '@/lib/images/markdownImages';
 
 // Custom configuration for Snapie.io
 const snapieRendererOptions: Partial<HiveRendererOptions> = {
@@ -49,7 +50,10 @@ export default function markdownRenderer(
     const context: HiveRendererContext = {
         defaultEmojiOwner: options.defaultEmojiOwner
     };
-    return render(markdown, context);
+    // HTML <img> tags, bare image URLs, and hivemoji stay in this string.
+    // Markdown images that separateContent lifts into MediaRenderer are not
+    // in it. Remote srcs go through the same-origin proxy, not images.hive.blog.
+    return rewriteHtmlImageSrcs(render(markdown, context));
 }
 
 // Also export the renderer for direct use if needed
