@@ -42,6 +42,15 @@ const SORT_OPTIONS = ['new', 'top'] as const;
 
 const snapKey = (c: ExtendedComment) => `${c.author}/${c.permlink}`;
 
+function firstPaintedImageIndex(comments: ExtendedComment[], paintedCount: number): number {
+  // Card 0 is always eager, even when a caller does not pass paintedCount.
+  const limit = Math.max(paintedCount, 1);
+  for (let i = 0; i < Math.min(limit, comments.length); i++) {
+    if (/!\[[^\]]*]\([^)]*\)/.test(comments[i].body || '')) return i;
+  }
+  return -1;
+}
+
 interface SnapListProps {
   author: string
   permlink: string
@@ -67,6 +76,9 @@ interface SnapListProps {
   scrollableTargetId?: string
   /** Home feed only. GIF, video, and oversized media are not the LCP image. */
   optimizeHomeLcp?: boolean
+  /** Leading cards whose contents are in the first HTML. 0 keeps every card
+   *  unmounted until the observer approaches it. */
+  paintedCount?: number
 }
 
 interface InfiniteScrollData {
@@ -101,6 +113,7 @@ export default function SnapList(
     discoveryEveryN = 5,
     scrollableTargetId = 'scrollableDiv',
     optimizeHomeLcp = false,
+    paintedCount = 0,
 }: SnapListProps) {
   const { comments, loadNextPage, isLoading, hasMore, hasFetchedOnce, refresh, refreshComment } = data
   // Older data sources (useComments, useProfileSnaps) don't track this yet —
@@ -358,7 +371,9 @@ export default function SnapList(
         </HStack>
       )}
       <Box ref={listRef} mx="auto" px={{ base: 0, md: 2 }}>
-        {displayComments.map(comment => (
+        {displayComments.map((comment, index) => {
+          const imagePriority = index === firstPaintedImageIndex(displayComments, paintedCount);
+          return (
           // One element serves three roles: the data-snap-key anchor the
           // pagination/reconciliation observers track (must never
           // disappear), the content-visibility target (native
@@ -370,11 +385,37 @@ export default function SnapList(
           // nested divs — see OffscreenGate's doc comment for why a nested
           // IntersectionObserver target inside a content-visibility:auto
           // ancestor is fragile.
+          // The leading `paintedCount` cards start mounted so their author,
+          // body, and counts are in the server HTML. The rest reserve 400px
+          // (the same stand-in as contain-intrinsic-size) so a collapsed
+          // list doesn't pull the sentinel into the 2000px prefetch margin.
+          // Card 0 is not gated and has no content-visibility. Every painted
+          // card's photo is in the HTML too: a later card's image is often
+          // the largest box in the first viewport, and a client-only mount
+          // would make it the LCP after hydration.
+          index === 0 ? (
+            <Box key={snapKey(comment)} data-snap-key={snapKey(comment)}>
+              <Snap
+                comment={comment}
+                onOpen={onOpen}
+                setReply={setReply}
+                refreshComment={refreshComment}
+                priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
+                deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
+                reserveMediaSpace
+                eagerMedia
+                imagePriority={imagePriority}
+                {...(!post ? { setConversation } : {})}
+              />
+            </Box>
+          ) : (
           <OffscreenGate
             key={snapKey(comment)}
             data-snap-key={snapKey(comment)}
             rootMargin={CARD_GATE_MARGIN}
-            sx={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
+            initiallyMounted={index < paintedCount}
+            unmountedMinHeight={paintedCount > 0 && index >= paintedCount ? 400 : 0}
+            sx={index < paintedCount ? undefined : { contentVisibility: 'auto', containIntrinsicSize: 'auto 400px' }}
           >
             <Snap
               comment={comment}
@@ -383,10 +424,15 @@ export default function SnapList(
               refreshComment={refreshComment}
               priorityUrl={optimizeHomeLcp ? homeLcp.priorityUrl : null}
               deferUrls={optimizeHomeLcp ? homeLcp.deferUrls : undefined}
+              reserveMediaSpace={index < paintedCount}
+              eagerMedia={index < paintedCount}
+              imagePriority={imagePriority}
               {...(!post ? { setConversation } : {})}
             />
           </OffscreenGate>
-        ))}
+          )
+          );
+        })}
       </Box>
       {hasMore && (
         <Box ref={sentinelRef} display="flex" justifyContent="center" alignItems="center" py={5}>

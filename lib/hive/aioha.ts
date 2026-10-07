@@ -1,8 +1,12 @@
 'use client';
-import { Aioha, Asset, KeyTypes, Providers } from '@aioha/aioha';
+import type { Aioha } from '@aioha/aioha';
+import { Asset, KeyTypes, Providers } from '@/lib/aioha/enums';
+import { loadRealAioha } from '@/lib/aioha/load-real';
 import { fetchHealthyNodes } from './hiveclient';
 
 let aiohaInstance: Aioha | null = null;
+let aiohaPending: Promise<Aioha> | null = null;
+const readyListeners = new Set<(aioha: Aioha) => void>();
 
 // HiveSigner only registers when the env var opts in. Default: off until the
 // app/callback URL are configured and we want it in the provider list.
@@ -17,37 +21,62 @@ export function getLoginProviders(): Providers[] {
   return HIVESIGNER_ENABLED ? [...base, Providers.HiveSigner] : base;
 }
 
-// Build Aioha manually so the instance is safe to create during SSR:
-// provider registration (Keychain, HiveAuth, HiveSigner) only runs client-side
-// where `window` is defined. This lets AiohaProvider always wrap the tree.
-export function getAioha(): Aioha {
-  if (aiohaInstance) return aiohaInstance;
-  const a = new Aioha();
-  if (typeof window !== 'undefined') {
-    a.registerKeychain();
-    a.registerLedger();
-    a.registerPeakVault();
-    a.registerHiveAuth({
-      name: 'Snapie',
-      description: 'Snapie - Hive community frontend',
-    });
-    if (HIVESIGNER_ENABLED) {
-      a.registerHiveSigner({
-        app: 'snapie.io',
-        callbackURL: window.location.origin + '/hivesigner.html',
-        scope: ['login', 'vote', 'comment', 'follow', 'transfer'],
-      });
-    }
-    a.setApi('https://api.openhive.network');
-    // Async: upgrade to the freshest healthy node from the beacon
-    fetchHealthyNodes().then(nodes => { if (nodes.length > 0) a.setApi(nodes[0]) }).catch(() => {});
-    // NOTE: loadAuth() is intentionally NOT called here. It reads localStorage
-    // synchronously and would populate `user` before hydration, causing a
-    // server/client mismatch. The Providers component calls loadAuth() inside
-    // a post-mount useEffect instead.
+// A returning wallet session is these two keys (see Aioha.loadAuth). Checked
+// without loading the library so logged-out visitors never download it.
+export function hasStoredAiohaSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!(localStorage.getItem('aiohaUsername') && localStorage.getItem('aiohaProvider'));
+  } catch {
+    return false;
   }
-  aiohaInstance = a;
-  return a;
+}
+
+export function onAiohaReady(cb: (aioha: Aioha) => void): () => void {
+  readyListeners.add(cb);
+  if (aiohaInstance) cb(aiohaInstance);
+  return () => readyListeners.delete(cb);
+}
+
+// Wallet providers (Keychain, HiveAuth, PeakVault, Ledger) register here, and
+// only after a stored session is restored or a caller actually needs to sign.
+// The instance is never created during render, so loadAuth cannot disagree
+// with the server HTML.
+export function ensureAioha(): Promise<Aioha> {
+  if (aiohaInstance) return Promise.resolve(aiohaInstance);
+  if (aiohaPending) return aiohaPending;
+  aiohaPending = (async () => {
+    const { Aioha: AiohaClass } = await loadRealAioha();
+    const a = new AiohaClass();
+    if (typeof window !== 'undefined') {
+      a.registerKeychain();
+      a.registerLedger();
+      a.registerPeakVault();
+      a.registerHiveAuth({
+        name: 'Snapie',
+        description: 'Snapie - Hive community frontend',
+      });
+      if (HIVESIGNER_ENABLED) {
+        a.registerHiveSigner({
+          app: 'snapie.io',
+          callbackURL: window.location.origin + '/hivesigner.html',
+          scope: ['login', 'vote', 'comment', 'follow', 'transfer'],
+        });
+      }
+      a.setApi('https://api.openhive.network');
+      fetchHealthyNodes().then(nodes => { if (nodes.length > 0) a.setApi(nodes[0]) }).catch(() => {});
+      try { a.loadAuth(); } catch { /* no stored session, or storage blocked */ }
+    }
+    aiohaInstance = a;
+    aiohaPending = null;
+    readyListeners.forEach((cb) => cb(a));
+    return a;
+  })();
+  return aiohaPending;
+}
+
+function currentAioha(): Aioha | null {
+  return aiohaInstance;
 }
 
 // Human-readable names for the spinner overlay.
@@ -70,13 +99,13 @@ const PROVIDER_HINT: Partial<Record<Providers, string>> = {
 
 export function getCurrentProviderLabel(): string {
   if (typeof window === 'undefined') return 'your wallet';
-  const p = getAioha().getCurrentProvider();
+  const p = currentAioha()?.getCurrentProvider();
   return (p && PROVIDER_LABEL[p]) || 'your wallet';
 }
 
 export function getCurrentProviderHint(): string {
   if (typeof window === 'undefined') return '';
-  const p = getAioha().getCurrentProvider();
+  const p = currentAioha()?.getCurrentProvider();
   return (p && PROVIDER_HINT[p]) || '';
 }
 
@@ -104,6 +133,7 @@ export async function withTxApproval<T>(
   op: () => Promise<T>,
   title = 'Waiting for approval',
 ): Promise<T> {
+  if (typeof window !== 'undefined') await ensureAioha();
   const label = getCurrentProviderLabel();
   const hint = getCurrentProviderHint();
   const message = `${title} in ${label}…`;
@@ -154,7 +184,7 @@ export async function broadcastOps(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().signAndBroadcastTx(operations, keyType);
+    const result = await currentAioha()!.signAndBroadcastTx(operations, keyType);
     if (!result.success) throw new Error(result.error || 'Broadcast failed');
     return { success: true as const, result: result.result };
   }, title);
@@ -180,7 +210,7 @@ export async function voteWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().vote(author, permlink, weight);
+    const result = await currentAioha()!.vote(author, permlink, weight);
     if (!result.success) throw new Error(result.error || 'Vote failed');
     return { success: true as const, result: result.result };
   }, weight >= 0 ? 'Approve vote' : 'Approve downvote');
@@ -207,7 +237,7 @@ export async function transferWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().transfer(to, amount, currency as any, memo);
+    const result = await currentAioha()!.transfer(to, amount, currency as any, memo);
     if (!result.success) throw new Error(result.error || 'Transfer failed');
     return { success: true as const, result: result.result };
   }, `Approve transfer of ${amount.toFixed(3)} ${currency}`);
@@ -233,7 +263,7 @@ export async function recurrentTransferWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().recurrentTransfer(to, amount, currency as any, recurrence, executions, memo);
+    const result = await currentAioha()!.recurrentTransfer(to, amount, currency as any, recurrence, executions, memo);
     if (!result.success) throw new Error(result.error || 'Recurrent transfer failed');
     return { success: true as const, result: result.result };
   }, `Approve recurring transfer of ${amount.toFixed(3)} ${currency}`);
@@ -247,7 +277,7 @@ export async function transferEncryptedMemoWithAioha(
 ) {
   const encryptedMemo = memo.startsWith('#') ? memo : `#${memo}`;
   return withTxApproval(async () => {
-    const result = await getAioha().transfer(to, amount, currency as any, encryptedMemo);
+    const result = await currentAioha()!.transfer(to, amount, currency as any, encryptedMemo);
     if (!result.success) throw new Error(result.error || 'Transfer failed');
     return { success: true as const, result: result.result };
   }, `Approve encrypted memo transfer of ${amount.toFixed(3)} ${currency}`);
@@ -277,7 +307,7 @@ export async function customJsonWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().customJSON(keyType, id, json, displayTitle);
+    const result = await currentAioha()!.customJSON(keyType, id, json, displayTitle);
     if (!result.success) throw new Error(result.error || 'Custom JSON failed');
     return { success: true as const, result: result.result };
   }, overlayTitle);
@@ -316,7 +346,7 @@ export async function commentWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().comment(
+    const result = await currentAioha()!.comment(
       parentAuthor,
       parentPermlink,
       permlink,
@@ -358,7 +388,7 @@ export async function signMessageWithAioha(
     }
   }
   return withTxApproval(async () => {
-    const result = await getAioha().signMessage(message, keyType);
+    const result = await currentAioha()!.signMessage(message, keyType);
     if (!result.success) {
       throw new Error(result.error || 'Sign failed');
     }
@@ -371,12 +401,12 @@ export async function signMessageWithAioha(
 
 export function isLoggedIn(): boolean {
   if (typeof window === 'undefined') return false;
-  return getAioha().isLoggedIn();
+  return currentAioha()?.isLoggedIn() ?? false;
 }
 
 export function getCurrentUser(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  return getAioha().getCurrentUser();
+  return currentAioha()?.getCurrentUser();
 }
 
 export { Asset, KeyTypes, Providers };

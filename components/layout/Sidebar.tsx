@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
-import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield, FiZap } from 'react-icons/fi';
+import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiMessageCircle, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield, FiZap } from 'react-icons/fi';
+import FeedbackModal from '@/components/feedback/FeedbackModal';
 import { POINTS_FEATURE_FLAG, GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { getCommunityInfo, getProfile } from '@/lib/hive/client-functions';
@@ -48,6 +49,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
     const [loading, setLoading] = useState(true);
+    const [feedbackOpen, setFeedbackOpen] = useState(false);
     const toast = useToast();
     const openPodsCount = useOpenPodsCount();
     const { unreadCount } = useNotifications();
@@ -404,6 +406,23 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                         </Tooltip>
                     )}
 
+                    <Tooltip label="Feedback" placement="right" hasArrow isDisabled={!isCompactMode}>
+                        <Box w="full">
+                            <Button
+                                onClick={() => setFeedbackOpen(true)}
+                                variant="ghost"
+                                w="full"
+                                justifyContent={iconJustify}
+                                leftIcon={<Icon as={FiMessageCircle} boxSize={4} />}
+                                px={3}
+                                borderRadius="10px"
+                                _hover={{ bg: 'rgba(28, 161, 241, 0.14)', color: 'accent' }}
+                            >
+                                <Text display={textDisplay}>Feedback</Text>
+                            </Button>
+                        </Box>
+                    </Tooltip>
+
                     <Tooltip label="Support Snapie" placement="right" hasArrow isDisabled={!isCompactMode}>
                         <Box w="full">
                             <Button
@@ -565,6 +584,7 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
                     </Box>
                 </VStack>
             </Flex>
+            <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
         </Box>
     );
 }

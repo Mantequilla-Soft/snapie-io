@@ -10,9 +10,20 @@ interface ImageCarouselProps {
   /** Home-feed LCP photo, when this carousel's first slide is that photo. */
   priorityUrl?: string | null;
   deferUrls?: readonly string[];
+  /** Preload the visible slide. Only the home feed's first image sets this. */
+  priority?: boolean;
+  /** First-viewport slide. Visible without waiting for onLoad. */
+  painted?: boolean;
 }
 
-export default function ImageCarousel({ urls, onImageClick, priorityUrl = null, deferUrls }: ImageCarouselProps) {
+export default function ImageCarousel({
+  urls,
+  onImageClick,
+  priorityUrl = null,
+  deferUrls,
+  priority = false,
+  painted = false,
+}: ImageCarouselProps) {
   const [index, setIndex] = useState(0);
   const total = urls.length;
 
@@ -39,8 +50,9 @@ export default function ImageCarousel({ urls, onImageClick, priorityUrl = null, 
           key={urls[index]}
           url={urls[index]}
           alt={`Image ${index + 1} of ${total}`}
-          priority={priorityUrl === urls[index]}
+          priority={(priority && index === 0) || priorityUrl === urls[index]}
           defer={deferUrls?.includes(urls[index]) ?? false}
+          painted={painted}
         />
       </Box>
 

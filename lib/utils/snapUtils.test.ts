@@ -13,6 +13,7 @@ import {
   isWaveContainer,
   parseMediaContent,
   separateContent,
+  snapTextForMarkdown,
   speakPlaybackUrl,
   speakVideoKeyFromUrl,
 } from './snapUtils';
@@ -64,6 +65,19 @@ describe('parseMediaContent private-network filtering', () => {
         const items = parseMediaContent('![photo](https://images.hive.blog/u/meno/avatar/sm)');
         expect(items).toHaveLength(1);
         expect(items[0].type).toBe('image');
+    });
+
+    it('keeps a filename that contains parentheses', () => {
+        const url = 'https://images.hive.blog/DQmerj5ka4MkkXwTr5atPeNe3eVVwXWA2LGogbTWDHz9h9y/Screenshot%20(88).jpg';
+        const items = parseMediaContent(`![shot](${url})`);
+        expect(items).toHaveLength(1);
+        expect(items[0].type).toBe('image');
+        const captured = /!\[.*?\]\((.*?)\)/.exec(items[0].content);
+        expect(captured?.[1].endsWith('.jpg')).toBe(true);
+        expect(captured?.[1]).toContain('Screenshot%20%2888%29.jpg');
+        const { media, text } = separateContent(`hello\n![shot](${url})`);
+        expect(text).toBe('hello');
+        expect(media).toContain('Screenshot%20%2888%29.jpg');
     });
 
     it('drops a raw iframe pointing at a private LAN address', () => {
@@ -227,4 +241,16 @@ describe('snap and embed helpers', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }));
     await expect(fetchSnapieAudioMetadata('https://audio.3speak.tv/play?a=missing')).resolves.toBeNull();
   });
+});
+
+describe('snapTextForMarkdown', () => {
+    it('keeps the words and drops a hive post url that renders as a card', () => {
+        const text = snapTextForMarkdown(
+            'See https://hive.blog/@alice/hello-world for context\n![pic](https://images.hive.blog/x.jpg)'
+        );
+        expect(text).toContain('See');
+        expect(text).toContain('for context');
+        expect(text).not.toContain('hive.blog/@alice');
+        expect(text).not.toContain('![');
+    });
 });

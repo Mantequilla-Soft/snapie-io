@@ -30,13 +30,12 @@ import {
 } from 'react-icons/fa';
 import HiveClient from '@/lib/hive/hiveclient';
 import {
-  generatePassword,
-  generateKeys,
   validateAccountName,
   checkAccountAvailability,
   downloadBackupFile,
   type PrivateKeys,
 } from '@/lib/hive/account-create-client';
+import { generateKeys, generatePassword } from '@/lib/hive/account-create-keys';
 import {
   generateShareableLink,
   type ShareableAccountData,

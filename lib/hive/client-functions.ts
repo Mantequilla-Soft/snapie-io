@@ -1,12 +1,11 @@
 'use client';
 import HiveClient from "./hiveclient";
-import crypto from 'crypto';
 import { signImageHash } from "./server-functions";
-import { Account, Discussion, Notifications, PublicKey, PrivateKey, KeyRole } from "@hiveio/dhive";
+import type { Discussion, Notifications } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { ExtendedComment } from "@/hooks/useComments";
 import {
-  getAioha,
+  ensureAioha,
   KeyTypes,
   Providers,
   broadcastOps,
@@ -579,7 +578,8 @@ export function getFileSignature(file: File): Promise<string> {
     reader.onload = async () => {
       if (reader.result) {
         const content = Buffer.from(reader.result as ArrayBuffer);
-        const hash = crypto.createHash('sha256')
+        const { createHash } = await import('crypto');
+        const hash = createHash('sha256')
           .update('ImageSigningChallenge')
           .update(content as any)
           .digest('hex');
@@ -768,9 +768,12 @@ export async function uploadImageWithKeychain(
     onProgress?: (progress: number) => void;
   }
 ): Promise<string> {
-  const aioha = getAioha();
   const { isSnapieMode } = await import('@/lib/hive/signing');
-  if (!isSnapieMode() && !aioha.isLoggedIn()) {
+  if (isSnapieMode()) {
+    return uploadTo3Speak(file, options);
+  }
+  const aioha = await ensureAioha();
+  if (!aioha.isLoggedIn()) {
     throw new Error('Not logged in');
   }
 
@@ -785,7 +788,7 @@ export async function uploadImageWithKeychain(
   // trimming this down without breaking the signature — the server
   // independently reconstructs sha256('ImageSigningChallenge' + the file it
   // received), so the challenge is inherently exactly as large as the file.
-  if (isSnapieMode() || aioha.getCurrentProvider() === Providers.HiveAuth) {
+  if (aioha.getCurrentProvider() === Providers.HiveAuth) {
     return uploadTo3Speak(file, options);
   }
 

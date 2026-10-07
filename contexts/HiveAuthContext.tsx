@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from 'react';
 import QRCode from 'react-qr-code';
-import { getAioha, setHiveAuthCallbacks } from '@/lib/hive/aioha';
+import { useAioha } from '@/lib/aioha/facade-react-ui';
+import { setHiveAuthCallbacks } from '@/lib/hive/aioha';
 
 interface HiveAuthContextValue {
   isWaiting: boolean;
@@ -56,20 +57,24 @@ export function HiveAuthProvider({ children }: { children: ReactNode }) {
     return () => setHiveAuthCallbacks(null, null);
   }, [showWaiting, hideWaiting]);
 
+  const { aioha } = useAioha();
+
   useEffect(() => {
+    // Listeners attach once the library is actually loaded (login, or a
+    // restored session). Logged-out visitors never construct Aioha.
+    if (!aioha) return;
     // hiveauth_login_request (the initial pairing QR) is already handled by
     // AiohaModal's own LoginModal. These two cover everything signed
     // afterward: signMessage (challenge_req — what image upload signs) and
     // every broadcast operation, vote/comment/transfer/etc. (sign_req).
     const onQr: HiveAuthWaitEvent = (payload, _evt, cancel) => setQr({ payload, cancel });
-    const aioha = getAioha();
     aioha.on('hiveauth_challenge_request', onQr);
     aioha.on('hiveauth_sign_request', onQr);
     return () => {
       aioha.off('hiveauth_challenge_request', onQr);
       aioha.off('hiveauth_sign_request', onQr);
     };
-  }, []);
+  }, [aioha]);
 
   return (
     <HiveAuthContext.Provider

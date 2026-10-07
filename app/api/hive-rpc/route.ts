@@ -4,6 +4,7 @@ import {
   dispatchHiveRpc,
   getHiveRpcNodes,
 } from '@/lib/hive/rpcProxy'
+import { hiveRpcRequestError } from '@/lib/hive/rpcRequest'
 
 export async function POST(request: NextRequest) {
   let body: unknown
@@ -11,6 +12,11 @@ export async function POST(request: NextRequest) {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+
+  const requestError = hiveRpcRequestError(body)
+  if (requestError) {
+    return NextResponse.json({ error: requestError }, { status: 400 })
   }
 
   const nodes = await getHiveRpcNodes()
