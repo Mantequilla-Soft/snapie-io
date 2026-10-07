@@ -57,7 +57,9 @@ docker compose up --build
 
 Open [http://localhost:3310/games/snapie-blocks](http://localhost:3310/games/snapie-blocks). The app listens on host port **3310**. MongoDB stays on the compose network and is not published to the host.
 
-Compose turns on `NEXT_PUBLIC_ENABLE_GAMES` and `NEXT_PUBLIC_ENABLE_POINTS` and points `MONGODB_URI` at the `mongo` service. Optional overrides live in [`.env.example`](.env.example) — copy to `.env` if you need them. Do not commit `.env` or real secrets. `CHAT_JWT_SECRET` defaults to the local placeholder `local-dev-not-a-secret`.
+The `web` service uses the `mongo` service's network namespace, and `MONGODB_URI` is `mongodb://mongo:27017/snapiechat` (IPv4). That URI is set in `docker-compose.yml` and is not taken from a host `.env`, so a laptop `MONGODB_URI=mongodb://127.0.0.1:27017/...` used for `pnpm dev` cannot redirect the container at the wrong place. The entrypoint maps the hostname `mongo` inside that namespace and waits until an IPv4 handshake succeeds before Next starts. Port **3310** is published on the `mongo` service because that service owns the namespace; Mongo's port is not published. Crossing the Docker bridge from `web` to `mongo` times out on Docker Desktop even when the host can open the container IP (`MongooseServerSelectionError` on the queue).
+
+Compose turns on `NEXT_PUBLIC_ENABLE_GAMES` and `NEXT_PUBLIC_ENABLE_POINTS`. Optional overrides live in [`.env.example`](.env.example) — copy to `.env` if you need them. Do not commit `.env` or real secrets. `CHAT_JWT_SECRET` defaults to the local placeholder `local-dev-not-a-secret`.
 
 Two browsers, one match:
 
