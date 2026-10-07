@@ -27,13 +27,14 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-10-07',
     date: '2026-10-07',
-    title: 'Snapie Blocks and Snapie Jump join Games',
+    title: 'Snapie Blocks, Snapie Jump and the Butter Factory',
     items: [
       {
         type: 'feature',
         text: 'Snapie Blocks is here! A multiplayer falling-block battle — clear lines, send garbage to your opponent, and be the last board standing. Jump into a public Quick match from Games; win to earn Snapie Points (guests can play, but points are for signed-in wins).',
       },
       { type: 'feature', text: 'Snapie Jump is here! An endless bouncer — Snapie the cyber bee climbs a hive of platforms, grabbing honey, power-ups (super jump, magnet, shield) and stomping wasps. Steer with the arrow keys or drag anywhere on a phone. Save your run to convert your score into Snapie Points.' },
+      { type: 'feature', text: 'Added the Butter Factory at /factory: a pixel-art factory that replays the last week of the team\'s pull requests. Every repo is an island, every PR is a worker who fabricates an item, queues for a review stamp and drops it off when it merges. Press play, scrub through the week, or click a worker or island to see what it was. Find it as Factory in the sidebar, or Butter Factory in the mobile menu.' },
     ],
   },
   {
