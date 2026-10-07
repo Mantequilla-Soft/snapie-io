@@ -1,5 +1,6 @@
 import type { Client } from "@hiveio/dhive"
 import { afterLcpPaint } from "@/lib/perf/afterLcpPaint"
+import { installBrowserRpcCoalescer } from "@/lib/hive/rpcBatch"
 import { withTimeout } from "@/lib/utils/withTimeout"
 
 const FALLBACK_NODES = [
@@ -58,9 +59,11 @@ function ensureClient(): Promise<Client> {
     clientReady = loadDhive().then(({ Client: DhiveClient }) => {
       if (!hive.client) {
         if (IS_BROWSER) {
-          // Browser: route through our own API proxy — eliminates CORS entirely.
+          // One origin, our proxy. Reads that start in the same turn share
+          // a JSON-RPC batch. The proxy still picks a Hive node and fails over.
           const endpoint = window.location.origin + "/api/hive-rpc"
           hive.client = new DhiveClient([endpoint])
+          installBrowserRpcCoalescer(hive.client, endpoint)
         } else {
           hive.client = new DhiveClient(filterNodeList(FALLBACK_NODES))
         }
