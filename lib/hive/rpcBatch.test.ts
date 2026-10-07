@@ -4,6 +4,8 @@ import {
   matchBatchResponses,
   buildRpcRequest,
   isBroadcastCall,
+  postHiveRpc,
+  HIVE_RPC_BATCH_TIMEOUT_MS,
   type RpcCoalescerOptions,
 } from './rpcBatch';
 
@@ -246,6 +248,71 @@ describe('RpcCoalescer', () => {
     expect(sendBatch).not.toHaveBeenCalled();
     gate.resolve({ posts: [] });
     await expect(first).resolves.toEqual({ posts: [] });
+  });
+
+  it('sends a later identical call fresh after a hung request outlives the in-flight window', async () => {
+    vi.useFakeTimers();
+    try {
+      const sendSingle = vi.fn(() => new Promise(() => {}));
+      const sendBatch = vi.fn(async () => []);
+      let flush: (() => void | Promise<void>) | null = null;
+      const coalescer = new RpcCoalescer({
+        sendSingle,
+        sendBatch,
+        schedule: (fn) => { flush = fn; },
+      });
+
+      const first = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+      const run = flush!;
+      flush = null;
+      void run();
+      expect(sendSingle).toHaveBeenCalledTimes(1);
+
+      const during = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+      expect(during).toBe(first);
+
+      await vi.advanceTimersByTimeAsync(HIVE_RPC_BATCH_TIMEOUT_MS - 1);
+      const stillHung = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+      expect(stillHung).toBe(first);
+      expect(sendSingle).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const again = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+      expect(again).not.toBe(first);
+      const retry = flush!;
+      flush = null;
+      void retry();
+      expect(sendSingle).toHaveBeenCalledTimes(2);
+      expect(sendBatch).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts a batch POST that never settles', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }));
+      });
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const pending = postHiveRpc('http://127.0.0.1/api/hive-rpc', [
+        { jsonrpc: '2.0', id: 1, method: 'condenser_api.get_content', params: ['a', 'one'] },
+      ]);
+      const assertion = expect(pending).rejects.toThrow(
+        new RegExp(`timed out after ${HIVE_RPC_BATCH_TIMEOUT_MS}ms`),
+      );
+      await vi.advanceTimersByTimeAsync(HIVE_RPC_BATCH_TIMEOUT_MS);
+      await assertion;
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const init = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('splits a turn that exceeds the batch size into several requests', async () => {

@@ -52,6 +52,16 @@ interface QueueEntry {
 
 const DEFAULT_MAX_BATCH = 20
 
+/**
+ * Abort a batch POST, and drop a matching in-flight entry, after this long.
+ * Browser fetches can hang forever (backgrounded tab, sleep/wake, a proxy
+ * that drops an idle connection). HiveClient's 65s watchdog rejects the
+ * original caller, but the promise underneath stays pending — and so would
+ * this map, so every later identical call joined the dead one. The entry
+ * expires with the abort and cannot outlive it; a retry then sends fresh.
+ */
+export const HIVE_RPC_BATCH_TIMEOUT_MS = 30_000
+
 /** List-shaped condenser/bridge reads. Sent alone so a fat container or
  *  ranked-post page does not delay the small calls that started with it. */
 const HEAVY_METHODS = new Set([
@@ -168,7 +178,11 @@ export class RpcCoalescer {
 
   private track(key: string, promise: Promise<unknown>) {
     this.inflight.set(key, promise)
+    const timer = setTimeout(() => {
+      if (this.inflight.get(key) === promise) this.inflight.delete(key)
+    }, HIVE_RPC_BATCH_TIMEOUT_MS)
     const clear = () => {
+      clearTimeout(timer)
       if (this.inflight.get(key) === promise) this.inflight.delete(key)
     }
     promise.then(clear, clear)
@@ -251,18 +265,30 @@ export function installBrowserRpcCoalescer(client: { call: (...args: any[]) => P
   client.call = (api: string, method: string, params?: unknown) => coalescer.call(api, method, params)
 }
 
-async function postHiveRpc(endpoint: string, body: unknown): Promise<unknown> {
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-    cache: "no-cache",
-  })
-  if (!response.ok) {
-    throw new Error(`Hive RPC batch failed: ${response.status}`)
+export async function postHiveRpc(endpoint: string, body: unknown): Promise<unknown> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), HIVE_RPC_BATCH_TIMEOUT_MS)
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      cache: "no-cache",
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      throw new Error(`Hive RPC batch failed: ${response.status}`)
+    }
+    return await response.json()
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Hive RPC batch timed out after ${HIVE_RPC_BATCH_TIMEOUT_MS}ms`)
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
   }
-  return response.json()
 }
