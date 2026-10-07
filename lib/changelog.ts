@@ -30,6 +30,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Snapie Rush joins Games',
     items: [
       { type: 'feature', text: 'Snapie Rush is here! A top-down arcade racer — steer the Snapie hover-bike through five routes, dodge trucks, swerving cars, oil slicks and drones, and grab fuel cells before the tank runs dry. Near misses and higher speed earn bonus score. Save your run to convert your score into Snapie Points.' },
+      { type: 'feature', text: "Added a Feedback option — in the sidebar on desktop, as Send feedback in the mobile menu, and as a card in Settings. Tell the team about a bug or an idea without leaving Snapie. Guests can send feedback too, and it goes straight to the team's issue tracker." },
+      { type: 'improvement', text: 'The first page of the home feed is now prepared on the server, so posts appear straight away instead of after a loading screen, and the home page downloads less JavaScript before it can show anything.' },
+      { type: 'improvement', text: "Big animated GIFs, videos and oversized images near the top of the home feed no longer get loading priority, so a multi-megabyte GIF can't hold up the first photo you see." },
     ],
   },
   {
