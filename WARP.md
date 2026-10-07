@@ -131,7 +131,6 @@ NEXT_PUBLIC_THEME=hacker                          # Theme name
 NEXT_PUBLIC_HIVE_COMMUNITY_TAG=hive-123456        # Your community tag
 NEXT_PUBLIC_HIVE_SEARCH_TAG=hive-123456           # Search filter tag
 NEXT_PUBLIC_HIVE_USER=yourusername                # Hive username
-HIVE_POSTING_KEY=5J...                            # Posting key (server-side only, image signing)
 NEXT_PUBLIC_DISPLAY_CURRENCY=                     # Optional: BRL, EUR, GBP, etc.
 
 # Media / uploads
@@ -145,8 +144,6 @@ NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.3speak.tv
 # Auth
 NEXT_PUBLIC_HIVESIGNER_ENABLED=false              # Flip to `true` once app id + callback are set
 ```
-
-**Security:** Never expose `HIVE_POSTING_KEY` to client-side code. It's only used in server functions for image signing.
 
 ## Important Development Patterns
 
