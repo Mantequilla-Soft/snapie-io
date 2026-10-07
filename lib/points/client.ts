@@ -3,6 +3,7 @@ import { isPointsEnabledFor } from '@/lib/points/config';
 import { PointsActionType } from '@/lib/points/constants';
 import { chatService } from '@/lib/chat/ChatService';
 import { signMessageWithAioha, KeyTypes } from '@/lib/hive/aioha';
+import { isSignDeclined, isUserDecline, isWalletCoolingDown, rememberSignDecline } from '@/lib/hive/walletSign';
 
 // Same session token the chat API uses — it's a general Hive-verified session
 // token, not chat-specific (minted by the signed-challenge login).
@@ -24,11 +25,16 @@ export interface PointsSpentDetail {
   balance: number;
 }
 
-// Guards against firing two parallel authenticate() calls (and, for wallet
-// users, two stacked signature prompts) if two point-earning actions happen
-// in quick succession before the first mint finishes. Keyed by username so a
-// user switch doesn't reuse a stale in-flight promise for the wrong account.
-let tokenMintInFlight: { username: string; promise: Promise<string | null> } | null = null;
+// One mint at a time, shared across chunks. The points client is bundled more
+// than once, so a module-level variable would not stop a second prompt.
+type SessionMint = { username: string; promise: Promise<string | null> };
+const SESSION_MINT_KEY = '__snapieSessionMint';
+
+function sessionMint(): { current: SessionMint | null } {
+  const g = globalThis as typeof globalThis & { [SESSION_MINT_KEY]?: { current: SessionMint | null } };
+  if (!g[SESSION_MINT_KEY]) g[SESSION_MINT_KEY] = { current: null };
+  return g[SESSION_MINT_KEY];
+}
 
 // The cached token is a 7-day JWT (signChatJWT in lib/chat/auth.ts). Refresh
 // a bit before actual expiry rather than exactly at it, so a request that's
@@ -72,7 +78,13 @@ export async function ensureSessionToken(username: string, opts: { silent?: bool
     localStorage.removeItem(SESSION_TOKEN_KEY);
   }
 
-  if (tokenMintInFlight?.username === username) return tokenMintInFlight.promise;
+  // A cancelled "Enable Snapie Points" prompt is remembered for a cooldown.
+  // Background callers (the sidebar admin check, Blocks, awards) must not
+  // open Keychain again on the next page.
+  if (opts.silent && (isSignDeclined() || isWalletCoolingDown())) return null;
+
+  const mint = sessionMint();
+  if (mint.current?.username === username) return mint.current.promise;
 
   const promise = (async () => {
     try {
@@ -82,14 +94,15 @@ export async function ensureSessionToken(username: string, opts: { silent?: bool
         return res.result as string;
       });
       return localStorage.getItem(SESSION_TOKEN_KEY);
-    } catch {
+    } catch (err) {
+      if (isUserDecline(err)) rememberSignDecline();
       return null;
     } finally {
-      tokenMintInFlight = null;
+      if (mint.current?.promise === promise) mint.current = null;
     }
   })();
 
-  tokenMintInFlight = { username, promise };
+  mint.current = { username, promise };
   return promise;
 }
 

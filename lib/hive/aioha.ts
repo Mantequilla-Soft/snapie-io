@@ -2,6 +2,9 @@
 import type { Aioha } from '@aioha/aioha';
 import { Asset, KeyTypes, Providers } from '@/lib/aioha/enums';
 import { loadRealAioha } from '@/lib/aioha/load-real';
+import { beginApproval, endApproval, suppressApproval } from '@/lib/hive/approvalOverlay';
+import { isMissingSignBuffer, waitForInjectedWallet } from '@/lib/hive/injectedWallet';
+import { SignDeclinedError, WalletMissingError, dismissWalletPrompt, runWalletSign } from '@/lib/hive/walletSign';
 import { fetchHealthyNodes } from './hiveclient';
 
 let aiohaInstance: Aioha | null = null;
@@ -137,12 +140,19 @@ export async function withTxApproval<T>(
   const label = getCurrentProviderLabel();
   const hint = getCurrentProviderHint();
   const message = `${title} in ${label}…`;
-  if (onWaiting) onWaiting(message, hint);
+  if (beginApproval() && onWaiting) onWaiting(message, hint);
   try {
     return await op();
   } finally {
-    if (onComplete) onComplete();
+    if (endApproval() && onComplete) onComplete();
   }
+}
+
+/** Hide the Snapie approval overlay without waiting for the wallet popup. */
+export function dismissHiveApproval(): void {
+  suppressApproval();
+  dismissWalletPrompt();
+  if (onComplete) onComplete();
 }
 
 // --- Op helpers: every aioha call in the app should go through one of these ---
@@ -387,16 +397,40 @@ export async function signMessageWithAioha(
       return { success: true as const, result: res.signature };
     }
   }
-  return withTxApproval(async () => {
-    const result = await currentAioha()!.signMessage(message, keyType);
-    if (!result.success) {
-      throw new Error(result.error || 'Sign failed');
-    }
-    if (!result.result) {
-      throw new Error('Sign returned empty result');
-    }
-    return { success: true as const, result: result.result as string };
-  }, overlayTitle);
+  return runWalletSign({
+    silent: opts.silent,
+    prepare: async () => {
+      if (typeof window === 'undefined') return 'ready';
+      await ensureAioha();
+      const provider = currentAioha()?.getCurrentProvider();
+      if (provider === Providers.Keychain) {
+        return (await waitForInjectedWallet('hive_keychain')) ? 'ready' : 'missing';
+      }
+      if (provider === Providers.PeakVault) {
+        return (await waitForInjectedWallet('peakvault')) ? 'ready' : 'missing';
+      }
+      return 'ready';
+    },
+    sign: () => withTxApproval(async () => {
+      let result: { success: boolean; result?: string; error?: string; errorCode?: number };
+      try {
+        result = await currentAioha()!.signMessage(message, keyType);
+      } catch (err) {
+        if (isMissingSignBuffer(err)) throw new WalletMissingError();
+        throw err;
+      }
+      if (!result.success) {
+        if (result.errorCode === 4001 || (result.error && /cancel|reject|declin|dismiss/i.test(result.error))) {
+          throw new SignDeclinedError(result.error || 'Signature request was cancelled');
+        }
+        throw new Error(result.error || 'Sign failed');
+      }
+      if (!result.result) {
+        throw new Error('Sign returned empty result');
+      }
+      return { success: true as const, result: result.result };
+    }, overlayTitle),
+  });
 }
 
 export function isLoggedIn(): boolean {
