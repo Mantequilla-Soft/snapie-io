@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useBlendedFeed } from './useBlendedFeed';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
+import type { ExtendedComment } from './useComments';
 
 // Same isolation/mocking approach as useSnaps.test.tsx — useBlendedFeed
 // seeds its initial data from `/api/feed` (the sidecar proxy) rather than
@@ -251,6 +253,85 @@ describe('useBlendedFeed mute filters', () => {
     const nextUrl = String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1][0]);
     expect(nextUrl).toContain('before=2026-08-01T00%3A00%3A00');
     expect(nextUrl).not.toContain('2026-07-01');
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('useBlendedFeed initial server page', () => {
+  const seed: PublicSnapPage = {
+    comments: [
+      feedItem('newer', { created: '2026-08-29T00:02:00', source: 'wave', body: 'from the server' }),
+      feedItem('older', { created: '2026-08-29T00:00:00' }),
+    ] as unknown as ExtendedComment[],
+    hasMore: true,
+    cursor: null,
+    before: '2026-08-29T00:00:00',
+  };
+
+  it('hydrates the public blended page without refetching it', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useBlendedFeed({ initialPage: seed }));
+
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['newer', 'older']);
+    expect(result.current.comments[0].source).toBe('wave');
+    expect(result.current.hasFetchedOnce).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.hasMore).toBe(true);
+
+    await act(async () => {});
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('continues infinite scroll from the server before cursor', async () => {
+    const fetchMock = vi.fn(async (_url: string) => ({
+      json: async () => ({
+        items: [
+          feedItem('older', { created: '2026-08-29T00:00:00' }),
+          feedItem('next', { created: '2026-08-28T00:00:00' }),
+        ],
+        hasMore: false,
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useBlendedFeed({ initialPage: seed }));
+
+    await act(async () => {
+      result.current.loadNextPage();
+    });
+
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['newer', 'older', 'next']));
+    const nextUrl = String(fetchMock.mock.calls[0][0]);
+    expect(new URL(nextUrl, 'http://localhost').searchParams.get('before')).toBe('2026-08-29T00:00:00');
+    vi.unstubAllGlobals();
+  });
+
+  it('refetches from the head when a logged-in username arrives', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const before = new URL(String(url), 'http://localhost').searchParams.get('before');
+      if (before) {
+        return { json: async () => ({ items: [feedItem('paged')], hasMore: false }) };
+      }
+      return { json: async () => ({ items: [feedItem('personal')], hasMore: false }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result, rerender } = renderHook(
+      ({ username }: { username?: string }) => useBlendedFeed({ username, initialPage: seed }),
+      { initialProps: { username: undefined as string | undefined } },
+    );
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['newer', 'older']);
+
+    rerender({ username: 'viewer' });
+
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['personal']));
+    const firstUrl = String(fetchMock.mock.calls[0][0]);
+    expect(new URL(firstUrl, 'http://localhost').searchParams.get('before')).toBeNull();
     vi.unstubAllGlobals();
   });
 });
