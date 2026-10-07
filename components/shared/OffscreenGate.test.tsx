@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
 import OffscreenGate from './OffscreenGate';
 
-type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
+type ObserverCallback = (
+  entries: Array<{ isIntersecting: boolean; boundingClientRect: { height: number } }>,
+) => void;
 
 class FakeObserver {
   static instances: FakeObserver[] = [];
@@ -18,8 +20,8 @@ class FakeObserver {
     FakeObserver.instances.push(this);
   }
 
-  trigger(isIntersecting: boolean) {
-    this.callback([{ isIntersecting }]);
+  trigger(isIntersecting: boolean, height = 0) {
+    this.callback([{ isIntersecting, boundingClientRect: { height } }]);
   }
 }
 
@@ -58,23 +60,11 @@ describe('OffscreenGate', () => {
     });
     expect(queryByText('card body')).not.toBeNull();
 
-    vi.spyOn(gate, 'getBoundingClientRect').mockReturnValue({
-      height: 240,
-      width: 0,
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-      x: 0,
-      y: 0,
-      toJSON() {
-        return {};
-      },
-    });
     act(() => {
-      observer.trigger(false);
+      observer.trigger(false, 240);
     });
     expect(queryByText('card body')).toBeNull();
+    expect(window.getComputedStyle(gate).minHeight).toBe('240px');
 
     rerender(
       <OffscreenGate rootMargin="100px 0px 100px 0px">
