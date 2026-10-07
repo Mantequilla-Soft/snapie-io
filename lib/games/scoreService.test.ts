@@ -292,4 +292,31 @@ describe('submitGameScore', () => {
       expect(accountStore.get('alice')?.balance).toBe(20);
     });
   });
+  describe('snapie-jump', () => {
+    it('is a known game and converts score at 0.2%', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 8000, 3, 2, false, 90000, Date.now());
+
+      expect(result.status).toBe('awarded');
+      expect(result.pointsAwarded).toBe(16); // floor(8000 * 0.2 / 100)
+    });
+
+    it('accepts a short run, whose 1-based stage is 1', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 600, 1, 0, false, 15000, Date.now());
+
+      expect(result.status).toBe('awarded');
+    });
+
+    it('rejects a score above its 100,000 ceiling', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-jump', 'jump-1', 100_001, 5, 5, false, 600000, Date.now());
+
+      expect(result.status).toBe('invalid_score');
+      expect(accountStore.get('alice')?.balance).toBe(0);
+    });
+  });
 });

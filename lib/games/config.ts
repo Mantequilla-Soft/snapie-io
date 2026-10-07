@@ -1,5 +1,5 @@
-export type GameId = 'puff-quest' | 'snapie-blast' | 'snapie-rush';
-export const GAME_IDS: GameId[] = ['puff-quest', 'snapie-blast', 'snapie-rush'];
+export type GameId = 'puff-quest' | 'snapie-blast' | 'snapie-rush' | 'snapie-jump';
+export const GAME_IDS: GameId[] = ['puff-quest', 'snapie-blast', 'snapie-rush', 'snapie-jump'];
 
 // Percent of score converted to points: floor(score * rate / 100).
 // 0.2% for all games: 10,000 score → 20 points.
@@ -8,6 +8,7 @@ export const GAME_POINTS_CONVERSION_RATE_PCT: Record<GameId, number> = {
   'puff-quest': 0.2,
   'snapie-blast': 0.2,
   'snapie-rush': 0.2,
+  'snapie-jump': 0.2,
 };
 
 // Per-game sanity ceiling on a single submitted score.
@@ -25,6 +26,13 @@ export const GAME_MAX_SCORE: Record<GameId, number> = {
   // plenty of near misses lands in the 60-80k range. 100,000 leaves headroom while
   // still catching obviously-forged scores.
   'snapie-rush': 100_000,
+  // snapie-jump is endless, so it has no natural ceiling: score = metres * 10 +
+  // honey (25, big 250) + stomps (100). A bounce is about one second and climbs
+  // at most ~16-22 m, so a flawless run earns roughly 160-220 points per second
+  // from height alone. 100,000 is about ten minutes of perfect play (or 10 km),
+  // which catches forged scores without capping real ones; the daily points cap
+  // is the real limit on what a high score can earn.
+  'snapie-jump': 100_000,
 };
 
 // Per-user, per-UTC-day cap on games-derived points, summed across ALL gameIds.

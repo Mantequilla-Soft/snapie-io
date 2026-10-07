@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-07',
+    date: '2026-10-07',
+    title: 'Snapie Jump joins Games',
+    items: [
+      { type: 'feature', text: 'Snapie Jump is here! An endless bouncer — Snapie the cyber bee climbs a hive of platforms, grabbing honey, power-ups (super jump, magnet, shield) and stomping wasps. Steer with the arrow keys or drag anywhere on a phone. Save your run to convert your score into Snapie Points.' },
+    ],
+  },
+  {
     id: '2026-10-06',
     date: '2026-10-06',
     title: 'Snapie Rush joins Games',

@@ -1,0 +1,322 @@
+/*
+ * Snapie Jump look, ported from the game's own stylesheet (Tailwind 4 + oklch
+ * tokens) into a scoped CSS module so the host needs no Tailwind changes. System
+ * font stacks only: the host loads no web fonts.
+ */
+.root {
+  --honey: oklch(0.8 0.17 75);
+  --honey-deep: oklch(0.62 0.15 60);
+  --hive-ink: oklch(0.3 0.08 255);
+  --snow: oklch(0.99 0.01 90);
+  --bee-blue: oklch(0.63 0.19 255);
+  --pink: oklch(0.72 0.19 355);
+  --stage: oklch(0.24 0.06 265);
+  --display: ui-rounded, "Fredoka", "Arial Rounded MT Bold", "Nunito", system-ui, sans-serif;
+  --mono: ui-monospace, "Space Mono", SFMono-Regular, Menlo, monospace;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  font-family: var(--display);
+  color: var(--hive-ink);
+  background: var(--stage);
+  border-radius: 12px;
+}
+
+.rootFullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+  z-index: 2000;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hudBar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.hudPill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: oklch(1 0 0 / 0.82);
+  color: var(--hive-ink);
+  border: 2px solid var(--hive-ink);
+  border-radius: 14px;
+  padding: 6px 12px;
+  box-shadow: 0 3px 0 var(--hive-ink);
+}
+
+.hudSep {
+  width: 2px;
+  align-self: stretch;
+  background: oklch(0.3 0.08 255 / 0.2);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.statLabel {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+.statValue {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hudButtons {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.hudBtn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: oklch(1 0 0 / 0.85);
+  color: var(--hive-ink);
+  border: 2px solid var(--hive-ink);
+  box-shadow: 0 3px 0 var(--hive-ink);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.hudBtn:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--hive-ink);
+}
+
+.powerStack {
+  position: absolute;
+  left: 12px;
+  top: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+.powerTag {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--snow);
+  border: 2px solid var(--hive-ink);
+}
+.powerSuper { background: var(--pink); }
+.powerMagnet { background: oklch(0.63 0.22 25); }
+.powerShield { background: oklch(0.65 0.14 220); }
+
+.idle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14% 24px 24px;
+  text-align: center;
+}
+.kicker {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: oklch(0.3 0.08 255 / 0.7);
+}
+.title {
+  margin: 8px 0 0;
+  font-size: clamp(3rem, 14vw, 4.5rem);
+  line-height: 1;
+  font-weight: 700;
+  color: var(--bee-blue);
+  -webkit-text-stroke: 3px var(--hive-ink);
+  paint-order: stroke fill;
+  text-shadow: 0 6px 0 var(--hive-ink), 0 0 30px oklch(0.85 0.13 210 / 0.6);
+}
+.tagline {
+  margin: 16px 0 0;
+  font-size: 1.1rem;
+  color: oklch(0.3 0.08 255 / 0.8);
+}
+.idleBottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8%;
+}
+.hint {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: oklch(0.3 0.08 255 / 0.75);
+}
+.best {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--hive-ink);
+}
+
+.btnHoney {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 1.4rem;
+  letter-spacing: 0.05em;
+  padding: 14px 44px;
+  border-radius: 18px;
+  color: var(--hive-ink);
+  background: linear-gradient(180deg, oklch(0.88 0.15 85), var(--honey));
+  border: 3px solid var(--hive-ink);
+  box-shadow: 0 6px 0 var(--hive-ink);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.btnHoney:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 var(--hive-ink);
+}
+.btnHoney:active {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 var(--hive-ink);
+}
+.btnGhost {
+  font-family: var(--display);
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 14px;
+  color: var(--hive-ink);
+  border: 2px solid var(--hive-ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  background: oklch(0.2 0.06 265 / 0.55);
+  backdrop-filter: blur(3px);
+}
+.pausedTitle {
+  margin: 0;
+  font-size: 3rem;
+  color: var(--snow);
+}
+
+.panel {
+  width: 100%;
+  max-width: 320px;
+  margin: auto;
+  text-align: center;
+  background: var(--snow);
+  border: 3px solid var(--hive-ink);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 0 var(--hive-ink), inset 0 0 0 4px var(--honey);
+}
+.panelTitle {
+  margin: 0;
+  font-size: 2.2rem;
+  color: var(--hive-ink);
+}
+.newBest {
+  margin: 8px 0 0;
+  font-size: 1.25rem;
+  color: var(--honey-deep);
+  animation: pulseBest 0.8s ease-in-out infinite alternate;
+}
+@keyframes pulseBest {
+  to { transform: scale(1.12); color: var(--pink); }
+}
+.rows {
+  margin: 20px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid oklch(0.3 0.08 255 / 0.15);
+  padding-bottom: 4px;
+}
+.row dt { margin: 0; opacity: 0.7; }
+.row dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.actions {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The host's Save Score block is styled for dark surfaces, so give it one. */
+.slot {
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--stage);
+  color: var(--snow);
+  display: flex;
+  justify-content: center;
+}
+
+.rotateHint {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 3;
+  pointer-events: none;
+  text-align: center;
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--snow);
+  background: oklch(0.2 0.06 265 / 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .newBest { animation: none; }
+}
