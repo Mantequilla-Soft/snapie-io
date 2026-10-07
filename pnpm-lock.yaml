@@ -6,7 +6,6 @@ settings:
 
 overrides:
   jsdom: ^24.0.0
-  '@aioha/react-provider': 1.4.1
   glob: 10.5.0
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
@@ -18,9 +17,6 @@ importers:
       '@aioha/aioha':
         specifier: ^1.8.5
         version: 1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0)
-      '@aioha/react-provider':
-        specifier: 1.4.1
-        version: 1.4.1(@aioha/aioha@1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0))(react@19.3.0)
       '@aioha/react-ui':
         specifier: ^1.8.2
         version: 1.8.2(@aioha/aioha@1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -305,13 +301,6 @@ packages:
         optional: true
       vue:
         optional: true
-
-  '@aioha/react-provider@1.4.1':
-    resolution: {integrity: sha512-7TlAc107FX8KNi0h+HeKPl9jFzw6ISKbk3uORZbz4aeQHzD9v/MuDdTbUJchD8zkoF4tFqsQLMwyq99vMKVuGg==}
-    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
-    peerDependencies:
-      '@aioha/aioha': ^1.4.0
-      react: ^18.3.1
 
   '@aioha/react-ui@1.8.2':
     resolution: {integrity: sha512-2tRF548VqcFHO9FB0snMs3cX1Cxvl7c9DqoFIIdMJpibUsRFFh3P4ovLRlNM9XRNCeJwo1FOdCnoAbhMNlHBAA==}
@@ -5312,11 +5301,6 @@ snapshots:
     dependencies:
       '@aioha/aioha': 1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0)
     optionalDependencies:
-      react: 19.3.0
-
-  '@aioha/react-provider@1.4.1(@aioha/aioha@1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0))(react@19.3.0)':
-    dependencies:
-      '@aioha/aioha': 1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0)
       react: 19.3.0
 
   '@aioha/react-ui@1.8.2(@aioha/aioha@1.8.5(typescript@5.9.3)(webextension-polyfill@0.12.0))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
