@@ -10,6 +10,8 @@ import snapieBlastCard from '@/components/games/snapie-blast/assets/snapie-blast
 import snapieRushCard from '@/components/games/snapie-rush/assets/snapie-rush-card.png';
 import type { GameId } from '@/lib/games/config';
 
+const BLOCKS_CARD = { src: '/games/snapie-blocks-card.svg' };
+
 const GAMES_CATALOG: {
   id: GameId;
   name: string;
@@ -44,6 +46,14 @@ const GAMES_CATALOG: {
     image: snapieRushCard,
     imageFit: 'contain',
   },
+  {
+    id: 'snapie-blocks',
+    name: 'Snapie Blocks',
+    tagline: '1v1 garbage battle. Last board standing wins.',
+    href: '/games/snapie-blocks',
+    image: BLOCKS_CARD,
+    imageFit: 'contain',
+  },
 ];
 
 export default function GamesPage() {
@@ -61,33 +71,22 @@ export default function GamesPage() {
     );
   }
 
-  if (!isLoggedIn) {
-    return (
-      <Box p={8} textAlign="center">
-        <Heading>Games</Heading>
-        <Text mt={4} color="fg.muted">
-          Please log in to play
-        </Text>
-        <Button mt={6} onClick={openLoginModal}>
-          Log In
-        </Button>
-      </Box>
-    );
-  }
-
   return (
     <Box p={8} maxW="1200px" mx="auto">
       <VStack align="stretch" spacing={8}>
         <Box>
           <Heading size="lg">Games</Heading>
           <Text mt={2} color="fg.muted">
-            Play games and earn Snapie Points
+            {isLoggedIn
+              ? 'Play games and earn Snapie Points. Blocks pays out on a win.'
+              : 'Snapie Blocks is open to guests. Log in to earn points — guest wins stay at zero.'}
           </Text>
         </Box>
 
         <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-          {GAMES_CATALOG.map(game => (
-            <Card key={game.id} as={NextLink} href={game.href} _hover={{ shadow: 'lg' }} transition="all 0.2s" overflow="hidden">
+          {GAMES_CATALOG.map(game => {
+            const guestLocked = !isLoggedIn && game.id !== 'snapie-blocks';
+            const body = (
               <CardBody p={0}>
                 <VStack align="stretch" spacing={0} h="full">
                   <Flex justify="center" align="center" h={40} bg="rgba(26,28,44,0.5)" borderRadius="0" position="relative">
@@ -110,14 +109,50 @@ export default function GamesPage() {
                     </VStack>
                   </Box>
                   <Box px={4} pb={4}>
-                    <Button w="full" rightIcon={<FiArrowRight />} colorScheme="orange" size="sm">
-                      Play
+                    <Button
+                      as={guestLocked ? 'span' : undefined}
+                      w="full"
+                      rightIcon={<FiArrowRight />}
+                      colorScheme="orange"
+                      size="sm"
+                    >
+                      {guestLocked ? 'Log in to play' : 'Play'}
                     </Button>
                   </Box>
                 </VStack>
               </CardBody>
-            </Card>
-          ))}
+            );
+            if (guestLocked) {
+              return (
+                <Card
+                  key={game.id}
+                  as="button"
+                  type="button"
+                  onClick={openLoginModal}
+                  textAlign="left"
+                  w="full"
+                  _hover={{ shadow: 'lg' }}
+                  transition="all 0.2s"
+                  overflow="hidden"
+                >
+                  {body}
+                </Card>
+              );
+            }
+            return (
+              <Card
+                key={game.id}
+                as={NextLink}
+                href={game.href}
+                w="full"
+                _hover={{ shadow: 'lg' }}
+                transition="all 0.2s"
+                overflow="hidden"
+              >
+                {body}
+              </Card>
+            );
+          })}
         </SimpleGrid>
       </VStack>
     </Box>

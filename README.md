@@ -47,6 +47,29 @@ pnpm dev
 
 App runs on `http://localhost:3310`.
 
+### Docker Compose preview (no host Node)
+
+Apple Silicon and other arm64 machines can boot the app and MongoDB with Docker only. The images are official multi-arch builds (`node:22-bookworm`, `mongo:7.0`); dependencies install inside the image, so nothing is copied from an x86_64 `node_modules`.
+
+```bash
+docker compose up --build
+```
+
+Open [http://localhost:3310/games/snapie-blocks](http://localhost:3310/games/snapie-blocks). The app listens on host port **3310**. MongoDB stays on the compose network and is not published to the host.
+
+Compose turns on `NEXT_PUBLIC_ENABLE_GAMES` and `NEXT_PUBLIC_ENABLE_POINTS` and points `MONGODB_URI` at the `mongo` service. Optional overrides live in [`.env.example`](.env.example) — copy to `.env` if you need them. Do not commit `.env` or real secrets. `CHAT_JWT_SECRET` defaults to the local placeholder `local-dev-not-a-secret`.
+
+Two browsers, one match:
+
+1. Start the stack and wait until the Next dev server is ready.
+2. Open the Blocks URL in a normal window and again in a private window (or a second browser).
+3. Both click **Quick match**. They pair on the public queue within a poll or two (~400ms). No room code.
+4. Clearing 2, 3, or 4 lines sends garbage (1, 2, or 4). The other board receives it on the next poll, and the opponent panel shows lines sent plus an HP meter. There is no live mini-board.
+5. Topping out, forfeiting, or closing the tab (disconnect) ends the match. The last board standing wins.
+6. A logged-in winner is credited **20 Snapie Points** once, by the server, on the match document. A guest can finish the match and is not credited. Log in with Hive in one window before queueing if you want to see the points toast.
+
+`docker compose down` stops the stack. Add `-v` if you also want to drop the Mongo volume.
+
 ### Configure env
 
 ```bash

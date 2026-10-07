@@ -2,6 +2,8 @@ import { connectDB } from '@/lib/db/mongodb';
 import { GameScore } from '@/lib/db/models/GameScore';
 import { PointsAccount } from '@/lib/db/models/PointsAccount';
 import {
+  GAME_AWARD_MODE,
+  GAME_FLAT_WIN_POINTS,
   GAME_IDS,
   GAME_POINTS_CONVERSION_RATE_PCT,
   GAME_MAX_SCORE,
@@ -26,6 +28,10 @@ export interface SubmitScoreResult {
  *
  * v1 anti-cheat is: per-game max score cap + daily points cap + idempotent
  * sessionId dedup. Replay validation is deferred to a future iteration.
+ *
+ * Flat-win games (Snapie Blocks) do not use this function. A client posting
+ * `won: true` here is rejected — the match document settles the winner and
+ * `awardFlatWin` credits the flat amount once.
  */
 export async function submitGameScore(
   username: string,
@@ -47,6 +53,10 @@ export async function submitGameScore(
 
   const typedGameId = gameId as GameId;
 
+  if (GAME_AWARD_MODE[typedGameId] === 'flat-win') {
+    return { status: 'invalid_score', pointsAwarded: 0, balance: await currentBalance(username) };
+  }
+
   // Validate input types and bounds.
   if (
     !Number.isInteger(score) ||
@@ -63,9 +73,82 @@ export async function submitGameScore(
     return { status: 'invalid_score', pointsAwarded: 0, balance: await currentBalance(username) };
   }
 
-  // Cheap idempotency pre-check (the unique index on the claim insert below
-  // is the real guarantee).
-  const existing = await GameScore.findOne({ username, gameId: typedGameId, sessionId }).lean();
+  const pointsAwarded = Math.floor((score * GAME_POINTS_CONVERSION_RATE_PCT[typedGameId]) / 100);
+  return claimAndCredit({
+    username,
+    gameId: typedGameId,
+    sessionId,
+    score,
+    stage,
+    stagesCleared,
+    won,
+    durationMs,
+    clientEndedAt,
+    pointsAwarded,
+  });
+}
+
+const MATCH_ID_RE = /^[a-zA-Z0-9_-]{1,80}$/;
+
+/**
+ * Credits the flat win amount for a PvP game. Callers must already know the
+ * player won — this does not look at a client `won` flag. Idempotent on
+ * `win:<matchId>`: a second call returns the original award and does not
+ * credit again. Guest ids are rejected.
+ */
+export async function awardFlatWin(
+  username: string,
+  gameId: string,
+  matchId: string,
+): Promise<SubmitScoreResult> {
+  await connectDB();
+
+  if (!username || username.startsWith('guest_')) {
+    return { status: 'invalid_score', pointsAwarded: 0, balance: 0 };
+  }
+  if (!GAME_IDS.includes(gameId as GameId)) {
+    return { status: 'unknown_game', pointsAwarded: 0, balance: await currentBalance(username) };
+  }
+
+  const typedGameId = gameId as GameId;
+  const points = GAME_FLAT_WIN_POINTS[typedGameId];
+  if (points == null || GAME_AWARD_MODE[typedGameId] !== 'flat-win' || !MATCH_ID_RE.test(matchId)) {
+    return { status: 'invalid_score', pointsAwarded: 0, balance: await currentBalance(username) };
+  }
+
+  return claimAndCredit({
+    username,
+    gameId: typedGameId,
+    sessionId: `win:${matchId}`,
+    score: 0,
+    stage: 1,
+    stagesCleared: 1,
+    won: true,
+    durationMs: 0,
+    clientEndedAt: Date.now(),
+    pointsAwarded: points,
+  });
+}
+
+interface ClaimInput {
+  username: string;
+  gameId: GameId;
+  sessionId: string;
+  score: number;
+  stage: number;
+  stagesCleared: number;
+  won: boolean;
+  durationMs: number;
+  clientEndedAt: number;
+  pointsAwarded: number;
+}
+
+/** Insert the GameScore row first, then credit. A crash between the two
+ *  leaves an orphaned claim, never an orphaned credit. */
+async function claimAndCredit(input: ClaimInput): Promise<SubmitScoreResult> {
+  const { username, gameId, sessionId, pointsAwarded } = input;
+
+  const existing = await GameScore.findOne({ username, gameId, sessionId }).lean();
   if (existing) {
     return {
       status: 'duplicate',
@@ -74,10 +157,6 @@ export async function submitGameScore(
     };
   }
 
-  // Compute the award.
-  const pointsAwarded = Math.floor((score * GAME_POINTS_CONVERSION_RATE_PCT[typedGameId]) / 100);
-
-  // Daily-cap check: sum today's pointsAwarded for this user across all games.
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
   const todaySum = await GameScore.aggregate([
@@ -100,25 +179,22 @@ export async function submitGameScore(
     return { status: 'capped', pointsAwarded: 0, balance: await currentBalance(username) };
   }
 
-  // Claim phase: insert the GameScore row. The unique index is the idempotency gate.
   try {
     await GameScore.create({
       username,
-      gameId: typedGameId,
+      gameId,
       sessionId,
-      score,
-      stage,
-      stagesCleared,
-      won,
-      durationMs,
-      clientEndedAt: new Date(clientEndedAt),
+      score: input.score,
+      stage: input.stage,
+      stagesCleared: input.stagesCleared,
+      won: input.won,
+      durationMs: input.durationMs,
+      clientEndedAt: new Date(input.clientEndedAt),
       pointsAwarded,
     });
   } catch (err: unknown) {
-    // Lost an idempotency race — someone/something already claimed this sessionId.
-    // Return its already-settled result rather than trying again.
     if ((err as { code?: number })?.code === 11000) {
-      const dup = await GameScore.findOne({ username, gameId: typedGameId, sessionId }).lean();
+      const dup = await GameScore.findOne({ username, gameId, sessionId }).lean();
       return {
         status: 'duplicate',
         pointsAwarded: dup?.pointsAwarded ?? 0,
@@ -128,8 +204,6 @@ export async function submitGameScore(
     throw err;
   }
 
-  // Charge phase: award the points. Must run after step above (claim first, credit
-  // second) so a crash between them leaves an orphaned claim, never an orphaned credit.
   const acct = await PointsAccount.findByIdAndUpdate(
     username,
     { $inc: { balance: pointsAwarded, lifetimeEarned: pointsAwarded }, $set: { updatedAt: new Date() } },
