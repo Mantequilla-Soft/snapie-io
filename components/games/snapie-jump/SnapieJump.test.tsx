@@ -13,9 +13,13 @@ type CapturedOptions = {
   onEvent?: (e: { type: string; [k: string]: unknown }) => void;
   onResult?: (r: SnapieJumpResult) => void;
 };
-const captured: { options: CapturedOptions | null; start: ReturnType<typeof vi.fn> } = {
-  options: null,
+const captured = {
+  options: null as CapturedOptions | null,
+  phase: 'idle',
   start: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  setKeys: vi.fn(),
 };
 
 vi.mock('./game/engine', () => ({
@@ -23,15 +27,15 @@ vi.mock('./game/engine', () => ({
     captured.options = options;
     return {
       start: captured.start,
-      pause: vi.fn(),
-      resume: vi.fn(),
+      pause: captured.pause,
+      resume: captured.resume,
       reset: vi.fn(),
       destroy: vi.fn(),
       resize: vi.fn(),
       setMuted: vi.fn(),
-      setKeys: vi.fn(),
+      setKeys: captured.setKeys,
       setPointerTarget: vi.fn(),
-      getPhase: () => 'idle',
+      getPhase: () => captured.phase,
       getPlayerX: () => 0,
       getScale: () => 1,
       getHud: () => ({
@@ -51,7 +55,11 @@ import { SnapieJump } from './SnapieJump';
 
 beforeEach(() => {
   captured.options = null;
+  captured.phase = 'idle';
   captured.start.mockClear();
+  captured.pause.mockClear();
+  captured.resume.mockClear();
+  captured.setKeys.mockClear();
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -140,5 +148,69 @@ describe('SnapieJump wrapper', () => {
     render(createElement(SnapieJump, { sessionId: 's1' }));
     fireEvent.keyDown(document.body, { key: ' ' });
     expect(captured.start).toHaveBeenCalledTimes(1);
+  });
+
+  // Regression: the handler lives on window, so it used to swallow a/d/p and the
+  // arrow keys from every text field on the page while the game was mounted.
+  describe('keyboard and text fields', () => {
+    function mountWithField(tag: 'input' | 'textarea') {
+      render(createElement(SnapieJump, { sessionId: 's1' }));
+      const field = document.createElement(tag);
+      document.body.appendChild(field);
+      field.focus();
+      return field;
+    }
+
+    it.each(['input', 'textarea'] as const)('leaves a, d, p and arrows alone inside a %s', (tag) => {
+      captured.phase = 'running';
+      const field = mountWithField(tag);
+      for (const key of ['a', 'd', 'A', 'D', 'p', 'ArrowLeft', 'ArrowRight']) {
+        // fireEvent returns false when the default action was prevented.
+        expect(fireEvent.keyDown(field, { key }), `${key} in ${tag}`).toBe(true);
+      }
+      expect(captured.setKeys).not.toHaveBeenCalled();
+      expect(captured.pause).not.toHaveBeenCalled();
+      field.remove();
+    });
+
+    it('leaves keys alone inside a contenteditable composer', () => {
+      captured.phase = 'running';
+      render(createElement(SnapieJump, { sessionId: 's1' }));
+      const editor = document.createElement('div');
+      editor.setAttribute('contenteditable', 'true');
+      document.body.appendChild(editor);
+      expect(fireEvent.keyDown(editor, { key: 'a' })).toBe(true);
+      expect(captured.setKeys).not.toHaveBeenCalled();
+      editor.remove();
+    });
+
+    it('still steers and prevents scrolling when nothing is focused', () => {
+      captured.phase = 'running';
+      render(createElement(SnapieJump, { sessionId: 's1' }));
+      expect(fireEvent.keyDown(document.body, { key: 'ArrowLeft' })).toBe(false);
+      expect(captured.setKeys).toHaveBeenCalledWith(true, false);
+    });
+  });
+
+  describe('pause keys', () => {
+    it('P toggles pause', () => {
+      render(createElement(SnapieJump, { sessionId: 's1' }));
+      captured.phase = 'running';
+      fireEvent.keyDown(document.body, { key: 'p' });
+      expect(captured.pause).toHaveBeenCalledTimes(1);
+      captured.phase = 'paused';
+      fireEvent.keyDown(document.body, { key: 'P' });
+      expect(captured.resume).toHaveBeenCalledTimes(1);
+    });
+
+    it('Escape pauses a running game but never resumes a paused one', () => {
+      render(createElement(SnapieJump, { sessionId: 's1' }));
+      captured.phase = 'running';
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(captured.pause).toHaveBeenCalledTimes(1);
+      captured.phase = 'paused';
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+      expect(captured.resume).not.toHaveBeenCalled();
+    });
   });
 });

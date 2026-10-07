@@ -33,9 +33,16 @@ export type SnapieJumpProps = Omit<SnapieOptions, "onResult"> & {
   resultSlot?: ReactNode;
 };
 
-/** True when a key press landed on something the user can activate themselves. */
+/**
+ * True when a key press landed on something the user is operating themselves: a
+ * button (Save Score, Play again...) or anything they can type into. The game's
+ * window-level key handler must leave those presses alone, or it would swallow
+ * the letters a/d/p and the arrow keys from every text field on the page.
+ */
 function isInteractiveTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && target.closest("button, a, input, textarea, select") !== null;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return target.closest('button, a, input, textarea, select, [role="textbox"], [contenteditable=""], [contenteditable="true"]') !== null;
 }
 
 export const SnapieJump = forwardRef<SnapieControls, SnapieJumpProps>(function SnapieJump(
@@ -138,19 +145,21 @@ export const SnapieJump = forwardRef<SnapieControls, SnapieJumpProps>(function S
     const down = (e: KeyboardEvent) => {
       const e2 = engineRef.current;
       if (!e2) return;
+      if (isInteractiveTarget(e.target)) return;
       const dir = map(e.key);
       if (dir) { keys[dir] = true; e2.setKeys(keys.left, keys.right); e.preventDefault(); return; }
       const ph = e2.getPhase();
       if (e.key === " " || e.key === "Enter") {
-        // A focused button (Save Score, Play again...) handles Space/Enter itself.
-        if (isInteractiveTarget(e.target)) return;
         e.preventDefault();
         if (ph === "idle" || ph === "game-over") startOrRestart();
         else if (ph === "paused") e2.resume();
       }
-      if (e.key === "p" || e.key === "P" || e.key === "Escape") {
+      if (e.key === "p" || e.key === "P") {
         if (ph === "running") e2.pause(); else if (ph === "paused") e2.resume();
       }
+      // Escape only ever pauses. In fullscreen the browser also uses it to leave
+      // fullscreen, so letting it toggle would resume a paused game as it exits.
+      if (e.key === "Escape" && ph === "running") e2.pause();
     };
     const up = (e: KeyboardEvent) => {
       const dir = map(e.key);
