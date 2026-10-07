@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useLayoutEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import { ensureAioha, hasStoredAiohaSession, onAiohaReady } from '@/lib/hive/aioha';
 import { loadRealAiohaReactUi } from '@/lib/aioha/load-real';
 import { Providers } from '@/lib/aioha/enums';
@@ -28,9 +28,34 @@ const EMPTY: Snapshot = { aioha: null, user: undefined, provider: undefined, oth
 
 const BridgeContext = createContext<Snapshot | null>(null);
 
-// useLayoutEffect warns during SSR. The client bundle needs it so a stored
-// username is published before descendant useEffects treat a null user as logout.
-const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+// Stored wallet identity. The first render stays logged-out so it matches the
+// server HTML. Reading localStorage in useLayoutEffect (or publishing it
+// through useSyncExternalStore) made React 19 replay that update while
+// descendants were still hydrating, so a logged-in <a> was compared to a
+// logged-out <button>. The read happens in useEffect, after that commit.
+type StoredSession = { user?: string; provider?: Providers };
+
+type BridgeApi = {
+  setStored: (update: StoredSession | ((prev: StoredSession) => StoredSession)) => void;
+  setLive: (snapshot: Snapshot) => void;
+};
+const BridgeApiContext = createContext<BridgeApi | null>(null);
+const LOGGED_OUT: StoredSession = { user: undefined, provider: undefined };
+
+function readStoredSession(): StoredSession {
+  if (typeof window === 'undefined') return LOGGED_OUT;
+  try {
+    const user = localStorage.getItem('aiohaUsername') || undefined;
+    const raw = localStorage.getItem('aiohaProvider');
+    const provider = raw && (Object.values(Providers) as string[]).includes(raw)
+      ? raw as Providers
+      : undefined;
+    if (!user) return LOGGED_OUT;
+    return { user, provider };
+  } catch {
+    return LOGGED_OUT;
+  }
+}
 
 function snapshotFrom(aioha: AiohaLike): Snapshot {
   return {
@@ -45,13 +70,42 @@ function snapshotFrom(aioha: AiohaLike): Snapshot {
 // The real library is imported only to restore a stored wallet session, or when
 // the wallet modal opens.
 export function AiohaProvider({ children }: { children: ReactNode; aioha?: unknown }) {
-  const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY);
+  const [stored, setStored] = useState<StoredSession>(LOGGED_OUT);
+  const [live, setLive] = useState<Snapshot>(EMPTY);
+  const api = useMemo<BridgeApi>(() => ({ setStored, setLive }), []);
 
-  useClientLayoutEffect(() => {
+  // Once the library is connected, its user wins (including a real logout).
+  // Until then, the stored username keeps the shell in the logged-in shape.
+  const snapshot: Snapshot = live.aioha
+    ? live
+    : { aioha: null, user: stored.user, provider: stored.provider, otherUsers: {} };
+
+  return (
+    <BridgeApiContext.Provider value={api}>
+      <BridgeContext.Provider value={snapshot}>{children}</BridgeContext.Provider>
+    </BridgeApiContext.Provider>
+  );
+}
+
+// Mount this inside the layout suspense boundary (see LayoutContent). Its
+// effect runs only after that boundary has hydrated, so publishing the stored
+// username is a normal update instead of a hydration mismatch.
+export function AiohaSessionRestore() {
+  const api = useContext(BridgeApiContext);
+
+  useEffect(() => {
+    if (!api) return;
+    const publishStored = () => {
+      const next = readStoredSession();
+      api.setStored((prev) => (
+        prev.user === next.user && prev.provider === next.provider ? prev : next
+      ));
+    };
+    publishStored();
     let detach: (() => void) | undefined;
     const unsub = onAiohaReady((aioha) => {
       const inst = aioha as AiohaLike;
-      const update = () => setSnapshot(snapshotFrom(inst));
+      const update = () => api.setLive(snapshotFrom(inst));
       update();
       inst.on('connect', update);
       inst.on('disconnect', update);
@@ -62,29 +116,21 @@ export function AiohaProvider({ children }: { children: ReactNode; aioha?: unkno
         inst.off('account_changed', update);
       };
     });
-    if (hasStoredAiohaSession()) {
-      // Publish the username before child effects run. LoginModalProvider
-      // treats a null user as logout and would otherwise drop hiveuser while
-      // the wallet chunk is still downloading. loadAuth still runs for real.
-      try {
-        const user = localStorage.getItem('aiohaUsername') || undefined;
-        const raw = localStorage.getItem('aiohaProvider');
-        const provider = raw && (Object.values(Providers) as string[]).includes(raw)
-          ? raw as Providers
-          : undefined;
-        if (user) {
-          setSnapshot((prev) => (prev.aioha ? prev : { ...prev, user, provider }));
-        }
-      } catch { /* storage blocked */ }
-      void ensureAioha();
-    }
+    if (hasStoredAiohaSession()) void ensureAioha();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === 'aiohaUsername' || event.key === 'aiohaProvider' || event.key === null) {
+        publishStored();
+      }
+    };
+    window.addEventListener('storage', onStorage);
     return () => {
       unsub();
       detach?.();
+      window.removeEventListener('storage', onStorage);
     };
-  }, []);
+  }, [api]);
 
-  return <BridgeContext.Provider value={snapshot}>{children}</BridgeContext.Provider>;
+  return null;
 }
 
 export function useAioha() {
