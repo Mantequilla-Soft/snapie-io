@@ -24,7 +24,7 @@ import { useDiscoveryCandidates } from '@/hooks/useDiscoveryCandidates';
 import { useTrendingFeed } from '@/hooks/useTrendingFeed';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
-import { SSR_PAINTED_SNAP_COUNT, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
+import { homePaintedSnapCount, shouldPaintHomeFeedSeed, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
 
 const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
@@ -247,11 +247,14 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
     filterType: activeFilter,
     username: user || undefined,
     skip: showBlendedForAll || isTrendingTab || isForYouCold || isForYouWarm, // covered by another source — don't duplicate the RPC walk
-    initialPage: initialSnapPage,
+    // The blended seed is a different list. Handing it to the snaps walk
+    // would paint waves, then paginate them as snap containers.
+    initialPage: ENABLE_BLENDED_FEED ? null : initialSnapPage,
   });
   const blendedFeed = useBlendedFeed({
     username: user || undefined,
     enabled: ENABLE_BLENDED_FEED && activeFilter === 'all',
+    initialPage: ENABLE_BLENDED_FEED ? initialSnapPage : null,
   });
   const trendingFeed = useTrendingFeed({ enabled: isTrendingTab, extraQuery: personalMuteQuery, mutedTags: settings.mutedTags });
   const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery, mutedTags: settings.mutedTags });
@@ -390,10 +393,15 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
     document.getElementById('scrollableDiv')?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const showingPublicSnaps = activeFilter === 'all' && !showBlendedForAll && !isTrendingTab && !isForYouCold && !isForYouWarm;
-  const paintedCount = initialSnapPage && showingPublicSnaps
-    ? Math.min(SSR_PAINTED_SNAP_COUNT, initialSnapPage.comments.length)
-    : 0;
+  const discoveryFeed = isTrendingTab || isForYouCold || isForYouWarm;
+  const paintHomeSeed = shouldPaintHomeFeedSeed({
+    blendedEnabled: ENABLE_BLENDED_FEED,
+    showBlendedForAll,
+    activeFilter,
+    discoveryFeed,
+    seedCount: initialSnapPage?.comments.length ?? 0,
+  });
+  const paintedCount = homePaintedSnapCount(initialSnapPage?.comments.length ?? 0, paintHomeSeed);
 
   return (
     <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 4 }} px={{ base: 0, md: 4 }}>

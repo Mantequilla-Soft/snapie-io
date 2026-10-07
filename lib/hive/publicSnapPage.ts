@@ -26,6 +26,35 @@ export interface PublicSnapPage {
    * permlinks already shown. A cursor is the last container whose replies
    * were included in full, so the next walk starts after it (and dedupes
    * any prefix taken from the following container).
+   * Blended Latest leaves this null and sets `before` instead.
    */
   cursor: SnapFeedCursor | null;
+  /**
+   * Where useBlendedFeed should resume: the `created` time of the oldest
+   * item in this page, passed as the sidecar `before` cursor. Set only on
+   * the blended home seed. Absent on the snaps-only seed.
+   */
+  before?: string | null;
+}
+
+/** Whether the home feed should paint its server seed into the first HTML.
+ *  Blended Latest paints when that source is the one on screen. The
+ *  snaps-only seed paints when blended is off. A blended outage falls
+ *  through to the client snaps fetch and does not paint the other source. */
+export function shouldPaintHomeFeedSeed(input: {
+  blendedEnabled: boolean;
+  showBlendedForAll: boolean;
+  activeFilter: string;
+  discoveryFeed: boolean;
+  seedCount: number;
+}): boolean {
+  if (input.seedCount <= 0) return false;
+  if (input.activeFilter !== 'all' || input.discoveryFeed) return false;
+  if (input.blendedEnabled) return input.showBlendedForAll;
+  return true;
+}
+
+export function homePaintedSnapCount(seedCount: number, paintSeed: boolean): number {
+  if (!paintSeed || seedCount <= 0) return 0;
+  return Math.min(SSR_PAINTED_SNAP_COUNT, seedCount);
 }
