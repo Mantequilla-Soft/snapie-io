@@ -124,6 +124,20 @@ The app's **server** calls `POST /api/chat/auth/butrauth { accessToken }` (or
 `client.authenticateWithButrAuth(token)` in `@snapie/chat-client`) and passes the
 returned `token` + `username` to the browser's `client.useSession(...)`.
 
+### In-app feedback (Optional)
+
+The feedback form (sidebar, the mobile menu, and Settings) posts to
+`POST /api/feedback`. The server opens an issue with `GITHUB_FEEDBACK_TOKEN`.
+That value is server-only — do not prefix it with `NEXT_PUBLIC_`. Leave it
+unset locally; the form stays in the UI and shows a friendly error.
+
+- `GITHUB_FEEDBACK_TOKEN` - GitHub token that can create issues and labels on the feedback repo
+- `GITHUB_FEEDBACK_REPO` - `owner/repo` (default `Mantequilla-Soft/snapie-io`)
+
+Signed-in Hive usernames come from the chat session token or the Snapie Auth
+cookie. Guests are filed without an account. The issue does not include email,
+IP, or cookies. Submissions are limited to about 5 per hour per IP and session.
+
 ### Translation (Optional)
 
 Snapie supports per-snap inline translation via a self-hosted [LibreTranslate](https://github.com/LibreTranslate/LibreTranslate) instance. When configured, a translate button appears below each snap's text content and detects the user's browser language automatically.
