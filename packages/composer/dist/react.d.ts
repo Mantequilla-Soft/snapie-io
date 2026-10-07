@@ -31,7 +31,7 @@ export { ALL_COMMON_EMOJIS, COMMON_EMOJIS, InsertResult, applyToTextarea, create
 
 interface EditorToolbarProps {
     /** Reference to the textarea element */
-    textareaRef: React.RefObject<HTMLTextAreaElement>;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     /** Current markdown value */
     value: string;
     /** Callback when value changes */
@@ -89,7 +89,7 @@ interface UseMarkdownEditorOptions {
 declare function useMarkdownEditor(options?: UseMarkdownEditorOptions): {
     value: string;
     onChange: (newValue: string) => void;
-    textareaRef: React.RefObject<HTMLTextAreaElement>;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     toolbar: {
         bold: () => void;
         italic: () => void;
@@ -113,7 +113,7 @@ declare function useMarkdownEditor(options?: UseMarkdownEditorOptions): {
  * Headless toolbar hook - returns actions without any UI
  * Use this if you want to build your own toolbar UI
  */
-declare function useEditorToolbar(textareaRef: React.RefObject<HTMLTextAreaElement>, value: string, onChange: (value: string) => void): {
+declare function useEditorToolbar(textareaRef: React.RefObject<HTMLTextAreaElement | null>, value: string, onChange: (value: string) => void): {
     bold: () => void;
     italic: () => void;
     underline: () => void;

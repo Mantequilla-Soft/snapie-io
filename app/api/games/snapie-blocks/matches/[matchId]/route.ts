@@ -23,11 +23,11 @@ function parseAction(body: unknown): ClientMatchAction | null {
   return null;
 }
 
-export async function POST(req: NextRequest, ctx: { params: { matchId: string } }) {
+export async function POST(req: NextRequest, ctx: { params: Promise<{ matchId: string }> }) {
   try {
     const gate = guardBlocks(req);
     if ('response' in gate) return gate.response;
-    const matchId = ctx.params.matchId;
+    const matchId = (await ctx.params).matchId;
     if (!/^[a-f0-9]{24}$/i.test(matchId)) {
       return NextResponse.json({ error: 'not_found' }, { status: 404 });
     }

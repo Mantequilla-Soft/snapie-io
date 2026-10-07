@@ -37,7 +37,7 @@ interface VideoControlsProps {
   hoverTime: number | null;
   videoDuration: number | undefined;
   progressSliderStyle: React.CSSProperties;
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   showProgressBar: boolean;
 }
 
@@ -531,7 +531,7 @@ const VideoRenderer = ({ src, ...props }: RendererProps) => {
           hoverTime={hoverTime}
           videoDuration={videoRef.current?.duration}
           progressSliderStyle={progressSliderStyle}
-          videoRef={videoRef as React.RefObject<HTMLVideoElement>}
+          videoRef={videoRef as React.RefObject<HTMLVideoElement | null>}
           showProgressBar={showProgressBar}
         />
       )}

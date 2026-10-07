@@ -49,7 +49,7 @@ function dynamicServerError(): Error {
 async function run(handler: Parameters<typeof withChatAuth>[0], req?: NextRequest) {
   jwtVerify.mockReturnValue({ sub: USERNAME });
   const wrapped = withChatAuth(handler);
-  return wrapped(req ?? authedReq(), { params: { id: '1' } });
+  return wrapped(req ?? authedReq(), { params: Promise.resolve({ id: '1' }) });
 }
 
 beforeEach(() => {
@@ -75,6 +75,17 @@ describe('withChatAuth', () => {
     );
   });
 
+  it('awaits route params when Next passes them as a promise', async () => {
+    jwtVerify.mockReturnValue({ sub: USERNAME });
+    const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
+    const wrapped = withChatAuth(handler);
+    await wrapped(authedReq(), { params: Promise.resolve({ id: 'room-9' }) });
+    expect(handler).toHaveBeenCalledWith(
+      expect.anything(),
+      { username: USERNAME, params: { id: 'room-9' } }
+    );
+  });
+
   it('returns 401 when the Authorization header is missing', async () => {
     const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
     const res = await run(handler, new NextRequest('https://snapie.example/api/x'));
@@ -97,7 +108,7 @@ describe('withChatAuth', () => {
       throw new Error('jwt expired');
     });
     const handler = vi.fn().mockResolvedValue(NextResponse.json({ ok: true }));
-    const res = await withChatAuth(handler)(authedReq());
+    const res = await withChatAuth(handler)(authedReq(), { params: Promise.resolve({}) });
     expect(res.status).toBe(401);
     expect(handler).not.toHaveBeenCalled();
   });

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-    _req: NextRequest,
-    { params }: { params: { username: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ username: string }> }) {
+    const params = await props.params;
     const { username } = params;
 
     if (!username || username.length > 16) {

@@ -79,11 +79,14 @@ export interface FirstScreenLcpDecision {
 }
 
 export interface FeedImageLoad {
-  /** Pass to next/image `priority` (preload + fetchpriority=high). */
+  /** Pass to next/image `priority` so the photo is preloaded. */
   priority: boolean;
   loading: 'eager' | 'lazy';
-  /** Set only when the image must lose the bandwidth race. */
-  fetchPriority?: 'low';
+  /**
+   * Set on the img itself. `priority` used to imply `high` inside next/image;
+   * that assignment is gone, so a chosen photo sets `high` here.
+   */
+  fetchPriority?: 'high' | 'low';
 }
 
 /** True when the media block contains at least one markdown image. */
@@ -197,7 +200,7 @@ export function feedImageLoad(
     return { priority: false, loading: 'lazy', fetchPriority: 'low' };
   }
   if (options?.priority) {
-    return { priority: true, loading: 'eager' };
+    return { priority: true, loading: 'eager', fetchPriority: 'high' };
   }
   return { priority: false, loading: 'eager' };
 }
