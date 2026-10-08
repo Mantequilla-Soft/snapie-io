@@ -293,6 +293,72 @@ describe('ChatPanel scrolls to the newest messages when the conversation changes
   });
 });
 
+describe('ChatPanel day separators', () => {
+  function wallClock(dayOffset: number, hour: number, minute: number): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOffset, hour, minute, 0, 0);
+  }
+
+  function renderRows() {
+    const rows = (virtuoso.props?.data ?? []) as Message[];
+    const items = rows.map((msg, index) => virtuoso.props?.itemContent(CHAT_LIST_INDEX_ORIGIN + index, msg));
+    return render(<ChakraProvider>{items}</ChakraProvider>);
+  }
+
+  it('inserts Today and Yesterday separators in channels and DMs without dropping timestamps', async () => {
+    const yesterday = wallClock(-1, 18, 5);
+    const todayEarly = wallClock(0, 9, 15);
+    const todayLate = wallClock(0, 11, 45);
+    const timeLabel = (date: Date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    mocks.getMessages.mockImplementation(async (id: string, opts: { before?: string; after?: string } = {}) => {
+      if (opts.after || opts.before) return [];
+      if (id !== 'general') return [];
+      return [
+        { ...message('g0', 'bob', 'see you tomorrow'), createdAt: yesterday.toISOString() },
+        { ...message('g1', 'carol', 'good morning'), createdAt: todayEarly.toISOString() },
+        { ...message('g2', 'bob', 'still today'), createdAt: todayLate.toISOString() },
+      ];
+    });
+    mocks.getDmMessages.mockImplementation(async (_id: string, opts: { before?: string; after?: string } = {}) => {
+      if (opts.after || opts.before) return { messages: [], status: null };
+      return {
+        messages: [
+          { ...message('d0', 'bob', 'dm yesterday'), createdAt: yesterday.toISOString() },
+          { ...message('d1', 'alice', 'dm today'), createdAt: todayEarly.toISOString() },
+        ],
+        status: {
+          meSeenAt: todayEarly.toISOString(),
+          peerSeenAt: todayEarly.toISOString(),
+          peerLastSeenAt: null,
+          peerOnline: false,
+        },
+      };
+    });
+
+    await openPanel();
+    const channel = renderRows();
+    expect(channel.getAllByRole('separator', { name: 'Yesterday' })).toHaveLength(1);
+    expect(channel.getAllByRole('separator', { name: 'Today' })).toHaveLength(1);
+    expect(channel.getByText('see you tomorrow')).toBeTruthy();
+    expect(channel.getByText('good morning')).toBeTruthy();
+    expect(channel.getByText('still today')).toBeTruthy();
+    expect(channel.getByText(timeLabel(yesterday))).toBeTruthy();
+    expect(channel.getByText(timeLabel(todayEarly))).toBeTruthy();
+    expect(channel.getByText(timeLabel(todayLate))).toBeTruthy();
+    channel.unmount();
+
+    await openConversation('dm-preview');
+    const dm = renderRows();
+    expect(dm.getAllByRole('separator', { name: 'Yesterday' })).toHaveLength(1);
+    expect(dm.getAllByRole('separator', { name: 'Today' })).toHaveLength(1);
+    expect(dm.getByText('dm yesterday')).toBeTruthy();
+    expect(dm.getByText('dm today')).toBeTruthy();
+    expect(dm.getByText(timeLabel(yesterday))).toBeTruthy();
+    expect(dm.getByText(timeLabel(todayEarly))).toBeTruthy();
+  });
+});
+
 const TOKEN_KEY = 'hive-chat-token';
 
 function unsignedJwt(expSeconds: number): string {

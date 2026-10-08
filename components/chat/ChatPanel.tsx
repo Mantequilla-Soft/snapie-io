@@ -56,6 +56,7 @@ import {
   shouldPageOlderHistory,
   type ChatScrollPin,
 } from '@/lib/chat/messageScroll';
+import { formatDaySeparatorLabel, messageIdsWithDaySeparator } from '@/lib/chat/daySeparators';
 import { getFCMToken, onForegroundMessage } from '@/lib/chat/fcmClient';
 import { getHiveAvatarUrl } from '@/lib/utils/avatarUtils';
 import { Avatar } from '@/components/shared/Avatar';
@@ -244,6 +245,19 @@ function MentionAwareText({ content, activeUsername }: { content: string; active
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function DaySeparator({ label }: { label: string }) {
+  if (!label) return null;
+  return (
+    <Flex align="center" gap={3} pt={2} pb={1} role="separator" aria-label={label}>
+      <Box flex="1" h="1px" bg="overlay.300" />
+      <Text fontSize="xs" fontWeight="600" color="overlay.700" lineHeight="short" flexShrink={0}>
+        {label}
+      </Text>
+      <Box flex="1" h="1px" bg="overlay.300" />
+    </Flex>
+  );
 }
 
 function formatLastSeen(iso: string): string {
@@ -1731,6 +1745,10 @@ export default function ChatPanel({
     activeConversation.owner === user
   );
   const pinGeneration = pinGenerationRef.current;
+  // Day breaks follow list order, not Virtuoso's absolute index. The first
+  // loaded message of each local calendar day carries the separator, so a
+  // prepend of older history moves it up with that day.
+  const daySeparatorIds = useMemo(() => messageIdsWithDaySeparator(messages), [messages]);
   // Stable component types — an inline Header/Footer is a new component every
   // render, which remounts Virtuoso's chrome and drops the scroll pin.
   const messageListComponents = useMemo(() => ({
@@ -2229,7 +2247,7 @@ export default function ChatPanel({
                       if (!shouldPageOlderHistory(pin)) return;
                       loadOlderMessages();
                     }}
-                    itemContent={(index, msg) => (
+                    itemContent={(_index, msg) => (
                       <Box
                         key={msg._id}
                         ref={el => {
@@ -2237,6 +2255,9 @@ export default function ChatPanel({
                         }}
                         pb={2}
                       >
+                        {daySeparatorIds.has(msg._id) && (
+                          <DaySeparator label={formatDaySeparatorLabel(msg.createdAt)} />
+                        )}
                         <MessageBubble
                           msg={msg}
                           isOwn={msg.sender === user}
