@@ -17,7 +17,7 @@ import { useSnapieAuth } from '@/contexts/SnapieAuthContext'
 import { setSigningAuthMode } from '@/lib/hive/signing'
 import type { HiveAccount } from '@/hooks/useHiveAccount'
 import type { SnapieUser } from '@/lib/snapie-auth/types'
-import { getLoginProviders } from '@/lib/hive/aioha'
+import { getLoginProviders, hasStoredAiohaSession } from '@/lib/hive/aioha'
 
 interface LoginModalContextValue {
   isOpen: boolean
@@ -85,8 +85,10 @@ export function LoginModalProvider({ children }: { children: ReactNode }) {
   }, [aiohaUser, setHiveUser, isSnapieLoggedIn])
 
   // Clear session on Aioha logout (only when not in Snapie mode).
+  // The stored username is applied after hydration, so a null aiohaUser on
+  // the first effect is not a logout when localStorage still has a session.
   useEffect(() => {
-    if (aiohaUser || isSnapieLoggedIn) return
+    if (aiohaUser || isSnapieLoggedIn || hasStoredAiohaSession()) return
     setSigningAuthMode(null)
     deleteCookie('hive_username')
     localStorage.removeItem('hiveuser')

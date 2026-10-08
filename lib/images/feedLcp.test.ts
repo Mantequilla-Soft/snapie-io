@@ -131,6 +131,7 @@ describe('feedImageLoad', () => {
     expect(feedImageLoad('https://images.hive.blog/photo.png', { priority: true })).toEqual({
       priority: true,
       loading: 'eager',
+      fetchPriority: 'high',
     });
   });
 

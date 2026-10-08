@@ -3,8 +3,9 @@ import { fetchCombflowPost, CombflowHttpError } from '@/lib/combflow/client';
 
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { author: string; permlink: string } }
+    props: { params: Promise<{ author: string; permlink: string }> }
 ) {
+    const params = await props.params;
     const { author, permlink } = params;
 
     if (!author || !permlink) {

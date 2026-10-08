@@ -1,6 +1,6 @@
 'use client';
 import { Box, Text, Flex, Button, Icon, IconButton } from '@chakra-ui/react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, use } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
@@ -20,7 +20,8 @@ const SORT_OPTIONS = [
   { label: 'Top',      value: 'payout',   icon: '💰' },
 ];
 
-export default function ExploreTagPage({ params }: { params: { tag: string } }) {
+export default function ExploreTagPage(props: { params: Promise<{ tag: string }> }) {
+  const params = use(props.params);
   const tag = decodeURIComponent(params.tag);
   const isCommunity = /^hive-\d+$/.test(tag);
   const { hiveUser } = useHiveUser();

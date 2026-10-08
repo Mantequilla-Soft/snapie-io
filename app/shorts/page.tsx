@@ -1,3 +1,5 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 
 // SSR disabled — Swiper and usePlayer require browser APIs

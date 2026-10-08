@@ -17,7 +17,7 @@ type LockableOrientation = ScreenOrientation & {
  * whatever orientation the user is holding it, so callers should pair this
  * with a "rotate your device" hint driven by an orientation media query.
  */
-export function useFullscreen(targetRef: RefObject<HTMLElement>) {
+export function useFullscreen(targetRef: RefObject<HTMLElement | null>) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [supported, setSupported] = useState(false);
 

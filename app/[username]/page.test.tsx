@@ -23,24 +23,28 @@ function usernameProp(element: unknown): string | null {
   return props?.username ?? null;
 }
 
+function usernameParams(username: string) {
+  return { params: Promise.resolve({ username }) };
+}
+
 describe('[username] profile route', () => {
-  it('renders the profile view for an @username', () => {
-    const element = ProfileRoute({ params: { username: '@alice' } });
+  it('renders the profile view for an @username', async () => {
+    const element = await ProfileRoute(usernameParams('@alice'));
     expect(usernameProp(element)).toBe('alice');
   });
 
-  it('decodes an encoded @username before rendering', () => {
-    const element = ProfileRoute({ params: { username: '%40bob' } });
+  it('decodes an encoded @username before rendering', async () => {
+    const element = await ProfileRoute(usernameParams('%40bob'));
     expect(usernameProp(element)).toBe('bob');
   });
 
-  it('renders nothing for a segment that is not an @username', () => {
-    expect(ProfileRoute({ params: { username: 'profile' } })).toBeNull();
-    expect(ProfileRoute({ params: { username: 'alice' } })).toBeNull();
+  it('renders nothing for a segment that is not an @username', async () => {
+    expect(await ProfileRoute(usernameParams('profile'))).toBeNull();
+    expect(await ProfileRoute(usernameParams('alice'))).toBeNull();
   });
 
   it('still builds metadata from the @username segment', async () => {
-    await generateMetadata({ params: { username: '@alice' } });
+    await generateMetadata(usernameParams('@alice'));
     expect(metadataForSlug).toHaveBeenCalledWith(['@alice']);
   });
 });

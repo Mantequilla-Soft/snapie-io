@@ -110,7 +110,7 @@ function ShortVideoPlayer({
 // ─── ActionBtn ────────────────────────────────────────────────────────────────
 
 interface ActionBtnProps {
-  icon: React.ReactElement;
+  icon: React.ReactElement<any>;
   label?: string;
   count?: number;
   active?: boolean;

@@ -52,7 +52,7 @@ afterEach(() => {
   currentUser = { username: null, isLoggedIn: false }
 })
 
-const wrap = (el: React.ReactElement) => render(createElement(ChakraProvider, null, el))
+const wrap = (el: React.ReactElement<any>) => render(createElement(ChakraProvider, null, el))
 // The desktop sidebar is display:none below the sm breakpoint, which jsdom applies, so include hidden nodes.
 const factoryLinks = () => screen.getAllByRole('link', { hidden: true }).filter((a) => a.getAttribute('href') === '/factory')
 

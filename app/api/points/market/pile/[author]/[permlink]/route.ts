@@ -4,8 +4,9 @@ import { getPile } from '@/lib/points/marketService';
 // Public read — same reasoning as combflow's post-by-author-permlink route.
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { author: string; permlink: string } },
+  props: { params: Promise<{ author: string; permlink: string }> }
 ) {
+  const params = await props.params;
   const { author, permlink } = params;
   if (!author || !permlink) {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 });

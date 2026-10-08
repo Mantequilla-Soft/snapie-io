@@ -126,10 +126,16 @@ export function verifyChatJWT(token: string): { sub: string } | null {
   }
 }
 
+type RouteParams = Record<string, string>;
+
 type RouteHandler = (
   req: NextRequest,
-  context: { username: string; params?: Record<string, string> }
+  context: { username: string; params?: RouteParams }
 ) => Promise<NextResponse>;
+
+function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
+  return typeof (value as Promise<T> | undefined)?.then === 'function';
+}
 
 /**
  * Next uses thrown errors with marker digests as control flow: bail out of
@@ -151,7 +157,7 @@ function isNextControlFlowError(err: unknown): boolean {
 }
 
 export function withChatAuth(handler: RouteHandler) {
-  return async (req: NextRequest, ctx?: { params?: Record<string, string> }) => {
+  return async (req: NextRequest, ctx: { params: Promise<RouteParams> }) => {
     try {
       const authHeader = req.headers.get('Authorization');
       const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -166,9 +172,13 @@ export function withChatAuth(handler: RouteHandler) {
         { $set: { lastSeen: new Date() } },
         { upsert: true, returnDocument: 'after' }
       );
+      // Next 15 passes route params as a Promise. A plain object still works
+      // for older callers; both shapes are resolved before the handler runs.
+      const rawParams = ctx.params as RouteParams | Promise<RouteParams>;
+      const params = isThenable(rawParams) ? await rawParams : rawParams;
       // await so rejections surface in our catch as the documented 500 JSON
       // instead of escaping as unhandled promise rejections.
-      return await handler(req, { username: payload.sub, params: ctx?.params });
+      return await handler(req, { username: payload.sub, params });
     } catch (err) {
       // Never convert Next's control-flow throws to 500s — its own machinery
       // must see them.

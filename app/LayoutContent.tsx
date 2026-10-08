@@ -14,6 +14,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
+import { AiohaSessionRestore } from '@/lib/aioha/facade-react-ui';
 
 const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
@@ -153,6 +154,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       minH="100dvh"
       bgGradient={baseGradient}
     >
+      <AiohaSessionRestore />
       <Suspense fallback={null}>
         <LayoutQueryFlags onChange={onQueryFlags} />
       </Suspense>

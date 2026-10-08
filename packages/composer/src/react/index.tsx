@@ -57,7 +57,7 @@ import {
 
 export interface EditorToolbarProps {
     /** Reference to the textarea element */
-    textareaRef: React.RefObject<HTMLTextAreaElement>;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
     /** Current markdown value */
     value: string;
     /** Callback when value changes */
@@ -222,7 +222,7 @@ export function useMarkdownEditor(options: UseMarkdownEditorOptions = {}) {
  * Use this if you want to build your own toolbar UI
  */
 export function useEditorToolbar(
-    textareaRef: React.RefObject<HTMLTextAreaElement>,
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>,
     value: string,
     onChange: (value: string) => void
 ) {

@@ -19,6 +19,9 @@ export interface TrendingMarket {
 // Thin cached proxy for HivePredict's public trending endpoint — same data,
 // same shape, just fronted so every Snapie visitor doesn't hit their API
 // directly and so a HivePredict outage/CORS change can't break our sidebar.
+// GET route handlers are uncached unless the segment opts in.
+export const revalidate = 300;
+
 export async function GET() {
   try {
     const res = await fetch(HIVEPREDICT_URL, { next: { revalidate: 300 } });
