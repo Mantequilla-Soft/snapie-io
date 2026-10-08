@@ -30,6 +30,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Snapie: Information War joins Games',
     items: [
       { type: 'feature', text: 'Snapie: Information War is here! A SNES-style run-and-gun platformer — fight through five worlds, swap and upgrade weapons, and take down a boss at the end of each. Play with the keyboard or the on-screen touch buttons on a phone. Save your run to convert your score into Snapie Points.' },
+      { type: 'feature', text: 'Chat now shows day dividers (Today, Yesterday, then the date) between messages, in channels and DMs, so it is easier to tell when a conversation happened.' },
+      { type: 'fix', text: 'Fixed repeated failed sign-in checks for guests and wallet users, which could make the site briefly rate-limit you.' },
     ],
   },
   {
