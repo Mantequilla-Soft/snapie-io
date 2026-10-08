@@ -75,7 +75,9 @@ describe('GET /api/snapie-auth/auth/me', () => {
     const res = await call(GET, ['auth', 'me'], {
       headers: {
         cookie: 'hive_username=alice; snapieauth_session=session-token; snapieauth_csrf=csrf-token',
-        'x-forwarded-for': '203.0.113.10, 10.0.0.1',
+        'cf-connecting-ip': '203.0.113.10',
+        // Client-chosen chain: must not reach the auth service.
+        'x-forwarded-for': '198.51.100.7, 10.0.0.1',
       },
     });
 
@@ -88,7 +90,7 @@ describe('GET /api/snapie-auth/auth/me', () => {
     const forwarded = init?.headers as Record<string, string>;
     expect(forwarded.Cookie).toBe('snapieauth_session=session-token; snapieauth_csrf=csrf-token');
     expect(forwarded.Cookie).not.toContain('hive_username');
-    expect(forwarded['X-Forwarded-For']).toBe('203.0.113.10, 10.0.0.1');
+    expect(forwarded['X-Forwarded-For']).toBe('203.0.113.10');
     expect(res.headers.get('ratelimit-limit')).toBe('30');
     expect(res.headers.get('ratelimit-remaining')).toBe('29');
     expect(res.headers.get('ratelimit-reset')).toBe('900');
