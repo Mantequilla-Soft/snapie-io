@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { trustedClientIp } from '@/lib/http/rateLimit'
 
 const BASE = process.env.SNAPIE_AUTH_URL
 
@@ -32,8 +33,12 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
 
   const fwdHeaders: Record<string, string> = {}
   if (filteredCookies) fwdHeaders['Cookie'] = filteredCookies
-  const clientIp = req.headers.get('x-forwarded-for') ?? req.headers.get('x-real-ip')
-  if (clientIp) fwdHeaders['X-Forwarded-For'] = clientIp
+  // Forward only the Cloudflare-verified visitor IP as a single value.
+  // x-forwarded-for here ends with the Cloudflare edge address (nginx appends
+  // $remote_addr), which would make every visitor behind that edge share one
+  // snapie-auth rate-limit bucket.
+  const clientIp = trustedClientIp(req.headers)
+  if (clientIp !== 'unknown') fwdHeaders['X-Forwarded-For'] = clientIp
   if (isMutating) {
     const ct = req.headers.get('content-type')
     if (ct) fwdHeaders['Content-Type'] = ct
