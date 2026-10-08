@@ -3,7 +3,6 @@ import { Box, Flex } from '@chakra-ui/react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
-import Sidebar from '@/components/layout/Sidebar';
 import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import MeSheet from '@/components/layout/MeSheet';
@@ -16,6 +15,7 @@ import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { isPointsEnabledFor } from '@/lib/points/config';
 import { AiohaSessionRestore } from '@/lib/aioha/facade-react-ui';
 
+const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), { ssr: false });
 const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
 const HangoutModal = dynamic(() => import('@/components/hangouts/HangoutModal'), { ssr: false });
 const EmancipationBanner = dynamic(() => import('@/components/auth/EmancipationBanner'), { ssr: false });
@@ -58,6 +58,16 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const [chatActivated, setChatActivated] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [isMeSheetOpen, setIsMeSheetOpen] = useState(false);
+  // Desktop/tablet nav stays out of the phone hydration commit. The slot
+  // reserves its width from the first paint so the feed does not jump.
+  const [showDesktopSidebar, setShowDesktopSidebar] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 30em)');
+    const apply = () => setShowDesktopSidebar(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
   const popoutRef = useRef<Window | null>(null);
   if ((isChatOpen || isChatMinimized || isChatPopoutMode) && !chatActivated) {
     setChatActivated(true);
@@ -161,7 +171,11 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <Box maxW="1320px" mx="auto" h="100dvh">
         <Flex direction={{ base: 'column', sm: 'row' }} h="100dvh">
           {!isEmbedMode && !isChatPopoutMode && (
-            <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+            <div className={pathname === '/compose' ? 'snapie-sidebar-slot is-compact' : 'snapie-sidebar-slot'}>
+              {showDesktopSidebar && (
+                <Sidebar contained isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+              )}
+            </div>
           )}
           <Box
             id="app-scroll-container"
