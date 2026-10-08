@@ -40,7 +40,7 @@ pm2 save
 
 - `MONGODB_DB_NAME=snapiechat_staging` (same `MONGODB_URI`; staging starts empty —
   seed with `mongodump --db snapiechat | mongorestore --nsFrom 'snapiechat.*' --nsTo 'snapiechat_staging.*'` if wanted)
-- **Remove** `HIVE_POSTING_KEY`, `ACCOUNT_KEY`, `ACCOUNT_CREATOR`
+- **Remove** `ACCOUNT_KEY`, `ACCOUNT_CREATOR`
   (or use a throwaway test account's) — on-chain writes can't be undone.
 - Site/URL values that reference snapie.io → staging.snapie.io.
 - Omit Firebase push vars unless testing push (avoids notifying real users).

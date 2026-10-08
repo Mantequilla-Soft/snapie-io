@@ -1,5 +1,5 @@
-export type GameId = 'puff-quest' | 'snapie-blast' | 'snapie-rush' | 'snapie-blocks' | 'snapie-jump';
-export const GAME_IDS: GameId[] = ['puff-quest', 'snapie-blast', 'snapie-rush', 'snapie-blocks', 'snapie-jump'];
+export type GameId = 'puff-quest' | 'snapie-blast' | 'snapie-rush' | 'snapie-blocks' | 'snapie-jump' | 'snapie-info-war';
+export const GAME_IDS: GameId[] = ['puff-quest', 'snapie-blast', 'snapie-rush', 'snapie-blocks', 'snapie-jump', 'snapie-info-war'];
 
 // How a finished run becomes Snapie Points.
 // `score` — floor(score * rate / 100), and the `won` flag is ignored.
@@ -12,6 +12,7 @@ export const GAME_AWARD_MODE: Record<GameId, GameAwardMode> = {
   'snapie-rush': 'score',
   'snapie-blocks': 'flat-win',
   'snapie-jump': 'score',
+  'snapie-info-war': 'score',
 };
 
 // Flat points for one server-settled win. Null on score-mode games.
@@ -23,6 +24,7 @@ export const GAME_FLAT_WIN_POINTS: Record<GameId, number | null> = {
   'snapie-rush': null,
   'snapie-blocks': 20,
   'snapie-jump': null,
+  'snapie-info-war': null,
 };
 
 // Percent of score converted to points: floor(score * rate / 100).
@@ -35,6 +37,11 @@ export const GAME_POINTS_CONVERSION_RATE_PCT: Record<GameId, number> = {
   'snapie-rush': 0.2,
   'snapie-blocks': 0,
   'snapie-jump': 0.2,
+  // 0.1%: boss kills pay 10,000 each (50,000 for the final boss) and stage
+  // clears 5,000, so a full win is ~150k score. At 0.2% that single run would
+  // hit the 300-point daily cap; at 0.1% it is ~150, and a typical stage 1-2
+  // run (10-25k) lands around 10-25 points like the other games.
+  'snapie-info-war': 0.1,
 };
 
 // Per-game sanity ceiling on a single submitted score.
@@ -61,6 +68,11 @@ export const GAME_MAX_SCORE: Record<GameId, number> = {
   // which catches forged scores without capping real ones; the daily points cap
   // is the real limit on what a high score can earn.
   'snapie-jump': 100_000,
+  // snapie-info-war: enemy kills (tens to hundreds each), capsules 500, pickups
+  // 1,000, stage clears 5,000 x4, bosses 10,000 x4 + 50,000 for the last. A
+  // flawless full win is about 150-180k, so 250,000 leaves headroom while still
+  // catching obviously-forged scores.
+  'snapie-info-war': 250_000,
 };
 
 // Per-user, per-UTC-day cap on games-derived points, summed across ALL gameIds.

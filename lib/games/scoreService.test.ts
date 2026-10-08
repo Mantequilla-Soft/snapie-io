@@ -320,6 +320,26 @@ describe('submitGameScore', () => {
     });
   });
 
+  describe('snapie-info-war', () => {
+    it('is a known game and converts score at 0.1%', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-info-war', 'war-1', 25000, 2, 1, false, 240000, Date.now());
+
+      expect(result.status).toBe('awarded');
+      expect(result.pointsAwarded).toBe(25); // floor(25000 * 0.1 / 100)
+    });
+
+    it('rejects a score above its 250,000 ceiling', async () => {
+      accountStore.set('alice', { _id: 'alice', balance: 0, lifetimeEarned: 0 });
+      const { submitGameScore } = await import('./scoreService');
+      const result = await submitGameScore('alice', 'snapie-info-war', 'war-1', 250_001, 5, 4, true, 900000, Date.now());
+
+      expect(result.status).toBe('invalid_score');
+      expect(accountStore.get('alice')?.balance).toBe(0);
+    });
+  });
+
   describe('snapie-blocks flat win', () => {
     it('rejects a client score post, including a claimed win', async () => {
       accountStore.set('alice', { _id: 'alice', balance: 10, lifetimeEarned: 10 });

@@ -12,6 +12,7 @@ import snapieJumpCard from '@/components/games/snapie-jump/assets/snapie-jump-ca
 import type { GameId } from '@/lib/games/config';
 
 const BLOCKS_CARD = { src: '/games/snapie-blocks-card.svg' };
+const INFO_WAR_CARD = { src: '/games/snapie-info-war-card.svg' };
 
 const GAMES_CATALOG: {
   id: GameId;
@@ -61,6 +62,14 @@ const GAMES_CATALOG: {
     tagline: 'Bounce up the hive, grab the honey and stomp the wasps. How high can you go?',
     href: '/games/snapie-jump',
     image: snapieJumpCard,
+    imageFit: 'contain',
+  },
+  {
+    id: 'snapie-info-war',
+    name: 'Snapie: Information War',
+    tagline: 'Run and gun through five worlds and take down the Hoard. Five bosses, upgradable weapons.',
+    href: '/games/snapie-info-war',
+    image: INFO_WAR_CARD,
     imageFit: 'contain',
   },
 ];

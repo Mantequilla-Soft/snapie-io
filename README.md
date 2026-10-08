@@ -105,7 +105,6 @@ Use `.env.local` for local development.
 
 ### Media Upload / External APIs
 
-- `HIVE_POSTING_KEY` - posting key for image upload signing (server side only)
 - `NEXT_PUBLIC_3SPEAK_API_KEY` - 3Speak upload access
 - `NEXT_PUBLIC_IMAGE_SERVER_API_KEY` - fallback image server key
 
