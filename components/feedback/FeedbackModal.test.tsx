@@ -7,11 +7,22 @@ import FeedbackModal from './FeedbackModal';
 const mocks = vi.hoisted(() => ({
   submitFeedback: vi.fn(),
   readChatSessionToken: vi.fn(() => 'chat-jwt'),
+  username: null as string | null,
+  isLoggedIn: false,
 }));
 
 vi.mock('@/lib/feedback/client', () => ({
   submitFeedback: mocks.submitFeedback,
   readChatSessionToken: mocks.readChatSessionToken,
+}));
+
+vi.mock('@/hooks/useCurrentUser', () => ({
+  useCurrentUser: () => ({
+    username: mocks.username,
+    isLoggedIn: mocks.isLoggedIn,
+    isSnapie: false,
+    logout: () => {},
+  }),
 }));
 
 if (typeof window.matchMedia !== 'function') {
@@ -42,6 +53,8 @@ beforeEach(() => {
   mocks.submitFeedback.mockReset();
   mocks.readChatSessionToken.mockReset();
   mocks.readChatSessionToken.mockReturnValue('chat-jwt');
+  mocks.username = null;
+  mocks.isLoggedIn = false;
 });
 
 afterEach(() => {
@@ -76,6 +89,13 @@ describe('FeedbackModal', () => {
       category: 'bug',
       chatToken: 'chat-jwt',
     }));
+  });
+
+  it('shows the logged-in Hive username', () => {
+    mocks.username = 'sable';
+    mocks.isLoggedIn = true;
+    renderModal();
+    expect(screen.getByText(/Signed in as @sable/)).toBeTruthy();
   });
 
   it('shows a friendly error from the server', async () => {

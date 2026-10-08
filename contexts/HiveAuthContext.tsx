@@ -9,7 +9,7 @@ import {
 } from 'react';
 import QRCode from 'react-qr-code';
 import { useAioha } from '@/lib/aioha/facade-react-ui';
-import { setHiveAuthCallbacks } from '@/lib/hive/aioha';
+import { dismissHiveApproval, setHiveAuthCallbacks } from '@/lib/hive/aioha';
 
 interface HiveAuthContextValue {
   isWaiting: boolean;
@@ -106,6 +106,9 @@ export function HiveAuthProvider({ children }: { children: ReactNode }) {
                 <h3>Transaction Approval</h3>
                 <p>{waitingMessage}</p>
                 {waitingHint && <p className="hiveauth-hint">{waitingHint}</p>}
+                <button type="button" className="hiveauth-cancel" onClick={() => dismissHiveApproval()}>
+                  Cancel
+                </button>
               </>
             )}
           </div>

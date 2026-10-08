@@ -23,6 +23,7 @@ import {
 } from '@chakra-ui/react';
 import { readChatSessionToken, submitFeedback } from '@/lib/feedback/client';
 import type { FeedbackCategory } from '@/lib/feedback/model';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ interface FeedbackModalProps {
 }
 
 export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+  const { username, isLoggedIn } = useCurrentUser();
   const [category, setCategory] = useState<FeedbackCategory | ''>('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -105,7 +107,9 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
           ) : (
             <VStack as="form" align="stretch" spacing={4} onSubmit={handleSubmit}>
               <Text color="overlay.500" fontSize="sm">
-                Bugs, ideas, or anything that felt off. If you&apos;re signed in we note your Hive username. Guests can send this too. We don&apos;t attach your email or IP.
+                {isLoggedIn && username
+                  ? `Signed in as @${username}. We'll note that Hive username on what you send. We don't attach your email or IP.`
+                  : "Bugs, ideas, or anything that felt off. If you're signed in we note your Hive username. Guests can send this too. We don't attach your email or IP."}
               </Text>
 
               {error && (
