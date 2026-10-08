@@ -60,7 +60,7 @@ describe('GET /api/snapie-auth/auth/me', () => {
   });
 
   it('proxies auth/me when a session cookie is present', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ user: { id: '1' } }), {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ user: { id: '1' } }), {
       status: 200,
       headers: {
         'content-type': 'application/json',
@@ -82,10 +82,10 @@ describe('GET /api/snapie-auth/auth/me', () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ user: { id: '1' } });
     expect(fetchMock).toHaveBeenCalledOnce();
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('http://auth.example/api/auth/me');
-    expect(init.method).toBe('GET');
-    const forwarded = init.headers as Record<string, string>;
+    expect(init?.method).toBe('GET');
+    const forwarded = init?.headers as Record<string, string>;
     expect(forwarded.Cookie).toBe('snapieauth_session=session-token; snapieauth_csrf=csrf-token');
     expect(forwarded.Cookie).not.toContain('hive_username');
     expect(forwarded['X-Forwarded-For']).toBe('203.0.113.10, 10.0.0.1');
@@ -130,7 +130,7 @@ describe('GET /api/snapie-auth/auth/me', () => {
 
 describe('other snapie-auth proxy routes', () => {
   it('still proxies public GETs and login when there is no session cookie', async () => {
-    const fetchMock = vi.fn(async (url: string) => new Response(JSON.stringify({ ok: true, url }), {
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => new Response(JSON.stringify({ ok: true, url }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
     }));
@@ -149,9 +149,9 @@ describe('other snapie-auth proxy routes', () => {
     });
     expect(login.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[1];
     expect(url).toBe('http://auth.example/api/auth/email/login');
-    expect(init.method).toBe('POST');
-    expect(init.body).toBe(JSON.stringify({ email: 'a@b.c', password: 'secret' }));
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(JSON.stringify({ email: 'a@b.c', password: 'secret' }));
   });
 });
