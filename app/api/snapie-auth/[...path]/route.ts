@@ -6,11 +6,44 @@ if (!BASE && process.env.NODE_ENV === 'production') {
   console.warn('SNAPIE_AUTH_URL is not set — Snapie Auth proxy will fail')
 }
 
+const SESSION_COOKIE = 'snapieauth_session'
+
 function stripDomain(setCookieHeader: string): string {
   return setCookieHeader.replace(/;\s*domain=[^;]*/gi, '');
 }
 
+function hasSessionCookie(cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false
+  return cookieHeader.split(';').some((part) => {
+    const trimmed = part.trim()
+    const eq = trimmed.indexOf('=')
+    if (eq <= 0) return false
+    return trimmed.slice(0, eq) === SESSION_COOKIE && trimmed.slice(eq + 1).length > 0
+  })
+}
+
+// GET /auth/me with no session cookie is a 401 from the auth service before
+// any user lookup. Answer here so guests and wallet sessions do not spend
+// the shared upstream auth allowance. The cookie is httpOnly, so the check
+// has to live on the proxy — the client cannot see it.
+function isAnonymousSessionCheck(req: NextRequest, path: string[]): boolean {
+  return req.method === 'GET'
+    && path.length === 2
+    && path[0] === 'auth'
+    && path[1] === 'me'
+    && !hasSessionCookie(req.headers.get('cookie'))
+}
+
+function isLimitHeader(name: string): boolean {
+  const lower = name.toLowerCase()
+  return lower === 'retry-after' || lower === 'ratelimit' || lower.startsWith('ratelimit-')
+}
+
 async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
+  if (isAnonymousSessionCheck(req, path)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!BASE) {
     return NextResponse.json({ error: 'snapie_auth_not_configured' }, { status: 503 })
   }
@@ -72,6 +105,11 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
 
   const ct = res.headers.get('content-type')
   if (ct) next.headers.set('content-type', ct)
+
+  // Surface the auth service's own limit so clients and logs can see it.
+  res.headers.forEach((value, key) => {
+    if (isLimitHeader(key)) next.headers.set(key, value)
+  })
 
   // Forward Set-Cookie headers, stripping Domain so they land on our domain.
   // getSetCookie() returns an array (one entry per Set-Cookie header).
