@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, act } from '@testing-library/react';
 import { useEffect } from 'react';
+import { renderToString } from 'react-dom/server';
+import { hydrateRoot } from 'react-dom/client';
 
 const ensureAioha = vi.fn();
 const hasStoredAiohaSession = vi.fn();
@@ -18,7 +20,16 @@ vi.mock('@/lib/aioha/load-real', () => ({
   loadRealAiohaReactUi: () => loadRealAiohaReactUi(),
 }));
 
-import { AiohaModal, AiohaProvider, useAioha } from './facade-react-ui';
+import { AiohaModal, AiohaProvider, AiohaSessionRestore, useAioha } from './facade-react-ui';
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <AiohaProvider>
+      <AiohaSessionRestore />
+      {children}
+    </AiohaProvider>
+  );
+}
 
 function UserReadout() {
   const { user } = useAioha();
@@ -27,6 +38,7 @@ function UserReadout() {
 
 beforeEach(() => {
   cleanup();
+  localStorage.clear();
   ensureAioha.mockReset();
   hasStoredAiohaSession.mockReset();
   onAiohaReady.mockReset();
@@ -38,9 +50,9 @@ beforeEach(() => {
 describe('AiohaProvider', () => {
   it('leaves the library unloaded when there is no stored session', () => {
     render(
-      <AiohaProvider>
+      <Shell>
         <UserReadout />
-      </AiohaProvider>,
+      </Shell>,
     );
     expect(screen.getByText('signed-out')).toBeTruthy();
     expect(ensureAioha).not.toHaveBeenCalled();
@@ -63,9 +75,9 @@ describe('AiohaProvider', () => {
     });
 
     render(
-      <AiohaProvider>
+      <Shell>
         <UserReadout />
-      </AiohaProvider>,
+      </Shell>,
     );
 
     expect(await screen.findByText('alice')).toBeTruthy();
@@ -88,13 +100,50 @@ describe('AiohaProvider', () => {
       return <div>{user ?? 'signed-out'}</div>;
     }
     render(
-      <AiohaProvider>
+      <Shell>
         <Probe />
-      </AiohaProvider>,
+      </Shell>,
     );
     expect(screen.getByText('alice')).toBeTruthy();
     expect(seen.at(-1)).toBe('alice');
     expect(ensureAioha).toHaveBeenCalledTimes(1);
+  });
+
+  it('hydrates logged-out markup, then shows a stored username', async () => {
+    localStorage.setItem('aiohaUsername', 'alice');
+    localStorage.setItem('aiohaProvider', 'keychain');
+    hasStoredAiohaSession.mockReturnValue(true);
+    ensureAioha.mockReturnValue(new Promise(() => {}));
+
+    const html = renderToString(
+      <Shell>
+        <UserReadout />
+      </Shell>,
+    );
+    expect(html).toContain('signed-out');
+    expect(html).not.toContain('alice');
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    container.innerHTML = html;
+    const errors: string[] = [];
+    const orig = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((arg) => String(arg)).join(' '));
+    };
+    let root: { unmount: () => void } | undefined;
+    await act(async () => {
+      root = hydrateRoot(container, (
+        <Shell>
+          <UserReadout />
+        </Shell>
+      ));
+    });
+    console.error = orig;
+    expect(errors.filter((entry) => /hydrat/i.test(entry))).toEqual([]);
+    expect(container.textContent).toContain('alice');
+    root?.unmount();
+    container.remove();
   });
 });
 

@@ -4,10 +4,8 @@ import { getBadgesForUser } from '@/lib/hive/accountBadges';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { username: string } }
-) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   const { username } = params;
 
   if (!username) {

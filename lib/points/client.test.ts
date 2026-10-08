@@ -31,6 +31,9 @@ const fetchMock = vi.fn();
 
 beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
+    delete (globalThis as { __snapieSessionMint?: unknown }).__snapieSessionMint;
+    delete (globalThis as { __snapieWalletSignHub?: unknown }).__snapieWalletSignHub;
     authenticateMock.mockReset();
     fetchMock.mockReset();
     vi.stubGlobal('fetch', fetchMock);
@@ -66,6 +69,33 @@ describe('ensureSessionToken', () => {
         const { ensureSessionToken } = await import('./client');
         const token = await ensureSessionToken('meno');
         expect(token).toBe('not-a-real-jwt');
+        expect(authenticateMock).not.toHaveBeenCalled();
+    });
+
+    it('shares one in-flight mint across overlapping callers', async () => {
+        let release: () => void = () => {};
+        authenticateMock.mockImplementation(() => new Promise<void>((resolve) => {
+            release = () => {
+                localStorage.setItem(SESSION_TOKEN_KEY, makeJwt(3600));
+                resolve();
+            };
+        }));
+        const { ensureSessionToken } = await import('./client');
+        const first = ensureSessionToken('meno');
+        const second = ensureSessionToken('meno');
+        release();
+        const [a, b] = await Promise.all([first, second]);
+        expect(authenticateMock).toHaveBeenCalledTimes(1);
+        expect(a).toBe(b);
+        expect(a).not.toBeNull();
+    });
+
+    it('does not start another challenge after the signature was cancelled', async () => {
+        authenticateMock.mockRejectedValue(Object.assign(new Error('Request was cancelled'), { code: 'user_cancel' }));
+        const { ensureSessionToken } = await import('./client');
+        await expect(ensureSessionToken('meno', { silent: true })).resolves.toBeNull();
+        authenticateMock.mockClear();
+        await expect(ensureSessionToken('meno', { silent: true })).resolves.toBeNull();
         expect(authenticateMock).not.toHaveBeenCalled();
     });
 

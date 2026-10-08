@@ -3,10 +3,11 @@ import { metadataForSlug } from './metadata';
 import PostView from './views/PostView';
 
 interface PageProps {
-  params: { slug: string[] };
+  params: Promise<{ slug: string[] }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const params = await props.params;
   return metadataForSlug(params.slug ?? []);
 }
 
@@ -16,7 +17,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // Static import, same as the dedicated routes: a dynamic() import only
 // started the view chunk after the shell executed, and that second wave
 // landed on the profile LCP.
-export default function SlugPage({ params }: PageProps) {
+export default async function SlugPage(props: PageProps) {
+  const params = await props.params;
   const slug = params.slug ?? [];
   const decoded1 = slug[1] ? decodeURIComponent(slug[1]) : '';
   const decoded2 = slug[2] ? decodeURIComponent(slug[2]) : '';

@@ -4,11 +4,11 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { getMe, logout as apiLogout } from '@/lib/snapie-auth/client'
+import { invalidateSnapieMe, loadSnapieMe } from '@/lib/snapie-auth/sessionProbe'
 import { setSigningAuthMode } from '@/lib/hive/signing'
 import type { SnapieMeUser, SnapieUser } from '@/lib/snapie-auth/types'
 import HiveClient from '@/lib/hive/hiveclient'
@@ -60,7 +60,6 @@ export function SnapieAuthProvider({ children }: { children: ReactNode }) {
   const [snapieUser, setSnapieUserState] = useState<SnapieMeUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const { setHiveUser } = useHiveUser()
-  const restored = useRef(false)
 
   const applySnapieSession = useCallback(
     async (user: SnapieUser | SnapieMeUser) => {
@@ -78,28 +77,34 @@ export function SnapieAuthProvider({ children }: { children: ReactNode }) {
     [setHiveUser],
   )
 
-  // Restore session on mount (returning user with valid cookie).
+  // Restore a Snapie Auth cookie once per tab. A 401 (Keychain-only login)
+  // or a 429 is remembered so navigation does not call /auth/me again.
   useEffect(() => {
-    if (restored.current) return
-    restored.current = true
-
-    getMe()
-      .then((user) => applySnapieSession(user))
-      .catch(() => {
-        // 401 = no session — not an error, just not logged in via Snapie
+    let cancel = false
+    loadSnapieMe(getMe)
+      .then((user) => {
+        if (cancel || !user) return
+        return applySnapieSession(user)
       })
-      .finally(() => setIsLoading(false))
+      .finally(() => {
+        if (!cancel) setIsLoading(false)
+      })
+    return () => {
+      cancel = true
+    }
   }, [applySnapieSession])
 
   // Called after login — base SnapieUser lacks emancipation fields, so fetch full /auth/me.
   const setSnapieUser = useCallback(
     (user: SnapieUser | null) => {
       if (user) {
+        invalidateSnapieMe()
         applySnapieSession(user)
         getMe()
           .then((full) => applySnapieSession(full))
           .catch(() => {})
       } else {
+        invalidateSnapieMe()
         setSnapieUserState(null)
         setSigningAuthMode(null, null)
         deleteCookie('hive_username')
@@ -112,6 +117,7 @@ export function SnapieAuthProvider({ children }: { children: ReactNode }) {
 
   const logoutFromSnapie = useCallback(async () => {
     await apiLogout().catch(() => {})
+    invalidateSnapieMe()
     setSnapieUserState(null)
     setSigningAuthMode(null, null)
     deleteCookie('hive_username')
