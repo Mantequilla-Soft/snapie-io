@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, act } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
 import LayoutContent from './LayoutContent';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
@@ -9,9 +9,19 @@ import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 // that page, and that a signed-in visit (which dispatches OPEN_CHAT_EVENT)
 // opens the existing panel instead of leaving the main column as the only UI.
 
+const nav = vi.hoisted(() => ({
+  pathname: '/chat',
+  back: vi.fn(),
+  replace: vi.fn(),
+  push: vi.fn(),
+}));
+
+const phone = vi.hoisted(() => ({ matches: false }));
+
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/chat',
+  usePathname: () => nav.pathname,
   useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ back: nav.back, replace: nav.replace, push: nav.push }),
 }));
 
 vi.mock('@/components/layout/Sidebar', () => ({ default: () => <nav>Site nav</nav> }));
@@ -19,7 +29,14 @@ vi.mock('@/components/layout/MobileHeader', () => ({ default: () => null }));
 vi.mock('@/components/layout/BottomTabBar', () => ({ default: () => null }));
 vi.mock('@/components/layout/MeSheet', () => ({ default: () => null }));
 vi.mock('@/components/chat/ChatPanel', () => ({
-  default: ({ isOpen }: { isOpen: boolean }) => (isOpen ? <div>Chat panel</div> : null),
+  default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => (
+    isOpen ? (
+      <div>
+        <span>Chat panel</span>
+        <button type="button" onClick={onClose}>Close chat</button>
+      </div>
+    ) : null
+  ),
 }));
 vi.mock('@/components/hangouts/HangoutModal', () => ({ default: () => null }));
 vi.mock('@/components/auth/EmancipationBanner', () => ({ default: () => null }));
@@ -53,21 +70,39 @@ vi.mock('@/lib/points/config', () => ({
   isPointsEnabledFor: () => false,
 }));
 
-if (typeof window.matchMedia !== 'function') {
-  Object.defineProperty(window, 'matchMedia', {
-    writable: true,
-    value: (query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: () => false,
-    }),
-  });
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  configurable: true,
+  value: (query: string) => ({
+    matches: query.includes('max-width: 479px') ? phone.matches : false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: () => false,
+  }),
+});
+
+function renderShell(child: string) {
+  return render(
+    <ChakraProvider>
+      <LayoutContent>
+        <h1>{child}</h1>
+      </LayoutContent>
+    </ChakraProvider>,
+  );
 }
+
+beforeEach(() => {
+  nav.pathname = '/chat';
+  nav.back.mockReset();
+  nav.replace.mockReset();
+  nav.push.mockReset();
+  phone.matches = false;
+  window.history.replaceState({}, '');
+});
 
 afterEach(cleanup);
 
@@ -91,5 +126,52 @@ describe('chat shell', () => {
 
     expect(await screen.findByText('Chat panel')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Sign in to chat' })).toBeTruthy();
+  });
+
+  it('closes a phone /chat visit back to the previous page', async () => {
+    phone.matches = true;
+    nav.pathname = '/games';
+    const view = renderShell('Games');
+
+    nav.pathname = '/chat';
+    view.rerender(
+      <ChakraProvider>
+        <LayoutContent>
+          <h1>Chat</h1>
+        </LayoutContent>
+      </ChakraProvider>,
+    );
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT));
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Close chat' }));
+
+    expect(screen.queryByText('Chat panel')).toBeNull();
+    expect(nav.back).toHaveBeenCalledTimes(1);
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it('closes a direct phone /chat visit to home, including browser back', async () => {
+    phone.matches = true;
+    nav.pathname = '/chat';
+    renderShell('Chat');
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT));
+    });
+    expect(window.history.state?.snapieChatEntry).toBe(true);
+
+    const historyBack = vi.spyOn(window.history, 'back');
+    fireEvent.click(screen.getByRole('button', { name: 'Close chat' }));
+    expect(screen.queryByText('Chat panel')).toBeNull();
+    expect(historyBack).toHaveBeenCalled();
+
+    // jsdom does not deliver popstate for history.back(); the browser does.
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+    });
+    expect(nav.replace).toHaveBeenCalledWith('/');
+    historyBack.mockRestore();
   });
 });

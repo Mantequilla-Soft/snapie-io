@@ -1,6 +1,6 @@
 'use client'
 import { Box, Flex } from '@chakra-ui/react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Sidebar from '@/components/layout/Sidebar';
@@ -8,6 +8,7 @@ import MobileHeader from '@/components/layout/MobileHeader';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import MeSheet from '@/components/layout/MeSheet';
 import { chatService } from '@/lib/chat/ChatService';
+import { chatCloseDestination } from '@/lib/chat/closeChat';
 import { OPEN_CHAT_EVENT } from '@/lib/chat/openChat';
 import { useHangout } from '@/contexts/HangoutContext';
 import { useUserSettings } from '@/hooks/useUserSettings';
@@ -27,6 +28,19 @@ const DebugConsole = dynamic(() => import('@/components/debug/DebugConsole'), { 
 
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const isPhone = usePhoneLayout();
+  const isPhoneRef = useRef(isPhone);
+  isPhoneRef.current = isPhone;
+  // In-app page that was showing before this one. Closing /chat on a phone
+  // returns there; a direct visit (no previous app page) goes home.
+  const previousPathRef = useRef<string | null>(null);
+  const pathRef = useRef(pathname);
+  const seenPathRef = useRef<string | null>(null);
+  if (pathRef.current !== pathname) {
+    previousPathRef.current = pathRef.current;
+    pathRef.current = pathname;
+  }
   const isShortsPage = pathname === '/shorts';
   // useSearchParams() on this component bails the layout's suspense boundary
   // out to client rendering (`BAILOUT_TO_CLIENT_SIDE_RENDERING`), so the home
@@ -106,6 +120,71 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
     window.addEventListener(OPEN_CHAT_EVENT, open);
     return () => window.removeEventListener(OPEN_CHAT_EVENT, open);
   }, []);
+
+  // Phone chrome (header, tab bar) stays tappable, but the panel still covers
+  // the page underneath it. Leaving the route has to drop the panel or the
+  // next page opens hidden behind chat. Desktop keeps the panel across
+  // navigations.
+  useEffect(() => {
+    const seen = seenPathRef.current;
+    if (seen === null) {
+      seenPathRef.current = pathname;
+      return;
+    }
+    if (seen === pathname) return;
+    seenPathRef.current = pathname;
+    if (!isPhoneRef.current || pathname === '/chat') return;
+    setIsChatOpen(false);
+    setIsChatMinimized(false);
+  }, [pathname]);
+
+  const routerRef = useRef(router);
+  routerRef.current = router;
+
+  const closeChat = useCallback(() => {
+    setIsChatOpen(false);
+    setIsChatMinimized(false);
+    const action = chatCloseDestination({
+      isPhone: isPhoneRef.current,
+      pathname,
+      previousPath: previousPathRef.current,
+    });
+    if (action === 'back') {
+      routerRef.current.back();
+      return;
+    }
+    if (action !== 'home') return;
+    // Pop the direct-visit guard so the popstate handler can replace the
+    // /chat entry underneath with home. A visit that never pushed the guard
+    // just replaces the current entry.
+    if (typeof window !== 'undefined' && window.history.state?.snapieChatEntry) {
+      window.history.back();
+      return;
+    }
+    routerRef.current.replace('/');
+  }, [pathname]);
+
+  // Direct phone visit to /chat has no in-app page to return to. One extra
+  // history entry lets the Android back button land on home instead of
+  // leaving the site. The listener is rebound on each run; the guard entry
+  // itself is pushed only once.
+  useEffect(() => {
+    if (!isPhone || pathname !== '/chat') return;
+    if (previousPathRef.current && previousPathRef.current !== '/chat') return;
+    if (!window.history.state?.snapieChatEntry) {
+      window.history.pushState(
+        { ...(window.history.state || {}), snapieChatEntry: true },
+        '',
+      );
+    }
+    const onPop = () => {
+      setIsChatOpen(false);
+      setIsChatMinimized(false);
+      routerRef.current.replace('/');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [isPhone, pathname]);
 
   // Close MeSheet when navigating
   useEffect(() => { setIsMeSheetOpen(false); }, [pathname]);
@@ -211,7 +290,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           {/* Chat panel (all screen sizes). Loaded on first open. */}
           {chatActivated && <ChatPanel
             isOpen={isChatOpen}
-            onClose={() => setIsChatOpen(false)}
+            onClose={closeChat}
             isMinimized={isChatMinimized}
             onMinimize={() => setIsChatMinimized(true)}
             onRestore={() => { setIsChatMinimized(false); setIsChatOpen(true); }}
@@ -246,6 +325,19 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
       <DebugConsole />
     </Box>
   );
+}
+
+/** Matches BottomTabBar / MobileHeader, which render only below the `sm` breakpoint (480px). */
+function usePhoneLayout() {
+  const [isPhone, setIsPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 479px)');
+    const apply = () => setIsPhone(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+  return isPhone;
 }
 
 function LayoutQueryFlags({ onChange }: { onChange: (flags: { embed: boolean; chatPopout: boolean }) => void }) {
