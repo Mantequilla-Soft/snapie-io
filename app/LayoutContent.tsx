@@ -138,13 +138,14 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
 
   // On mobile, pad content away from the fixed header and tab bar.
   // Skip padding on shorts (full-screen immersive) and embed/popout modes.
-  // The tab bar itself is 60px, but on notched devices its own safe-area
-  // padding (see BottomTabBar) pushes its actual top edge higher than that —
-  // so content needs to clear 60px + the safe-area inset, plus a bit of
-  // breathing room, or the last bit of a short page (e.g. a post's only
-  // comment) ends up permanently hidden behind the fixed bar with nowhere
-  // left to scroll to reveal it.
-  const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: '56px', sm: '0' } : undefined;
+  // The header is 56px and the tab bar is 60px, but in standalone mode their
+  // safe-area padding (see MobileHeader / BottomTabBar) grows them by the
+  // notch and home-indicator insets. Content has to clear that same inset,
+  // plus a bit of breathing room under the tab bar, or the last bit of a
+  // short page (e.g. a post's only comment) ends up permanently hidden
+  // behind the fixed bar with nowhere left to scroll to reveal it.
+  // env(safe-area-inset-*) is 0 in a normal browser tab.
+  const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(56px + env(safe-area-inset-top))', sm: '0' } : undefined;
   const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(76px + env(safe-area-inset-bottom))', sm: '0' } : undefined;
 
   return (
