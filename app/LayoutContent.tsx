@@ -144,47 +144,18 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const closeChat = useCallback(() => {
     setIsChatOpen(false);
     setIsChatMinimized(false);
+    // Read the viewport at click time. DevTools device mode can change the
+    // width without the state hook having flushed yet.
+    const phoneNow = typeof window !== 'undefined'
+      && window.matchMedia('(max-width: 479px)').matches;
     const action = chatCloseDestination({
-      isPhone: isPhoneRef.current,
+      isPhone: phoneNow,
       pathname,
       previousPath: previousPathRef.current,
     });
-    if (action === 'back') {
-      routerRef.current.back();
-      return;
-    }
-    if (action !== 'home') return;
-    // Pop the direct-visit guard so the popstate handler can replace the
-    // /chat entry underneath with home. A visit that never pushed the guard
-    // just replaces the current entry.
-    if (typeof window !== 'undefined' && window.history.state?.snapieChatEntry) {
-      window.history.back();
-      return;
-    }
-    routerRef.current.replace('/');
+    if (action === 'back') routerRef.current.back();
+    else if (action === 'home') routerRef.current.replace('/');
   }, [pathname]);
-
-  // Direct phone visit to /chat has no in-app page to return to. One extra
-  // history entry lets the Android back button land on home instead of
-  // leaving the site. The listener is rebound on each run; the guard entry
-  // itself is pushed only once.
-  useEffect(() => {
-    if (!isPhone || pathname !== '/chat') return;
-    if (previousPathRef.current && previousPathRef.current !== '/chat') return;
-    if (!window.history.state?.snapieChatEntry) {
-      window.history.pushState(
-        { ...(window.history.state || {}), snapieChatEntry: true },
-        '',
-      );
-    }
-    const onPop = () => {
-      setIsChatOpen(false);
-      setIsChatMinimized(false);
-      routerRef.current.replace('/');
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [isPhone, pathname]);
 
   // Close MeSheet when navigating
   useEffect(() => { setIsMeSheetOpen(false); }, [pathname]);
@@ -335,7 +306,11 @@ function usePhoneLayout() {
     const apply = () => setIsPhone(mq.matches);
     apply();
     mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      mq.removeEventListener('change', apply);
+      window.removeEventListener('resize', apply);
+    };
   }, []);
   return isPhone;
 }

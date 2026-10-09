@@ -152,7 +152,7 @@ describe('chat shell', () => {
     expect(nav.replace).not.toHaveBeenCalled();
   });
 
-  it('closes a direct phone /chat visit to home, including browser back', async () => {
+  it('closes a direct phone /chat visit to home', async () => {
     phone.matches = true;
     nav.pathname = '/chat';
     renderShell('Chat');
@@ -160,18 +160,10 @@ describe('chat shell', () => {
     await act(async () => {
       window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT));
     });
-    expect(window.history.state?.snapieChatEntry).toBe(true);
-
-    const historyBack = vi.spyOn(window.history, 'back');
     fireEvent.click(screen.getByRole('button', { name: 'Close chat' }));
-    expect(screen.queryByText('Chat panel')).toBeNull();
-    expect(historyBack).toHaveBeenCalled();
 
-    // jsdom does not deliver popstate for history.back(); the browser does.
-    await act(async () => {
-      window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
-    });
+    expect(screen.queryByText('Chat panel')).toBeNull();
     expect(nav.replace).toHaveBeenCalledWith('/');
-    historyBack.mockRestore();
+    expect(nav.back).not.toHaveBeenCalled();
   });
 });
