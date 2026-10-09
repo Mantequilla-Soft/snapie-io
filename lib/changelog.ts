@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-09',
+    date: '2026-10-09',
+    title: 'Short snaps stay in order',
+    items: [
+      { type: 'fix', text: 'A short snap that mixes an @mention or #hashtag with a link now keeps the sentence in the order it was written, instead of showing the end of the sentence first.' },
+    ],
+  },
+  {
     id: '2026-10-08',
     date: '2026-10-08',
     title: 'Snapie: Information War joins Games',
