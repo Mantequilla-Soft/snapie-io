@@ -89,6 +89,9 @@
       "dompurify": "3.4.16",
       "@types/react": "19.3.0",
       "@types/react-dom": "19.3.0"
+    },
+    "patchedDependencies": {
+      "@hiveio/content-renderer@2.3.1": "patches/@hiveio__content-renderer@2.3.1.patch"
     }
   },
   "optionalDependencies": {
