@@ -114,6 +114,7 @@ function Tab({ href, icon, label, active, dot, onClick }: TabProps) {
     <Flex
       as={NextLink}
       href={href}
+      prefetch={false}
       onClick={onClick}
       flex={1}
       direction="column"
