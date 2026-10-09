@@ -39,9 +39,11 @@ interface SidebarProps {
     isChatOpen?: boolean;
     setIsChatOpen?: (v: boolean) => void;
     chatUnreadCount?: number;
+    /** Fill a parent that already applied the sm/md column widths. */
+    contained?: boolean;
 }
 
-export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
+export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0, contained = false }: SidebarProps) {
     const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { isAdmin } = useIsAdmin();
     const { openLoginModal } = useLoginModal();
@@ -99,14 +101,14 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             as="nav"
             bg="surface"
             p={3}
-            w={forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' }}
-            h="100vh"
+            w={contained ? '100%' : (forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' })}
+            h={contained ? '100%' : '100vh'}
             overflowY="auto"
-            position={{ base: 'relative', sm: 'sticky' }}
+            position={contained ? 'relative' : { base: 'relative', sm: 'sticky' }}
             top={0}
             mt={0}
-            alignSelf={{ base: 'auto', sm: 'flex-start' }}
-            display={{ base: 'none', sm: 'block' }}
+            alignSelf={contained ? 'auto' : { base: 'auto', sm: 'flex-start' }}
+            display={contained ? 'block' : { base: 'none', sm: 'block' }}
             transition="width 0.3s ease"
             borderRight="1px solid"
             borderRightColor="surfaceBorder"
