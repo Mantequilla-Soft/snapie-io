@@ -173,7 +173,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
           {!isEmbedMode && !isChatPopoutMode && (
             <div className={pathname === '/compose' ? 'snapie-sidebar-slot is-compact' : 'snapie-sidebar-slot'}>
               {showDesktopSidebar && (
-                <Sidebar contained isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
+                <Sidebar isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} chatUnreadCount={chatUnreadCount} />
               )}
             </div>
           )}

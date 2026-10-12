@@ -25,6 +25,13 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-09',
+    date: '2026-10-09',
+    items: [
+      { type: 'improvement', text: 'The home feed loads noticeably faster on phones — the desktop sidebar and its data no longer load until there is room to show it.' },
+    ],
+  },
+  {
     id: '2026-10-08',
     date: '2026-10-08',
     title: 'Snapie: Information War joins Games',

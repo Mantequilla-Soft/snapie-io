@@ -39,11 +39,9 @@ interface SidebarProps {
     isChatOpen?: boolean;
     setIsChatOpen?: (v: boolean) => void;
     chatUnreadCount?: number;
-    /** Fill a parent that already applied the sm/md column widths. */
-    contained?: boolean;
 }
 
-export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0, contained = false }: SidebarProps) {
+export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadCount = 0 }: SidebarProps) {
     const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { isAdmin } = useIsAdmin();
     const { openLoginModal } = useLoginModal();
@@ -101,14 +99,17 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
             as="nav"
             bg="surface"
             p={3}
-            w={contained ? '100%' : (forceCompact ? '72px' : { base: 'full', sm: '72px', md: '260px' })}
-            h={contained ? '100%' : '100vh'}
+            // Width comes from the slot in app/sidebarSlot.css — this box
+            // just fills it (see LayoutContent, which only mounts this
+            // component once that slot is on screen).
+            w="100%"
+            h="100%"
             overflowY="auto"
-            position={contained ? 'relative' : { base: 'relative', sm: 'sticky' }}
+            position="relative"
             top={0}
             mt={0}
-            alignSelf={contained ? 'auto' : { base: 'auto', sm: 'flex-start' }}
-            display={contained ? 'block' : { base: 'none', sm: 'block' }}
+            alignSelf="auto"
+            display="block"
             transition="width 0.3s ease"
             borderRight="1px solid"
             borderRightColor="surfaceBorder"

@@ -16,6 +16,15 @@
     position: sticky;
     top: 0;
     align-self: flex-start;
+    /* Sidebar itself paints this background (plus its own border-right)
+       once it mounts, but the slot needs it too: Sidebar is client-only
+       (ssr: false, see LayoutContent) so there is a brief gap between first
+       paint and the chunk loading where the slot would otherwise be empty.
+       Giving it the sidebar's background up front means that gap reads as
+       "still loading" rather than a blank column next to the feed. Border
+       is left to Sidebar itself so the two don't stack into a double line
+       once it mounts. */
+    background: var(--chakra-colors-surface);
   }
 }
 
