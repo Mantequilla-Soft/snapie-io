@@ -3,6 +3,8 @@ import { ColorModeScript } from '@chakra-ui/react';
 import { Providers } from './providers';
 import LayoutContent from './LayoutContent';
 import type { Metadata, Viewport } from 'next';
+import './sidebarSlot.css';
+import '@/components/homepage/feedChrome.css';
 
 export const viewport: Viewport = {
   width: 'device-width',

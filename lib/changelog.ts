@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Short snaps stay in order',
     items: [
       { type: 'fix', text: 'A short snap that mixes an @mention or #hashtag with a link now keeps the sentence in the order it was written, instead of showing the end of the sentence first.' },
+      { type: 'improvement', text: 'The home feed loads noticeably faster on phones — the desktop sidebar and its data no longer load until there is room to show it.' },
     ],
   },
   {

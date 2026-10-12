@@ -57,7 +57,7 @@ if (typeof window.matchMedia !== 'function') {
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({
-      matches: false,
+      matches: typeof query === 'string' && query.includes('30em'),
       media: query,
       onchange: null,
       addListener: vi.fn(),
@@ -81,7 +81,7 @@ describe('chat shell', () => {
       </ChakraProvider>,
     );
 
-    expect(screen.getByText('Site nav')).toBeTruthy();
+    expect(await screen.findByText('Site nav')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Sign in to chat' })).toBeTruthy();
     expect(screen.queryByText('Chat panel')).toBeNull();
 
