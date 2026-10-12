@@ -49,6 +49,9 @@ export default function BottomTabBar() {
       right={0}
       h="calc(60px + env(safe-area-inset-bottom))"
       pb="env(safe-area-inset-bottom)"
+      pl="env(safe-area-inset-left)"
+      pr="env(safe-area-inset-right)"
+      boxSizing="border-box"
       bg="surface"
       borderTop="1px solid"
       borderTopColor="surfaceBorder"

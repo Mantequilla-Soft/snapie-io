@@ -47,6 +47,30 @@ describe('installDeferredScriptResponse', () => {
     expect(text).toContain('<p>Hello</p>');
   });
 
+  it('streams the early HTML through when the rest of the document is slow', async () => {
+    const head = '<!DOCTYPE html><html><head><script src="/_next/static/chunks/app-aaa.js" async=""></script></head><body><img src="/photo.jpg"/>';
+    const tail = '<p>late</p></body></html>';
+    const server = createServer((_req, res) => {
+      res.setHeader('content-type', 'text/html; charset=utf-8');
+      res.write(head);
+      setTimeout(() => res.end(tail), 600);
+    });
+    servers.push(server);
+    const port = await listen(server);
+
+    const started = Date.now();
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    const reader = res.body!.getReader();
+    const first = await reader.read();
+    const firstAt = Date.now() - started;
+    expect(new TextDecoder().decode(first.value)).toContain('<img src="/photo.jpg"/>');
+    expect(firstAt).toBeLessThan(500);
+
+    let rest = '';
+    for (let r = await reader.read(); !r.done; r = await reader.read()) rest += new TextDecoder().decode(r.value);
+    expect(rest).toContain('<p>late</p>');
+  });
+
   it('rewrites a gzipped HTML document and leaves javascript alone', async () => {
     const server = createServer((req, res) => {
       if (req.url === '/app.js') {
