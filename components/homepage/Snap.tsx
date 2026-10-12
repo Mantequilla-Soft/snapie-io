@@ -454,9 +454,14 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                     <FaRegComment />
                                 </button>
                                 {setConversation && (
-                                    <span className="snap-children" onClick={handleConversation}>
+                                    <button
+                                        type="button"
+                                        className="snap-action snap-children"
+                                        onClick={handleConversation}
+                                        aria-label="Open conversation"
+                                    >
                                         {comment.children}
-                                    </span>
+                                    </button>
                                 )}
                                 <button type="button" className="snap-action" onClick={handleReSnap}>
                                     <FaRetweet />

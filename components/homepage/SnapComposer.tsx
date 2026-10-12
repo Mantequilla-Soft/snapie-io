@@ -74,6 +74,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [isMemePickerOpen, setIsMemePickerOpen] = useState(false);
     const [emojiOpen, setEmojiOpen] = useState(false);
     const emojiRef = useRef<HTMLDivElement>(null);
+    const emojiToggleRef = useRef<HTMLButtonElement>(null);
     const [memeBeneficiaries, setMemeBeneficiaries] = useState<Beneficiary[]>([]);
     const [memeTemplateIds, setMemeTemplateIds] = useState<string[]>([]);
     const [isMemeUploading, setIsMemeUploading] = useState(false);
@@ -144,7 +145,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             if (!emojiRef.current?.contains(event.target as Node)) setEmojiOpen(false);
         };
         const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') setEmojiOpen(false);
+            if (event.key === 'Escape') {
+                setEmojiOpen(false);
+                emojiToggleRef.current?.focus();
+            }
         };
         document.addEventListener('mousedown', onDoc);
         document.addEventListener('keydown', onKey);
@@ -513,7 +517,10 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             />
             <div className="feed-toolbar">
                 <div className="feed-tools" ref={emojiRef}>
-                    <label className={!user || isLoading ? 'feed-tool-btn is-disabled' : 'feed-tool-btn'}>
+                    <label
+                        className={!user || isLoading ? 'feed-tool-btn is-disabled' : 'feed-tool-btn'}
+                        aria-label="Image"
+                    >
                         <FaImage size={20} />
                         <ImageUploader onUpload={handleImageSelection} />
                     </label>
@@ -527,6 +534,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         <MdGif size={44} />
                     </button>
                     <button
+                        ref={emojiToggleRef}
                         type="button"
                         className="feed-tool-btn"
                         aria-label="Emoji"
@@ -537,13 +545,12 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         <FaSmile size={20} />
                     </button>
                     {emojiOpen && (
-                        <div className="feed-emoji-pop" role="menu">
+                        <div className="feed-emoji-pop">
                             {ALL_COMMON_EMOJIS.map((emoji, index) => (
                                 <button
                                     key={index}
                                     type="button"
-                                    role="menuitem"
-                                    onClick={() => { handleEmojiClick(emoji); setEmojiOpen(false); }}
+                                    onClick={() => { handleEmojiClick(emoji); setEmojiOpen(false); emojiToggleRef.current?.focus(); }}
                                 >
                                     {emoji}
                                 </button>

@@ -371,6 +371,13 @@
   background: color-mix(in srgb, var(--chakra-colors-primary) 10%, transparent);
 }
 
+.snap-vote-btn:focus-visible,
+.feed-tool-btn:focus-visible,
+.feed-post-btn:focus-visible {
+  outline: 2px solid var(--chakra-colors-primary);
+  outline-offset: 2px;
+}
+
 .snap-vote-heart.is-voted {
   color: var(--chakra-colors-red-400);
 }
