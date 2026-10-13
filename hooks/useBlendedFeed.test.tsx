@@ -61,6 +61,7 @@ beforeEach(() => {
 describe('useBlendedFeed.refreshComment', () => {
   it("patches only the matching item's vote/payout fields, leaving others and array order untouched", async () => {
     const fetchMock = vi.fn(async () => ({
+      ok: true,
       json: async () => ({
         items: [
           feedItem('target', { active_votes: [{ voter: 'alice' }] }),
@@ -102,6 +103,7 @@ describe('useBlendedFeed.refreshComment', () => {
 
   it('leaves the existing data in place if the refetch fails', async () => {
     const fetchMock = vi.fn(async () => ({
+      ok: true,
       json: async () => ({ items: [feedItem('target')], hasMore: false }),
     }));
     vi.stubGlobal('fetch', fetchMock);
@@ -120,9 +122,32 @@ describe('useBlendedFeed.refreshComment', () => {
   });
 });
 
+describe('useBlendedFeed failure handling', () => {
+  it('keeps hasMore true and flags loadError when the feed endpoint fails', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 502,
+      json: async () => ({ items: [], hasMore: true, error: true }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useBlendedFeed());
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+
+    await waitFor(() => expect(result.current.loadError).toBe(true));
+    expect(result.current.hasMore).toBe(true);
+    // initial attempt + 2 in-request retries
+    expect(fetchMock.mock.calls.length).toBe(3);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+});
+
 describe('useBlendedFeed mute filters', () => {
   it('refetches once muted tags hydrate, and drops posts carrying that tag', async () => {
     const fetchMock = vi.fn(async () => ({
+      ok: true,
       json: async () => ({
         items: [
           feedItem('keep', { json_metadata: JSON.stringify({ tags: ['photography'] }) }),
@@ -151,6 +176,7 @@ describe('useBlendedFeed mute filters', () => {
 
   it('loads the signed-in mute list when username arrives after mount', async () => {
     const fetchMock = vi.fn(async () => ({
+      ok: true,
       json: async () => ({ items: [feedItem('a')], hasMore: false }),
     }));
     vi.stubGlobal('fetch', fetchMock);
@@ -170,6 +196,7 @@ describe('useBlendedFeed mute filters', () => {
 
   it('drops a muted author from the loaded page immediately', async () => {
     const fetchMock = vi.fn(async () => ({
+      ok: true,
       json: async () => ({
         items: [
           feedItem('keep', { author: 'goodauthor' }),
@@ -197,6 +224,7 @@ describe('useBlendedFeed mute filters', () => {
       const before = new URL(String(url), 'http://localhost').searchParams.get('before');
       if (before === '2026-08-01T00:00:00') {
         return {
+          ok: true,
           json: async () => ({
             items: [feedItem('stale-page', { created: '2026-07-01T00:00:00' })],
             hasMore: true,
@@ -204,6 +232,7 @@ describe('useBlendedFeed mute filters', () => {
         };
       }
       return {
+        ok: true,
         json: async () => ({
           items: [feedItem('fresh-page', { created: '2026-08-01T00:00:00' })],
           hasMore: true,
@@ -287,6 +316,7 @@ describe('useBlendedFeed initial server page', () => {
 
   it('continues infinite scroll from the server before cursor', async () => {
     const fetchMock = vi.fn(async (_url: string) => ({
+      ok: true,
       json: async () => ({
         items: [
           feedItem('older', { created: '2026-08-29T00:00:00' }),
@@ -313,9 +343,9 @@ describe('useBlendedFeed initial server page', () => {
     const fetchMock = vi.fn(async (url: string) => {
       const before = new URL(String(url), 'http://localhost').searchParams.get('before');
       if (before) {
-        return { json: async () => ({ items: [feedItem('paged')], hasMore: false }) };
+        return { ok: true, json: async () => ({ items: [feedItem('paged')], hasMore: false }) };
       }
-      return { json: async () => ({ items: [feedItem('personal')], hasMore: false }) };
+      return { ok: true, json: async () => ({ items: [feedItem('personal')], hasMore: false }) };
     });
     vi.stubGlobal('fetch', fetchMock);
 
