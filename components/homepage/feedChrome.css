@@ -303,6 +303,19 @@
   cursor: pointer;
 }
 
+.snap-cast-active {
+  color: #e53e3e;
+  animation: snap-cast-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes snap-cast-pulse {
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snap-cast-active { animation: none; }
+}
+
 .snap-resnap-label {
   display: none;
   font-size: 14px;
