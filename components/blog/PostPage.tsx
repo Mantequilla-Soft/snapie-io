@@ -16,6 +16,9 @@ import { useHiveUser } from '@/contexts/UserContext';
 import { useSearchParams } from 'next/navigation';
 import { useAuthorMuteGate } from '@/hooks/useAuthorMuteGate';
 import MutedAuthorNotice from '@/components/shared/MutedAuthorNotice';
+import SnapCastBar from '@/components/homepage/SnapCastBar';
+import { useSnapCast } from '@/hooks/useSnapCast';
+import { useUserSettings } from '@/hooks/useUserSettings';
 
 interface PostPageProps {
   author: string
@@ -43,6 +46,16 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     loadNextPage: () => {},
     hasMore: false,
   };
+
+  const { settings } = useUserSettings();
+  const [live, setLive] = useState(searchParams.get('snapcast') === '1');
+  const snapCast = useSnapCast({
+    author,
+    permlink,
+    enabled: live && !isEmbedMode,
+    sound: settings.snapCastSound,
+    updateComments: data.updateComments,
+  });
 
   useEffect(() => {
     async function loadPost() {
@@ -81,11 +94,13 @@ export default function PostPage({ author, permlink }: PostPageProps) {
       json_metadata: '{}',
       title: '',
     } as unknown as Comment;
+    snapCast.markOwnReply();
     data.addComment(optimistic);
     setTimeout(() => data.updateComments(), 3000);
   };
 
   const handleReply = (_partial: Partial<Comment>) => {
+    snapCast.markOwnReply();
     setTimeout(() => {
       data.updateComments();
       setConversationRefreshTrigger(t => t + 1);
@@ -116,13 +131,31 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     <Box bg="background" color="text" minH="100vh" p={isEmbedMode ? 2 : 4}>
       <Flex gap={6} align="flex-start">
         <Box flex="1" minW={0}>
-          <PostDetails
-            post={post}
-            isEmbedMode={isEmbedMode}
-            commentCount={commentsData.isLoading ? undefined : commentsData.comments.length}
-          />
+          {/* While live, the post (e.g. the livestream embed) stays pinned above
+              the scrolling replies, capped so it can't eat a phone screen. */}
+          <Box
+            {...(live && !isEmbedMode && !conversation
+              ? { position: 'sticky', top: 0, zIndex: 10, bg: 'background', maxH: '40vh', overflowY: 'auto' }
+              : {})}
+          >
+            <PostDetails
+              post={post}
+              isEmbedMode={isEmbedMode}
+              commentCount={commentsData.isLoading ? undefined : commentsData.comments.length}
+            />
+          </Box>
           {!isEmbedMode && !conversation ? (
             <>
+              <Box mt={3}>
+                <SnapCastBar
+                  author={author}
+                  permlink={permlink}
+                  live={live}
+                  onToggle={() => setLive(l => !l)}
+                  newCount={snapCast.newCount}
+                  onShowNew={snapCast.scrollToTop}
+                />
+              </Box>
               <SnapComposer pa={author} pp={permlink} onNewComment={handleTopLevelComment} post={true} onClose={() => {}} />
               <SnapList
                 author={author}

@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-12',
+    date: '2026-10-12',
+    title: 'Snap-Cast: snap along in real time',
+    items: [
+      { type: 'feature', text: 'Snap-Cast: tap the broadcast icon on any snap (or "Go live" inside a conversation) to follow its replies live. New snaps appear on their own within a few seconds, the original snap — and any livestream in it — stays pinned on top, and you can turn on a soft beep for each new reply. Copy the Snap-Cast link to invite friends straight into the live thread. Threads with fresh replies show a pulsing icon.' },
+    ],
+  },
+  {
     id: '2026-10-09',
     date: '2026-10-09',
     title: 'Short snaps stay in order',
