@@ -4,9 +4,10 @@ import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { Comment } from '@hiveio/dhive';
 import { ExtendedComment } from '@/hooks/useComments';
-import { FaRegComment, FaEdit, FaRetweet } from "react-icons/fa";
+import { FaRegComment, FaEdit, FaRetweet, FaBroadcastTower } from "react-icons/fa";
 import { FaXTwitter } from "react-icons/fa6";
 import { MdTranslate } from "react-icons/md";
+import { requestSnapCast, isRecentlyActive } from "@/lib/snapcast/intent";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -162,6 +163,12 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
 
     function handleConversation() {
         if (setConversation) setConversation(comment);
+    }
+
+    function handleSnapCast() {
+        if (!setConversation) return;
+        requestSnapCast(comment.author, comment.permlink);
+        setConversation(comment);
     }
 
     async function handleVote(weight: number) {
@@ -461,6 +468,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         aria-label="Open conversation"
                                     >
                                         {comment.children}
+                                    </button>
+                                )}
+                                {setConversation && (
+                                    <button
+                                        type="button"
+                                        className={`snap-action snap-cast${isRecentlyActive(comment) ? ' snap-cast-active' : ''}`}
+                                        onClick={handleSnapCast}
+                                        aria-label="Open as Snap-Cast (live)"
+                                        title="Snap-Cast: follow replies live"
+                                    >
+                                        <FaBroadcastTower />
                                     </button>
                                 )}
                                 <button type="button" className="snap-action" onClick={handleReSnap}>
