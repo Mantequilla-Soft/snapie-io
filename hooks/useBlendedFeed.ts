@@ -87,13 +87,42 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
   // sidecar hands back pre-merged pages, so the marginal cost is small,
   // and virtualization means the extra items don't stay mounted anyway.
   const pageSize = 30;
+  // In-request retries before a page counts as failed. A failed page keeps
+  // hasMore true so the next scroll trigger tries again.
+  const RETRY_DELAYS_MS = [800, 2000];
+  const [loadError, setLoadError] = useState(false);
+
+  // One page request. A non-OK status or malformed body throws so the caller
+  // can retry — it must never be read as "no more history".
+  async function requestPage(qs: URLSearchParams): Promise<{ items: FeedApiItem[]; hasMore: boolean; before?: string }> {
+    const res = await fetch(`/api/feed?${qs.toString()}`);
+    if (!res.ok) throw new Error(`feed responded ${res.status}`);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.items) || typeof data.hasMore !== 'boolean') {
+      throw new Error('feed returned a malformed page');
+    }
+    return data;
+  }
 
   async function getMoreFeedItems(isCancelled: () => boolean): Promise<{ comments: ExtendedComment[]; hasMoreData: boolean }> {
     const qs = new URLSearchParams({ limit: String(pageSize) });
     if (lastCreatedRef.current) qs.set('before', lastCreatedRef.current);
 
-    const res = await fetch(`/api/feed?${qs.toString()}`);
-    const data: { items: FeedApiItem[]; hasMore: boolean } = await res.json();
+    let data: Awaited<ReturnType<typeof requestPage>> | null = null;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      if (attempt > 0) {
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
+        if (isCancelled()) return { comments: [], hasMoreData: true };
+      }
+      try {
+        data = await requestPage(qs);
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!data) throw lastError;
 
     if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
 
@@ -113,6 +142,12 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
     for (const item of items) {
       fetchedPermlinksRef.current.add(item.permlink);
       lastCreatedRef.current = item.created;
+    }
+    // Prefer the sidecar's own cursor: items it failed to hydrate at the tail
+    // of a page would otherwise be re-requested (or skipped) via a cursor
+    // derived from the last item that did come back.
+    if (data.before && (!lastCreatedRef.current || data.before < lastCreatedRef.current)) {
+      lastCreatedRef.current = data.before;
     }
 
     return { comments: items.map(toExtendedComment), hasMoreData: data.hasMore };
@@ -169,6 +204,7 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
         const { comments: newItems, hasMoreData } = await getMoreFeedItems(isStale);
         if (isStale()) return;
 
+        setLoadError(false);
         setHasMore(hasMoreData);
         setComments(prev => {
           const existing = new Set(prev.map(c => c.permlink));
@@ -176,7 +212,10 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
           return [...prev, ...unique];
         });
       } catch (err) {
-        if (!isStale()) console.error('Error fetching blended feed:', err);
+        if (!isStale()) {
+          console.error('Error fetching blended feed:', err);
+          setLoadError(true);
+        }
       } finally {
         if (!isStale()) {
           setIsLoading(false);
@@ -241,5 +280,5 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
     }
   }, []);
 
-  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, refresh, refreshComment };
+  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, loadError, refresh, refreshComment };
 };

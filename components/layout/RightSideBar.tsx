@@ -10,6 +10,7 @@ import PostInfiniteScroll from '@/components/blog/PostInfiniteScroll';
 import SidebarEventsWidget from '@/components/hangouts/SidebarEventsWidget';
 import TrendingMarketsWidget from '@/components/layout/TrendingMarketsWidget';
 import ContainerVoteWidget from '@/components/layout/ContainerVoteWidget';
+import WitnessBeeWidget from '@/components/layout/WitnessBeeWidget';
 import WhoToFollowWidget from '@/components/layout/WhoToFollowWidget';
 import { Divider as ChakraDivider } from '@chakra-ui/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -285,6 +286,8 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
           <Divider borderColor="rgba(28, 161, 241, 0.08)" mb={2} />
         </>
       )}
+
+      <WitnessBeeWidget />
 
       <ContainerVoteWidget />
 
