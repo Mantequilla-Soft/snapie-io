@@ -19,10 +19,6 @@ const hexFly = keyframes`
   15%  { opacity: 1; }
   100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); opacity: 0; }
 `;
-const flash = keyframes`
-  0%   { opacity: 0.9; transform: scale(0.4); }
-  100% { opacity: 0; transform: scale(1.6); }
-`;
 
 interface Hex {
   id: number;
@@ -34,15 +30,9 @@ interface Hex {
 function Hexagon() {
   return (
     <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden>
-      <defs>
-        <linearGradient id="snapieHex" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#7ee0ff" />
-          <stop offset="100%" stopColor="#1ca1f1" />
-        </linearGradient>
-      </defs>
       <polygon
         points="50,4 91,27 91,73 50,96 9,73 9,27"
-        fill="url(#snapieHex)"
+        fill="#4cc4ff"
         stroke="#e8f8ff"
         strokeWidth="5"
         strokeLinejoin="round"
@@ -56,7 +46,6 @@ export default function WitnessBeeWidget() {
   const [forging, setForging] = useState(false);
   const [block, setBlock] = useState<number | null>(null);
   const [hexes, setHexes] = useState<Hex[]>([]);
-  const [flashId, setFlashId] = useState(0);
   const lastBlock = useRef<number | null>(null);
   const hexId = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -76,7 +65,6 @@ export default function WitnessBeeWidget() {
       t += FRAME_MS.b;
       later(() => {
         setFrame('c');
-        setFlashId((n) => n + 1);
         const id = ++hexId.current;
         const side = id % 2 ? 1 : -1;
         const hex = { id, dx: side * (40 + Math.random() * 70), dy: -(90 + Math.random() * 80), rot: side * (120 + Math.random() * 200) };
@@ -149,22 +137,6 @@ export default function WitnessBeeWidget() {
               draggable={false}
             />
           ))}
-          {flashId > 0 && (
-            <Box
-              key={flashId}
-              position="absolute"
-              left="29%"
-              top="85%"
-              w="60px"
-              h="60px"
-              ml="-30px"
-              mt="-30px"
-              borderRadius="full"
-              bg="radial-gradient(circle, rgba(160,235,255,0.95) 0%, rgba(28,161,241,0) 70%)"
-              animation={`${flash} 0.45s ease-out forwards`}
-              pointerEvents="none"
-            />
-          )}
           {hexes.map((h) => (
             <Box
               key={h.id}

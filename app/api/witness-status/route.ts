@@ -6,7 +6,7 @@ const CACHE_MS = 3000;
 
 export const dynamic = 'force-dynamic';
 
-let cache: { at: number; body: { lastBlock: number; totalMissed: number } } | null = null;
+let cache: { at: number; body: { lastBlock: number } } | null = null;
 
 async function fetchWitness() {
   for (const node of NODES) {
@@ -25,10 +25,7 @@ async function fetchWitness() {
       if (!res.ok) continue;
       const { result } = await res.json();
       if (result?.last_confirmed_block_num != null) {
-        return {
-          lastBlock: Number(result.last_confirmed_block_num),
-          totalMissed: Number(result.total_missed ?? 0),
-        };
+        return { lastBlock: Number(result.last_confirmed_block_num) };
       }
     } catch {
       // try next node
