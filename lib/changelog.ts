@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-16',
+    date: '2026-10-16',
+    title: 'Wallet interest fix',
+    items: [
+      { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
+    ],
+  },
+  {
     id: '2026-10-15',
     date: '2026-10-15',
     title: 'Meet Snapie the witness bee',
