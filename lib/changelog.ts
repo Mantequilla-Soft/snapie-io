@@ -54,6 +54,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-09',
     title: 'Short snaps stay in order',
     items: [
+      { type: 'feature', text: 'Snapie can now be installed as an app on your phone or computer. Add it to your home screen and it opens full-screen, with the header and tab bar kept clear of the notch and home indicator.' },
       { type: 'fix', text: 'A short snap that mixes an @mention or #hashtag with a link now keeps the sentence in the order it was written, instead of showing the end of the sentence first.' },
       { type: 'improvement', text: 'The home feed loads noticeably faster on phones — the desktop sidebar and its data no longer load until there is room to show it.' },
     ],
