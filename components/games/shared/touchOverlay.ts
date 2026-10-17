@@ -44,7 +44,7 @@ const ACCENT = "#ffd21f";
 const EDGE = "#3a3150";
 const FILL = "rgba(26,20,38,0.62)";
 const FILL_DOWN = "rgba(255,210,31,0.55)";
-const DPAD_SIZE = 150;
+const DPAD_SIZE = 150; // fallback for hit-testing when layout isn't measurable
 const DEADZONE = 0.3;
 
 const BASE_CSS = "user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none;";
@@ -68,7 +68,7 @@ export function createTouchOverlay(host: HTMLElement, opts: TouchOverlayOptions)
 
   // ---- D-pad: one zone, direction from where the thumb is ----
   const pad = document.createElement("div");
-  pad.style.cssText = `${BASE_CSS}position:relative;width:${DPAD_SIZE}px;height:${DPAD_SIZE}px;border-radius:50%;border:2px solid ${EDGE};background:${FILL};`;
+  pad.style.cssText = `${BASE_CSS}position:relative;flex:none;width:var(--pad);height:var(--pad);border-radius:50%;border:2px solid ${EDGE};background:${FILL};`;
   pad.dataset.touch = "dpad";
   const knob = document.createElement("div");
   knob.style.cssText = `position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,210,31,0.28);border:2px solid ${ACCENT};pointer-events:none;`;
@@ -105,10 +105,10 @@ export function createTouchOverlay(host: HTMLElement, opts: TouchOverlayOptions)
   left.appendChild(pad);
 
   // ---- action buttons ----
-  const button = (a: TouchAction, size: number) => {
+  const button = (a: TouchAction, size: "big" | "sm" | "sys") => {
     const b = document.createElement("button");
     b.type = "button"; b.textContent = a.label; b.setAttribute("aria-label", a.code);
-    const base = `${BASE_CSS}min-width:${size}px;height:${size}px;padding:0 8px;border-radius:${a.primary ? "50%" : "12px"};border:2px solid ${a.primary ? ACCENT : EDGE};background:${FILL};color:${ACCENT};font:inherit;`;
+    const base = `${BASE_CSS}flex:none;min-width:var(--${size});height:var(--${size});padding:0 8px;border-radius:${a.primary ? "50%" : "12px"};border:2px solid ${a.primary ? ACCENT : EDGE};background:${FILL};color:${ACCENT};font:inherit;`;
     b.style.cssText = base;
     let id: number | null = null;
     const end = (e: PointerEvent) => {
@@ -132,33 +132,35 @@ export function createTouchOverlay(host: HTMLElement, opts: TouchOverlayOptions)
   cluster.style.cssText = "display:flex;align-items:flex-end;gap:10px;";
   const small = document.createElement("div");
   small.style.cssText = "display:flex;flex-direction:column;gap:10px;";
-  for (const a of secondary) small.appendChild(button(a, 52));
-  for (const a of primary) cluster.appendChild(button(a, 76));
+  for (const a of secondary) small.appendChild(button(a, "sm"));
+  for (const a of primary) cluster.appendChild(button(a, "big"));
   cluster.prepend(small);
   right.appendChild(cluster);
-  for (const a of opts.system ?? []) top.appendChild(button(a, 40));
+  for (const a of opts.system ?? []) top.appendChild(button(a, "sys"));
 
   // ---- layout per mode ----
+  const edge = (side: string) => `max(12px,env(safe-area-inset-${side}))`;
   const setMode = (mode: TouchOverlayMode) => {
     // Release anything held across a layout swap, so no input sticks.
     for (const c of [...held]) hold(c, false);
+    const common = `${BASE_CSS}box-sizing:border-box;font:10px 'Press Start 2P',monospace;`;
     if (mode === "overlay") {
       // Fixed inside the fullscreen element = the whole screen, so in portrait
       // the controls land on the letterbox instead of covering the picture.
-      const inset = "max(12px,env(safe-area-inset-";
-      el.style.cssText = `${BASE_CSS}font:10px 'Press Start 2P',monospace;position:fixed;inset:0;z-index:5;pointer-events:none;`;
-      top.style.cssText = `position:absolute;top:${inset}top))};left:${inset}left))};pointer-events:auto;display:flex;gap:8px;`;
-      left.style.cssText = `position:absolute;bottom:${inset}bottom))};left:${inset}left))};pointer-events:auto;`;
-      right.style.cssText = `position:absolute;bottom:${inset}bottom))};right:${inset}right))};pointer-events:auto;`;
+      el.style.cssText = `${common}--pad:150px;--big:76px;--sm:52px;--sys:40px;position:fixed;inset:0;z-index:5;pointer-events:none;`;
+      top.style.cssText = `position:absolute;top:${edge("top")};left:${edge("left")};pointer-events:auto;display:flex;gap:8px;`;
+      left.style.cssText = `position:absolute;bottom:${edge("bottom")};left:${edge("left")};pointer-events:auto;`;
+      right.style.cssText = `position:absolute;bottom:${edge("bottom")};right:${edge("right")};pointer-events:auto;`;
+      el.insertBefore(top, left);
     } else {
-      el.style.cssText = `${BASE_CSS}font:10px 'Press Start 2P',monospace;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;`;
-      top.style.cssText = "display:flex;gap:8px;";
+      // Compact so the whole row fits a ~360px phone; pause joins the small buttons.
+      el.style.cssText = `${common}--pad:120px;--big:60px;--sm:46px;--sys:46px;width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px;`;
+      top.style.cssText = "display:flex;";
       left.style.cssText = ""; right.style.cssText = "";
+      small.appendChild(top);
     }
   };
   setMode("bar");
-  // In bar mode the system buttons sit between the two clusters.
-  el.insertBefore(top, right);
 
   return {
     el, setMode,
