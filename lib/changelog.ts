@@ -40,6 +40,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'On Rush, Jump, Blast and Information War, if you skip the Snapie Points signature the game now tells you points are off and gives you an "Enable Snapie Points" button, instead of just showing a balance of 0.' },
       { type: 'fix', text: 'Mistyped links like snapie.io/wallet or a username without the @ now show a proper "page not found" instead of a blank page.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
+      { type: 'fix', text: 'Logged-out visitors no longer hit a hidden page error on load, which could make the first paint flicker between styles.' },
     ],
   },
   {
