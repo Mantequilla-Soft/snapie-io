@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client';
 
-import { Box, Flex, Spinner } from '@chakra-ui/react';
+import { Alert, AlertIcon, Box, Flex, Spinner } from '@chakra-ui/react';
 import PostSidebar from '@/components/blog/PostSidebar';
 import SnapList from '../homepage/SnapList';
 import SnapComposer from '../homepage/SnapComposer';
@@ -60,11 +60,16 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   useEffect(() => {
     async function loadPost() {
       setIsLoading(true);
+      setError(null);
       try {
         const post = await getPost(author, permlink);
-        setPost(post);
+        // Older nodes answer a missing post with an empty object.
+        if (!post.author) setError('Post not found');
+        else setPost(post);
       } catch (err) {
-        setError('Failed to load post');
+        // Current nodes throw "Post <author>/<permlink> does not exist".
+        const missing = err instanceof Error && /does not exist/i.test(err.message);
+        setError(missing ? 'Post not found' : 'Failed to load post');
       } finally {
         setIsLoading(false);
       }
@@ -106,6 +111,17 @@ export default function PostPage({ author, permlink }: PostPageProps) {
       setConversationRefreshTrigger(t => t + 1);
     }, 3000);
   };
+
+  if (error && !post) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Alert status="error" borderRadius="md" variant="solid">
+          <AlertIcon />
+          {error}
+        </Alert>
+      </Box>
+    );
+  }
 
   if (isLoading || muteGate.isChecking || (!post || !author || !permlink)) {
     return (
