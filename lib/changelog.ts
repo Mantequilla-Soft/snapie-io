@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'On phones, the big + button and the Wallet tab now ask you to log in when you are signed out, instead of doing nothing (or opening an empty page). The + button also has a proper name for screen readers.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
