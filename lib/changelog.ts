@@ -25,11 +25,23 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-17',
+    date: '2026-10-17',
+    title: 'Information War on phones',
+    items: [
+      { type: 'fix', text: 'Snapie: Information War is playable on phones in fullscreen again. The picture now fits your screen and the controls float over it instead of disappearing.' },
+    ],
+  },
+  {
     id: '2026-10-16',
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
       { type: 'fix', text: 'Shared post links now show the post\'s own title and preview, including links with a community in the address, and previews no longer show raw HTML or codes like "&emsp;".' },
+      { type: 'improvement', text: 'The Games page now shows your Snapie Points balance when you are signed in, so you do not have to open a game to see it.' },
+      { type: 'fix', text: 'The wallet\'s Estimated Account Value no longer flashes a too-low total while your Hive Power is still loading; it shows a dash until the full amount is ready.' },
+      { type: 'fix', text: 'On phones, the big + button and the Wallet tab now ask you to log in when you are signed out, instead of doing nothing (or opening an empty page). The + button also has a proper name for screen readers.' },
+      { type: 'fix', text: 'Typing a username in capital letters in the address (like snapie.io/@SNAPIE) now takes you straight to the right profile instead of a slow, half-empty page.' },
       { type: 'fix', text: 'Searching Explore for a tag with no posts now says "No posts found" instead of spinning forever, and the search box limits very long queries.' },
       { type: 'fix', text: 'Opening a profile or post that does not exist now says "User not found" or "Post not found" instead of an endless spinner (or, for some usernames, a blank profile with zero followers).' },
       { type: 'improvement', text: 'Long Reads in the sidebar now only shows recent posts (last 30 days) with real substance (about 300 words or more), so old or tiny test posts no longer take up the list. If nothing qualifies you will see "No recent long reads".' },
@@ -37,6 +49,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'On Rush, Jump, Blast and Information War, if you skip the Snapie Points signature the game now tells you points are off and gives you an "Enable Snapie Points" button, instead of just showing a balance of 0.' },
       { type: 'fix', text: 'Mistyped links like snapie.io/wallet or a username without the @ now show a proper "page not found" instead of a blank page.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
+      { type: 'fix', text: 'Logged-out visitors no longer hit a hidden page error on load, which could make the first paint flicker between styles.' },
     ],
   },
   {
