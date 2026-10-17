@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-17',
+    date: '2026-10-17',
+    title: 'Information War on phones',
+    items: [
+      { type: 'fix', text: 'Snapie: Information War is playable on phones in fullscreen again. The picture now fits your screen and the controls float over it instead of disappearing.' },
+    ],
+  },
+  {
     id: '2026-10-16',
     date: '2026-10-16',
     title: 'Wallet interest fix',
