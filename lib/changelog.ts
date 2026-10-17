@@ -25,6 +25,22 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-16',
+    date: '2026-10-16',
+    title: 'Wallet interest fix',
+    items: [
+      { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
+    ],
+  },
+  {
+    id: '2026-10-15',
+    date: '2026-10-15',
+    title: 'Meet Snapie the witness bee',
+    items: [
+      { type: 'feature', text: 'On desktop, a little cyborg bee now sits at the top of the right column and hammers out hexagons every time the Snapie witness signs a block. Tap the bee to see it in action.' },
+    ],
+  },
+  {
     id: '2026-10-12',
     date: '2026-10-12',
     title: 'Snap-Cast: snap along in real time',
