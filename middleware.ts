@@ -17,6 +17,15 @@ function isAllowedOrigin(origin: string): boolean {
 }
 
 export function middleware(req: NextRequest) {
+  // Hive account names are lowercase, so /@SNAPIE is the same page as /@snapie.
+  // Only the username segment is lowercased; permlinks are case-sensitive.
+  const [, user, ...rest] = req.nextUrl.pathname.split('/');
+  if (user.startsWith('@') && user !== user.toLowerCase()) {
+    const url = req.nextUrl.clone();
+    url.pathname = ['', user.toLowerCase(), ...rest].join('/');
+    return NextResponse.redirect(url, 308);
+  }
+
   const origin = req.headers.get('origin') ?? '';
   const allowed = isAllowedOrigin(origin);
 
@@ -49,5 +58,10 @@ function corsHeaders(origin: string, allowed: boolean): Record<string, string> {
 }
 
 export const config = {
-  matcher: ['/api/chat/:path*', '/api/upload-image'],
+  matcher: [
+    '/api/chat/:path*',
+    '/api/upload-image',
+    // Only /@names containing an uppercase letter, so other pages skip middleware.
+    '/:user(@[^/]*[A-Z][^/]*)/:path*',
+  ],
 };
