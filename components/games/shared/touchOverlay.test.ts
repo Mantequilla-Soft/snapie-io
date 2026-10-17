@@ -74,6 +74,13 @@ describe('touchOverlay', () => {
     overlay.setMode('overlay');
     expect(release).toHaveBeenCalledWith('K');
     expect(overlay.el.style.position).toBe('fixed');
+    // Regression: invalid safe-area CSS was silently dropped, stacking every control top-left.
+    const [top, left, right] = Array.from(overlay.el.children) as HTMLElement[];
+    expect(left.style.bottom).toContain('safe-area-inset-bottom');
+    expect(left.style.left).toContain('safe-area-inset-left');
+    expect(right.style.bottom).toContain('safe-area-inset-bottom');
+    expect(right.style.right).toContain('safe-area-inset-right');
+    expect(top.style.top).toContain('safe-area-inset-top');
     overlay.setMode('bar');
     expect(overlay.el.style.position).not.toBe('fixed');
     overlay.destroy();
