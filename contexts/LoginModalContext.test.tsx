@@ -6,7 +6,7 @@ import { LoginModalProvider, useLoginModal } from './LoginModalContext'
 vi.mock('@aioha/react-ui', () => ({ useAioha: () => ({ user: null }) }))
 vi.mock('@aioha/aioha', () => ({ KeyTypes: { Posting: 'Posting' } }))
 vi.mock('@/lib/hive/hiveclient', () => ({ default: {} }))
-vi.mock('@/lib/hive/aioha', () => ({ getLoginProviders: () => [] }))
+vi.mock('@/lib/hive/aioha', () => ({ getLoginProviders: () => [], hasStoredAiohaSession: () => false }))
 vi.mock('@/contexts/UserContext', () => ({ useHiveUser: () => ({ setHiveUser: vi.fn() }) }))
 vi.mock('@/contexts/SnapieAuthContext', () => ({
   useSnapieAuth: () => ({ setSnapieUser: vi.fn(), isSnapieLoggedIn: false }),
