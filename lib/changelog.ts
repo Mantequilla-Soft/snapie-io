@@ -37,6 +37,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'Shared post links now show the post\'s own title and preview, including links with a community in the address, and previews no longer show raw HTML or codes like "&emsp;".' },
       { type: 'improvement', text: 'The Games page now shows your Snapie Points balance when you are signed in, so you do not have to open a game to see it.' },
       { type: 'fix', text: 'The wallet\'s Estimated Account Value no longer flashes a too-low total while your Hive Power is still loading; it shows a dash until the full amount is ready.' },
       { type: 'fix', text: 'On phones, the big + button and the Wallet tab now ask you to log in when you are signed out, instead of doing nothing (or opening an empty page). The + button also has a proper name for screen readers.' },
