@@ -5,7 +5,7 @@ Every Snapie game must be playable on a phone. This is the contract; `components
 ## Rules
 
 1. **Fullscreen fits the screen.** The fullscreen root is `position: fixed; inset: 0; height: 100dvh` (never `100vh`, never `minHeight`). The canvas is letterboxed to the largest box of its aspect ratio that fits (`min(100vw, calc(100dvh * W / H))`). If the canvas can be taller than the screen, controls will be pushed off it — that was the Info War bug.
-2. **Fullscreen controls float over the game**, translucent (~60% opacity, brighter when pressed), in the bottom corners where thumbs rest: movement on the left, actions on the right, pause top-left. No fixed control bar eating play area.
+2. **Fullscreen controls float over the game**, translucent (~60% opacity, brighter when pressed), in the bottom corners where thumbs rest: movement on the left, actions on the right, pause stacked with the small buttons (never top-left, where HUDs live). No fixed control bar eating play area.
 3. **Inline (not fullscreen) controls sit in a bar below the canvas**, so a small portrait canvas isn't covered by its own buttons.
 4. **Safe areas.** Pad with `env(safe-area-inset-*)` so the notch and home indicator never cover a control (`viewportFit: 'cover'` is already set in `app/layout.tsx`).
 5. **Touch targets are at least 44px.** Primary actions are bigger (76px).
@@ -30,15 +30,30 @@ const overlay = createTouchOverlay(rootEl, {
 overlay.setMode(document.fullscreenElement?.contains(rootEl) ? "overlay" : "bar");
 ```
 
-Info War (`components/games/snapie-info-war/mount.ts`) is the reference integration.
+React games use the wrapper instead — render it inside the game's fullscreen root where the old control bar was:
+
+```tsx
+import { TouchControls } from "../shared/TouchControls";
+
+<TouchControls
+  fullscreen={isFullscreen}
+  dpad={{ left: "left", right: "right" }}          // only the directions the game uses
+  actions={[{ label: "GAS", code: "accel", primary: true }, { label: "BRK", code: "brake" }]}
+  press={(code) => hold(code, true)}
+  release={(code) => hold(code, false)}
+/>
+```
+
+If the game's board fills the screen (a tall board in portrait), pass `fullscreen={isFullscreen && !isPortrait}` so the controls stay in a bar and don't cover the play area. Blocks does this.
+
+Reference integrations: Info War (`snapie-info-war/mount.ts`, vanilla DOM), Rush (`SnapieRush.tsx`), Blocks (`SnapieBlocks.tsx`).
 
 ## Status
 
-| Game | Fullscreen fits | Floating controls |
+| Game | Fullscreen fits | Touch controls |
 | --- | --- | --- |
-| Info War | yes | yes (shared overlay) |
-| Rush, Puff Quest, Blocks | yes | no — bar below canvas, to migrate |
-| Blast | yes | n/a (tap-to-shoot) |
-| Jump | yes | check |
+| Info War, Rush, Puff Quest, Blocks | yes | shared overlay (floating in fullscreen, bar inline) |
+| Blast | yes | n/a (tap the aliens) |
+| Jump | yes | n/a (drag anywhere to steer) |
 
 Test every game change with the mobile checklist in [qa.md](./qa.md).

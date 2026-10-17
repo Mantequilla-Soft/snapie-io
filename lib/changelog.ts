@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-17',
     title: 'Information War on phones',
     items: [
+      { type: 'improvement', text: 'Rush, Puff Quest and Blocks now have the same floating touch controls as Information War when you go fullscreen on a phone, so they no longer take up space under the game. Blocks\' board also fits the screen in landscape now.' },
       { type: 'fix', text: 'Snapie: Information War is playable on phones in fullscreen again. The picture now fits your screen and the controls float over it instead of disappearing.' },
     ],
   },
