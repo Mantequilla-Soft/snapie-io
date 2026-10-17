@@ -30,6 +30,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Wallet interest fix',
     items: [
       { type: 'fix', text: 'Opening Chat while you are signed in no longer briefly flashes the "Sign in to chat" screen while your session is being restored.' },
+      { type: 'fix', text: 'On Rush, Jump, Blast and Information War, if you skip the Snapie Points signature the game now tells you points are off and gives you an "Enable Snapie Points" button, instead of just showing a balance of 0.' },
+      { type: 'fix', text: 'Mistyped links like snapie.io/wallet or a username without the @ now show a proper "page not found" instead of a blank page.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
@@ -54,6 +56,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-09',
     title: 'Short snaps stay in order',
     items: [
+      { type: 'feature', text: 'Snapie can now be installed as an app on your phone or computer. Add it to your home screen and it opens full-screen, with the header and tab bar kept clear of the notch and home indicator.' },
       { type: 'fix', text: 'A short snap that mixes an @mention or #hashtag with a link now keeps the sentence in the order it was written, instead of showing the end of the sentence first.' },
       { type: 'improvement', text: 'The home feed loads noticeably faster on phones — the desktop sidebar and its data no longer load until there is room to show it.' },
     ],
