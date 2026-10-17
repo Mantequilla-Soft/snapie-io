@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
+import { PointsSkippedNotice } from '@/components/games/PointsSkippedNotice';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { saveGameScore } from '@/lib/games/scoreClient';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
@@ -164,6 +165,7 @@ export default function SnapieInfoWarPage() {
         <Text color="fg.muted">
           Balance: <strong>{points?.balance ?? '—'}</strong> Snapie Points
         </Text>
+        <PointsSkippedNotice username={username} />
       </VStack>
 
       <Box w="full" flex={1}>
