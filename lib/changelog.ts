@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'Shared post links now show the post\'s own title and preview, including links with a community in the address, and previews no longer show raw HTML or codes like "&emsp;".' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
