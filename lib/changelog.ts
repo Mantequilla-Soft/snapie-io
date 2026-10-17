@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'On phones, the big + button and the Wallet tab now ask you to log in when you are signed out, instead of doing nothing (or opening an empty page). The + button also has a proper name for screen readers.' },
       { type: 'fix', text: 'Typing a username in capital letters in the address (like snapie.io/@SNAPIE) now takes you straight to the right profile instead of a slow, half-empty page.' },
       { type: 'fix', text: 'Searching Explore for a tag with no posts now says "No posts found" instead of spinning forever, and the search box limits very long queries.' },
       { type: 'fix', text: 'Opening a profile or post that does not exist now says "User not found" or "Post not found" instead of an endless spinner (or, for some usernames, a blank profile with zero followers).' },
