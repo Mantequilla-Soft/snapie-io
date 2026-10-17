@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'Opening a profile or post that does not exist now says "User not found" or "Post not found" instead of an endless spinner (or, for some usernames, a blank profile with zero followers).' },
       { type: 'improvement', text: 'Long Reads in the sidebar now only shows recent posts (last 30 days) with real substance (about 300 words or more), so old or tiny test posts no longer take up the list. If nothing qualifies you will see "No recent long reads".' },
       { type: 'fix', text: 'Opening Chat while you are signed in no longer briefly flashes the "Sign in to chat" screen while your session is being restored.' },
       { type: 'fix', text: 'On Rush, Jump, Blast and Information War, if you skip the Snapie Points signature the game now tells you points are off and gives you an "Enable Snapie Points" button, instead of just showing a balance of 0.' },
