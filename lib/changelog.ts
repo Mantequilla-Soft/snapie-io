@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'Typing a username in capital letters in the address (like snapie.io/@SNAPIE) now takes you straight to the right profile instead of a slow, half-empty page.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
