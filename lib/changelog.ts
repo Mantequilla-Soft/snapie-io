@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'Searching Explore for a tag with no posts now says "No posts found" instead of spinning forever, and the search box limits very long queries.' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
