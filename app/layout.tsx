@@ -52,10 +52,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       {/* aioha-modal.css (Tailwind v4 preflight) loads when the login modal
           opens, so it is not a render-blocking stylesheet on first paint. */}
-      <body>
+      <body suppressHydrationWarning>
         {/* Chakra color-mode script: sets the color-mode class on <html>
             synchronously before hydration so server + client render match. */}
         <ColorModeScript initialColorMode="dark" />

@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Wallet interest fix',
     items: [
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
+      { type: 'fix', text: 'Logged-out visitors no longer hit a hidden page error on load, which could make the first paint flicker between styles.' },
     ],
   },
   {
