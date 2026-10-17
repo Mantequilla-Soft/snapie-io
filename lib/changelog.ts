@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'fix', text: 'The wallet\'s Estimated Account Value no longer flashes a too-low total while your Hive Power is still loading; it shows a dash until the full amount is ready.' },
       { type: 'fix', text: 'On phones, the big + button and the Wallet tab now ask you to log in when you are signed out, instead of doing nothing (or opening an empty page). The + button also has a proper name for screen readers.' },
       { type: 'fix', text: 'Typing a username in capital letters in the address (like snapie.io/@SNAPIE) now takes you straight to the right profile instead of a slow, half-empty page.' },
       { type: 'fix', text: 'Searching Explore for a tag with no posts now says "No posts found" instead of spinning forever, and the search box limits very long queries.' },
