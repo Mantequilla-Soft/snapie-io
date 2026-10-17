@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-16',
     title: 'Wallet interest fix',
     items: [
+      { type: 'improvement', text: 'Long Reads in the sidebar now only shows recent posts (last 30 days) with real substance (about 300 words or more), so old or tiny test posts no longer take up the list. If nothing qualifies you will see "No recent long reads".' },
       { type: 'fix', text: 'The pending interest shown on your HBD savings was wildly overstated (about 1000 times too high). It now shows the real amount you can claim.' },
     ],
   },
