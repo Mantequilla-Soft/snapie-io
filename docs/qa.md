@@ -13,6 +13,16 @@ pnpm qa        # lint + typecheck + test + build — the same four jobs CI runs
 
 `pnpm test:coverage` enforces the coverage floors in `vitest.config.ts`. New logic needs a test; bug fixes need a test that fails without the fix.
 
+## 1b. Automated phone checks (Playwright)
+
+```bash
+pnpm e2e            # headless, phone portrait + landscape (Pixel 7)
+pnpm e2e:ui         # watch it run / debug
+npx playwright install chromium   # once, to get the browser
+```
+
+The suite (`e2e/`) starts its own server on port 3311, signs in as a **fake user** (the auth endpoint is mocked) and **refuses every API write** (scores, points, broadcasts), so it can't touch real accounts. Add a check for any new game in `e2e/games-mobile.spec.ts`. It currently asserts, in a real phone browser, that fullscreen fits the screen, every control is on screen, the start button is reachable, and nothing scrolls sideways. Blocks needs mocked matchmaking first (marked `fixme`).
+
 ## 2. Manual check in a browser
 
 Run `pnpm dev` (port 3310) and exercise the change yourself. Type checks and tests don't prove a UI works.
