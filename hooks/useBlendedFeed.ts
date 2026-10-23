@@ -87,6 +87,15 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
   // sidecar hands back pre-merged pages, so the marginal cost is small,
   // and virtualization means the extra items don't stay mounted anyway.
   const pageSize = 30;
+  // Same target as useSnaps' pageMinSize: a long Hive mute list can strip
+  // all but a couple of items from a 30-item sidecar page, which otherwise
+  // reads as the feed being stuck. Keep asking the sidecar for more pages
+  // until this many survive the mute filter.
+  const pageMinSize = 10;
+  // Caps the worst case (a mute list that removes nearly everything) to a
+  // bounded number of sidecar round-trips per scroll/load-more instead of
+  // fetching forever. Same order of magnitude as useSnaps' container cap.
+  const MAX_PAGES_PER_FETCH = 5;
   // In-request retries before a page counts as failed. A failed page keeps
   // hasMore true so the next scroll trigger tries again.
   const RETRY_DELAYS_MS = [800, 2000];
@@ -104,53 +113,87 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
     return data;
   }
 
-  async function getMoreFeedItems(isCancelled: () => boolean): Promise<{ comments: ExtendedComment[]; hasMoreData: boolean }> {
+  // Fetches one sidecar page, retrying per RETRY_DELAYS_MS before giving up.
+  async function requestPageWithRetry(isCancelled: () => boolean): Promise<Awaited<ReturnType<typeof requestPage>> | null> {
     const qs = new URLSearchParams({ limit: String(pageSize) });
     if (lastCreatedRef.current) qs.set('before', lastCreatedRef.current);
 
-    let data: Awaited<ReturnType<typeof requestPage>> | null = null;
     let lastError: unknown;
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
       if (attempt > 0) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 1]));
-        if (isCancelled()) return { comments: [], hasMoreData: true };
+        if (isCancelled()) return null;
       }
       try {
-        data = await requestPage(qs);
-        break;
+        return await requestPage(qs);
       } catch (err) {
         lastError = err;
       }
     }
-    if (!data) throw lastError;
+    throw lastError;
+  }
 
-    if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
+  // Fetches sidecar pages, going back for more only when the mute filter is
+  // what left us short. One sidecar page is normally one visible page — a
+  // page that's naturally small (the real end of the feed) is returned as
+  // is, exactly like before. But a long personal/tag mute list can strip
+  // most of a page's items, which used to look like the feed had stalled;
+  // once that's seen on this fetch, keep asking for more pages until enough
+  // survive, hasMore goes false, or the page cap is hit.
+  async function getMoreFeedItems(isCancelled: () => boolean): Promise<{ comments: ExtendedComment[]; hasMoreData: boolean }> {
+    const collected: ExtendedComment[] = [];
+    let hasMoreData = true;
+    let pagesFetched = 0;
+    let sawMuteAttrition = false;
 
-    const mutedList = await mutedAccountsManager.getMutedList(username);
-    // The reset effect clears lastCreatedRef / fetchedPermlinksRef when
-    // username or muted tags change. A fetch that started earlier can
-    // resume here and write those refs back, which paginates the new feed
-    // from the stale page. Discard before touching either ref. The caller
-    // still drops the returned comments when this generation is stale.
-    if (isCancelled()) return { comments: [], hasMoreData: data.hasMore };
+    do {
+      if (isCancelled()) return { comments: collected, hasMoreData: true };
 
-    const items = data.items
-      .filter(item => !fetchedPermlinksRef.current.has(item.permlink))
-      .filter(item => !mutedList.has(item.author.toLowerCase()))
-      .filter(item => !hasMutedTag(item.json_metadata, settings.mutedTags));
+      let data: Awaited<ReturnType<typeof requestPage>> | null;
+      try {
+        data = await requestPageWithRetry(isCancelled);
+      } catch (err) {
+        // A page that fails outright (all retries exhausted) must never be
+        // read as "no more history" — rethrow unless an earlier page in
+        // this same fetch already found something worth showing.
+        if (collected.length > 0) return { comments: collected, hasMoreData: true };
+        throw err;
+      }
+      if (data === null) return { comments: collected, hasMoreData: true };
 
-    for (const item of items) {
-      fetchedPermlinksRef.current.add(item.permlink);
-      lastCreatedRef.current = item.created;
-    }
-    // Prefer the sidecar's own cursor: items it failed to hydrate at the tail
-    // of a page would otherwise be re-requested (or skipped) via a cursor
-    // derived from the last item that did come back.
-    if (data.before && (!lastCreatedRef.current || data.before < lastCreatedRef.current)) {
-      lastCreatedRef.current = data.before;
-    }
+      if (isCancelled()) return { comments: collected, hasMoreData: data.hasMore };
+      pagesFetched += 1;
 
-    return { comments: items.map(toExtendedComment), hasMoreData: data.hasMore };
+      const mutedList = await mutedAccountsManager.getMutedList(username);
+      // The reset effect clears lastCreatedRef / fetchedPermlinksRef when
+      // username or muted tags change. A fetch that started earlier can
+      // resume here and write those refs back, which paginates the new feed
+      // from the stale page. Discard before touching either ref. The caller
+      // still drops the returned comments when this generation is stale.
+      if (isCancelled()) return { comments: collected, hasMoreData: data.hasMore };
+
+      const deduped = data.items.filter(item => !fetchedPermlinksRef.current.has(item.permlink));
+      const items = deduped
+        .filter(item => !mutedList.has(item.author.toLowerCase()))
+        .filter(item => !hasMutedTag(item.json_metadata, settings.mutedTags));
+      if (items.length < deduped.length) sawMuteAttrition = true;
+
+      for (const item of items) {
+        fetchedPermlinksRef.current.add(item.permlink);
+        lastCreatedRef.current = item.created;
+      }
+      // Prefer the sidecar's own cursor: items it failed to hydrate at the
+      // tail of a page would otherwise be re-requested (or skipped) via a
+      // cursor derived from the last item that did come back.
+      if (data.before && (!lastCreatedRef.current || data.before < lastCreatedRef.current)) {
+        lastCreatedRef.current = data.before;
+      }
+
+      collected.push(...items.map(toExtendedComment));
+      hasMoreData = data.hasMore;
+    } while (sawMuteAttrition && collected.length < pageMinSize && hasMoreData && pagesFetched < MAX_PAGES_PER_FETCH);
+
+    return { comments: collected, hasMoreData };
   }
 
   // Username is a fetch input: a list loaded before login resolved only
