@@ -53,6 +53,7 @@ const BASE_CSS = "user-select:none;-webkit-user-select:none;-webkit-touch-callou
 export function createTouchOverlay(host: HTMLElement, opts: TouchOverlayOptions): TouchOverlayHandle {
   const el = document.createElement("div");
   el.style.cssText = `${BASE_CSS}font:10px 'Press Start 2P',monospace;`;
+  el.dataset.touchOverlay = "";
   const left = document.createElement("div");
   const right = document.createElement("div");
   el.append(left, right);
