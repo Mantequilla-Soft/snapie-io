@@ -25,6 +25,16 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-22',
+    date: '2026-10-22',
+    title: 'Feed and composer fixes',
+    items: [
+      { type: 'fix', text: 'The home feed no longer looks stuck when you have a long mute list — it keeps loading further pages instead of showing almost nothing new.' },
+      { type: 'fix', text: "The emoji picker on the home composer no longer pops up over the Post button on narrow screens, and the Post button no longer shifts width once you're signed in." },
+      { type: 'fix', text: "A snap with something that looks like an emoji but isn't (like a time such as 10:30) no longer shows a broken image." },
+    ],
+  },
+  {
     id: '2026-10-17',
     date: '2026-10-17',
     title: 'Information War on phones',
