@@ -219,6 +219,41 @@ describe('useBlendedFeed mute filters', () => {
     vi.unstubAllGlobals();
   });
 
+  it('keeps fetching pages in one load when a long mute list hides most of each page (#284)', async () => {
+    vi.mocked(mutedAccountsManager.getMutedList).mockResolvedValue(new Set(['spam1', 'spam2']));
+
+    let calls = 0;
+    const fetchMock = vi.fn(async () => {
+      const page = calls;
+      calls += 1;
+      const ts = (n: number) => `2026-08-${String(28 - n).padStart(2, '0')}T00:00:00`;
+      return {
+        ok: true,
+        json: async () => ({
+          items: [
+            feedItem(`keep-${page}`, { author: 'keeper', created: ts(page * 3) }),
+            feedItem(`spam-${page}-a`, { author: 'spam1', created: ts(page * 3 + 1) }),
+            feedItem(`spam-${page}-b`, { author: 'spam2', created: ts(page * 3 + 2) }),
+          ],
+          hasMore: true,
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useBlendedFeed({ username: 'viewer' }));
+
+    // A mute list that strips 2 of every 3 items used to leave just one
+    // visible item per load, looking stuck. One load now keeps asking the
+    // sidecar for more pages (bounded by the page cap) instead of settling
+    // for a near-empty page.
+    await waitFor(() => expect(result.current.comments.length).toBeGreaterThan(1));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(1));
+    expect(result.current.comments.every(c => c.author === 'keeper')).toBe(true);
+    expect(result.current.hasMore).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   it('does not let a superseded fetch restore the pagination cursor', async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const before = new URL(String(url), 'http://localhost').searchParams.get('before');
