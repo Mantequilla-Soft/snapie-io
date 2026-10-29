@@ -145,6 +145,24 @@ describe('useBlendedFeed failure handling', () => {
 });
 
 describe('useBlendedFeed mute filters', () => {
+  it('shows a fetched page even when the mute list never resolves', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(mutedAccountsManager.getMutedList).mockImplementation(() => new Promise(() => {}));
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [feedItem('p1')], hasMore: true }),
+    })));
+
+    const { result } = renderHook(() => useBlendedFeed());
+    await act(async () => { await vi.advanceTimersByTimeAsync(7000); });
+
+    await waitFor(() => expect(result.current.comments.map(c => c.permlink)).toEqual(['p1']));
+    expect(result.current.isLoading).toBe(false);
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
   it('refetches once muted tags hydrate, and drops posts carrying that tag', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
