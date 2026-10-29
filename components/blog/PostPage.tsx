@@ -1,7 +1,7 @@
 // app/page.tsx
 'use client';
 
-import { Alert, AlertIcon, Box, Flex, Spinner } from '@chakra-ui/react';
+import { Alert, AlertIcon, Box, Button, Flex, Spinner } from '@chakra-ui/react';
 import PostSidebar from '@/components/blog/PostSidebar';
 import SnapList from '../homepage/SnapList';
 import SnapComposer from '../homepage/SnapComposer';
@@ -34,6 +34,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [post, setPost] = useState<Discussion | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
   const [conversation, setConversation] = useState<Comment | undefined>();
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
@@ -68,7 +69,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
         else setPost(post);
       } catch (err) {
         // Current nodes throw "Post <author>/<permlink> does not exist".
-        const missing = err instanceof Error && /does not exist/i.test(err.message);
+        const missing = err instanceof Error && /does not exist|assert exception/i.test(err.message);
         setError(missing ? 'Post not found' : 'Failed to load post');
       } finally {
         setIsLoading(false);
@@ -76,7 +77,7 @@ export default function PostPage({ author, permlink }: PostPageProps) {
     }
 
     loadPost();
-  }, [author, permlink]);
+  }, [author, permlink, retry]);
 
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);
@@ -118,6 +119,9 @@ export default function PostPage({ author, permlink }: PostPageProps) {
         <Alert status="error" borderRadius="md" variant="solid">
           <AlertIcon />
           {error}
+          {error !== 'Post not found' && (
+            <Button ml={4} size="sm" onClick={() => setRetry(n => n + 1)}>Retry</Button>
+          )}
         </Alert>
       </Box>
     );
