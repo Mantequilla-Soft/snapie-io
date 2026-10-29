@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-10-28',
+    date: '2026-10-28',
+    title: 'Not-found fixes',
+    items: [
+      { type: 'fix', text: 'Mistyped API addresses now return a proper "not found" response instead of a blank page.' },
+    ],
+  },
+  {
     id: '2026-10-22',
     date: '2026-10-22',
     title: 'Feed and composer fixes',
