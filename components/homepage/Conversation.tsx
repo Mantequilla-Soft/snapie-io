@@ -99,6 +99,19 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
         setConversation(undefined)
     }
 
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            // Leave Escape to any open modal/popover/input that already owns it.
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
+            if (document.querySelector('[role="dialog"]')) return;
+            const tag = (e.target as HTMLElement | null)?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            setConversation(undefined);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [setConversation]);
+
     if (isLoading) {
         return (
             <Box textAlign="center" mt={4}>
