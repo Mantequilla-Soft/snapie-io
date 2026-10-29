@@ -11,8 +11,22 @@ export const revalidate = 30;
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
-  openGraph: { url: '/', images: ['/icons/icon-512.png'] },
-  twitter: { images: ['/icons/icon-512.png'] },
+  // Next replaces (not merges) nested metadata objects, so repeat the layout's fields.
+  openGraph: {
+    title: 'Snapie',
+    description: 'Decentralized social on Hive',
+    siteName: 'Snapie',
+    type: 'website',
+    url: '/',
+    images: ['/icons/icon-512.png'],
+  },
+  twitter: {
+    card: 'summary',
+    site: '@SnapieApp',
+    title: 'Snapie',
+    description: 'Decentralized social on Hive',
+    images: ['/icons/icon-512.png'],
+  },
 };
 
 // Same clip pattern Chakra's VisuallyHidden uses; keeps the server-rendered
