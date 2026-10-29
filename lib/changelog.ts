@@ -31,6 +31,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'fix', text: 'A post that fails to load now offers a Retry button, and missing posts reliably say "Post not found".' },
       { type: 'improvement', text: 'Press Escape to close an open conversation.' },
+      { type: 'fix', text: 'Mistyped page addresses like /wallet now return a proper "not found" instead of looking like a blank page.' },
     ],
   },
   {
