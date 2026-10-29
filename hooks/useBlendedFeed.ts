@@ -5,6 +5,7 @@ import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { hasMutedTag } from '@/lib/hive/mutedTags';
 import { useUserSettings } from './useUserSettings';
 import { getPost } from '@/lib/hive/client-functions';
+import { withTimeout } from '@/lib/utils/withTimeout';
 import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
 interface FeedApiItem {
@@ -99,6 +100,7 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
   // In-request retries before a page counts as failed. A failed page keeps
   // hasMore true so the next scroll trigger tries again.
   const RETRY_DELAYS_MS = [800, 2000];
+  const MUTE_LIST_WAIT_MS = 6000;
   const [loadError, setLoadError] = useState(false);
 
   // One page request. A non-OK status or malformed body throws so the caller
@@ -149,6 +151,15 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
     do {
       if (isCancelled()) return { comments: collected, hasMoreData: true };
 
+      // Start the mute lookup alongside the page request, and never wait on it
+      // longer than MUTE_LIST_WAIT_MS: it is a Hive RPC call that can stall for
+      // over a minute on a flaky connection, which left an already-fetched
+      // page hidden behind "Loading...". shortcut: a page that outruns the
+      // lookup shows without that mute list, so a muted author can appear
+      // until the next load; upgrade by re-filtering once the list arrives.
+      const mutedPromise = withTimeout(mutedAccountsManager.getMutedList(username), MUTE_LIST_WAIT_MS)
+        .catch(() => new Set<string>());
+
       let data: Awaited<ReturnType<typeof requestPage>> | null;
       try {
         data = await requestPageWithRetry(isCancelled);
@@ -164,7 +175,7 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
       if (isCancelled()) return { comments: collected, hasMoreData: data.hasMore };
       pagesFetched += 1;
 
-      const mutedList = await mutedAccountsManager.getMutedList(username);
+      const mutedList = await mutedPromise;
       // The reset effect clears lastCreatedRef / fetchedPermlinksRef when
       // username or muted tags change. A fetch that started earlier can
       // resume here and write those refs back, which paginates the new feed
