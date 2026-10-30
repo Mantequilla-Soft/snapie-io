@@ -158,6 +158,106 @@ describe('dispatchHiveRpc', () => {
   })
 })
 
+describe('unread_notifications cross-check', () => {
+  const unreadCall = {
+    jsonrpc: '2.0',
+    method: 'bridge.unread_notifications',
+    params: { account: 'alice' },
+    id: 1,
+  }
+  const reply = (id: number, lastread: string, unread: number) => ({
+    jsonrpc: '2.0',
+    id,
+    result: { lastread, unread },
+  })
+  const STALE = reply(1, '2026-01-01T00:00:00', 100)
+  const FRESH = reply(1, '2026-10-30T12:00:00', 2)
+
+  function nodesReturning(answers: Record<string, unknown>, calls: string[] = []) {
+    return vi.fn(async (url: string) => {
+      calls.push(url)
+      const answer = answers[url]
+      if (answer === undefined) throw new TypeError('fetch failed')
+      return jsonResponse(answer)
+    })
+  }
+
+  it('prefers the newer lastread when the leading node is stale', async () => {
+    const fetchImpl = nodesReturning({ [A]: STALE, [B]: FRESH })
+    const outcome = await dispatchHiveRpc(unreadCall, [A, B], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: FRESH })
+  })
+
+  it('keeps the leading answer when the second node is the stale one', async () => {
+    const fetchImpl = nodesReturning({ [A]: FRESH, [B]: STALE })
+    const outcome = await dispatchHiveRpc(unreadCall, [A, B], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: FRESH })
+  })
+
+  it('takes the smaller count when both nodes report the same lastread', async () => {
+    const fetchImpl = nodesReturning({
+      [A]: reply(1, '2026-10-30T12:00:00', 7),
+      [B]: reply(1, '2026-10-30T12:00:00', 3),
+    })
+    const outcome = await dispatchHiveRpc(unreadCall, [A, B], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: reply(1, '2026-10-30T12:00:00', 3) })
+  })
+
+  it('returns the first answer when no second node responds, trying at most two others', async () => {
+    const calls: string[] = []
+    const D = 'https://nodes.test/d'
+    const fetchImpl = nodesReturning({ [A]: STALE }, calls)
+    const outcome = await dispatchHiveRpc(unreadCall, [A, B, C, D], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: STALE })
+    expect(calls).toEqual([A, B, C])
+  })
+
+  it('does not let the cross-check node become the preferred node', async () => {
+    const calls: string[] = []
+    const fetchImpl = nodesReturning({ [A]: STALE, [B]: FRESH }, calls)
+    await dispatchHiveRpc(unreadCall, [A, B], { fetchImpl })
+    calls.length = 0
+    await dispatchHiveRpc(body, [A, B], {
+      fetchImpl: vi.fn(async (url: string) => {
+        calls.push(url)
+        return jsonResponse({ jsonrpc: '2.0', result: 1, id: 1 })
+      }),
+    })
+    expect(calls).toEqual([A])
+  })
+
+  it('also handles the dhive `call` request shape', async () => {
+    const dhiveCall = { jsonrpc: '2.0', method: 'call', params: ['bridge', 'unread_notifications', { account: 'alice' }], id: 1 }
+    const fetchImpl = nodesReturning({ [A]: STALE, [B]: FRESH })
+    const outcome = await dispatchHiveRpc(dhiveCall, [A, B], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: FRESH })
+  })
+
+  it('reconciles only the unread items inside a batch and re-sends only those', async () => {
+    const batch = [
+      { jsonrpc: '2.0', id: 1, method: 'condenser_api.get_content', params: ['a', 'b'] },
+      { ...unreadCall, id: 2 },
+    ]
+    const content = { jsonrpc: '2.0', id: 1, result: { title: 'x' } }
+    const sent: Record<string, unknown[]> = {}
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      ;(sent[url] ??= []).push(JSON.parse(String(init?.body)))
+      if (url === A) return jsonResponse([content, reply(2, '2026-01-01T00:00:00', 100)])
+      return jsonResponse([reply(2, '2026-10-30T12:00:00', 2)])
+    })
+    const outcome = await dispatchHiveRpc(batch, [A, B], { fetchImpl })
+    expect(outcome).toEqual({ ok: true, data: [content, reply(2, '2026-10-30T12:00:00', 2)] })
+    expect(sent[B]).toEqual([[{ ...unreadCall, id: 2 }]])
+  })
+
+  it('does not contact a second node for other methods', async () => {
+    const calls: string[] = []
+    const fetchImpl = nodesReturning({ [A]: { jsonrpc: '2.0', result: 1, id: 1 } }, calls)
+    await dispatchHiveRpc(body, [A, B], { fetchImpl })
+    expect(calls).toEqual([A])
+  })
+})
+
 describe('node list', () => {
   it('omits the unresolved Ecency host and keeps techcoderx last in the fallback list', () => {
     expect(FALLBACK_NODES.some((node) => node.includes('hapi.ecency.com'))).toBe(false)
