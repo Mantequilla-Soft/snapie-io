@@ -486,3 +486,65 @@ describe('ChatPanel rejected session', () => {
     expect(rejectedSend).toBeTruthy();
   });
 });
+
+describe('ChatPanel conversation list loading (#267)', () => {
+  const never = () => new Promise<never>(() => {});
+
+  async function mountPanel() {
+    const { default: ChatPanel } = await import('./ChatPanel');
+    return render(
+      <ChakraProvider>
+        <ChatPanel isOpen onClose={vi.fn()} />
+      </ChakraProvider>,
+    );
+  }
+
+  it('shows a spinner, not "No conversations yet", while the lists are loading', async () => {
+    mocks.getChannels.mockImplementation(never);
+    mocks.getConversations.mockImplementation(never);
+    await mountPanel();
+
+    expect(await screen.findByLabelText('Loading conversations')).toBeTruthy();
+    expect(screen.queryByText('No conversations yet')).toBeNull();
+  });
+
+  it('shows public channels even when the authed conversations call never resolves', async () => {
+    mocks.getConversations.mockImplementation(never);
+    await mountPanel();
+
+    expect(await screen.findByText('#general')).toBeTruthy();
+    expect(screen.queryByText('No conversations yet')).toBeNull();
+  });
+
+  it('keeps public channels, explains the failure, and retries when conversations fail', async () => {
+    mocks.getConversations.mockRejectedValueOnce(new Error('HTTP 500'));
+    await mountPanel();
+
+    expect(await screen.findByText('#general')).toBeTruthy();
+    expect(await screen.findByText('Could not load your DMs and groups.')).toBeTruthy();
+    expect(screen.queryByText('No conversations yet')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByText('dm-preview', { exact: false })).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText('Could not load your DMs and groups.')).toBeNull());
+  });
+
+  it('shows an error state instead of an empty one when every request fails', async () => {
+    mocks.getChannels.mockRejectedValue(new Error('network'));
+    mocks.getConversations.mockRejectedValue(new Error('network'));
+    await mountPanel();
+
+    expect(await screen.findByText('Conversations unavailable')).toBeTruthy();
+    expect(screen.getByText('Could not load conversations.')).toBeTruthy();
+    expect(screen.queryByText('No conversations yet')).toBeNull();
+  });
+
+  it('says "No conversations yet" only after a load that really returned nothing', async () => {
+    mocks.getChannels.mockResolvedValue([]);
+    mocks.getConversations.mockResolvedValue([]);
+    await mountPanel();
+
+    expect(await screen.findByText('No conversations yet')).toBeTruthy();
+  });
+});
