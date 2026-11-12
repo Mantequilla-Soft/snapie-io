@@ -148,3 +148,19 @@ describe('markdownRenderer 3speak audio and playlists', () => {
         expect(html).toContain('href="https://3speak.tv/audio?play=shainemata/lr4gk9js"');
     });
 });
+
+describe('markdownRenderer responsive images', () => {
+    it('adds srcset on content images and leaves hivemoji without srcset', () => {
+        const html = markdownRenderer('![peakd](https://files.peakd.com/file/a.jpg)', {
+            imageDimensions: { 'https://files.peakd.com/file/a.jpg': { width: 1000, height: 500 } },
+        });
+        expect(html).toContain(`${IMAGE_PROXY_PATH}?url=`);
+        expect(html).toContain('srcset=');
+        expect(html).toContain('width="1000"');
+        expect(html).toContain('height="500"');
+
+        const emoji = markdownRenderer(':wave:', { defaultEmojiOwner: 'alice' });
+        expect(emoji).toContain('hivemoji');
+        expect(emoji).not.toContain('srcset=');
+    });
+});
