@@ -1,3 +1,22 @@
+# Plan — 3Speak audio + playlist embeds (#345, 2026-11-12)
+
+The share links 3speak.tv now hands out for audio and playlists don't embed in Snapie. Only `audio.3speak.tv/play?a=` did.
+- `3speak.tv/audio?play=<owner>/<audioId>` → the id is the snapieaudio id (verified: `audio.3speak.tv/api/audio?a=lr4gk9js` resolves) → `audio.3speak.tv/play?a=<audioId>`
+- `3speak.tv/playlist/<id>` → `audio.3speak.tv/play?list=<id>` (3speak's playlist player is audio-only; it skips video items)
+- Bare links only. A labeled markdown link (`[my ep](url)`) stays a link, the same as for video.
+
+- [x] `@snapie/renderer`: export `canonicalSpeakAudioUrl()`. Rewrite bare 3speak audio and playlist anchors/`<p>` lines to the audio.3speak.tv form before the existing audio handler (its dedupe key already tells lists apart). Rebuild dist.
+- [x] `snapUtils`: detect the new shapes in `separateContent` and in `parseMediaContent` (bare URL → canonical). Add `speakAudioListId()`.
+- [x] `SpeakPlaylistEmbed` component: fetch `api/audio/playlist/<id>`. If it has tracks, show the 3speak iframe (`play?list=<id>&iframe=1`, 480px). Otherwise (404, empty, or video-only) show a "Open playlist on 3Speak" link card.
+- [x] Dispatch: MediaRenderer (snaps) and PostDetails (posts) send `list=` URLs to `SpeakPlaylistEmbed` and everything else to `SnapieSpeakAudio`.
+- [x] Tests (snapUtils + MarkdownRenderer), tsc, changelog entry, browser check on the dev server.
+- Out of scope: `3speak.tv/audio/<author>/<hivePermlink>` (needs an async lookup from the Hive post to the audio id); podcasts.
+
+### Review (2026-11-12)
+- `canonicalSpeakAudioUrl()` lives in `@snapie/renderer` and is the only place that maps 3speak.tv share links. snapUtils imports it, so posts and snaps can't drift apart.
+- Verified: 1037/1037 tests pass (7 new ones), `tsc --noEmit` is clean, and the dev server renders all three cases: the real audio `lr4gk9js` plays in SnapieSpeakAudio, the real playlist `1c5e0e39-…` ("NaPodPoMo 2026", 10 tracks) shows the 3speak player, and a fake id shows the link card.
+- Known and left alone: the content renderer mangles an `@user` inside a URL in the middle of a sentence. That's an old bug in the renderer, and 3speak's share links have no `@`.
+
 # Plan — For You Feed Personalization (Discovery Engine Phase 2, 2026-07-08)
 
 Full plan: `/home/meno/.claude/plans/radiant-yawning-kernighan.md`. Turns "For You" from a raw community-tag filter into a real 3-state feed: cold (community-scoped, engagement-ranked) → warm (cross-community, snaps+waves, interest-tag ranked) → cosmetic "Snapie community" badge in both states. Same flag+allowlist dogfooding discipline as Phase 1.
