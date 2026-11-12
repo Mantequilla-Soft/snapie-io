@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, trustedClientIp, type RateLimitEntry } from '@/lib/http/rateLimit';
 import { fetchProxiedImage, ImageProxyError, probeProxiedImage } from '@/lib/images/imageProxy';
+import { resolveImageDimensions } from '@/lib/images/imageDimensions';
+import { parseProxyWidth, resizeImageBuffer } from '@/lib/images/imageResize';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +64,14 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Invalid image url', { status: 400 });
     }
 
+    const meta = request.nextUrl.searchParams.get('meta') === '1';
+    const widthParam = request.nextUrl.searchParams.get('w');
+    const width = parseProxyWidth(widthParam);
+    if (widthParam != null && widthParam !== '' && width == null) {
+        if (probe) return probeJson(false);
+        return new NextResponse('Invalid image width', { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    }
+
     if (probe) {
         try {
             return probeJson(await probeProxiedImage(urls[0]));
@@ -71,11 +81,36 @@ export async function GET(request: NextRequest) {
         }
     }
 
+    if (meta) {
+        try {
+            const size = await resolveImageDimensions(urls[0]);
+            return NextResponse.json(
+                size ? { ok: true, width: size.width, height: size.height } : { ok: false },
+                {
+                    status: 200,
+                    headers: {
+                        'Cache-Control': size ? 'public, max-age=3600, s-maxage=3600' : 'no-store',
+                        'X-Content-Type-Options': 'nosniff',
+                    },
+                },
+            );
+        } catch (err) {
+            console.error('[image-proxy] meta failed', err);
+            return NextResponse.json(
+                { ok: false },
+                { status: 200, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
+            );
+        }
+    }
+
     try {
         const image = await fetchProxiedImage(urls[0]);
+        const resized = width
+            ? await resizeImageBuffer(image.body, image.contentType, width)
+            : image;
         const headers: Record<string, string> = {
-            'Content-Type': image.contentType,
-            'Content-Length': String(image.body.length),
+            'Content-Type': resized.contentType,
+            'Content-Length': String(resized.body.length),
             'Cache-Control': 'public, max-age=86400, s-maxage=86400',
             'X-Content-Type-Options': 'nosniff',
             'Content-Disposition': 'inline',
@@ -85,7 +120,7 @@ export async function GET(request: NextRequest) {
             'Content-Security-Policy': "default-src 'none'; sandbox",
         };
         if (image.fallback) headers['X-Image-Proxy-Fallback'] = image.fallback;
-        return new NextResponse(new Uint8Array(image.body), {
+        return new NextResponse(new Uint8Array(resized.body), {
             status: 200,
             headers,
         });

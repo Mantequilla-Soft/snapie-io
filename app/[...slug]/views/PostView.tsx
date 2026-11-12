@@ -3,6 +3,8 @@ import PostPage from '@/components/blog/PostPage';
 import { loadPostForPage } from '@/lib/hive/metadata-functions';
 import { isCommunityRoleMuted } from '@/lib/hive/muted-accounts';
 import type { Discussion } from '@hiveio/dhive';
+import markdownRenderer from '@/lib/utils/MarkdownRenderer';
+import { prefetchPostImageDimensions } from '@/lib/images/imageDimensions';
 
 export default async function PostView({ author, permlink }: { author: string; permlink: string }) {
   // A real 404 only when Hive answers that this post is empty. A timeout or
@@ -21,7 +23,15 @@ export default async function PostView({ author, permlink }: { author: string; p
     return <PostPage author={author} permlink={permlink} />;
   }
 
+  const post = lookedUp.post as Discussion;
+  const html = markdownRenderer(post.body ?? '', { defaultEmojiOwner: post.author });
+  const imageDimensions = await prefetchPostImageDimensions(html);
   return (
-    <PostPage author={author} permlink={permlink} initialPost={lookedUp.post as Discussion} />
+    <PostPage
+      author={author}
+      permlink={permlink}
+      initialPost={post}
+      imageDimensions={imageDimensions}
+    />
   );
 }
