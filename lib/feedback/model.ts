@@ -3,6 +3,10 @@ export const FEEDBACK_BODY_MAX = 4_000;
 export const FEEDBACK_RAW_MAX = 16_000;
 export const USER_AGENT_MAX = 180;
 export const PAGE_URL_MAX = 500;
+export const FEEDBACK_SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
+export const FEEDBACK_SCREENSHOT_URL_MAX = 500;
+export const FEEDBACK_SCREENSHOT_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+export const FEEDBACK_SCREENSHOT_HOSTS = new Set(['images.hive.blog', 'images.3speak.tv']);
 
 export type FeedbackCategory = 'bug' | 'idea' | 'other';
 
@@ -11,6 +15,7 @@ export interface ParsedFeedback {
   body: string;
   category: FeedbackCategory | null;
   pageUrl: string | null;
+  screenshotUrl: string | null;
 }
 
 const CATEGORIES = new Set<FeedbackCategory>(['bug', 'idea', 'other']);
@@ -64,6 +69,43 @@ export function truncateUserAgent(value: string | null | undefined): string {
   return `${clean.slice(0, USER_AGENT_MAX - 1)}…`;
 }
 
+export function validateFeedbackScreenshotFile(file: { type: string; size: number }): string | null {
+  if (!FEEDBACK_SCREENSHOT_TYPES.has(file.type)) {
+    return 'Screenshots must be a PNG, JPEG, or WebP image.';
+  }
+  if (file.size <= 0 || file.size > FEEDBACK_SCREENSHOT_MAX_BYTES) {
+    return 'Screenshots must be 5 MB or smaller.';
+  }
+  return null;
+}
+
+/**
+ * Only HTTPS URLs on the hosts this app already uploads images to.
+ * Guests cannot attach a screenshot; the route enforces a signed-in session.
+ */
+export function sanitizeScreenshotUrl(value: unknown): { ok: true; url: string | null } | { ok: false; error: string } {
+  const error = 'That screenshot could not be attached.';
+  if (value == null || value === '') return { ok: true, url: null };
+  if (typeof value !== 'string') return { ok: false, error };
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, url: null };
+  if (/[\r\n\0]/.test(trimmed) || trimmed.length > FEEDBACK_SCREENSHOT_URL_MAX) {
+    return { ok: false, error };
+  }
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return { ok: false, error };
+  }
+  if (url.protocol !== 'https:') return { ok: false, error };
+  if (url.username || url.password) return { ok: false, error };
+  const host = url.hostname.replace(/\.$/, '').toLowerCase();
+  if (!FEEDBACK_SCREENSHOT_HOSTS.has(host)) return { ok: false, error };
+  url.hash = '';
+  return { ok: true, url: url.toString() };
+}
+
 export function parseFeedbackSubmission(
   payload: unknown,
 ): { ok: true; value: ParsedFeedback } | { ok: false; error: string } {
@@ -93,6 +135,9 @@ export function parseFeedbackSubmission(
     category = raw.category as FeedbackCategory;
   }
 
+  const screenshot = sanitizeScreenshotUrl(raw.screenshotUrl);
+  if (!screenshot.ok) return screenshot;
+
   return {
     ok: true,
     value: {
@@ -100,6 +145,7 @@ export function parseFeedbackSubmission(
       body,
       category,
       pageUrl: sanitizePageUrl(raw.pageUrl),
+      screenshotUrl: screenshot.url,
     },
   };
 }
@@ -118,24 +164,27 @@ export function buildFeedbackIssue(input: {
   pageUrl: string | null;
   hiveUsername: string | null;
   userAgent: string;
+  screenshotUrl?: string | null;
 }): { title: string; body: string; labels: string[] } {
   const prefix = input.category === 'bug' ? '[Bug]' : input.category === 'idea' ? '[Idea]' : '[Feedback]';
   const category = input.category ?? 'unspecified';
   const who = input.hiveUsername ?? 'guest';
   const page = input.pageUrl ?? 'unknown';
-  const body = [
+  const lines = [
     `**Category:** ${category}`,
     `**Page:** ${page}`,
     `**Hive user:** ${who}`,
     '',
     input.body,
-    '',
-    `**User agent:** ${input.userAgent}`,
-  ].join('\n');
+  ];
+  if (input.screenshotUrl) {
+    lines.push('', '**Screenshot:**', '', `![Screenshot](${input.screenshotUrl})`);
+  }
+  lines.push('', `**User agent:** ${input.userAgent}`);
 
   return {
     title: `${prefix} ${input.title}`,
-    body,
+    body: lines.join('\n'),
     labels: feedbackLabels(input.category),
   };
 }

@@ -19,6 +19,7 @@ export async function submitFeedback(input: {
   category: FeedbackCategory | '';
   pageUrl: string;
   chatToken: string | null;
+  screenshotUrl?: string | null;
 }): Promise<{ ok: true; url: string | null } | { ok: false; error: string }> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (input.chatToken) headers.Authorization = `Bearer ${input.chatToken}`;
@@ -29,6 +30,7 @@ export async function submitFeedback(input: {
     pageUrl: input.pageUrl,
   };
   if (input.category) payload.category = input.category;
+  if (input.screenshotUrl) payload.screenshotUrl = input.screenshotUrl;
 
   try {
     const res = await fetch('/api/feedback', {
