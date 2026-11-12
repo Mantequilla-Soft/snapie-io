@@ -8,7 +8,7 @@
 import { createHiveRenderer, HiveRendererContext, HiveRendererOptions } from '@snapie/renderer';
 import { rewriteHtmlImageSrcs } from '@/lib/images/markdownImages';
 import { applyPostImageLayout } from '@/lib/images/postImageLayout';
-import type { ImageSizeMap } from '@/lib/images/imageDimensions';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 // Custom configuration for Snapie.io
 const snapieRendererOptions: Partial<HiveRendererOptions> = {
