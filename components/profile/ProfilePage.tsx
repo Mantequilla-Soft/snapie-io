@@ -39,6 +39,7 @@ import WitnessBadge from '@/components/shared/WitnessBadge';
 import AccountBadges from './AccountBadges';
 import type { ProfileSeedAccount } from '@/lib/hive/profileSeed';
 import ProfileCover from '@/components/shared/ProfileCover';
+import { useConversationUrl } from '@/hooks/useConversationUrl';
 
 interface ProfilePageProps {
   username: string;
@@ -97,6 +98,7 @@ export default function ProfilePage({
   // Snaps tab state
   const profileSnaps = useProfileSnaps(username, initialSnaps);
   const [conversation, setConversation] = useState<Comment | undefined>();
+  useConversationUrl(conversation, setConversation);
   const [reply, setReply] = useState<ExtendedComment | undefined>();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
