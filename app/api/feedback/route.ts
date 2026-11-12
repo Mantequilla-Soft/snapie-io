@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
   }
 
   const hiveUsername = await resolveFeedbackHiveUsername(request.headers);
+  if (parsed.value.screenshotUrl && !hiveUsername) {
+    return jsonError('Sign in to attach a screenshot.', 401);
+  }
   const ip = trustedClientIp(request.headers);
   if (!allowFeedback(feedbackRateKey(ip, hiveUsername))) {
     return jsonError(

@@ -84,3 +84,23 @@ describe('submitFeedback', () => {
     expect(offline).toEqual({ ok: false, error: 'We could not send that. Please try again.' });
   });
 });
+
+describe('submitFeedback screenshotUrl', () => {
+  it('includes a screenshot URL when provided', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
+      url: 'https://github.com/Mantequilla-Soft/snapie-io/issues/9',
+    }), { status: 201 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await submitFeedback({
+      title: 'Hello',
+      body: 'A note',
+      category: '',
+      pageUrl: 'https://snapie.io/',
+      chatToken: 'chat-jwt',
+      screenshotUrl: 'https://images.hive.blog/DQmabc/shot.png',
+    });
+    expect(JSON.parse(String(requestInit(fetchMock).body)).screenshotUrl).toBe(
+      'https://images.hive.blog/DQmabc/shot.png',
+    );
+  });
+});

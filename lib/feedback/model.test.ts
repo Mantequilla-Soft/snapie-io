@@ -6,7 +6,9 @@ import {
   buildFeedbackIssue,
   parseFeedbackSubmission,
   sanitizePageUrl,
+  sanitizeScreenshotUrl,
   truncateUserAgent,
+  validateFeedbackScreenshotFile,
 } from './model';
 
 describe('parseFeedbackSubmission', () => {
@@ -45,6 +47,7 @@ describe('parseFeedbackSubmission', () => {
         body: 'there',
         category: 'bug',
         pageUrl: null,
+        screenshotUrl: null,
       },
     });
   });
@@ -96,6 +99,21 @@ describe('buildFeedbackIssue', () => {
     expect(issue.body).toContain('**Hive user:** alice');
     expect(issue.body).toContain('The first letter vanishes.');
     expect(issue.body).toContain('**User agent:** TestAgent/1.0');
+    expect(issue.body).not.toContain('![Screenshot]');
+  });
+
+  it('embeds an allowlisted screenshot in the issue body', () => {
+    const issue = buildFeedbackIssue({
+      title: 'Broken layout',
+      body: 'See the shot.',
+      category: 'bug',
+      pageUrl: 'https://snapie.io/',
+      hiveUsername: 'alice',
+      userAgent: 'ua',
+      screenshotUrl: 'https://images.hive.blog/DQmabc/shot.png',
+    });
+    expect(issue.body).toContain('**Screenshot:**');
+    expect(issue.body).toContain('![Screenshot](https://images.hive.blog/DQmabc/shot.png)');
   });
 
   it('files a guest as guest with a feedback title', () => {
@@ -125,5 +143,29 @@ describe('buildFeedbackIssue', () => {
     });
     expect(issue.title).toBe('[Idea] Darker cards');
     expect(issue.labels).toEqual(['feedback', 'idea']);
+  });
+});
+
+describe('screenshot helpers', () => {
+  it('accepts png/jpeg/webp up to 5 MB and rejects other types or sizes', () => {
+    expect(validateFeedbackScreenshotFile({ type: 'image/png', size: 12 })).toBeNull();
+    expect(validateFeedbackScreenshotFile({ type: 'image/jpeg', size: 5 * 1024 * 1024 })).toBeNull();
+    expect(validateFeedbackScreenshotFile({ type: 'image/gif', size: 12 })).toMatch(/PNG, JPEG, or WebP/);
+    expect(validateFeedbackScreenshotFile({ type: 'image/png', size: 5 * 1024 * 1024 + 1 })).toMatch(/5 MB/);
+  });
+
+  it('only keeps https URLs on the app image hosts', () => {
+    expect(sanitizeScreenshotUrl('https://images.hive.blog/DQmabc/shot.png')).toEqual({
+      ok: true,
+      url: 'https://images.hive.blog/DQmabc/shot.png',
+    });
+    expect(sanitizeScreenshotUrl('https://images.3speak.tv/u/alice/a.webp')).toEqual({
+      ok: true,
+      url: 'https://images.3speak.tv/u/alice/a.webp',
+    });
+    expect(sanitizeScreenshotUrl('')).toEqual({ ok: true, url: null });
+    expect(sanitizeScreenshotUrl('https://evil.example/a.png').ok).toBe(false);
+    expect(sanitizeScreenshotUrl('http://images.hive.blog/a.png').ok).toBe(false);
+    expect(sanitizeScreenshotUrl('https://user:pass@images.hive.blog/a.png').ok).toBe(false);
   });
 });
