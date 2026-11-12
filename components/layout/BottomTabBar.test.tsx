@@ -68,19 +68,20 @@ describe('BottomTabBar', () => {
     expect(mocks.push).not.toHaveBeenCalled();
   });
 
-  it('asks a guest to log in instead of linking to a wallet page', () => {
+  it('asks a guest to log in, with a real /wallet href for crawlers', () => {
     renderBar();
     const wallet = screen.getByRole('link', { name: /Wallet/ });
-    expect(wallet.getAttribute('href')).toBe('#');
+    expect(wallet.getAttribute('href')).toBe('/wallet');
     fireEvent.click(wallet);
     expect(mocks.openLoginModal).toHaveBeenCalledTimes(1);
   });
 
-  it('does not follow # when a signed-in user has no username yet', () => {
+  it('sends a signed-in user whose username has not resolved to /wallet', () => {
     mocks.isLoggedIn = true;
     const wallet = renderBar().getByRole('link', { name: /Wallet/ });
-    expect(wallet.getAttribute('href')).toBe('#');
-    expect(fireEvent.click(wallet)).toBe(false);
+    expect(wallet.getAttribute('href')).toBe('/wallet');
+    wallet.addEventListener('click', (e) => e.preventDefault()); // jsdom cannot navigate
+    fireEvent.click(wallet);
     expect(mocks.openLoginModal).not.toHaveBeenCalled();
   });
 

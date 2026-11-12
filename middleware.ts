@@ -24,7 +24,7 @@ function isAllowedOrigin(origin: string): boolean {
 export const TOP_LEVEL_ROUTES = [
   'api', 'blog', 'changelog', 'chat', 'compose', 'edit', 'explore', 'factory',
   'games', 'hangouts', 'join', 'leaderboard', 'profile', 'settings', 'shorts',
-  'support', 'test-sanitize',
+  'support', 'test-sanitize', 'wallet',
 ];
 
 const SUBPAGES = new Set(['wallet', 'notifications']);
