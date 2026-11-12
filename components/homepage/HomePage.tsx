@@ -27,6 +27,7 @@ import { useContentFilter } from '@/hooks/useContentFilter';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 import { homePaintedSnapCount, shouldPaintHomeFeedSeed, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
 import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
+import { useConversationUrl } from '@/hooks/useConversationUrl';
 
 const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
 const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
@@ -126,6 +127,7 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
   const communityTag = process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG;
 
   const [conversation, setConversation] = useState<Comment | undefined>();
+  useConversationUrl(conversation, setConversation);
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
