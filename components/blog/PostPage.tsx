@@ -24,7 +24,7 @@ import {
   extractOriginalImageUrls,
   fetchImageDimensionsFromProxy,
   type ImageSizeMap,
-} from '@/lib/images/imageDimensions';
+} from '@/lib/images/imageDimensions.shared';
 
 interface PostPageProps {
   author: string

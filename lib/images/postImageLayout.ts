@@ -13,7 +13,7 @@ import {
   originalUrlFromProxySrc,
   type ImageSize,
   type ImageSizeMap,
-} from '@/lib/images/imageDimensions';
+} from '@/lib/images/imageDimensions.shared';
 
 export const POST_IMAGE_SRCSET_WIDTHS = [320, 640, 960, 1280] as const;
 export const POST_IMAGE_SIZES = '(max-width: 768px) 100vw, 720px';

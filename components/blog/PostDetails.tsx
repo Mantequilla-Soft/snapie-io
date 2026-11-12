@@ -21,7 +21,7 @@ import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
-import type { ImageSizeMap } from '@/lib/images/imageDimensions';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 type BodySegment =
     | { type: 'html'; html: string }
