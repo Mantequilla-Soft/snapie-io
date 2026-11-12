@@ -139,7 +139,7 @@ export default function SnapReplyModal({ isOpen, onClose, comment, onNewReply }:
                                                 paddingTop: '0.25em',
                                                 paddingBottom: '0.25em',
                                                 fontStyle: 'italic',
-                                                color: 'secondary',
+                                                color: 'secondaryText',
                                                 bg: 'muted',
                                                 borderRadius: '0 6px 6px 0',
                                             },

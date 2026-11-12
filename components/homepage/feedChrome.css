@@ -224,7 +224,7 @@
   margin-left: 0;
   padding: 0.25em 0.75em;
   font-style: italic;
-  color: var(--chakra-colors-secondary);
+  color: var(--chakra-colors-secondaryText, var(--chakra-colors-secondary));
   background: var(--chakra-colors-muted);
   border-radius: 0 6px 6px 0;
 }

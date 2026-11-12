@@ -519,10 +519,9 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 <div className="feed-tools" ref={emojiRef}>
                     <label
                         className={!user || isLoading ? 'feed-tool-btn is-disabled' : 'feed-tool-btn'}
-                        aria-label="Image"
                     >
-                        <FaImage size={20} />
-                        <ImageUploader onUpload={handleImageSelection} />
+                        <FaImage size={20} aria-hidden />
+                        <ImageUploader onUpload={handleImageSelection} ariaLabel="Image" />
                     </label>
                     <button
                         type="button"

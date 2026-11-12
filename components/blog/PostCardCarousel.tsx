@@ -45,6 +45,7 @@ export default function PostCardCarousel({
             as="a"
             href={postHref}
             onClick={onNavigate}
+            aria-label={title || 'View post'}
             position="relative"
             h={CARD_IMAGE_HEIGHT}
             w="100%"
@@ -54,7 +55,7 @@ export default function PostCardCarousel({
           >
             <ProxiedImage
               url={url}
-              alt={title}
+              alt={title || ''}
               sizes="(max-width: 800px) 100vw, 640px"
             />
           </Box>

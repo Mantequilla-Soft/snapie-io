@@ -87,7 +87,7 @@ export default function ReSnap({ comment }: ReSnapProps) {
                     <Text fontWeight="medium" fontSize="sm">
                         @{comment.author}
                     </Text>
-                    <Text fontSize="xs" color="secondary">
+                    <Text fontSize="xs" color="secondaryText">
                         {commentDate}
                     </Text>
                 </Box>
@@ -124,7 +124,7 @@ export default function ReSnap({ comment }: ReSnapProps) {
                             paddingTop: "0.25em",
                             paddingBottom: "0.25em",
                             fontStyle: "italic",
-                            color: "secondary",
+                            color: "secondaryText",
                             bg: "muted",
                             borderRadius: "0 6px 6px 0",
                         },

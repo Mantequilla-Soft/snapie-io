@@ -501,9 +501,14 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
                                         <FaBroadcastTower />
                                     </button>
                                 )}
-                                <button type="button" className="snap-action" onClick={handleReSnap}>
+                                <button
+                                    type="button"
+                                    className="snap-action"
+                                    onClick={handleReSnap}
+                                    aria-label="Re-Snap/Share"
+                                >
                                     <FaRetweet />
-                                    <span className="snap-resnap-label">Re-Snap/Share</span>
+                                    <span className="snap-resnap-label" aria-hidden="true">Re-Snap/Share</span>
                                 </button>
                                 <button type="button" className="snap-action snap-x" onClick={handleShareOnX} aria-label="Share on X">
                                     <FaXTwitter />

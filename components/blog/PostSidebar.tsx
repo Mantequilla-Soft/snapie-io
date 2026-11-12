@@ -122,7 +122,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
             />
             <Box minW={0}>
               <Flex align="center" gap={1}>
-                <Heading as="h3" size="sm" color="primary" isTruncated>
+                <Heading as="h2" size="sm" color="primary" isTruncated>
                   {meta.name || author}
                 </Heading>
                 {profile?.reputation != null && (

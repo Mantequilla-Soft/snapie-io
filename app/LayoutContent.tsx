@@ -262,6 +262,7 @@ export default function LayoutContent({
             </div>
           )}
           <Box
+            as="main"
             id="app-scroll-container"
             flex="1"
             h="100dvh"

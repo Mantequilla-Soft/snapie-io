@@ -82,10 +82,22 @@ export default function CurationQualityCard({ username }: { username: string }) 
           <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" color="gray.500">
             Curation Score
           </Text>
-          <Flex align="center" bg={bg} color="white" borderRadius="md" px={2} py="2px" gap={1}>
-            <Text fontSize="xs" fontWeight="bold" lineHeight="1">{data.score}</Text>
-            <Text fontSize="xs" opacity={0.7} lineHeight="1">·</Text>
-            <Text fontSize="xs" lineHeight="1">{label}</Text>
+          <Flex
+            align="center"
+            bg={bg}
+            // White on yellow.500 (~2.4:1) fails AA; dark text clears 4.5:1
+            // on yellow/green/red/purple score chips without redesign.
+            color={bg === 'yellow.500' ? 'gray.900' : 'white'}
+            borderRadius="md"
+            px={2}
+            py="2px"
+            gap={1}
+          >
+            {/* color="inherit": the theme's Text base color would otherwise
+                override the chip's text color. */}
+            <Text fontSize="xs" fontWeight="bold" lineHeight="1" color="inherit">{data.score}</Text>
+            <Text fontSize="xs" opacity={0.7} lineHeight="1" color="inherit">·</Text>
+            <Text fontSize="xs" lineHeight="1" color="inherit">{label}</Text>
           </Flex>
         </HStack>
         <Box color="gray.500" fontSize="10px">
