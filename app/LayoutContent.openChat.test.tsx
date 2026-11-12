@@ -171,6 +171,22 @@ describe('chat shell', () => {
     expect(nav.back).not.toHaveBeenCalled();
   });
 
+  it('exposes exactly one main landmark around page content', () => {
+    nav.pathname = '/';
+    render(
+      <ChakraProvider>
+        <LayoutContent>
+          <h1>Home</h1>
+        </LayoutContent>
+      </ChakraProvider>,
+    );
+
+    const mains = screen.getAllByRole('main');
+    expect(mains).toHaveLength(1);
+    expect(mains[0].id).toBe('app-scroll-container');
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeTruthy();
+  });
+
   it('shows the Hive footer on normal pages and hides it on shorts', () => {
     nav.pathname = '/';
     const view = render(

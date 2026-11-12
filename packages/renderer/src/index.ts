@@ -129,7 +129,11 @@ const DOMPURIFY_CONFIG = {
     ],
     ALLOWED_ATTR: [
         'href', 'src', 'alt', 'title', 'width', 'height',
-        'class', 'id', 'style', 'target', 'rel',
+        // `role` must stay for hivemoji (a span with role="img" plus an
+        // aria-label; a generic with aria-label fails aria-prohibited-attr).
+        // DOMPurify drops `role` unless listed; the attribute hook below
+        // only lets role="img" through.
+        'class', 'id', 'style', 'target', 'rel', 'role',
         'controls', 'muted', 'preload', 'loading', 'loop',
         'type', 'allowfullscreen', 'frameborder', 'allow', 'scrolling',
         'colspan', 'rowspan', 'align', 'valign',
@@ -156,11 +160,31 @@ const DOMPURIFY_CONFIG = {
  * attribute so no element can escape its normal place in page flow.
  */
 DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
+    // Post HTML may not claim widget/landmark roles (role="button",
+    // role="dialog"...) to assistive tech; only the image role is kept.
+    if (data.attrName === 'role' && data.attrValue.trim().toLowerCase() !== 'img') {
+        data.keepAttr = false;
+        return;
+    }
     if (data.attrName === 'style' && data.attrValue) {
         data.attrValue = data.attrValue
             .split(';')
             .filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl))
             .join(';');
+    }
+});
+
+/**
+ * Bare image URLs and some upstream transforms emit `<img src="...">` with no
+ * alt. WCAG / axe require the attribute (empty string is fine for decorative).
+ * Ensure every sanitized img keeps whatever alt was present, or gets alt="".
+ */
+DOMPurify.addHook('uponSanitizeElement', (node) => {
+    if (node.nodeName && node.nodeName.toLowerCase() === 'img') {
+        const el = node as Element;
+        if (!el.hasAttribute('alt')) {
+            el.setAttribute('alt', '');
+        }
     }
 });
 
