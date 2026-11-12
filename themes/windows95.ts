@@ -359,10 +359,15 @@ function buildComponents(mode: ColorMode) {
 // way: a solid, fairly dark gray (~#536471) for secondary text, not a faint
 // wash. The light-mode curve below is tuned so overlay.500 (the most common
 // "muted body text" step) clears WCAG AA (~4.5:1) against white.
+//
+// Dark mode used to keep low alphas (overlay.500 at 0.36 ≈ 3.3:1 on #0d1b2b;
+// overlay.400 at 0.24 ≈ 2.2:1). Those steps are timestamps and muted labels.
+// Raise 400+ just enough to clear 4.5:1 on the page (#0d1b2b), cards
+// (#1a2332) and muted panels (#2d3748); 50–300 stay faint fills/hairlines.
 function buildOverlay(mode: ColorMode) {
     const base = mode === 'dark' ? '255, 255, 255' : '15, 23, 42';
     const steps: Record<string, number> = mode === 'dark'
-        ? { 50: 0.04, 100: 0.06, 200: 0.08, 300: 0.16, 400: 0.24, 500: 0.36, 600: 0.48, 700: 0.64 }
+        ? { 50: 0.04, 100: 0.06, 200: 0.08, 300: 0.16, 400: 0.52, 500: 0.58, 600: 0.66, 700: 0.76 }
         : { 50: 0.06, 100: 0.10, 200: 0.16, 300: 0.26, 400: 0.40, 500: 0.60, 600: 0.72, 700: 0.85 };
     return Object.fromEntries(
         Object.entries(steps).map(([step, alpha]) => [step, `rgba(${base}, ${alpha})`])
@@ -375,7 +380,16 @@ function buildTheme(colors: Palette, mode: ColorMode) {
         // see app/providers.tsx for why light/dark is driven entirely by our own
         // `colorMode` user setting instead of Chakra's internal mechanism.
         config: { initialColorMode: 'dark', useSystemColorMode: false },
-        colors: { ...colors, overlay: buildOverlay(mode) },
+        colors: {
+            ...colors,
+            overlay: buildOverlay(mode),
+            // Blue text on dark surfaces. `secondary` (#2563eb) stays the brand
+            // fill; as 12–14px text on navy it is only ~3.4:1, so text uses this.
+            secondaryText: mode === 'dark' ? '#7aa0f3' : colors.secondary,
+            // Chakra gray.500 (#718096) is muted text in most places and only
+            // ~3.9:1 on dark cards. Lighten that one step in dark mode.
+            ...(mode === 'dark' ? { gray: { 500: '#94a0b4' } } : {}),
+        },
         ...sharedBase,
         borders: {
             tb1: `1px solid ${colors.border}`,
