@@ -126,3 +126,25 @@ describe('markdownRenderer embeds and sanitizing', () => {
         expect(html).not.toContain('<script');
     });
 });
+
+describe('markdownRenderer 3speak audio and playlists', () => {
+    const LIST = '0c8f4b2e-1111-4a2b-9c3d-123456789abc';
+
+    it('embeds a bare 3speak.tv/audio?play= link as the audio player', () => {
+        const html = markdownRenderer('https://3speak.tv/audio?play=shainemata/lr4gk9js');
+        expect(html).toContain('audio-container');
+        expect(html).toContain('audio.3speak.tv/play?a=lr4gk9js');
+    });
+
+    it('embeds a bare 3speak.tv/playlist/ link as the playlist player', () => {
+        const html = markdownRenderer(`https://3speak.tv/playlist/${LIST}`);
+        expect(html).toContain('audio-container');
+        expect(html).toContain(`audio.3speak.tv/play?list=${LIST}`);
+    });
+
+    it('keeps a labeled 3speak audio link as a link', () => {
+        const html = markdownRenderer('[Episode 9](https://3speak.tv/audio?play=shainemata/lr4gk9js)');
+        expect(html).not.toContain('audio-container');
+        expect(html).toContain('href="https://3speak.tv/audio?play=shainemata/lr4gk9js"');
+    });
+});
