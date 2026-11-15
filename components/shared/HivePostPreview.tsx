@@ -199,7 +199,7 @@ export default function HivePostPreview({ author, permlink }: HivePostPreviewPro
               <Text fontSize="xs" color="accent">
                 by @{postData.author}
               </Text>
-              <Text fontSize="xs" color="secondary">
+              <Text fontSize="xs" color="secondaryText">
                 {postData.categoryName}
               </Text>
             </HStack>

@@ -27,8 +27,11 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-14',
     date: '2026-11-14',
-    title: 'Shareable snap links',
+    title: 'Accessibility, screenshots, faster images and snap links',
     items: [
+      { type: 'improvement', text: 'Better screen reader support and easier-to-read muted text and score badges across the main pages.' },
+      { type: 'feature', text: 'You can attach a screenshot when you send feedback (PNG, JPEG or WebP, up to 5 MB). Connect chat first so we know who sent it.' },
+      { type: 'improvement', text: 'Post pages reserve space for images so the text no longer jumps as they load, and phones download smaller copies of large images.' },
       { type: 'feature', text: 'Opening a snap conversation now puts its own link in the address bar, so you can copy and share it. Back closes it, and the feed stays where you left it.' },
     ],
   },
