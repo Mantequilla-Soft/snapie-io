@@ -97,11 +97,16 @@ var DOMPURIFY_CONFIG = {
     "title",
     "width",
     "height",
+    // `role` must stay for hivemoji (a span with role="img" plus an
+    // aria-label; a generic with aria-label fails aria-prohibited-attr).
+    // DOMPurify drops `role` unless listed; the attribute hook below
+    // only lets role="img" through.
     "class",
     "id",
     "style",
     "target",
     "rel",
+    "role",
     "controls",
     "muted",
     "preload",
@@ -131,8 +136,20 @@ var DOMPURIFY_CONFIG = {
   RETURN_TRUSTED_TYPE: false
 };
 DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+  if (data.attrName === "role" && data.attrValue.trim().toLowerCase() !== "img") {
+    data.keepAttr = false;
+    return;
+  }
   if (data.attrName === "style" && data.attrValue) {
     data.attrValue = data.attrValue.split(";").filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl)).join(";");
+  }
+});
+DOMPurify.addHook("uponSanitizeElement", (node) => {
+  if (node.nodeName && node.nodeName.toLowerCase() === "img") {
+    const el = node;
+    if (!el.hasAttribute("alt")) {
+      el.setAttribute("alt", "");
+    }
   }
 });
 var AUTO_LOAD_SRC_TAGS = /* @__PURE__ */ new Set(["img", "video", "source", "audio", "iframe"]);

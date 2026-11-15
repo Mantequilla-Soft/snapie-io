@@ -145,7 +145,7 @@ export default function WitnessVotingPage() {
                         {formatHp(witness.supportHp)} supporting
                       </Text>
                       <Box mt={1} h="4px" w="100%" bg="overlay.100" borderRadius="full" overflow="hidden">
-                        <Box h="100%" bg={witness.isActive ? 'primary' : 'overlay.400'} borderRadius="full" width={`${barPercent}%`} />
+                        <Box h="100%" bg={witness.isActive ? 'primary' : 'overlayFill'} borderRadius="full" width={`${barPercent}%`} />
                       </Box>
                     </Box>
                   </Flex>

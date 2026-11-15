@@ -22,6 +22,7 @@ import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer, isWaveContainer, speakAudioListId } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -35,6 +36,8 @@ interface PostDetailsProps {
     isEmbedMode?: boolean;
     /** Muted-filtered top-level comment count, once loaded — see InteractionBar. */
     commentCount?: number;
+    /** Width/height for post-body images, keyed by the original image URL. */
+    imageDimensions?: ImageSizeMap;
 }
 
 const bodySx = {
@@ -46,7 +49,8 @@ const bodySx = {
     '& h5': { fontSize: 'sm', fontWeight: 'bold', marginTop: '0.75em', marginBottom: '0.5em', lineHeight: '1.4' },
     '& h6': { fontSize: 'xs', fontWeight: 'bold', marginTop: '0.75em', marginBottom: '0.5em', lineHeight: '1.4' },
     '& p': { marginBottom: '1em', lineHeight: '1.6', textAlign: 'inherit' },
-    '& a': { color: 'var(--chakra-colors-primary)', _hover: { textDecoration: 'underline' } },
+    // Underline always — color alone fails link-in-text-block (WCAG 1.4.1).
+    '& a': { color: 'var(--chakra-colors-primary)', textDecoration: 'underline', _hover: { textDecoration: 'underline' } },
     '& img': { marginTop: '1em', marginBottom: '1em', maxWidth: '100%', height: 'auto' },
     '& ul': { paddingLeft: '1.5em', marginBottom: '1em', listStyleType: 'disc' },
     '& ol': { paddingLeft: '1.5em', marginBottom: '1em', listStyleType: 'decimal' },
@@ -64,7 +68,7 @@ const bodySx = {
         paddingTop: '0.5em',
         paddingBottom: '0.5em',
         fontStyle: 'italic',
-        color: 'secondary',
+        color: 'secondaryText',
         bg: 'muted',
         borderRadius: '0 8px 8px 0',
     },
@@ -78,7 +82,7 @@ const bodySx = {
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
-export default function PostDetails({ post, isEmbedMode = false, commentCount }: PostDetailsProps) {
+export default function PostDetails({ post, isEmbedMode = false, commentCount, imageDimensions }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
     const { username: user } = useCurrentUser();
@@ -134,7 +138,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
     );
 
     const bodySegments = useMemo((): BodySegment[] => {
-        let html = markdownRenderer(body, { defaultEmojiOwner: author });
+        let html = markdownRenderer(body, { defaultEmojiOwner: author, imageDimensions });
 
         // Fallback: convert audio.3speak.tv anchor tags the renderer missed.
         // Only convert when the inner text IS the raw URL (auto-linked plain URL),
@@ -278,7 +282,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
             }
         }
         return expanded;
-    }, [body, author]);
+    }, [body, author, imageDimensions]);
 
     return (
         <Box
@@ -307,14 +311,14 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
                     right={{ base: 3, md: 5 }}
                     fontSize="xs"
                     fontWeight="medium"
-                    color="secondary"
+                    color="secondaryText"
                     whiteSpace="nowrap"
                 >
                     {wordCount.toLocaleString()} words · {readingTime} min read
                 </Text>
             )}
             <Flex align="center" justify="center" gap={2} mb={1} wrap="wrap">
-                <Text fontSize="2xl" fontWeight="bold" textAlign="center">
+                <Text as="h1" fontSize="2xl" fontWeight="bold" textAlign="center">
                     {title}
                 </Text>
             </Flex>
@@ -352,9 +356,13 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
                     />
                     <Box ml={3}>
                         <Text fontWeight="medium" fontSize="sm">
-                            {isEmbedMode ? `@${author}` : <Link as={NextLink} href={`/@${author}`}>@{author}</Link>}
+                            {isEmbedMode ? `@${author}` : (
+                                <Link as={NextLink} href={`/@${author}`} textDecoration="underline">
+                                    @{author}
+                                </Link>
+                            )}
                         </Text>
-                        <Text fontSize="sm" color="secondary">
+                        <Text fontSize="sm" color="secondaryText">
                             {postDate}
                         </Text>
                     </Box>
@@ -373,7 +381,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
             </Flex>
             {!isEmbedMode && hasParent && (
                 <Flex mb={3} gap={3} align="center" wrap="wrap">
-                    <Text fontSize="sm" color="secondary">Reply context:</Text>
+                    <Text fontSize="sm" color="secondaryText">Reply context:</Text>
                     <Link
                         as={NextLink}
                         href={`/@${post.parent_author}/${post.parent_permlink}`}

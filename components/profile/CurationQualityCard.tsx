@@ -6,11 +6,16 @@ import {
 import { FaChevronDown, FaChevronUp, FaExternalLinkAlt } from 'react-icons/fa';
 import { useCurationScore } from '@/hooks/useCurationScore';
 
-function scoreColorScheme(score: number) {
-  if (score >= 86) return { bg: 'purple.500', bar: 'purple' };
-  if (score >= 66) return { bg: 'green.500', bar: 'green' };
-  if (score >= 41) return { bg: 'yellow.500', bar: 'yellow' };
-  return { bg: 'red.500', bar: 'red' };
+// Each score chip pairs its fill with the text color that clears WCAG AA
+// (4.5:1) on it: white on purple.500 (~4.8:1) and red.600 (~5.5:1), dark
+// gray.900 on green.500 (~5.4:1) and yellow.500 (~7.3:1). White on green.500
+// (~3.3:1), red.500 (~4.1:1) and yellow.500 (~2.4:1) fails, and dark text on
+// red.500 (~4.2:1) fails too, so red moves one shade darker.
+export function scoreColorScheme(score: number) {
+  if (score >= 86) return { bg: 'purple.500', fg: 'white', bar: 'purple' };
+  if (score >= 66) return { bg: 'green.500', fg: 'gray.900', bar: 'green' };
+  if (score >= 41) return { bg: 'yellow.500', fg: 'gray.900', bar: 'yellow' };
+  return { bg: 'red.600', fg: 'white', bar: 'red' };
 }
 
 function scoreLabel(score: number): string {
@@ -62,7 +67,7 @@ export default function CurationQualityCard({ username }: { username: string }) 
 
   if (!data || error) return null;
 
-  const { bg, bar } = scoreColorScheme(data.score);
+  const { bg, fg, bar } = scoreColorScheme(data.score);
   const label = scoreLabel(data.score);
 
   return (
@@ -82,10 +87,21 @@ export default function CurationQualityCard({ username }: { username: string }) 
           <Text fontSize="xs" fontWeight="bold" textTransform="uppercase" letterSpacing="wider" color="gray.500">
             Curation Score
           </Text>
-          <Flex align="center" bg={bg} color="white" borderRadius="md" px={2} py="2px" gap={1}>
-            <Text fontSize="xs" fontWeight="bold" lineHeight="1">{data.score}</Text>
-            <Text fontSize="xs" opacity={0.7} lineHeight="1">·</Text>
-            <Text fontSize="xs" lineHeight="1">{label}</Text>
+          <Flex
+            align="center"
+            bg={bg}
+            // See scoreColorScheme: fg is the AA-passing text color for bg.
+            color={fg}
+            borderRadius="md"
+            px={2}
+            py="2px"
+            gap={1}
+          >
+            {/* color="inherit": the theme's Text base color would otherwise
+                override the chip's text color. */}
+            <Text fontSize="xs" fontWeight="bold" lineHeight="1" color="inherit">{data.score}</Text>
+            <Text fontSize="xs" opacity={0.7} lineHeight="1" color="inherit">·</Text>
+            <Text fontSize="xs" lineHeight="1" color="inherit">{label}</Text>
           </Flex>
         </HStack>
         <Box color="gray.500" fontSize="10px">

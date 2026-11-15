@@ -19,15 +19,22 @@ import MutedAuthorNotice from '@/components/shared/MutedAuthorNotice';
 import SnapCastBar from '@/components/homepage/SnapCastBar';
 import { useSnapCast } from '@/hooks/useSnapCast';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 interface PostPageProps {
   author: string
   permlink: string
   /** Server-fetched post so title/body are in the first HTML (no Loading spinner). */
   initialPost?: Discussion | null
+  /**
+   * Server-resolved width/height for images in the post body. Fixed for the
+   * life of the page: dimensions are never fetched later on the client, so
+   * the post body is not re-rendered (no image reloads or embed restarts).
+   */
+  imageDimensions?: ImageSizeMap
 }
 
-export default function PostPage({ author, permlink, initialPost = null }: PostPageProps) {
+export default function PostPage({ author, permlink, initialPost = null, imageDimensions }: PostPageProps) {
   const searchParams = useSearchParams();
   const isEmbedMode = searchParams.get('embed') === 'true';
   const { hiveUser } = useHiveUser();
@@ -171,6 +178,7 @@ export default function PostPage({ author, permlink, initialPost = null }: PostP
               post={post}
               isEmbedMode={isEmbedMode}
               commentCount={commentsData.isLoading ? undefined : commentsData.comments.length}
+              imageDimensions={imageDimensions}
             />
           </Box>
           {!isEmbedMode && !conversation ? (
