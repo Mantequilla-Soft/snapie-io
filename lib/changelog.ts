@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14',
+    date: '2026-11-14',
+    title: 'Accessibility',
+    items: [
+      { type: 'improvement', text: 'Better screen reader support and easier-to-read muted text and score badges across the main pages.' },
+    ],
+  },
+  {
     id: '2026-11-12',
     date: '2026-11-12',
     title: '3Speak audio',

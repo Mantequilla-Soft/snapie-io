@@ -2015,7 +2015,7 @@ export default function ChatPanel({
                   w="7px"
                   h="7px"
                   borderRadius="full"
-                  bg={dmStatus?.peerOnline ? 'green.300' : 'overlay.400'}
+                  bg={dmStatus?.peerOnline ? 'green.300' : 'overlayFill'}
                 />
                 <Text fontSize="10px" color={dmStatus?.peerOnline ? 'green.200' : 'overlay.500'}>
                   {dmStatus?.peerOnline ? 'Online' : (dmStatus?.peerLastSeenAt ? `Last seen ${formatLastSeen(dmStatus.peerLastSeenAt)}` : 'Offline')}
