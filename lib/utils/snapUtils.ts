@@ -1,5 +1,6 @@
 import { Discussion } from "@hiveio/dhive";
 import { encodeMarkdownImageParentheses, extractMarkdownImages } from "@/lib/images/markdownImages";
+import { canonicalSpeakAudioUrl } from "@snapie/renderer";
 
 /**
  * The snap "container" post that all top-level snaps reply to. Top snaps have this
@@ -96,6 +97,23 @@ export function finalizeAudio3SpeakEmbedUrl(url: string): string {
     return s;
   }
 }
+
+/** Playlist id of an audio.3speak.tv `play?list=` URL, else null. */
+export function speakAudioListId(url: string): string | null {
+  if (!url.includes("audio.3speak.tv/play")) return null;
+  try {
+    return new URL(url.replace(/&amp;/gi, "&")).searchParams.get("list") || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A 3Speak audio or playlist URL in a line of text (audio.3speak.tv/play?a= / ?list=,
+ * or a 3speak.tv/audio?play= / 3speak.tv/playlist/ share link).
+ */
+const SPEAK_AUDIO_URL_RE =
+  /https?:\/\/(?:audio\.3speak\.tv\/play\?(?:a|list)=|(?:www\.)?3speak\.tv\/(?:audio\/?\?play=|playlist\/))[^\s<>"')]+/;
 
 export interface SnapieAudioApiMeta {
   permlink: string;
@@ -325,7 +343,7 @@ export const separateContent = (body: string) => {
     // markdown link (see isLabeledMediaLink above).
     const trackedUrlPatterns = [
       /https?:\/\/(play\.)?3speak\.tv\/(watch|embed)\?v=/,
-      /https?:\/\/audio\.3speak\.tv\/play\?a=/,
+      SPEAK_AUDIO_URL_RE,
       /https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/,
       /https?:\/\/(www\.)?instagram\.com\/(p|reel|tv)\//,
       /https?:\/\/(twitter\.com|x\.com)\/[^/]+\/status\/\d+/,
@@ -684,11 +702,16 @@ export const parseMediaContent = (mediaContent: string): MediaItem[] => {
       }
     }
 
-    // Handle 3Speak Audio URLs
-    if (trimmedItem.includes('audio.3speak.tv/play?a=') && !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')) {
-      const urlMatch = trimmedItem.match(/(https?:\/\/audio\.3speak\.tv\/play\?a=[^\s<>"']+)/);
-      if (urlMatch && urlMatch[1]) {
-        const embedUrl = finalizeAudio3SpeakEmbedUrl(urlMatch[1]);
+    // Handle 3Speak audio and playlist URLs (3speak.tv share links → audio.3speak.tv player)
+    const speakAudioMatch =
+      !trimmedItem.includes('<iframe') && !trimmedItem.includes('![')
+        ? trimmedItem.match(SPEAK_AUDIO_URL_RE)
+        : null;
+    if (speakAudioMatch) {
+      const playUrl = canonicalSpeakAudioUrl(speakAudioMatch[0]) ??
+        (speakAudioMatch[0].includes('audio.3speak.tv') ? speakAudioMatch[0] : null);
+      if (playUrl) {
+        const embedUrl = finalizeAudio3SpeakEmbedUrl(playUrl);
         const h = SPEAK_AUDIO_IFRAME_HEIGHT_PX;
         mediaItems.push({
           type: "iframe",

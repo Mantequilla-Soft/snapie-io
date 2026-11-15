@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPostMetadata, buildProfileMetadata, buildExploreTagMetadata } from './buildMetadata';
+import { buildPostMetadata, buildProfileMetadata, buildExploreTagMetadata, buildStaticPageMetadata } from './buildMetadata';
 
 const post = (body: string) => buildPostMetadata({ title: 'T', body, author: 'alice', permlink: 'p' });
 
@@ -45,5 +45,15 @@ describe('buildExploreTagMetadata', () => {
     expect(meta.title).toBe('HiveGems (hive-178315)');
     expect(meta.description).toContain('HiveGems');
     expect(meta.alternates?.canonical).toBe('/explore/hive-178315');
+  });
+});
+
+describe('buildStaticPageMetadata', () => {
+  it('sets a unique title, description and self-canonical', () => {
+    const meta = buildStaticPageMetadata({ path: '/blog', title: 'Blogs', description: 'Long-form posts' });
+    expect(meta.title).toBe('Blogs');
+    expect(meta.description).toBe('Long-form posts');
+    expect(meta.alternates?.canonical).toBe('/blog');
+    expect(meta.openGraph).toMatchObject({ url: '/blog', title: 'Blogs | Snapie' });
   });
 });

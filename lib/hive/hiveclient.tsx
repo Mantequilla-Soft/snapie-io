@@ -1,6 +1,12 @@
 import type { Client } from "@hiveio/dhive"
 import { afterLcpPaint } from "@/lib/perf/afterLcpPaint"
-import { installBrowserRpcCoalescer } from "@/lib/hive/rpcBatch"
+import {
+  RpcCoalescer,
+  buildRpcRequest,
+  installBrowserRpcCoalescer,
+  isBroadcastCall,
+  postHiveRpc,
+} from "@/lib/hive/rpcBatch"
 import { withTimeout } from "@/lib/utils/withTimeout"
 
 const FALLBACK_NODES = [
@@ -148,6 +154,83 @@ export async function refreshHiveNodes(): Promise<void> {
   hive.client = new DhiveClient(nodes)
 }
 
+// Plain JSON-RPC reads in the browser skip dhive entirely. dhive's browser
+// build is a ~730 KB UMD bundle (core-js, elliptic, bytebuffer); on home it
+// was only being fetched so a link-preview card could send one get_content
+// through our own /api/hive-rpc proxy, and parsing it cost a ~200 ms long
+// task on a throttled phone. `HiveClient.call(api, method, params)` and
+// `HiveClient.database.call(method, params)` (plus getAccounts and
+// getDiscussions, which dhive implements as thin wrappers over database.call)
+// are the same wire request with or without dhive, so they go straight to the
+// proxy (still coalesced into batches). Every other member (broadcast,
+// crypto helpers) still loads dhive on first use. Broadcasts never take this path.
+let lightReads: RpcCoalescer | null = null
+let lightNextId = 1
+
+function rpcError(error: { code?: number; message?: string; data?: unknown }): Error {
+  // Same name/info shape as dhive's RPCError, for callers that inspect it.
+  const err = new Error(error.message || "Hive RPC error") as Error & { code?: number; jse_info?: unknown }
+  err.name = "RPCError"
+  err.code = error.code
+  err.jse_info = error.data
+  return err
+}
+
+async function sendLightSingle(endpoint: string, api: string, method: string, params: unknown): Promise<unknown> {
+  const request = buildRpcRequest(lightNextId++, api, method, params)
+  let payload: unknown
+  try {
+    payload = await postHiveRpc(endpoint, request)
+  } catch {
+    // One retry for a dropped connection or a proxy 5xx; the proxy itself
+    // already fails over between Hive nodes.
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    payload = await postHiveRpc(endpoint, request)
+  }
+  const reply = payload as { result?: unknown; error?: { code?: number; message?: string; data?: unknown } } | null
+  if (reply && typeof reply === "object" && reply.error) throw rpcError(reply.error)
+  return reply && typeof reply === "object" ? reply.result : undefined
+}
+
+function lightRead(api: string, method: string, params: unknown): Promise<unknown> {
+  if (!lightReads) {
+    const endpoint = window.location.origin + "/api/hive-rpc"
+    lightReads = new RpcCoalescer({
+      sendSingle: (a, m, p) => sendLightSingle(endpoint, a, m, p),
+      sendBatch: (requests) => postHiveRpc(endpoint, requests),
+    })
+  }
+  return lightReads.call(api, method, params)
+}
+
+/** `[api, method, params]` when this proxy call is a plain browser read, else null. */
+export function lightReadArgs(path: Array<string | symbol>, args: unknown[]): [string, string, unknown] | null {
+  if (!IS_BROWSER) return null
+  let api: unknown, method: unknown, params: unknown
+  if (path.length === 1 && path[0] === "call") {
+    [api, method, params] = args
+  } else if (path.length === 2 && path[0] === "database" && path[1] === "call") {
+    api = "condenser_api"
+    ;[method, params] = args
+  } else if (path.length === 2 && path[0] === "database" && path[1] === "getAccounts") {
+    // dhive: getAccounts(names) === call("get_accounts", [names]), no reshaping.
+    api = "condenser_api"
+    method = "get_accounts"
+    params = [args[0]]
+  } else if (path.length === 2 && path[0] === "database" && path[1] === "getDiscussions") {
+    // dhive: getDiscussions(by, query) === call(`get_discussions_by_${by}`, [query]).
+    if (typeof args[0] !== "string") return null
+    api = "condenser_api"
+    method = `get_discussions_by_${args[0]}`
+    params = [args[1]]
+  } else {
+    return null
+  }
+  if (typeof api !== "string" || typeof method !== "string") return null
+  if (isBroadcastCall(api, method)) return null
+  return [api, method, params === undefined ? [] : params]
+}
+
 // Recursive proxy that delegates all property access to the current
 // hive.client, wrapping every method call in a timeout. `getTarget` stays a
 // live closure at each level (not memoized) so reassigning hive.client
@@ -172,6 +255,14 @@ function lazyHiveApi(path: Array<string | symbol> = []): any {
       return lazyHiveApi([...path, prop])
     },
     apply(_target, _thisArg, args) {
+      const light = lightReadArgs(path, args)
+      if (light) {
+        return withTimeout(
+          lightRead(...light),
+          HIVE_RPC_TIMEOUT_MS,
+          `HiveClient timed out: ${light[1]}`,
+        )
+      }
       return ensureClient().then((client) => {
         let receiver: any = client
         for (let i = 0; i < path.length - 1; i++) {

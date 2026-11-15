@@ -54,7 +54,7 @@
     "keychain": "^1.5.0",
     "livekit-client": "^2.18.0",
     "mongoose": "^9.6.3",
-    "next": "15.5.27",
+    "next": "15.5.28",
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -70,7 +70,7 @@
     "tus-js-client": "4.3.1"
   },
   "devDependencies": {
-    "@next/bundle-analyzer": "15.5.27",
+    "@next/bundle-analyzer": "15.5.28",
     "@playwright/test": "^1.64.1",
     "@testing-library/react": "^16.3.2",
     "@types/jsonwebtoken": "^9.0.10",
@@ -80,7 +80,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "4.1.9",
     "eslint": "^8",
-    "eslint-config-next": "15.5.27",
+    "eslint-config-next": "15.5.28",
     "jsdom": "^24.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",

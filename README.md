@@ -1,5 +1,7 @@
 # Snapie.io
 
+[![Powered By Hive](https://img.shields.io/static/v1?label=Hive&message=Powered%20By%20Hive&color=E31337&labelColor=212529&logo=hive_blockchain&logoColor=white&style=flat)](https://hive.io/)
+
 Snapie.io is a Next.js app for Hive-native social experiences: short-form Snaps, blog feeds, community discovery, OpenPods hangouts, and a real-time chat system with channels, DMs, and groups.
 
 ## What This App Includes

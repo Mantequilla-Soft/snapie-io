@@ -15,6 +15,7 @@ import {
   separateContent,
   snapTextForMarkdown,
   speakPlaybackUrl,
+  speakAudioListId,
   speakVideoKeyFromUrl,
 } from './snapUtils';
 
@@ -253,4 +254,35 @@ describe('snapTextForMarkdown', () => {
         expect(text).not.toContain('hive.blog/@alice');
         expect(text).not.toContain('![');
     });
+});
+
+describe('3speak audio and playlist links', () => {
+  const LIST = '0c8f4b2e-1111-4a2b-9c3d-123456789abc';
+
+  it('embeds a bare 3speak.tv/audio?play= share link as the audio id', () => {
+    const { media } = separateContent('new episode\nhttps://3speak.tv/audio?play=shainemata/lr4gk9js');
+    const [item] = parseMediaContent(media);
+    expect(item.type).toBe('iframe');
+    const src = new URL(item.src!);
+    expect(src.host).toBe('audio.3speak.tv');
+    expect(src.searchParams.get('a')).toBe('lr4gk9js');
+    expect(speakAudioListId(item.src!)).toBeNull();
+  });
+
+  it('embeds 3speak.tv/playlist/ and audio.3speak.tv/play?list= links as playlists', () => {
+    for (const url of [`https://3speak.tv/playlist/${LIST}`, `https://audio.3speak.tv/play?list=${LIST}`]) {
+      const [item] = parseMediaContent(separateContent(url).media);
+      expect(speakAudioListId(item.src!)).toBe(LIST);
+    }
+  });
+
+  it('leaves a labeled audio or playlist link as text', () => {
+    const body = `[Episode 9](https://3speak.tv/audio?play=shainemata/lr4gk9js) and [my list](https://3speak.tv/playlist/${LIST})`;
+    expect(separateContent(body).media).toBe('');
+  });
+
+  it('ignores other 3speak.tv pages', () => {
+    expect(parseMediaContent('https://3speak.tv/audio?play=shainemata')).toEqual([]);
+    expect(parseMediaContent('https://3speak.tv/playlist/x')).toEqual([]);
+  });
 });

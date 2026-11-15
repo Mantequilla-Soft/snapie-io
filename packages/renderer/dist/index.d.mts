@@ -53,6 +53,14 @@ interface HiveRendererContext {
     defaultEmojiOwner?: string;
 }
 /**
+ * Map a 3speak.tv audio or playlist share link to its audio.3speak.tv player URL.
+ *   3speak.tv/audio?play=<owner>/<audioId>  →  https://audio.3speak.tv/play?a=<audioId>
+ *   3speak.tv/playlist/<playlistId>         →  https://audio.3speak.tv/play?list=<playlistId>
+ * The `?play=` id is the audio's own id, not the Hive post permlink.
+ * Returns null for any other URL.
+ */
+declare function canonicalSpeakAudioUrl(url: string): string | null;
+/**
  * Create a Hive markdown renderer with the given options
  *
  * @param options - Configuration options for the renderer
@@ -83,4 +91,4 @@ declare function createHiveRenderer(options?: HiveRendererOptions): (markdown: s
  */
 declare const renderHiveMarkdown: (markdown: string, context?: HiveRendererContext) => string;
 
-export { type HiveRendererContext, type HiveRendererOptions, createHiveRenderer, renderHiveMarkdown };
+export { type HiveRendererContext, type HiveRendererOptions, canonicalSpeakAudioUrl, createHiveRenderer, renderHiveMarkdown };

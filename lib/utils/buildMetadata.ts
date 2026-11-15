@@ -158,3 +158,33 @@ export function buildExploreTagMetadata(tag: string, communityTitle?: string | n
     },
   };
 }
+
+/**
+ * Fixed app pages (`/blog`, `/shorts`, `/changelog`). Their page.tsx files are
+ * client components, so a sibling layout.tsx exports this instead.
+ */
+export function buildStaticPageMetadata(page: {
+  path: `/${string}`;
+  title: string;
+  description: string;
+}): Metadata {
+  const { path, title, description } = page;
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title: `${title} | ${SITE_NAME}`,
+      description,
+      type: 'website',
+      url: path,
+      siteName: SITE_NAME,
+    },
+    twitter: {
+      card: 'summary',
+      site: '@SnapieApp',
+      title: `${title} | ${SITE_NAME}`,
+      description,
+    },
+  };
+}

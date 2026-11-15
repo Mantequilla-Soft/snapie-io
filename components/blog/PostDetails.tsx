@@ -16,9 +16,10 @@ import { FaEdit } from 'react-icons/fa';
 import InteractionBar from '@/components/shared/InteractionBar';
 import PileTray from '@/components/shared/PileTray';
 import SnapieSpeakAudio from '@/components/shared/SnapieSpeakAudio';
+import SpeakPlaylistEmbed from '@/components/shared/SpeakPlaylistEmbed';
 import ThreeSpeakVideoPlayer from '@/components/shared/ThreeSpeakVideoPlayer';
 import TwitterEmbed from '@/components/shared/TwitterEmbed';
-import { extractYouTubeId, isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
+import { extractYouTubeId, isSnapContainer, isWaveContainer, speakAudioListId } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
 
@@ -414,6 +415,8 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
                 <Box mt={4} data-blog-post-body sx={bodySx}>
                     {bodySegments.map((seg, i) => {
                         if (seg.type === 'audio') {
+                            const listId = speakAudioListId(seg.url);
+                            if (listId) return <SpeakPlaylistEmbed key={`playlist-${listId}-${i}`} listId={listId} />;
                             return <SnapieSpeakAudio key={`${seg.url}-${i}`} playUrl={seg.url} />;
                         }
                         if (seg.type === 'speak-video') {

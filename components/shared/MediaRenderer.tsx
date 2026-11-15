@@ -13,8 +13,10 @@ import {
   speakVideoKeyFromUrl,
   finalizeAudio3SpeakEmbedUrl,
   getEmbedFallback,
+  speakAudioListId,
 } from "@/lib/utils/snapUtils";
 import SnapieSpeakAudio from "@/components/shared/SnapieSpeakAudio";
+import SpeakPlaylistEmbed from "@/components/shared/SpeakPlaylistEmbed";
 import TwitterEmbed from "@/components/shared/TwitterEmbed";
 import ThreeSpeakVideoPlayer from "@/components/shared/ThreeSpeakVideoPlayer";
 import DOMPurify from "isomorphic-dompurify";
@@ -435,6 +437,8 @@ const MediaRenderer = ({
 
         if (item.type === "iframe" && item.src) {
           if (item.src.includes("audio.3speak.tv")) {
+            const listId = speakAudioListId(item.src);
+            if (listId) return <SpeakPlaylistEmbed key={`playlist-${listId}`} listId={listId} />;
             return (
               <SnapieSpeakAudio
                 key={item.src ?? `audio-${index}`}
