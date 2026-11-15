@@ -13,9 +13,9 @@ export default function BottomTabBar() {
   const { username, isLoggedIn } = useCurrentUser();
   const { openLoginModal } = useLoginModal();
   const hasUnclaimed = useUnclaimedRewards();
-  // Guests have no wallet route; href stays non-navigating so crawlers do not
-  // follow a soft/hard 404. Click still opens the login modal.
-  const walletHref = username ? `/@${username}/wallet` : '#';
+  // /wallet is a real route that forwards to /@name/wallet once a username is
+  // known (or asks a guest to log in), so the tab always has a real href.
+  const walletHref = username ? `/@${username}/wallet` : '/wallet';
 
   function handleHomeClick(e: React.MouseEvent) {
     if (pathname === '/') {
@@ -42,12 +42,11 @@ export default function BottomTabBar() {
     }
   }
 
-  // Guests have no wallet. A signed-in user whose username has not resolved
-  // yet also has no route: leaving the click on href="#" only appends a hash.
+  // A guest gets the login modal in place instead of a page change.
   function handleWalletClick(e: React.MouseEvent) {
-    if (username) return;
+    if (isLoggedIn) return;
     e.preventDefault();
-    if (!isLoggedIn) openLoginModal();
+    openLoginModal();
   }
 
   // Hide on immersive pages

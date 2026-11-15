@@ -251,6 +251,58 @@ function fixMalformedCenterTags(content: string): string {
 }
 
 /**
+ * Map a 3speak.tv audio or playlist share link to its audio.3speak.tv player URL.
+ *   3speak.tv/audio?play=<owner>/<audioId>  →  https://audio.3speak.tv/play?a=<audioId>
+ *   3speak.tv/playlist/<playlistId>         →  https://audio.3speak.tv/play?list=<playlistId>
+ * The `?play=` id is the audio's own id, not the Hive post permlink.
+ * Returns null for any other URL.
+ */
+export function canonicalSpeakAudioUrl(url: string): string | null {
+    let u: URL;
+    try {
+        u = new URL(url.replace(/&amp;/gi, '&').trim());
+    } catch {
+        return null;
+    }
+    if (!/^(www\.)?3speak\.tv$/i.test(u.hostname)) return null;
+
+    if (/^\/audio\/?$/.test(u.pathname)) {
+        const id = u.searchParams.get('play')?.match(/^@?[a-z0-9.-]+\/([A-Za-z0-9-]+)$/i)?.[1];
+        return id ? `https://audio.3speak.tv/play?a=${id}` : null;
+    }
+    const list = u.pathname.match(/^\/playlist\/([A-Za-z0-9-]{8,64})\/?$/)?.[1];
+    return list ? `https://audio.3speak.tv/play?list=${list}` : null;
+}
+
+/** Bare 3speak.tv audio/playlist links (href) — anything canonicalSpeakAudioUrl may accept. */
+const SPEAK_AUDIO_SHARE_HREF = String.raw`https?:\/\/(?:www\.)?3speak\.tv\/(?:audio\/?\?|playlist\/)`;
+
+/**
+ * Rewrite bare 3speak.tv audio/playlist share links to audio.3speak.tv player URLs,
+ * so the audio handlers below embed them. A labeled link (`[my episode](url)`)
+ * stays a plain link, like a labeled 3Speak video link.
+ */
+function canonicalizeSpeakAudioLinks(content: string): string {
+    content = content.replace(
+        new RegExp(`<a[^>]*href="(${SPEAK_AUDIO_SHARE_HREF}[^"]+)"[^>]*>(.*?)<\\/a>`, 'gi'),
+        (match, href: string, inner: string) => {
+            const cleanHref = href.replace(/&amp;/gi, '&');
+            const text = inner.replace(/<[^>]*>/g, '').replace(/&amp;/gi, '&').trim();
+            if (text && text !== cleanHref) return match;
+            const canon = canonicalSpeakAudioUrl(cleanHref);
+            return canon ? `<a href="${canon}">${canon}</a>` : match;
+        }
+    );
+    return content.replace(
+        new RegExp(`<p>\\s*(${SPEAK_AUDIO_SHARE_HREF}[^<\\s]+)\\s*<\\/p>`, 'gi'),
+        (match, url: string) => {
+            const canon = canonicalSpeakAudioUrl(url);
+            return canon ? `<p>${canon}</p>` : match;
+        }
+    );
+}
+
+/**
  * Transform 3Speak URLs to embedded iframes
  * Handles both legacy (3speak.tv) and current (play.3speak.tv) URLs
  * Deduplicates multiple instances of the same video
@@ -332,7 +384,10 @@ function transform3SpeakContent(content: string): string {
         }
     );
 
-    // Handle 3Speak audio URLs (any param format: ?a=, ?cid=, etc.)
+    // 3speak.tv/audio?play= and 3speak.tv/playlist/ share links → audio.3speak.tv play URLs
+    content = canonicalizeSpeakAudioLinks(content);
+
+    // Handle 3Speak audio URLs (any param format: ?a=, ?cid=, ?list=, etc.)
     content = content.replace(
         /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?[^"]+)"[^>]*>.*?<\/a>/g,
         (match, fullUrl: string) => {

@@ -30,6 +30,7 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  canonicalSpeakAudioUrl: () => canonicalSpeakAudioUrl,
   createHiveRenderer: () => createHiveRenderer,
   renderHiveMarkdown: () => renderHiveMarkdown
 });
@@ -222,6 +223,41 @@ function fixMalformedCenterTags(content) {
     }
   );
 }
+function canonicalSpeakAudioUrl(url) {
+  let u;
+  try {
+    u = new URL(url.replace(/&amp;/gi, "&").trim());
+  } catch {
+    return null;
+  }
+  if (!/^(www\.)?3speak\.tv$/i.test(u.hostname)) return null;
+  if (/^\/audio\/?$/.test(u.pathname)) {
+    const id = u.searchParams.get("play")?.match(/^@?[a-z0-9.-]+\/([A-Za-z0-9-]+)$/i)?.[1];
+    return id ? `https://audio.3speak.tv/play?a=${id}` : null;
+  }
+  const list = u.pathname.match(/^\/playlist\/([A-Za-z0-9-]{8,64})\/?$/)?.[1];
+  return list ? `https://audio.3speak.tv/play?list=${list}` : null;
+}
+var SPEAK_AUDIO_SHARE_HREF = String.raw`https?:\/\/(?:www\.)?3speak\.tv\/(?:audio\/?\?|playlist\/)`;
+function canonicalizeSpeakAudioLinks(content) {
+  content = content.replace(
+    new RegExp(`<a[^>]*href="(${SPEAK_AUDIO_SHARE_HREF}[^"]+)"[^>]*>(.*?)<\\/a>`, "gi"),
+    (match, href, inner) => {
+      const cleanHref = href.replace(/&amp;/gi, "&");
+      const text = inner.replace(/<[^>]*>/g, "").replace(/&amp;/gi, "&").trim();
+      if (text && text !== cleanHref) return match;
+      const canon = canonicalSpeakAudioUrl(cleanHref);
+      return canon ? `<a href="${canon}">${canon}</a>` : match;
+    }
+  );
+  return content.replace(
+    new RegExp(`<p>\\s*(${SPEAK_AUDIO_SHARE_HREF}[^<\\s]+)\\s*<\\/p>`, "gi"),
+    (match, url) => {
+      const canon = canonicalSpeakAudioUrl(url);
+      return canon ? `<p>${canon}</p>` : match;
+    }
+  );
+}
 function transform3SpeakContent(content) {
   const embeddedVideos = /* @__PURE__ */ new Set();
   const embeddedAudios = /* @__PURE__ */ new Set();
@@ -277,6 +313,7 @@ function transform3SpeakContent(content) {
       return `<div class="video-container"><iframe src="${embedUrl}" ${SPEAK_VIDEO_ALLOW} allowfullscreen></iframe></div>`;
     }
   );
+  content = canonicalizeSpeakAudioLinks(content);
   content = content.replace(
     /<a[^>]*href="(https?:\/\/audio\.3speak\.tv\/play\?[^"]+)"[^>]*>.*?<\/a>/g,
     (match, fullUrl) => {
@@ -603,6 +640,7 @@ function createHiveRenderer(options = {}) {
 var renderHiveMarkdown = createHiveRenderer();
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  canonicalSpeakAudioUrl,
   createHiveRenderer,
   renderHiveMarkdown
 });
