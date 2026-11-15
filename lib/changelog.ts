@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14',
+    date: '2026-11-14',
+    title: 'Shareable snap links',
+    items: [
+      { type: 'feature', text: 'Opening a snap conversation now puts its own link in the address bar, so you can copy and share it. Back closes it, and the feed stays where you left it.' },
+    ],
+  },
+  {
     id: '2026-11-12',
     date: '2026-11-12',
     title: '3Speak audio',
