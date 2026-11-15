@@ -7,6 +7,8 @@
 
 import { createHiveRenderer, HiveRendererContext, HiveRendererOptions } from '@snapie/renderer';
 import { rewriteHtmlImageSrcs } from '@/lib/images/markdownImages';
+import { applyPostImageLayout } from '@/lib/images/postImageLayout';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 // Custom configuration for Snapie.io
 const snapieRendererOptions: Partial<HiveRendererOptions> = {
@@ -34,6 +36,14 @@ const render = createHiveRenderer(snapieRendererOptions);
 
 export interface MarkdownRenderOptions {
     defaultEmojiOwner?: string;
+    /**
+     * Optional width/height map keyed by the original (unproxied) image URL.
+     * Only images listed here get width/height and srcset; pass it only from
+     * the post detail column (the default `sizes` hint assumes that column).
+     */
+    imageDimensions?: ImageSizeMap;
+    /** `sizes` hint for responsive images; defaults to the post column. */
+    imageSizes?: string;
 }
 
 /**
@@ -53,7 +63,14 @@ export default function markdownRenderer(
     // HTML <img> tags, bare image URLs, and hivemoji stay in this string.
     // Markdown images that separateContent lifts into MediaRenderer are not
     // in it. Remote srcs go through the same-origin proxy, not images.hive.blog.
-    return rewriteHtmlImageSrcs(render(markdown, context));
+    // width/height and srcset/sizes are added after the rewrite, only for
+    // images with known dimensions, so the layout can reserve space and
+    // phones get a smaller file.
+    return applyPostImageLayout(
+        rewriteHtmlImageSrcs(render(markdown, context)),
+        options.imageDimensions,
+        options.imageSizes,
+    );
 }
 
 // Also export the renderer for direct use if needed

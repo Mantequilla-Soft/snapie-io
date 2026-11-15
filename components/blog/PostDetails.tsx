@@ -22,6 +22,7 @@ import TwitterEmbed from '@/components/shared/TwitterEmbed';
 import { extractYouTubeId, isSnapContainer, isWaveContainer, speakAudioListId } from '@/lib/utils/snapUtils';
 import { useCombflowPost } from '@/hooks/useCombflowPost';
 import { stripMarkdownToPlainText, getWordCount, getReadingTimeMinutes } from '@/lib/utils/readingStats';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 type BodySegment =
     | { type: 'html'; html: string }
@@ -35,6 +36,8 @@ interface PostDetailsProps {
     isEmbedMode?: boolean;
     /** Muted-filtered top-level comment count, once loaded — see InteractionBar. */
     commentCount?: number;
+    /** Width/height for post-body images, keyed by the original image URL. */
+    imageDimensions?: ImageSizeMap;
 }
 
 const bodySx = {
@@ -79,7 +82,7 @@ const bodySx = {
     '& iframe': { maxWidth: '100%', borderRadius: 'md', border: 'none' },
 };
 
-export default function PostDetails({ post, isEmbedMode = false, commentCount }: PostDetailsProps) {
+export default function PostDetails({ post, isEmbedMode = false, commentCount, imageDimensions }: PostDetailsProps) {
     const { title, author, body, created } = post;
     const postDate = getPostDate(created);
     const { username: user } = useCurrentUser();
@@ -135,7 +138,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
     );
 
     const bodySegments = useMemo((): BodySegment[] => {
-        let html = markdownRenderer(body, { defaultEmojiOwner: author });
+        let html = markdownRenderer(body, { defaultEmojiOwner: author, imageDimensions });
 
         // Fallback: convert audio.3speak.tv anchor tags the renderer missed.
         // Only convert when the inner text IS the raw URL (auto-linked plain URL),
@@ -279,7 +282,7 @@ export default function PostDetails({ post, isEmbedMode = false, commentCount }:
             }
         }
         return expanded;
-    }, [body, author]);
+    }, [body, author, imageDimensions]);
 
     return (
         <Box

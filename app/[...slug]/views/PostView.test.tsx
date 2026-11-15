@@ -2,6 +2,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getPost = vi.fn();
 const communityMuted = vi.fn();
+const prefetchDims = vi.fn(async (_html: string) => ({}));
+const requestHeaders = { value: new Headers() };
+
+vi.mock('next/headers', () => ({
+  headers: async () => requestHeaders.value,
+}));
+
+vi.mock('@/lib/images/imageDimensions', () => ({
+  prefetchPostImageDimensions: (html: string) => prefetchDims(html),
+}));
 
 vi.mock('next/navigation', () => ({
   notFound: () => {
@@ -29,6 +39,9 @@ beforeEach(() => {
   getPost.mockReset();
   communityMuted.mockReset();
   communityMuted.mockResolvedValue(false);
+  prefetchDims.mockReset();
+  prefetchDims.mockResolvedValue({});
+  requestHeaders.value = new Headers({ 'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) Chrome/130.0 Safari/537.36' });
 });
 
 describe('PostView', () => {
@@ -70,5 +83,25 @@ describe('PostView', () => {
     communityMuted.mockResolvedValue('unknown');
     const element = await PostView({ author: 'alice', permlink: 'p1' });
     expect(element).not.toMatchObject({ props: { initialPost: expect.anything() } });
+  });
+
+  it('measures images for visitors and passes the dimensions through', async () => {
+    const post = { author: 'alice', permlink: 'p1', title: 'Hello', body: 'World' };
+    getPost.mockResolvedValue({ status: 'found', post });
+    prefetchDims.mockResolvedValue({ 'https://files.peakd.com/a.jpg': { width: 10, height: 5 } });
+    const element = await PostView({ author: 'alice', permlink: 'p1' });
+    expect(prefetchDims).toHaveBeenCalledTimes(1);
+    expect(element).toMatchObject({
+      props: { imageDimensions: { 'https://files.peakd.com/a.jpg': { width: 10, height: 5 } } },
+    });
+  });
+
+  it('does not wait on image measurement for crawlers', async () => {
+    const post = { author: 'alice', permlink: 'p1', title: 'Hello', body: 'World' };
+    getPost.mockResolvedValue({ status: 'found', post });
+    requestHeaders.value = new Headers({ 'user-agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' });
+    const element = await PostView({ author: 'alice', permlink: 'p1' });
+    expect(prefetchDims).not.toHaveBeenCalled();
+    expect(element).toMatchObject({ props: { initialPost: post, imageDimensions: {} } });
   });
 });
