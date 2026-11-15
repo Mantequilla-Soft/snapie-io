@@ -25,6 +25,31 @@ describe('markdownRenderer image srcs', () => {
         expect(html).toContain(`${IMAGE_PROXY_PATH}?url=`);
         expect(html).not.toContain('src="https://hivemoji.hivelytics.io');
     });
+
+    it('always emits an alt attribute on rendered images', () => {
+        const withAlt = markdownRenderer('![peakd logo](https://files.peakd.com/file/a.jpg)');
+        expect(withAlt).toMatch(/<img[^>]*\salt="peakd logo"/);
+
+        const bareUrl = markdownRenderer('https://files.peakd.com/file/a.jpg');
+        expect(bareUrl).toMatch(/<img[^>]*\salt=""/);
+
+        const rawHtml = markdownRenderer('<img src="https://i.ecency.com/x.jpg">');
+        expect(rawHtml).toMatch(/<img[^>]*\salt=""/);
+    });
+
+    it('keeps role="img" on hivemoji so aria-label is valid', () => {
+        const html = markdownRenderer(':wave:', { defaultEmojiOwner: 'alice' });
+        expect(html).toContain('class="hivemoji"');
+        expect(html).toContain('role="img"');
+        expect(html).toContain('aria-label=":wave:"');
+    });
+
+    it('drops any other role an author puts in post HTML', () => {
+        const html = markdownRenderer('<div role="button">Click</div> <span role="dialog">x</span> <span role="img" aria-label="ok">!</span>');
+        expect(html).not.toContain('role="button"');
+        expect(html).not.toContain('role="dialog"');
+        expect(html).toContain('role="img"');
+    });
 });
 
 /** Tags stripped in document order, so a reordered sentence fails this. */
