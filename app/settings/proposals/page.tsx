@@ -139,7 +139,7 @@ export default function ProposalVotingPage() {
                         <Box mt={1.5} h="4px" w="100%" bg="overlay.100" borderRadius="full" overflow="hidden">
                           <Box
                             h="100%"
-                            bg={proposal.isFunded ? 'primary' : 'overlay.400'}
+                            bg={proposal.isFunded ? 'primary' : 'overlayFill'}
                             borderRadius="full"
                             width={`${topSupportHp > 0 ? Math.max(2, (proposal.supportHp / topSupportHp) * 100) : 0}%`}
                           />
@@ -201,7 +201,7 @@ export default function ProposalVotingPage() {
                           <Box mt={1.5} h="4px" w="100%" bg="overlay.100" borderRadius="full" overflow="hidden">
                             <Box
                               h="100%"
-                              bg="overlay.400"
+                              bg="overlayFill"
                               borderRadius="full"
                               width={`${topSupportHp > 0 ? Math.max(2, (proposal.supportHp / topSupportHp) * 100) : 0}%`}
                             />

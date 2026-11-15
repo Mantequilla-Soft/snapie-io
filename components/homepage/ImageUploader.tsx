@@ -3,9 +3,11 @@ import { Box, Input } from '@chakra-ui/react';
 
 interface ImageUploaderProps {
     onUpload: (files: File[]) => void;
+    /** Accessible name for the hidden file input (label must not use aria-label). */
+    ariaLabel?: string;
 }
 
-const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
+const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload, ariaLabel = 'Image' }) => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,6 +29,7 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({ onUpload }) => {
                 multiple
                 accept="image/*"
                 onChange={handleImageUpload}
+                aria-label={ariaLabel}
                 hidden
             />
         </Box>

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   AlertIcon,
   Button,
   FormControl,
+  FormHelperText,
   FormLabel,
+  Image,
   Input,
   Link,
   Modal,
@@ -21,9 +23,19 @@ import {
   Textarea,
   VStack,
 } from '@chakra-ui/react';
-import { readChatSessionToken, submitFeedback } from '@/lib/feedback/client';
+import {
+  fetchFeedbackIdentity,
+  readChatSessionToken,
+  readUsableChatSessionToken,
+  submitFeedback,
+} from '@/lib/feedback/client';
 import type { FeedbackCategory } from '@/lib/feedback/model';
+import { validateFeedbackScreenshotFile } from '@/lib/feedback/model';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
+
+const SCREENSHOT_SESSION_MESSAGE =
+  'To attach a screenshot, connect chat first (or connect it again if it has been a while). You can also send the note without it.';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -31,19 +43,30 @@ interface FeedbackModalProps {
 }
 
 export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
-  const { username, isLoggedIn } = useCurrentUser();
+  const { username, isLoggedIn, isSnapie } = useCurrentUser();
   const [category, setCategory] = useState<FeedbackCategory | ''>('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [screenshot, setScreenshot] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issueUrl, setIssueUrl] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function clearScreenshot() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setScreenshot(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   function reset() {
     setCategory('');
     setTitle('');
     setBody('');
+    clearScreenshot();
     setSubmitting(false);
     setError(null);
     setIssueUrl(null);
@@ -53,6 +76,24 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   function handleClose() {
     reset();
     onClose();
+  }
+
+  function handleScreenshotChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      clearScreenshot();
+      return;
+    }
+    const problem = validateFeedbackScreenshotFile(file);
+    if (problem) {
+      setError(problem);
+      clearScreenshot();
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setError(null);
+    setScreenshot(file);
+    setPreviewUrl(URL.createObjectURL(file));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -68,12 +109,44 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
     setSubmitting(true);
     setError(null);
+
+    let screenshotUrl: string | null = null;
+    if (screenshot) {
+      if (!isLoggedIn || !username) {
+        setSubmitting(false);
+        setError('Sign in to attach a screenshot.');
+        return;
+      }
+      const problem = validateFeedbackScreenshotFile(screenshot);
+      if (problem) {
+        setSubmitting(false);
+        setError(problem);
+        return;
+      }
+      // Confirm the server will accept the screenshot before uploading it, so
+      // an expired or missing session never leaves an orphaned public image.
+      const serverUsername = await fetchFeedbackIdentity(readChatSessionToken());
+      if (!serverUsername || serverUsername !== username.toLowerCase()) {
+        setSubmitting(false);
+        setError(SCREENSHOT_SESSION_MESSAGE);
+        return;
+      }
+      try {
+        screenshotUrl = await uploadImageWithKeychain(screenshot, username);
+      } catch {
+        setSubmitting(false);
+        setError("We couldn't upload that screenshot. Please try again, or send the note without it.");
+        return;
+      }
+    }
+
     const result = await submitFeedback({
       title: nextTitle,
       body: nextBody,
       category,
       pageUrl: window.location.href,
       chatToken: readChatSessionToken(),
+      screenshotUrl,
     });
     setSubmitting(false);
 
@@ -84,6 +157,12 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     setSent(true);
     setIssueUrl(result.url);
   }
+
+  // Same identity the server accepts: a Snapie Auth session, or a chat
+  // token that has not expired. A Keychain login alone is not enough.
+  const hasServerIdentity = Boolean(isSnapie || readUsableChatSessionToken());
+  const canAttachScreenshot = Boolean(isLoggedIn && username && hasServerIdentity);
+  const showConnectHint = Boolean(isLoggedIn && username && !hasServerIdentity);
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} isCentered motionPreset="slideInBottom" size="md">
@@ -158,6 +237,46 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   aria-label="Message"
                 />
               </FormControl>
+
+              {showConnectHint && (
+                <Text fontSize="xs" color="overlay.500">
+                  Want to attach a screenshot? Connect chat first, then reopen this form.
+                </Text>
+              )}
+
+              {canAttachScreenshot && (
+                <FormControl>
+                  <FormLabel fontSize="sm" color="text">Screenshot (optional)</FormLabel>
+                  <Input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleScreenshotChange}
+                    aria-label="Screenshot"
+                    border="none"
+                    px={0}
+                    h="auto"
+                  />
+                  <FormHelperText>
+                    PNG, JPEG, or WebP, up to 5 MB. Uploaded with your Hive account to the usual image host, then linked on the issue.
+                  </FormHelperText>
+                  {previewUrl && screenshot && (
+                    <VStack align="stretch" spacing={2} mt={3}>
+                      <Image
+                        src={previewUrl}
+                        alt="Screenshot preview"
+                        maxW="100%"
+                        maxH="160px"
+                        objectFit="contain"
+                        borderRadius="8px"
+                      />
+                      <Button size="sm" variant="ghost" alignSelf="flex-start" onClick={clearScreenshot}>
+                        Remove screenshot
+                      </Button>
+                    </VStack>
+                  )}
+                </FormControl>
+              )}
 
               <Button
                 type="submit"
