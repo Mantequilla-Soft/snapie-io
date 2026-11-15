@@ -27,9 +27,10 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-14',
     date: '2026-11-14',
-    title: 'Accessibility',
+    title: 'Accessibility and feedback screenshots',
     items: [
       { type: 'improvement', text: 'Better screen reader support and easier-to-read muted text and score badges across the main pages.' },
+      { type: 'feature', text: 'You can attach a screenshot when you send feedback (PNG, JPEG or WebP, up to 5 MB). Connect chat first so we know who sent it.' },
     ],
   },
   {
