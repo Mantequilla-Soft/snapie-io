@@ -1,12 +1,18 @@
 /**
  * Responsive attributes for images inside rendered post HTML.
  *
- * - `srcset` / `sizes` point at `/api/image-proxy?url=…&w=` so phones can
- *   download a smaller file. Animated GIFs are left as a single src.
- * - `width` / `height` (and `aspect-ratio`) are added when dimensions are
- *   known, so the browser can reserve space. Missing dimensions are fine:
- *   the image still renders and CSS keeps `max-width: 100%; height: auto`.
- * - Hivemoji images are left alone (they are sized in ems).
+ * - Only when an image's dimensions are known: `width` / `height` (and
+ *   `aspect-ratio`) so the browser reserves space, plus `srcset` / `sizes`
+ *   pointing at `/api/image-proxy?url=…&w=` so phones download a smaller file.
+ *   The `width` attribute pins the display size, so a narrow descriptor can
+ *   never make the image render smaller than it really is.
+ * - Unknown dimensions: the tag is left alone. With `w` descriptors and no
+ *   width, the browser would scale the image by sizes ÷ descriptor, and the
+ *   proxy never upscales, so a 500px screenshot would show at ~281px.
+ * - Animated GIFs (by URL) and hivemoji (sized in ems) are left alone. The
+ *   proxy also skips resizing any animated image (WebP/APNG) it receives.
+ * - Only callers that pass a dimensions map (the post detail column) get any
+ *   of this, so Snaps, replies and compose previews are untouched.
  */
 import { IMAGE_PROXY_PATH } from '@/lib/images/feedImageSrc';
 import {
@@ -66,10 +72,16 @@ export function proxySrcWithWidth(src: string, width: number): string {
   return `${url.pathname}?${url.searchParams.toString()}`;
 }
 
-function srcsetFor(src: string, intrinsicWidth?: number): string {
-  const widths = POST_IMAGE_SRCSET_WIDTHS.filter((width) => !intrinsicWidth || width <= intrinsicWidth);
-  const list = widths.length > 0 ? widths : [POST_IMAGE_SRCSET_WIDTHS[0]];
-  return list.map((width) => `${escapeAttr(proxySrcWithWidth(src, width))} ${width}w`).join(', ');
+/**
+ * Downscaled proxy widths below the intrinsic width, plus the unresized src
+ * at its real width. Null when there is nothing smaller to offer.
+ */
+function srcsetFor(src: string, intrinsicWidth: number): string | null {
+  const widths = POST_IMAGE_SRCSET_WIDTHS.filter((width) => width < intrinsicWidth);
+  if (widths.length === 0) return null;
+  const list = widths.map((width) => `${escapeAttr(proxySrcWithWidth(src, width))} ${width}w`);
+  list.push(`${escapeAttr(src)} ${intrinsicWidth}w`);
+  return list.join(', ');
 }
 
 function lookupSize(src: string, original: string | null, sizes?: ImageSizeMap | null): ImageSize | undefined {
@@ -79,7 +91,7 @@ function lookupSize(src: string, original: string | null, sizes?: ImageSizeMap |
   return undefined;
 }
 
-function enhanceTag(tag: string, sizes?: ImageSizeMap | null): string {
+function enhanceTag(tag: string, sizes: ImageSizeMap | null | undefined, sizesAttr: string): string {
   if (isHivemoji(tag)) return tag;
   const rawSrc = attr(tag, 'src');
   if (!rawSrc) return tag;
@@ -90,12 +102,17 @@ function enhanceTag(tag: string, sizes?: ImageSizeMap | null): string {
   let core = tag.replace(/\/\s*>$/, '>').slice(0, -1);
   const extras: string[] = [];
 
-  if (isProxySrc(src) && !isGifSrc(src, original) && !attr(tag, 'srcset')) {
-    extras.push(`srcset="${srcsetFor(src, dims?.width)}"`);
-    if (!attr(tag, 'sizes')) extras.push(`sizes="${POST_IMAGE_SIZES}"`);
+  // srcset only together with a width we set ourselves; see the file comment.
+  const pinsWidth = Boolean(dims) && !attr(tag, 'width');
+  if (pinsWidth && dims && isProxySrc(src) && !isGifSrc(src, original) && !attr(tag, 'srcset')) {
+    const srcset = srcsetFor(src, dims.width);
+    if (srcset) {
+      extras.push(`srcset="${srcset}"`);
+      if (!attr(tag, 'sizes')) extras.push(`sizes="${escapeAttr(sizesAttr)}"`);
+    }
   }
 
-  if (dims && !attr(tag, 'width')) {
+  if (pinsWidth && dims) {
     extras.push(`width="${dims.width}"`);
     extras.push(`height="${dims.height}"`);
     const aspect = `aspect-ratio:${dims.width}/${dims.height}`;
@@ -115,8 +132,15 @@ function enhanceTag(tag: string, sizes?: ImageSizeMap | null): string {
 }
 
 /**
- * Add srcset/sizes to proxied content images, and width/height when known.
+ * Add width/height, and srcset/sizes for proxied images, to content images
+ * whose dimensions are in `sizes`. Without a map the HTML is returned as is.
+ * `sizesAttr` is the layout width hint; it defaults to the post column.
  */
-export function applyPostImageLayout(html: string, sizes?: ImageSizeMap | null): string {
-  return html.replace(IMG_TAG, (tag) => enhanceTag(tag, sizes));
+export function applyPostImageLayout(
+  html: string,
+  sizes?: ImageSizeMap | null,
+  sizesAttr: string = POST_IMAGE_SIZES,
+): string {
+  if (!sizes || Object.keys(sizes).length === 0) return html;
+  return html.replace(IMG_TAG, (tag) => enhanceTag(tag, sizes, sizesAttr));
 }

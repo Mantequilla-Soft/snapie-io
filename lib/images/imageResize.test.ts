@@ -32,4 +32,15 @@ describe('resizeImageBuffer', () => {
     const untouched = await resizeImageBuffer(gif, 'image/gif', 320);
     expect(untouched.body).toBe(gif);
   });
+
+  it('leaves an animated webp unchanged instead of flattening it to one frame', async () => {
+    // Two 1000x500 frames joined into an animated WebP.
+    const frameA = await png(1000, 500);
+    const frameB = await sharp({ create: { width: 1000, height: 500, channels: 3, background: '#654321' } }).png().toBuffer();
+    const animated = await sharp([frameA, frameB], { join: { animated: true } }).webp({ loop: 0 }).toBuffer();
+    expect((await sharp(animated).metadata()).pages).toBe(2);
+
+    const out = await resizeImageBuffer(animated, 'image/webp', 320);
+    expect(out.body).toBe(animated);
+  });
 });

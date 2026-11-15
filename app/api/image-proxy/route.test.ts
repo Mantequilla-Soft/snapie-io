@@ -126,28 +126,10 @@ describe('GET /api/image-proxy', () => {
 });
 
 
-describe('GET /api/image-proxy meta and resize', () => {
+describe('GET /api/image-proxy resize', () => {
     async function png(width: number, height: number) {
         return sharp({ create: { width, height, channels: 3, background: '#00a8ff' } }).png().toBuffer();
     }
-
-    it('returns cached dimensions as json for meta=1', async () => {
-        const body = await png(80, 40);
-        vi.mocked(fetchProxiedImage).mockResolvedValue({ body, contentType: 'image/png' });
-        const path = `/api/image-proxy?url=${encodeURIComponent('https://files.peakd.com/meta.png')}&meta=1`;
-        const res = await call(path, '203.0.113.80');
-        expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ ok: true, width: 80, height: 40 });
-        expect(res.headers.get('content-type')).toMatch(/application\/json/);
-    });
-
-    it('returns ok false for meta=1 when the image cannot be measured', async () => {
-        vi.mocked(fetchProxiedImage).mockRejectedValue(new ImageProxyError(404, 'not-image'));
-        const path = `/api/image-proxy?url=${encodeURIComponent('https://files.peakd.com/missing.png')}&meta=1`;
-        const res = await call(path, '203.0.113.81');
-        expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ ok: false });
-    });
 
     it('resizes to an allowlisted width and rejects an unknown w', async () => {
         const body = await png(800, 400);

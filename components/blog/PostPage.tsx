@@ -19,23 +19,22 @@ import MutedAuthorNotice from '@/components/shared/MutedAuthorNotice';
 import SnapCastBar from '@/components/homepage/SnapCastBar';
 import { useSnapCast } from '@/hooks/useSnapCast';
 import { useUserSettings } from '@/hooks/useUserSettings';
-import markdownRenderer from '@/lib/utils/MarkdownRenderer';
-import {
-  extractOriginalImageUrls,
-  fetchImageDimensionsFromProxy,
-  type ImageSizeMap,
-} from '@/lib/images/imageDimensions.shared';
+import type { ImageSizeMap } from '@/lib/images/imageDimensions.shared';
 
 interface PostPageProps {
   author: string
   permlink: string
   /** Server-fetched post so title/body are in the first HTML (no Loading spinner). */
   initialPost?: Discussion | null
-  /** Server-resolved width/height for images in the post body. */
+  /**
+   * Server-resolved width/height for images in the post body. Fixed for the
+   * life of the page: dimensions are never fetched later on the client, so
+   * the post body is not re-rendered (no image reloads or embed restarts).
+   */
   imageDimensions?: ImageSizeMap
 }
 
-export default function PostPage({ author, permlink, initialPost = null, imageDimensions: initialImageDimensions }: PostPageProps) {
+export default function PostPage({ author, permlink, initialPost = null, imageDimensions }: PostPageProps) {
   const searchParams = useSearchParams();
   const isEmbedMode = searchParams.get('embed') === 'true';
   const { hiveUser } = useHiveUser();
@@ -50,7 +49,6 @@ export default function PostPage({ author, permlink, initialPost = null, imageDi
   const [reply, setReply] = useState<Comment>();
   const [isOpen, setIsOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
-  const [imageDimensions, setImageDimensions] = useState<ImageSizeMap>(initialImageDimensions ?? {});
 
   // Only fetch comments if NOT in embed mode
   const data = useComments(isEmbedMode ? '' : author, isEmbedMode ? '' : permlink, !isEmbedMode, hiveUser?.name);
@@ -94,21 +92,6 @@ export default function PostPage({ author, permlink, initialPost = null, imageDi
 
     loadPost();
   }, [author, permlink, retry, seeded]);
-
-  useEffect(() => {
-    if (!post?.body) return;
-    const html = markdownRenderer(post.body, { defaultEmojiOwner: post.author });
-    const urls = extractOriginalImageUrls(html).filter((url) => !imageDimensions[url]);
-    if (urls.length === 0) return;
-    let cancelled = false;
-    fetchImageDimensionsFromProxy(urls).then((next) => {
-      if (cancelled || Object.keys(next).length === 0) return;
-      setImageDimensions((prev) => ({ ...next, ...prev }));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [post?.body, post?.author]);
 
   const onOpen = () => setIsOpen(true);
   const onClose = () => setIsOpen(false);

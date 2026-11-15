@@ -6,7 +6,9 @@ export const PROXY_RESIZE_WIDTH_SET = new Set<number>(PROXY_RESIZE_WIDTHS);
 
 /**
  * Downscale a proxied raster image to `width`, keeping aspect ratio and
- * never enlarging. GIFs are returned unchanged so animation is preserved.
+ * never enlarging. GIFs and any other animated image (multi-frame WebP or
+ * APNG, detected from `pages > 1`) are returned unchanged so animation is
+ * preserved; resizing with `animated: false` would keep only the first frame.
  * If the source is already that wide or narrower, the original bytes are
  * returned (no recompress).
  */
@@ -24,6 +26,9 @@ export async function resizeImageBuffer(
   try {
     const image = sharp(body, { failOn: 'none', animated: false });
     const meta = await image.metadata();
+    if ((meta.pages ?? 1) > 1) {
+      return { body, contentType };
+    }
     if (!meta.width || meta.width <= width) {
       return { body, contentType };
     }

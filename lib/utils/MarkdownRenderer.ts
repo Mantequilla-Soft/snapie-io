@@ -36,8 +36,14 @@ const render = createHiveRenderer(snapieRendererOptions);
 
 export interface MarkdownRenderOptions {
     defaultEmojiOwner?: string;
-    /** Optional width/height map keyed by the original (unproxied) image URL. */
+    /**
+     * Optional width/height map keyed by the original (unproxied) image URL.
+     * Only images listed here get width/height and srcset; pass it only from
+     * the post detail column (the default `sizes` hint assumes that column).
+     */
     imageDimensions?: ImageSizeMap;
+    /** `sizes` hint for responsive images; defaults to the post column. */
+    imageSizes?: string;
 }
 
 /**
@@ -57,11 +63,13 @@ export default function markdownRenderer(
     // HTML <img> tags, bare image URLs, and hivemoji stay in this string.
     // Markdown images that separateContent lifts into MediaRenderer are not
     // in it. Remote srcs go through the same-origin proxy, not images.hive.blog.
-    // srcset/sizes (and width/height when known) are added after the rewrite
-    // so phones get a smaller file and the layout can reserve space.
+    // width/height and srcset/sizes are added after the rewrite, only for
+    // images with known dimensions, so the layout can reserve space and
+    // phones get a smaller file.
     return applyPostImageLayout(
         rewriteHtmlImageSrcs(render(markdown, context)),
         options.imageDimensions,
+        options.imageSizes,
     );
 }
 

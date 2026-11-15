@@ -1,7 +1,8 @@
 /**
  * Width/height for post-body images. Hive markdown usually has no dimensions,
- * so the server (or the proxy `meta=1` endpoint) reads them once from the
- * image bytes and keeps the result in a short in-memory cache.
+ * so the server reads them once from the image bytes while rendering a post
+ * page and keeps the result in a short in-memory cache. Only images measured
+ * within the render budget get dimensions; the rest render as before.
  *
  * Failures are cached as a miss so a dead URL is not retried on every render.
  * Unknown dimensions are never required — callers leave width/height off and
@@ -18,12 +19,21 @@ import {
 } from '@/lib/images/imageDimensions.shared';
 
 export type { ImageSize, ImageSizeMap } from '@/lib/images/imageDimensions.shared';
-export { extractOriginalImageUrls, originalUrlFromProxySrc, fetchImageDimensionsFromProxy } from '@/lib/images/imageDimensions.shared';
+export { extractOriginalImageUrls, originalUrlFromProxySrc } from '@/lib/images/imageDimensions.shared';
 
 const HIT_TTL_MS = 6 * 60 * 60 * 1000;
 const MISS_TTL_MS = 15 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 1000;
-const PREFETCH_BUDGET_MS = 1_500;
+/**
+ * How long a post page render may wait for uncached image dimensions. Kept
+ * short: this is time before the first byte. Downloads still running at the
+ * deadline finish in the background, so a later visit hits the cache.
+ */
+export const PREFETCH_BUDGET_MS = 500;
+/** At most this many uncached images are measured per render (the first ones in the post). */
+export const SSR_PREFETCH_MAX = 6;
+
+const inflight = new Map<string, Promise<ImageSize | null>>();
 
 type CacheValue = ImageSize | null;
 
@@ -34,6 +44,7 @@ let cache = createBoundedTtlCache<CacheValue>({
 
 /** Tests only. */
 export function resetImageDimensionCacheForTests(): void {
+  inflight.clear();
   cache = createBoundedTtlCache<CacheValue>({
     ttlMs: HIT_TTL_MS,
     maxEntries: CACHE_MAX_ENTRIES,
@@ -70,44 +81,71 @@ function write(url: string, value: CacheValue, ttlMs: number): void {
 export async function resolveImageDimensions(rawUrl: string): Promise<ImageSize | null> {
   const cached = peek(rawUrl);
   if (cached !== undefined) return cached;
+  // Concurrent renders of the same post share one download.
+  const running = inflight.get(rawUrl);
+  if (running) return running;
 
-  try {
-    const image = await fetchProxiedImage(rawUrl);
-    const size = await measureImageBuffer(image.body);
-    write(rawUrl, size, size ? HIT_TTL_MS : MISS_TTL_MS);
-    return size;
-  } catch (err) {
-    if (err instanceof ImageProxyError) {
+  const task = (async (): Promise<ImageSize | null> => {
+    try {
+      const image = await fetchProxiedImage(rawUrl);
+      const size = await measureImageBuffer(image.body);
+      write(rawUrl, size, size ? HIT_TTL_MS : MISS_TTL_MS);
+      return size;
+    } catch (err) {
+      if (err instanceof ImageProxyError) {
+        write(rawUrl, null, MISS_TTL_MS);
+        return null;
+      }
       write(rawUrl, null, MISS_TTL_MS);
       return null;
+    } finally {
+      inflight.delete(rawUrl);
     }
-    write(rawUrl, null, MISS_TTL_MS);
-    return null;
-  }
+  })();
+  inflight.set(rawUrl, task);
+  return task;
 }
 
-export async function prefetchPostImageDimensions(html: string): Promise<ImageSizeMap> {
+/**
+ * Dimensions for the first few uncached images in `html`, waiting at most
+ * `budgetMs`. The timer is always cleared. A download still running at the
+ * deadline is not awaited; it finishes in the background (bounded by the
+ * proxy's own timeout and size cap, and shared with any concurrent render)
+ * so the next visit gets a cache hit instead of starting over.
+ */
+export async function prefetchPostImageDimensions(
+  html: string,
+  budgetMs: number = PREFETCH_BUDGET_MS,
+): Promise<ImageSizeMap> {
   const urls = extractOriginalImageUrls(html).slice(0, POST_IMAGE_PREFETCH_MAX);
   const out: ImageSizeMap = {};
   const missing: string[] = [];
   for (const url of urls) {
     const hit = peek(url);
     if (hit) out[url] = hit;
-    else if (hit === undefined) missing.push(url);
+    else if (hit === undefined && missing.length < SSR_PREFETCH_MAX) missing.push(url);
   }
-  if (missing.length === 0) return out;
+  if (missing.length === 0 || budgetMs <= 0) return out;
 
-  const deadline = Date.now() + PREFETCH_BUDGET_MS;
-  await Promise.all(
+  let expired = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      expired = true;
+      resolve();
+    }, budgetMs);
+  });
+  const work = Promise.all(
     missing.map(async (url) => {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) return;
-      const size = await Promise.race([
-        resolveImageDimensions(url),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), remaining)),
-      ]);
-      if (size) out[url] = size;
+      const size = await resolveImageDimensions(url);
+      if (size && !expired) out[url] = size;
     }),
   );
-  return out;
+  try {
+    await Promise.race([work, deadline]);
+  } finally {
+    clearTimeout(timer);
+  }
+  // Return a copy so late background results cannot change what was rendered.
+  return { ...out };
 }

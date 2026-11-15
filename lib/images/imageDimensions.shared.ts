@@ -60,32 +60,3 @@ export function extractOriginalImageUrls(html: string): string[] {
   }
   return urls;
 }
-
-/**
- * Ask the same-origin proxy for cached or freshly measured dimensions.
- * Used when the post was loaded on the client without a server-provided map.
- */
-export async function fetchImageDimensionsFromProxy(originalUrls: string[]): Promise<ImageSizeMap> {
-  const out: ImageSizeMap = {};
-  await Promise.all(
-    originalUrls.slice(0, POST_IMAGE_PREFETCH_MAX).map(async (url) => {
-      try {
-        const res = await fetch(
-          `${IMAGE_PROXY_PATH}?url=${encodeURIComponent(url)}&meta=1`,
-          { credentials: 'same-origin' },
-        );
-        const data = (await res.json().catch(() => null)) as
-          | { ok?: unknown; width?: unknown; height?: unknown }
-          | null;
-        const width = typeof data?.width === 'number' ? data.width : NaN;
-        const height = typeof data?.height === 'number' ? data.height : NaN;
-        if (data?.ok === true && width >= 1 && height >= 1) {
-          out[url] = { width, height };
-        }
-      } catch {
-        // Leave the entry missing; the image still renders without dimensions.
-      }
-    }),
-  );
-  return out;
-}

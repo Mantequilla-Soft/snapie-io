@@ -163,4 +163,11 @@ describe('markdownRenderer responsive images', () => {
         expect(emoji).toContain('hivemoji');
         expect(emoji).not.toContain('srcset=');
     });
+
+    it('does not add srcset or sizes when dimensions are unknown (Snaps, replies, previews)', () => {
+        const html = markdownRenderer('<img src="https://files.peakd.com/file/shot.png">');
+        expect(html).toContain(`${IMAGE_PROXY_PATH}?url=`);
+        expect(html).not.toContain('srcset=');
+        expect(html).not.toContain('sizes=');
+    });
 });

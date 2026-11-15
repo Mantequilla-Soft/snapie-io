@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, trustedClientIp, type RateLimitEntry } from '@/lib/http/rateLimit';
 import { fetchProxiedImage, ImageProxyError, probeProxiedImage } from '@/lib/images/imageProxy';
-import { resolveImageDimensions } from '@/lib/images/imageDimensions';
 import { parseProxyWidth, resizeImageBuffer } from '@/lib/images/imageResize';
 
 export const runtime = 'nodejs';
@@ -64,7 +63,6 @@ export async function GET(request: NextRequest) {
         return new NextResponse('Invalid image url', { status: 400 });
     }
 
-    const meta = request.nextUrl.searchParams.get('meta') === '1';
     const widthParam = request.nextUrl.searchParams.get('w');
     const width = parseProxyWidth(widthParam);
     if (widthParam != null && widthParam !== '' && width == null) {
@@ -78,28 +76,6 @@ export async function GET(request: NextRequest) {
         } catch (err) {
             console.error('[image-proxy] probe failed', err);
             return probeJson(false);
-        }
-    }
-
-    if (meta) {
-        try {
-            const size = await resolveImageDimensions(urls[0]);
-            return NextResponse.json(
-                size ? { ok: true, width: size.width, height: size.height } : { ok: false },
-                {
-                    status: 200,
-                    headers: {
-                        'Cache-Control': size ? 'public, max-age=3600, s-maxage=3600' : 'no-store',
-                        'X-Content-Type-Options': 'nosniff',
-                    },
-                },
-            );
-        } catch (err) {
-            console.error('[image-proxy] meta failed', err);
-            return NextResponse.json(
-                { ok: false },
-                { status: 200, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } },
-            );
         }
     }
 

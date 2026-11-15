@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14',
+    date: '2026-11-14',
+    title: 'Faster post images',
+    items: [
+      { type: 'improvement', text: 'Post pages reserve space for images so the text no longer jumps as they load, and phones download smaller copies of large images.' },
+    ],
+  },
+  {
     id: '2026-11-12',
     date: '2026-11-12',
     title: '3Speak audio',

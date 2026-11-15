@@ -68,4 +68,51 @@ describe('extractOriginalImageUrls and prefetch', () => {
       [original]: { width: 100, height: 50 },
     });
   });
+
+  it('returns within the budget, then a later render gets the late result from cache', async () => {
+    const original = 'https://files.peakd.com/file/slow.jpg';
+    const html = `<img src="${IMAGE_PROXY_PATH}?url=${encodeURIComponent(original)}">`;
+    const body = await png(64, 32);
+    let finish: (() => void) | undefined;
+    vi.mocked(fetchProxiedImage).mockImplementation(
+      () => new Promise((resolve) => {
+        finish = () => resolve({ body, contentType: 'image/png' });
+      }),
+    );
+
+    const started = Date.now();
+    const first = await prefetchPostImageDimensions(html, 40);
+    expect(first).toEqual({});
+    expect(Date.now() - started).toBeLessThan(1000);
+
+    // A concurrent render while the download is still running shares it.
+    const second = prefetchPostImageDimensions(html, 1000);
+    finish?.();
+    await expect(second).resolves.toEqual({ [original]: { width: 64, height: 32 } });
+    expect(fetchProxiedImage).toHaveBeenCalledTimes(1);
+    // The first render's map was not changed after it returned.
+    expect(first).toEqual({});
+    // And the next render is a synchronous cache hit.
+    await expect(prefetchPostImageDimensions(html, 1)).resolves.toEqual({ [original]: { width: 64, height: 32 } });
+    expect(fetchProxiedImage).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears its timer when every image resolves early', async () => {
+    const original = 'https://files.peakd.com/file/fast.jpg';
+    const html = `<img src="${IMAGE_PROXY_PATH}?url=${encodeURIComponent(original)}">`;
+    vi.mocked(fetchProxiedImage).mockResolvedValue({ body: await png(20, 10), contentType: 'image/png' });
+    const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
+    await expect(prefetchPostImageDimensions(html, 5000)).resolves.toEqual({ [original]: { width: 20, height: 10 } });
+    expect(clearSpy).toHaveBeenCalled();
+    clearSpy.mockRestore();
+  });
+
+  it('measures at most six uncached images per render', async () => {
+    const urls = Array.from({ length: 9 }, (_, i) => `https://files.peakd.com/file/${i}.jpg`);
+    const html = urls.map((u) => `<img src="${IMAGE_PROXY_PATH}?url=${encodeURIComponent(u)}">`).join('');
+    vi.mocked(fetchProxiedImage).mockResolvedValue({ body: await png(10, 10), contentType: 'image/png' });
+    const out = await prefetchPostImageDimensions(html, 1000);
+    expect(Object.keys(out).sort()).toEqual(urls.slice(0, 6).sort());
+    expect(fetchProxiedImage).toHaveBeenCalledTimes(6);
+  });
 });
