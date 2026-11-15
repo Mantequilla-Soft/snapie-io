@@ -6,9 +6,13 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
 import { useUnclaimedRewards } from '@/hooks/useUnclaimedRewards';
+import { getShellPathname } from '@/hooks/useConversationUrl';
 
 export default function BottomTabBar() {
-  const pathname = usePathname();
+  const routerPathname = usePathname();
+  // Conversation soft-nav rewrites usePathname to /@author/permlink; keep tab
+  // chrome on the underlying feed/profile path.
+  const pathname = getShellPathname(routerPathname);
   const router = useRouter();
   const { username, isLoggedIn } = useCurrentUser();
   const { openLoginModal } = useLoginModal();

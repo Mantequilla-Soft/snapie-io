@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
+import { getShellPathname } from '@/hooks/useConversationUrl';
 import { FiHome, FiBell, FiBook, FiCreditCard, FiLogIn, FiLogOut, FiMessageSquare, FiMessageCircle, FiRadio, FiInfo, FiUserPlus, FiPlay, FiCompass, FiHeart, FiSettings, FiAward, FiShield, FiZap, FiPackage } from 'react-icons/fi';
 import FeedbackModal from '@/components/feedback/FeedbackModal';
 import { POINTS_FEATURE_FLAG, GAMES_FEATURE_FLAG } from '@/lib/points/config';
@@ -45,7 +46,8 @@ export default function Sidebar({ isChatOpen = false, setIsChatOpen, chatUnreadC
     const { username: user, isLoggedIn, logout } = useCurrentUser();
     const { isAdmin } = useIsAdmin();
     const { openLoginModal } = useLoginModal();
-    const pathname = usePathname();
+    const routerPathname = usePathname();
+    const pathname = getShellPathname(routerPathname);
     const [communityInfo, setCommunityInfo] = useState<CommunityInfo | null>(null);
     const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
     const [loading, setLoading] = useState(true);

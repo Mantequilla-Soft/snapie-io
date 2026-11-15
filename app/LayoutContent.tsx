@@ -16,6 +16,7 @@ import { useShowInterestPicker } from '@/hooks/useShowInterestPicker';
 import { useContentFilterSync } from '@/hooks/useContentFilter';
 import { isPointsEnabledFor } from '@/lib/points/config';
 import { AiohaSessionRestore } from '@/lib/aioha/facade-react-ui';
+import { getShellPathname } from '@/hooks/useConversationUrl';
 
 const Sidebar = dynamic(() => import('@/components/layout/Sidebar'), { ssr: false });
 const ChatPanel = dynamic(() => import('@/components/chat/ChatPanel'), { ssr: false });
@@ -36,6 +37,10 @@ export default function LayoutContent({
   footer?: React.ReactNode;
 }) {
   const pathname = usePathname();
+  // Inline Conversation soft-navs rewrite the address bar to /@author/permlink
+  // via history.pushState (which Next mirrors into usePathname). Chrome that
+  // keys off "which page am I on" must keep using the feed/profile path.
+  const shellPathname = getShellPathname(pathname);
   const router = useRouter();
   const isPhone = usePhoneLayout();
   const isPhoneRef = useRef(isPhone);
@@ -163,19 +168,20 @@ export default function LayoutContent({
   // Phone chrome (header, tab bar) stays tappable, but the panel still covers
   // the page underneath it. Leaving the route has to drop the panel or the
   // next page opens hidden behind chat. Desktop keeps the panel across
-  // navigations.
+  // navigations. Soft conversation URLs keep the same shell path, so opening
+  // / closing a feed conversation must not dismiss chat.
   useEffect(() => {
     const seen = seenPathRef.current;
     if (seen === null) {
-      seenPathRef.current = pathname;
+      seenPathRef.current = shellPathname;
       return;
     }
-    if (seen === pathname) return;
-    seenPathRef.current = pathname;
-    if (!isPhoneRef.current || pathname === '/chat') return;
+    if (seen === shellPathname) return;
+    seenPathRef.current = shellPathname;
+    if (!isPhoneRef.current || shellPathname === '/chat') return;
     setIsChatOpen(false);
     setIsChatMinimized(false);
-  }, [pathname]);
+  }, [shellPathname]);
 
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -193,15 +199,15 @@ export default function LayoutContent({
       && (historyState as { snapieInApp?: unknown }).snapieInApp === true;
     const action = chatCloseDestination({
       isPhone: phoneNow,
-      pathname,
+      pathname: shellPathname,
       fromInAppNavigation,
     });
     if (action === 'back') routerRef.current.back();
     else if (action === 'home') routerRef.current.replace('/');
-  }, [pathname]);
+  }, [shellPathname]);
 
-  // Close MeSheet when navigating
-  useEffect(() => { setIsMeSheetOpen(false); }, [pathname]);
+  // Close MeSheet when navigating (ignore conversation soft-navs).
+  useEffect(() => { setIsMeSheetOpen(false); }, [shellPathname]);
 
   const handlePopoutChat = useCallback(() => {
     if (typeof window === 'undefined') return;
