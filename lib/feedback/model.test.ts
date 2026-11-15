@@ -168,4 +168,27 @@ describe('screenshot helpers', () => {
     expect(sanitizeScreenshotUrl('http://images.hive.blog/a.png').ok).toBe(false);
     expect(sanitizeScreenshotUrl('https://user:pass@images.hive.blog/a.png').ok).toBe(false);
   });
+
+  it('percent-encodes parentheses so a crafted path cannot break out of the Markdown image', () => {
+    const crafted = 'https://images.hive.blog/DQmabc/a.png)[click](https://evil.example/(x)';
+    const sanitized = sanitizeScreenshotUrl(crafted);
+    expect(sanitized.ok).toBe(true);
+    const url = sanitized.ok ? sanitized.url : null;
+    expect(url).not.toMatch(/[()]/);
+    expect(url?.startsWith('https://images.hive.blog/DQmabc/a.png%29')).toBe(true);
+
+    const issue = buildFeedbackIssue({
+      title: 'Shot',
+      body: 'Body',
+      category: null,
+      pageUrl: 'https://snapie.io/',
+      hiveUsername: 'alice',
+      userAgent: 'ua',
+      screenshotUrl: 'https://images.hive.blog/a(b).png',
+    });
+    expect(issue.body).toContain('![Screenshot](https://images.hive.blog/a%28b%29.png)');
+    const line = issue.body.split('\n').find((l) => l.startsWith('![Screenshot]('));
+    expect(line?.endsWith(')')).toBe(true);
+    expect(line?.slice('![Screenshot]('.length, -1)).not.toMatch(/[()]/);
+  });
 });

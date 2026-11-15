@@ -6,22 +6,27 @@ import FeedbackModal from './FeedbackModal';
 
 const mocks = vi.hoisted(() => ({
   submitFeedback: vi.fn(),
-  readChatSessionToken: vi.fn(() => 'chat-jwt'),
+  readChatSessionToken: vi.fn((): string | null => 'chat-jwt'),
+  readUsableChatSessionToken: vi.fn((): string | null => 'chat-jwt'),
+  fetchFeedbackIdentity: vi.fn(async (): Promise<string | null> => 'sable'),
   uploadImageWithKeychain: vi.fn(),
   username: null as string | null,
   isLoggedIn: false,
+  isSnapie: false,
 }));
 
 vi.mock('@/lib/feedback/client', () => ({
   submitFeedback: mocks.submitFeedback,
   readChatSessionToken: mocks.readChatSessionToken,
+  readUsableChatSessionToken: mocks.readUsableChatSessionToken,
+  fetchFeedbackIdentity: mocks.fetchFeedbackIdentity,
 }));
 
 vi.mock('@/hooks/useCurrentUser', () => ({
   useCurrentUser: () => ({
     username: mocks.username,
     isLoggedIn: mocks.isLoggedIn,
-    isSnapie: false,
+    isSnapie: mocks.isSnapie,
     logout: () => {},
   }),
 }));
@@ -58,9 +63,14 @@ beforeEach(() => {
   mocks.submitFeedback.mockReset();
   mocks.readChatSessionToken.mockReset();
   mocks.readChatSessionToken.mockReturnValue('chat-jwt');
+  mocks.readUsableChatSessionToken.mockReset();
+  mocks.readUsableChatSessionToken.mockReturnValue('chat-jwt');
+  mocks.fetchFeedbackIdentity.mockReset();
+  mocks.fetchFeedbackIdentity.mockResolvedValue('sable');
   mocks.uploadImageWithKeychain.mockReset();
   mocks.username = null;
   mocks.isLoggedIn = false;
+  mocks.isSnapie = false;
 });
 
 afterEach(() => {
@@ -165,5 +175,57 @@ describe('FeedbackModal', () => {
       body: 'See the shot.',
       screenshotUrl: 'https://images.hive.blog/DQmabc/shot.png',
     }));
+  });
+
+  it('hides the picker for a Keychain login without a usable chat token', () => {
+    mocks.username = 'sable';
+    mocks.isLoggedIn = true;
+    mocks.readChatSessionToken.mockReturnValue(null);
+    mocks.readUsableChatSessionToken.mockReturnValue(null);
+    renderModal();
+    expect(screen.queryByLabelText('Screenshot')).toBeNull();
+    expect(screen.getByText(/Connect chat first/)).toBeTruthy();
+  });
+
+  it('shows the picker for a Snapie Auth login even without a chat token', () => {
+    mocks.username = 'sable';
+    mocks.isLoggedIn = true;
+    mocks.isSnapie = true;
+    mocks.readChatSessionToken.mockReturnValue(null);
+    mocks.readUsableChatSessionToken.mockReturnValue(null);
+    renderModal();
+    expect(screen.getByLabelText('Screenshot')).toBeTruthy();
+  });
+
+  it('does not upload when the server would reject the screenshot', async () => {
+    mocks.username = 'sable';
+    mocks.isLoggedIn = true;
+    mocks.fetchFeedbackIdentity.mockResolvedValue(null);
+    renderModal();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Broken layout' } });
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'See the shot.' } });
+    const file = new File(['png'], 'shot.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Screenshot'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+
+    expect(await screen.findByText(/To attach a screenshot, connect chat first/)).toBeTruthy();
+    expect(mocks.fetchFeedbackIdentity).toHaveBeenCalledWith('chat-jwt');
+    expect(mocks.uploadImageWithKeychain).not.toHaveBeenCalled();
+    expect(mocks.submitFeedback).not.toHaveBeenCalled();
+  });
+
+  it('does not upload when the server identity is a different account', async () => {
+    mocks.username = 'sable';
+    mocks.isLoggedIn = true;
+    mocks.fetchFeedbackIdentity.mockResolvedValue('someoneelse');
+    renderModal();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Broken layout' } });
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'See the shot.' } });
+    const file = new File(['png'], 'shot.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Screenshot'), { target: { files: [file] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send feedback' }));
+
+    expect(await screen.findByText(/To attach a screenshot, connect chat first/)).toBeTruthy();
+    expect(mocks.uploadImageWithKeychain).not.toHaveBeenCalled();
   });
 });

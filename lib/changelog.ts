@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-14',
+    date: '2026-11-14',
+    title: 'Feedback screenshots',
+    items: [
+      { type: 'feature', text: 'You can attach a screenshot when you send feedback (PNG, JPEG or WebP, up to 5 MB). Connect chat first so we know who sent it.' },
+    ],
+  },
+  {
     id: '2026-11-11',
     date: '2026-11-11',
     title: 'Powered by Hive',

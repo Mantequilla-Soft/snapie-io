@@ -23,11 +23,19 @@ import {
   Textarea,
   VStack,
 } from '@chakra-ui/react';
-import { readChatSessionToken, submitFeedback } from '@/lib/feedback/client';
+import {
+  fetchFeedbackIdentity,
+  readChatSessionToken,
+  readUsableChatSessionToken,
+  submitFeedback,
+} from '@/lib/feedback/client';
 import type { FeedbackCategory } from '@/lib/feedback/model';
 import { validateFeedbackScreenshotFile } from '@/lib/feedback/model';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { uploadImageWithKeychain } from '@/lib/hive/client-functions';
+
+const SCREENSHOT_SESSION_MESSAGE =
+  'To attach a screenshot, connect chat first (or connect it again if it has been a while). You can also send the note without it.';
 
 interface FeedbackModalProps {
   isOpen: boolean;
@@ -35,7 +43,7 @@ interface FeedbackModalProps {
 }
 
 export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
-  const { username, isLoggedIn } = useCurrentUser();
+  const { username, isLoggedIn, isSnapie } = useCurrentUser();
   const [category, setCategory] = useState<FeedbackCategory | ''>('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -115,6 +123,14 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         setError(problem);
         return;
       }
+      // Confirm the server will accept the screenshot before uploading it, so
+      // an expired or missing session never leaves an orphaned public image.
+      const serverUsername = await fetchFeedbackIdentity(readChatSessionToken());
+      if (!serverUsername || serverUsername !== username.toLowerCase()) {
+        setSubmitting(false);
+        setError(SCREENSHOT_SESSION_MESSAGE);
+        return;
+      }
       try {
         screenshotUrl = await uploadImageWithKeychain(screenshot, username);
       } catch {
@@ -142,7 +158,11 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     setIssueUrl(result.url);
   }
 
-  const canAttachScreenshot = Boolean(isLoggedIn && username);
+  // Same identity the server accepts: a Snapie Auth session, or a chat
+  // token that has not expired. A Keychain login alone is not enough.
+  const hasServerIdentity = Boolean(isSnapie || readUsableChatSessionToken());
+  const canAttachScreenshot = Boolean(isLoggedIn && username && hasServerIdentity);
+  const showConnectHint = Boolean(isLoggedIn && username && !hasServerIdentity);
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} isCentered motionPreset="slideInBottom" size="md">
@@ -217,6 +237,12 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   aria-label="Message"
                 />
               </FormControl>
+
+              {showConnectHint && (
+                <Text fontSize="xs" color="overlay.500">
+                  Want to attach a screenshot? Connect chat first, then reopen this form.
+                </Text>
+              )}
 
               {canAttachScreenshot && (
                 <FormControl>

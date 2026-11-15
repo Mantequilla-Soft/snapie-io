@@ -6,7 +6,7 @@ vi.hoisted(() => {
   process.env.CHAT_JWT_SECRET = 'test-secret';
 });
 
-import { POST } from './route';
+import { GET, POST } from './route';
 import { resetFeedbackLimitForTests } from '@/lib/feedback/limit';
 
 const TOKEN = 'ghp_feedback_test_token_xyz';
@@ -224,5 +224,26 @@ describe('POST /api/feedback screenshots', () => {
     const sent = githubBodies()[0];
     expect(sent).toContain('**Hive user:** alice');
     expect(sent).toContain(`![Screenshot](${url})`);
+  });
+});
+
+describe('GET /api/feedback identity check', () => {
+  function get(headers: Record<string, string> = {}) {
+    return GET(new NextRequest('http://127.0.0.1:3310/api/feedback', { method: 'GET', headers }));
+  }
+
+  it('returns the verified chat-session username', async () => {
+    const chatToken = jwt.sign({ sub: 'alice' }, SECRET, { expiresIn: '1h' });
+    const res = await get({ authorization: `Bearer ${chatToken}` });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ hiveUsername: 'alice' });
+    expect(res.headers.get('cache-control')).toBe('no-store');
+  });
+
+  it('treats a Keychain user with no chat token, or an expired one, as a guest', async () => {
+    expect(await (await get()).json()).toEqual({ hiveUsername: null });
+    const expired = jwt.sign({ sub: 'alice', exp: Math.floor(Date.now() / 1000) - 60 }, SECRET);
+    expect(await (await get({ authorization: `Bearer ${expired}` })).json()).toEqual({ hiveUsername: null });
+    expect(githubBodies()).toHaveLength(0);
   });
 });

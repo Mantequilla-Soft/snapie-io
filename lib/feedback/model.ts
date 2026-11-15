@@ -80,6 +80,15 @@ export function validateFeedbackScreenshotFile(file: { type: string; size: numbe
 }
 
 /**
+ * `URL.toString()` leaves `(` and `)` alone, and an unbalanced `)` would end
+ * a Markdown `![…](…)` link early. Percent-encode them so the URL always
+ * stays inside the link (images.hive.blog and images.3speak.tv decode them).
+ */
+export function markdownSafeUrl(url: string): string {
+  return url.replace(/\(/g, '%28').replace(/\)/g, '%29');
+}
+
+/**
  * Only HTTPS URLs on the hosts this app already uploads images to.
  * Guests cannot attach a screenshot; the route enforces a signed-in session.
  */
@@ -103,7 +112,7 @@ export function sanitizeScreenshotUrl(value: unknown): { ok: true; url: string |
   const host = url.hostname.replace(/\.$/, '').toLowerCase();
   if (!FEEDBACK_SCREENSHOT_HOSTS.has(host)) return { ok: false, error };
   url.hash = '';
-  return { ok: true, url: url.toString() };
+  return { ok: true, url: markdownSafeUrl(url.toString()) };
 }
 
 export function parseFeedbackSubmission(
@@ -178,7 +187,7 @@ export function buildFeedbackIssue(input: {
     input.body,
   ];
   if (input.screenshotUrl) {
-    lines.push('', '**Screenshot:**', '', `![Screenshot](${input.screenshotUrl})`);
+    lines.push('', '**Screenshot:**', '', `![Screenshot](${markdownSafeUrl(input.screenshotUrl)})`);
   }
   lines.push('', `**User agent:** ${input.userAgent}`);
 

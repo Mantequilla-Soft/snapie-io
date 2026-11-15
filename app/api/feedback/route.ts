@@ -14,6 +14,17 @@ function jsonError(error: string, status: number, extra?: Record<string, string>
 }
 
 /**
+ * Which Hive account a feedback submission from this browser would be
+ * attributed to, using the same identity check as POST. The client calls this
+ * before uploading a screenshot so it never uploads an image the POST would
+ * then reject. Only the caller's own username is returned.
+ */
+export async function GET(request: NextRequest) {
+  const hiveUsername = await resolveFeedbackHiveUsername(request.headers);
+  return NextResponse.json({ hiveUsername }, { status: 200, headers: NO_STORE });
+}
+
+/**
  * Accept in-app feedback and open a GitHub issue.
  * The token stays in GITHUB_FEEDBACK_TOKEN. Hive username is taken from a
  * verified chat JWT or Snapie Auth session; everyone else is a guest.
