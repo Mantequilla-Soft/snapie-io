@@ -149,10 +149,20 @@ const sharedBase = {
     },
 };
 
+// Solid brand buttons need a darker cyan than the logo token so white
+// label text meets WCAG AA (4.5:1). `primary` itself stays the bright
+// logo color in dark mode — it is also used for links and outlines,
+// where it already contrasts against the page background.
+export const BRAND_SOLID = {
+    dark: { bg: '#0077b6', hover: '#0369a1' },
+    light: { bg: '#0369a1', hover: '#075985' },
+} as const;
+
 // Two spots reference a hardcoded rgba tint of `primary` rather than the
 // token itself, so they need an explicit value per mode.
 function buildComponents(mode: ColorMode) {
     const primaryHoverTint = mode === 'dark' ? 'rgba(0, 168, 255, 0.1)' : 'rgba(3, 105, 161, 0.1)';
+    const solid = BRAND_SOLID[mode];
     // Menu hover previously keyed off `background` reading darker than `muted`,
     // a relationship that isn't guaranteed to hold in the light palette. Use
     // this theme's own overlay scale instead (see buildOverlay).
@@ -193,14 +203,20 @@ function buildComponents(mode: ColorMode) {
             },
             variants: {
                 solid: {
-                    bg: 'primary',
+                    bg: solid.bg,
                     color: 'white',
                     _hover: {
-                        bg: 'accent',
+                        bg: solid.hover,
                         transform: 'translateY(-1px)',
                         boxShadow: 'md',
+                        _disabled: {
+                            bg: solid.bg,
+                            transform: 'none',
+                            boxShadow: 'none',
+                        },
                     },
                     _active: {
+                        bg: solid.hover,
                         transform: 'translateY(0)',
                     },
                 },
