@@ -383,6 +383,11 @@ function buildTheme(colors: Palette, mode: ColorMode) {
         colors: {
             ...colors,
             overlay: buildOverlay(mode),
+            // Neutral fill for bars, dots and hairline borders. overlay.400 was
+            // raised in dark mode to be readable as text (0.52); as a fill that
+            // is far too bright next to `primary`, so fills keep the previous
+            // overlay.400 weight in both modes.
+            overlayFill: mode === 'dark' ? 'rgba(255, 255, 255, 0.24)' : 'rgba(15, 23, 42, 0.4)',
             // Blue text on dark surfaces. `secondary` (#2563eb) stays the brand
             // fill; as 12–14px text on navy it is only ~3.4:1, so text uses this.
             secondaryText: mode === 'dark' ? '#7aa0f3' : colors.secondary,
