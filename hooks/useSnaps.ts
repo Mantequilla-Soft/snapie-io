@@ -1,10 +1,12 @@
 import HiveClient from '@/lib/hive/hiveclient';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ExtendedComment } from './useComments';
 import { getFollowing, getPost } from '@/lib/hive/client-functions';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { contentFilterStore } from '@/lib/contentFilter/store';
 import { useContentFilter } from '@/hooks/useContentFilter';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import { usePatronStatus } from './usePatronStatus';
 import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
 
@@ -37,6 +39,7 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
   // muting a tag in Settings refetches this feed immediately rather than
   // waiting for a manual refresh.
   const { key: mutedTagsKey } = useContentFilter();
+  const { mutedSet: personalMutedSet } = usePersonalMuteFilter(username);
   // Public Latest page from the server. The first client render must use it
   // (hydration matches the HTML) and must not immediately refetch it. A
   // later username or mute change still goes through the reset below.
@@ -411,5 +414,12 @@ export const useSnaps = ({ filterType = 'community', username, skip = false, ini
     }
   }, []);
 
-  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, currentPage, refresh, refreshComment };
+  // Overlay on top of the walk filter: covers the SSR seed (community mutes
+  // only) and any mute that landed after a page was already committed.
+  const visibleComments = useMemo(
+    () => filterMutedAuthors(comments, personalMutedSet),
+    [comments, personalMutedSet],
+  );
+
+  return { comments: visibleComments, isLoading, loadNextPage, hasMore, hasFetchedOnce, currentPage, refresh, refreshComment };
 };

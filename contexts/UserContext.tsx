@@ -75,3 +75,8 @@ export const useHiveUser: () => HiveUserContextProps = () => {
   }
   return context;
 };
+
+/** The persisted Hive account, or null outside a UserProvider (unit tests,
+ *  isolated renders). Never throws. */
+export const useOptionalHiveUser = (): HiveAccount | null =>
+  useContext(HiveUserContext)?.hiveUser ?? null;

@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-15',
+    date: '2026-11-15',
+    title: 'Muted accounts in main feeds',
+    items: [
+      { type: 'fix', text: 'Accounts you mute are hidden across the home feed (Latest, Following, Trending, For You), Explore, blog posts, Shorts, and discovery suggestions — not only in snap comments.' },
+    ],
+  },
+  {
     id: '2026-11-14',
     date: '2026-11-14',
     title: 'Accessibility, screenshots, faster images and snap links',

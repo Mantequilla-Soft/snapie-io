@@ -1,12 +1,14 @@
 'use client';
 import { Box, Text, Flex, Button, Icon, IconButton } from '@chakra-ui/react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
-import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { contentFilterStore } from '@/lib/contentFilter/store';
 import { useContentFilter } from '@/hooks/useContentFilter';
 import { useHiveUser } from '@/contexts/UserContext';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import NextLink from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
 import { FaTh, FaBars } from 'react-icons/fa';
@@ -23,6 +25,9 @@ const SORT_OPTIONS = [
 export default function ExploreTagPage({ tag }: { tag: string }) {
   const isCommunity = /^hive-\d+$/.test(tag);
   const { hiveUser } = useHiveUser();
+  const { username } = useCurrentUser();
+  const viewer = username || hiveUser?.name;
+  const { mutedSet } = usePersonalMuteFilter(viewer);
   const { key: mutedTagsKey } = useContentFilter();
 
   const [communityTitle, setCommunityTitle] = useState<string | null>(null);
@@ -30,9 +35,9 @@ export default function ExploreTagPage({ tag }: { tag: string }) {
   const [query, setQuery] = useState('trending');
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const [mutedLoaded, setMutedLoaded] = useState(false);
   const isFetching = useRef(false);
-  const mutedSetRef = useRef<Set<string>>(new Set());
+  const mutedSetRef = useRef(mutedSet);
+  mutedSetRef.current = mutedSet;
 
   const fetchParams = useRef({
     tag,
@@ -84,21 +89,17 @@ export default function ExploreTagPage({ tag }: { tag: string }) {
   }
 
   useEffect(() => {
-    setMutedLoaded(false);
-    mutedAccountsManager.getMutedList(hiveUser?.name).then(set => {
-      mutedSetRef.current = set;
-      setMutedLoaded(true);
-    });
-  }, [hiveUser?.name]);
-
-  useEffect(() => {
-    if (!mutedLoaded) return;
     setAllPosts([]);
     setHasMore(true);
     fetchParams.current = { tag, limit: 20, start_author: '', start_permlink: '' };
     fetchPosts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, mutedLoaded, tag, mutedTagsKey]);
+  }, [query, tag, mutedTagsKey, viewer]);
+
+  const visiblePosts = useMemo(
+    () => filterMutedAuthors(allPosts, mutedSet),
+    [allPosts, mutedSet],
+  );
 
   const displayName = communityTitle || (isCommunity ? tag : `#${tag}`);
 
@@ -185,7 +186,7 @@ export default function ExploreTagPage({ tag }: { tag: string }) {
       </Flex>
 
       <PostInfiniteScroll
-        allPosts={allPosts}
+        allPosts={visiblePosts}
         fetchPosts={fetchPosts}
         viewMode={viewMode}
         hasMore={hasMore}

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Box, Heading, Text, Spinner, Alert, AlertIcon, Container,
   Flex, Icon, Tabs, TabList, Tab, TabPanels, TabPanel,
@@ -29,6 +29,8 @@ import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import { useProfileSnaps } from '@/hooks/useProfileSnaps';
 import { ExtendedComment } from '@/hooks/useComments';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import CurationQualityCard from './CurationQualityCard';
 import CombflowInsights from './CombflowInsights';
 import { useUserPresence } from '@/hooks/useUserPresence';
@@ -95,13 +97,19 @@ export default function ProfilePage({
   // Points badge (Stage 2) — a profile's all-time earnings, gated on the flag.
   const profilePoints = usePointsSummary(POINTS_FEATURE_FLAG ? username : null);
 
-  // Snaps tab state
-  const profileSnaps = useProfileSnaps(username, initialSnaps);
+  // Snaps tab state — pass viewer so other authors on the page are muted,
+  // while this profile's own posts stay visible even if the viewer muted them.
+  const profileSnaps = useProfileSnaps(username, initialSnaps, user);
   const [conversation, setConversation] = useState<Comment | undefined>();
   useConversationUrl(conversation, setConversation);
   const [reply, setReply] = useState<ExtendedComment | undefined>();
   const [isReplyOpen, setIsReplyOpen] = useState(false);
   const [conversationRefreshTrigger, setConversationRefreshTrigger] = useState(0);
+  const { mutedSet } = usePersonalMuteFilter(user);
+  const visibleReblogs = useMemo(
+    () => filterMutedAuthors(reblogs, mutedSet),
+    [reblogs, mutedSet],
+  );
 
   async function fetchPosts() {
     if (isFetching.current) return;
@@ -492,13 +500,13 @@ export default function ProfilePage({
 
             {/* Reblogs tab */}
             <TabPanel px={0}>
-              {!isLoadingReblogs && reblogs.length === 0 && !hasMoreReblogs && (
+              {!isLoadingReblogs && visibleReblogs.length === 0 && !hasMoreReblogs && (
                 <Box textAlign="center" mt={8} color="gray.500">
                   <Text fontSize="lg">No reblogs yet.</Text>
                 </Box>
               )}
               <InfiniteScroll
-                dataLength={reblogs.length}
+                dataLength={visibleReblogs.length}
                 next={fetchReblogs}
                 hasMore={hasMoreReblogs}
                 scrollableTarget="scrollableDiv"
@@ -508,7 +516,7 @@ export default function ProfilePage({
                   </Box>
                 }
               >
-                {reblogs && <PostGrid posts={reblogs} columns={3} />}
+                {visibleReblogs.length > 0 && <PostGrid posts={visibleReblogs} columns={3} />}
               </InfiniteScroll>
             </TabPanel>
           </TabPanels>

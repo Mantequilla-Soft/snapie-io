@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ExtendedComment } from './useComments';
 import type { ContentFilter } from '@snapie/content-filter';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 
 const NO_FILTER: ContentFilter = () => false;
 
@@ -38,12 +40,13 @@ export function useDiscoveryCandidates({
 }: UseDiscoveryCandidatesProps) {
     const [rawCandidates, setRawCandidates] = useState<ExtendedComment[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const { mutedSet } = usePersonalMuteFilter(username);
 
-    // A memo, not a fetch dependency — muting a tag re-filters the
+    // A memo, not a fetch dependency — muting a tag or account re-filters the
     // already-fetched pool instantly instead of waiting for the next poll.
     const candidates = useMemo(
-        () => rawCandidates.filter(item => !filter(item)),
-        [rawCandidates, filter],
+        () => filterMutedAuthors(rawCandidates.filter(item => !filter(item)), mutedSet),
+        [rawCandidates, filter, mutedSet],
     );
 
     useEffect(() => {

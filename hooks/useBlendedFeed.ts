@@ -1,9 +1,11 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ExtendedComment } from './useComments';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { contentFilterStore } from '@/lib/contentFilter/store';
 import { useContentFilter } from '@/hooks/useContentFilter';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import { getPost } from '@/lib/hive/client-functions';
 import { withTimeout } from '@/lib/utils/withTimeout';
 import type { PublicSnapPage } from '@/lib/hive/publicSnapPage';
@@ -56,6 +58,7 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
   // after mount (hiding nothing until then), and a mute added later must reset
   // Latest instead of leaving the first page unfiltered.
   const { key: mutedTagsKey } = useContentFilter();
+  const { mutedSet: personalMutedSet } = usePersonalMuteFilter(username);
   // Public blended page from the server. The first client render must use
   // it (hydration matches the HTML) and must not immediately refetch it.
   const hasSeed = Boolean(initialPage && initialPage.comments.length > 0 && !username && mutedTagsKey === '');
@@ -333,5 +336,12 @@ export const useBlendedFeed = ({ username, enabled = true, initialPage = null }:
     }
   }, []);
 
-  return { comments, isLoading, loadNextPage, hasMore, hasFetchedOnce, loadError, refresh, refreshComment };
+  // Overlay covers the SSR seed and the mute-list timeout shortcut above
+  // (a page can land before getMutedList resolves; re-filter when it does).
+  const visibleComments = useMemo(
+    () => filterMutedAuthors(comments, personalMutedSet),
+    [comments, personalMutedSet],
+  );
+
+  return { comments: visibleComments, isLoading, loadNextPage, hasMore, hasFetchedOnce, loadError, refresh, refreshComment };
 };
