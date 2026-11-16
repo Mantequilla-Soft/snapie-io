@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-15',
+    date: '2026-11-15',
+    title: 'Post dates',
+    items: [
+      { type: 'fix', text: '"More from this author" next to a post now shows the day it was really posted, instead of the next day for evening posts.' },
+    ],
+  },
+  {
     id: '2026-11-14',
     date: '2026-11-14',
     title: 'Accessibility, screenshots, faster images and snap links',

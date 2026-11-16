@@ -13,6 +13,7 @@ import { requestSnapCast, isRecentlyActive } from "@/lib/snapcast/intent";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useState, useMemo, memo, useCallback, useEffect } from 'react';
 import { getPostDate } from '@/lib/utils/GetPostDate';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 import { separateContent, extractHivePostUrls, extractHangoutUrls, snapTextForMarkdown } from '@/lib/utils/snapUtils';
 import { detectLang } from '@/lib/utils/detectLanguage';
 import MediaRenderer from '@/components/shared/MediaRenderer';
@@ -109,7 +110,7 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     // Check if user can edit (is author and post is less than 7 days old)
     const canEdit = useMemo(() => {
         if (!user || user !== comment.author) return false;
-        const postAge = Date.now() - new Date(comment.created).getTime();
+        const postAge = Date.now() - parseHiveDate(comment.created).getTime();
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
         return postAge < sevenDays;
     }, [user, comment.author, comment.created]);

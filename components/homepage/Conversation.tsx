@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { isSnapContainer, isWaveContainer } from '@/lib/utils/snapUtils';
 import { getPayoutValue } from '@/lib/hive/client-functions';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 import { useSnapCast } from '@/hooks/useSnapCast';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { hasSnapCastRequest, clearSnapCastRequest } from '@/lib/snapcast/intent';
@@ -86,7 +87,7 @@ const Conversation = ({ comment, setConversation, onOpen, setReply, refreshTrigg
             if (effectiveSort === 'top') {
                 return parseFloat(getPayoutValue(b)) - parseFloat(getPayoutValue(a));
             }
-            return new Date(b.created).getTime() - new Date(a.created).getTime();
+            return parseHiveDate(b.created).getTime() - parseHiveDate(a.created).getTime();
         });
     }, [comments, effectiveSort]);
 
