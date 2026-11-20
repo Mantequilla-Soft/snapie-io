@@ -109,6 +109,26 @@ export function speakAudioListId(url: string): string | null {
 }
 
 /**
+ * The audio.3speak.tv player URL for a play.3speak.tv `v=author/permlink` that is not a
+ * video but an audio or an audio playlist, else null. play.3speak.tv answers such a
+ * miss with 404 plus `audioEmbed` (`.../play?a=<id>` or `.../play?list=<id>`), so the
+ * same video link works for audio on every Hive frontend.
+ */
+export async function speakAudioEmbedFor(author: string, permlink: string): Promise<string | null> {
+  try {
+    const v = `${encodeURIComponent(author)}/${encodeURIComponent(permlink)}`;
+    const res = await fetch(`https://play.3speak.tv/api/watch?v=${v}`);
+    if (res.status !== 404) return null;
+    const { audioEmbed } = (await res.json()) as { audioEmbed?: unknown };
+    return typeof audioEmbed === "string" && /^https:\/\/audio\.3speak\.tv\/play\?/.test(audioEmbed)
+      ? audioEmbed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * A 3Speak audio or playlist URL in a line of text (audio.3speak.tv/play?a= / ?list=,
  * or a 3speak.tv/audio?play= / 3speak.tv/playlist/ share link).
  */

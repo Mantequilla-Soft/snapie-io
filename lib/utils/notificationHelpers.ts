@@ -1,4 +1,5 @@
 import { Notifications } from '@hiveio/dhive';
+import { parseHiveDate as parseHiveDateUtc } from '@/lib/utils/hiveTimestamp';
 
 export const NOTIFICATION_CATEGORIES = {
   all: { label: 'All', types: null },
@@ -102,7 +103,7 @@ export function getNotificationTypeLabel(type: string): string {
 
 export function formatNotificationTime(dateString: string): string {
   if (!dateString) return '';
-  const date = new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
+  const date = parseHiveDateUtc(dateString);
   const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
   if (diffSec < 60) return `${diffSec}s`;
 
@@ -123,7 +124,7 @@ export function formatNotificationTime(dateString: string): string {
 
 export function parseHiveDate(dateString?: string): Date {
   if (!dateString) return new Date(0);
-  return new Date(dateString + (dateString.endsWith('Z') ? '' : 'Z'));
+  return parseHiveDateUtc(dateString);
 }
 
 export function normalizeNotificationPreviewText(text?: string): string {

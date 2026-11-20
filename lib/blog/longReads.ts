@@ -1,4 +1,5 @@
 import { getWordCount, stripMarkdownToPlainText } from '@/lib/utils/readingStats';
+import { parseHiveDateMs } from '@/lib/utils/hiveTimestamp';
 
 /** Long Reads drops anything older than this. */
 export const LONG_READS_MAX_AGE_DAYS = 30;
@@ -67,12 +68,7 @@ function resolveOptions(options?: LongReadOptions) {
 
 /** Hive `created` has no timezone suffix. Parse it as UTC. */
 export function parseHiveCreatedMs(created: string | undefined | null): number | null {
-  if (!created || typeof created !== 'string') return null;
-  const trimmed = created.trim();
-  if (!trimmed) return null;
-  const normalized = /(?:Z|[+-]\d{2}:?\d{2})$/.test(trimmed) ? trimmed : `${trimmed}Z`;
-  const ms = Date.parse(normalized);
-  return Number.isNaN(ms) ? null : ms;
+  return parseHiveDateMs(created);
 }
 
 export function isWithinLongReadWindow(

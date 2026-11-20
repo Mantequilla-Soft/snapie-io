@@ -15,6 +15,7 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
 import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 
 export default function Blog() {
     const { hiveUser } = useHiveUser();
@@ -135,8 +136,8 @@ export default function Blog() {
                         !hasGarbageNaN
                     );
                 }).sort((a: Discussion, b: Discussion) => {
-                    const aTime = a.created ? new Date(a.created).getTime() : 0;
-                    const bTime = b.created ? new Date(b.created).getTime() : 0;
+                    const aTime = a.created ? parseHiveDate(a.created).getTime() : 0;
+                    const bTime = b.created ? parseHiveDate(b.created).getTime() : 0;
                     return bTime - aTime;
                 });
 

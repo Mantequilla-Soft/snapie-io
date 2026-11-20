@@ -2,6 +2,7 @@
 import HiveClient from "./hiveclient";
 import type { Discussion, Notifications } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
+import { parseHiveDate } from "@/lib/utils/hiveTimestamp";
 import { ExtendedComment } from "@/hooks/useComments";
 import {
   ensureAioha,
@@ -851,16 +852,12 @@ export function getPayoutValue(post: any): string {
   }
 
   // Condenser API: pick field based on whether the 7-day payout window has
-  // closed. Hive timestamps omit the trailing 'Z' — append it so the string
-  // is parsed as UTC rather than the viewer's local time (same fix as
-  // lib/utils/GetPostDate.ts). Without this, a post whose true UTC age is
+  // closed. Hive timestamps omit the trailing 'Z' — parse as UTC (same
+  // helper as GetPostDate). Without this, a post whose true UTC age is
   // just past 7 days can parse as just *under* 7 days for any viewer west
   // of UTC, incorrectly reading the now-empty pending_payout_value (0.000)
   // instead of the real total_payout_value — confirmed live on a real snap.
-  const normalizedCreated = typeof post.created === 'string' && !post.created.endsWith('Z')
-    ? `${post.created}Z`
-    : post.created;
-  const timeDifferenceInDays = (Date.now() - new Date(normalizedCreated).getTime()) / (1000 * 60 * 60 * 24);
+  const timeDifferenceInDays = (Date.now() - parseHiveDate(post.created).getTime()) / (1000 * 60 * 60 * 24);
   if (timeDifferenceInDays >= 7) {
     // total_payout_value alone is only the author's share — post-cashout,
     // Hive splits the full pot into total_payout_value (author) +

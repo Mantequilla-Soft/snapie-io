@@ -13,14 +13,15 @@ import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
 import UserActionButtons from '@/components/profile/UserActionButtons';
 import CurationQualityCard from '@/components/profile/CurationQualityCard';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 
 interface PostSidebarProps {
   author: string;
   permlink: string;
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+export function formatDate(dateStr: string) {
+  return parseHiveDate(dateStr).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function MiniPostCard({ title, author, permlink, image, date }: {
@@ -102,7 +103,7 @@ export default function PostSidebar({ author, permlink }: PostSidebarProps) {
   const meta = profile?.metadata?.profile || {};
   const websiteDomain = (meta.website || '').trim().replace(/^https?:\/\//i, '').trim();
   const stats = profile?.stats || {};
-  const memberYear = profile?.created ? new Date(profile.created).getFullYear() : null;
+  const memberYear = profile?.created ? parseHiveDate(profile.created).getFullYear() : null;
 
   return (
     <VStack spacing={4} align="stretch">

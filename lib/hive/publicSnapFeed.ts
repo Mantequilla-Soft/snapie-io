@@ -5,6 +5,7 @@ import type { ExtendedComment } from '@/hooks/useComments';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PUBLIC_SNAP_SEED_COUNT, type PublicSnapPage, type SnapFeedCursor } from '@/lib/hive/publicSnapPage';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 
 /**
  * First viewport of the public "Latest" feed (useSnaps filter `all`).
@@ -118,7 +119,7 @@ export async function fetchPublicSnapPage(): Promise<PublicSnapPage> {
     // is not that order, so slicing it would paint older snaps and then jump
     // when the client loads the rest of the container and sorts.
     const visible = replies.filter(comment => !hidden(comment.author));
-    visible.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+    visible.sort((a, b) => parseHiveDate(b.created).getTime() - parseHiveDate(a.created).getTime());
     const room = PUBLIC_SNAP_SEED_COUNT - comments.length;
 
     if (visible.length > room) {

@@ -1,6 +1,7 @@
 import HiveClient from '@/lib/hive/hiveclient';
 import { ExtendedComment } from '@/hooks/useComments';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 import { fetchResurrectionCandidates } from './contentResurrection';
 import { interleaveCandidates } from './interleave';
 
@@ -28,11 +29,9 @@ const MIN_SCORE_AGE_HOURS = 0.25;
 // them as local time instead of UTC. On a server running outside UTC (this
 // one runs UTC-5) every age in this file was coming out ~5 hours short of
 // the truth, letting posts up to ~53h old slide past the intended 48h
-// cutoff. Same normalization already used in lib/utils/GetPostDate.ts and
-// getPayoutValue — one shared helper here since two functions need it.
+// cutoff. Shared with GetPostDate / getPayoutValue via lib/utils/hiveTimestamp.
 export function parseHiveTimestamp(createdAt: string): number {
-    const normalized = !createdAt.endsWith('Z') ? `${createdAt}Z` : createdAt;
-    return new Date(normalized).getTime();
+    return parseHiveDate(createdAt).getTime();
 }
 
 export function computeVelocityScore(children: number, createdAt: string, now: number = Date.now()): number {
