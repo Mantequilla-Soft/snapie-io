@@ -270,9 +270,9 @@ export default function Home({ initialSnapPage = null }: { initialSnapPage?: Pub
     enabled: ENABLE_BLENDED_FEED && activeFilter === 'all',
     initialPage: ENABLE_BLENDED_FEED ? initialSnapPage : null,
   });
-  const trendingFeed = useTrendingFeed({ enabled: isTrendingTab, extraQuery: personalMuteQuery, filter: contentFilter });
-  const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery, filter: contentFilter });
-  const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery, filter: contentFilter });
+  const trendingFeed = useTrendingFeed({ enabled: isTrendingTab, extraQuery: personalMuteQuery, filter: contentFilter, username: user || undefined });
+  const forYouColdFeed = useTrendingFeed({ enabled: isForYouCold, endpoint: '/api/discovery/foryou-candidates', extraQuery: personalMuteQuery, filter: contentFilter, username: user || undefined });
+  const forYouWarmFeed = useTrendingFeed({ enabled: isForYouWarm, endpoint: '/api/discovery/foryou-warm', extraQuery: warmExtraQuery, filter: contentFilter, username: user || undefined });
   const activeFeedData = showBlendedForAll ? blendedFeed : isTrendingTab ? trendingFeed : isForYouWarm ? forYouWarmFeed : isForYouCold ? forYouColdFeed : snaps;
 
   // Applies the optimistic reply-count bumps from handleReply on top of

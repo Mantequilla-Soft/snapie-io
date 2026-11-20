@@ -1,13 +1,22 @@
 import HiveClient from '@/lib/hive/hiveclient';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ExtendedComment } from './useComments';
 import { getPost } from '@/lib/hive/client-functions';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 
 const PAGE_SIZE = 10;   // snaps to collect before yielding a page
 const FETCH_LIMIT = 20; // comments to request per API call
 const MAX_ITERATIONS = 20; // safety cap to avoid infinite loops when a user has few snaps
 
-export function useProfileSnaps(username: string, initialComments: ExtendedComment[] = []) {
+export function useProfileSnaps(
+  username: string,
+  initialComments: ExtendedComment[] = [],
+  /** Logged-in viewer — personal mutes hide other authors on this profile
+   *  (e.g. anything that isn't the profile owner). The profile owner's own
+   *  posts stay visible even if the viewer has muted them. */
+  viewer?: string | null,
+) {
   const [snaps, setSnaps] = useState<ExtendedComment[]>(initialComments);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -15,6 +24,7 @@ export function useProfileSnaps(username: string, initialComments: ExtendedComme
   // first HTML page; loadNextPage increments from there. Unseeded profiles
   // flip to 1 in the username effect below.
   const [page, setPage] = useState(0);
+  const { mutedSet } = usePersonalMuteFilter(viewer);
 
   const cursorRef = useRef(initialComments.at(-1)?.permlink ?? '');
   const exhaustedRef = useRef(false);
@@ -146,5 +156,10 @@ export function useProfileSnaps(username: string, initialComments: ExtendedComme
     }
   }, []);
 
-  return { comments: snaps, isLoading, hasMore, loadNextPage, refresh, refreshComment };
+  const visibleSnaps = useMemo(
+    () => filterMutedAuthors(snaps, mutedSet, { exceptAuthor: username }),
+    [snaps, mutedSet, username],
+  );
+
+  return { comments: visibleSnaps, isLoading, hasMore, loadNextPage, refresh, refreshComment };
 }

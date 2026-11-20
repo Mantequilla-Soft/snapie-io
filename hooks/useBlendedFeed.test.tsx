@@ -222,6 +222,29 @@ describe('useBlendedFeed mute filters', () => {
     vi.unstubAllGlobals();
   });
 
+  it('hides a personally muted author for a logged-in viewer', async () => {
+    vi.mocked(mutedAccountsManager.getMutedList).mockResolvedValue(new Set(['spammer']));
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          feedItem('keep', { author: 'goodauthor' }),
+          feedItem('gone', { author: 'spammer' }),
+          feedItem('also-gone', { author: 'Spammer' }),
+        ],
+        hasMore: false,
+      }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() => useBlendedFeed({ username: 'viewer' }));
+    await waitFor(() => {
+      expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
+    });
+    expect(mutedAccountsManager.getMutedList).toHaveBeenCalledWith('viewer');
+    vi.unstubAllGlobals();
+  });
+
   it('drops a muted author from the loaded page immediately', async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,

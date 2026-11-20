@@ -1,23 +1,40 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDiscoveryCandidates } from './useDiscoveryCandidates';
 import { compileFilter, type ContentFilter } from '@snapie/content-filter';
 
 const NONE: ContentFilter = () => false;
 const MUTE_SCROBBLE = compileFilter([{ kind: 'tag', tag: 'scrobblelife' }]);
 
-// The server-side discovery pools (lib/discovery/snapTrending.ts etc.) only
-// ever filter by muted ACCOUNTS — muted tags are pure localStorage and can
-// never be baked into that shared, cross-user cache. This hook is where
-// that client-side layer belongs; these tests guard against it silently
-// going missing again (it was missing entirely until this fix).
+// Shared discovery pools only bake community mutes into the cache. Personal
+// account mutes and muted tags are applied client-side here.
 
-function item(permlink: string, tags: string[]) {
-  return { author: 'someone', permlink, created: new Date().toISOString(), json_metadata: JSON.stringify({ tags }), children: 0, isDiscovery: true };
+function item(permlink: string, tags: string[], author = 'someone') {
+  return { author, permlink, created: new Date().toISOString(), json_metadata: JSON.stringify({ tags }), children: 0, isDiscovery: true };
 }
 
+const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
+const getMutedListMock = vi.hoisted(() =>
+  vi.fn(async (username?: string) => {
+    if (username === 'viewer') return new Set(['spammer']);
+    return new Set<string>();
+  }),
+);
+
+vi.mock('@/lib/hive/muted-accounts', () => ({
+  mutedAccountsManager: {
+    getMutedList: (username?: string) => getMutedListMock(username),
+    subscribePersonalMute: (listener: (author: string) => void) => {
+      personalMuteListeners.add(listener);
+      return () => personalMuteListeners.delete(listener);
+    },
+  },
+}));
+
 beforeEach(() => {
+  getMutedListMock.mockClear();
+  personalMuteListeners.clear();
   global.fetch = vi.fn(async () => ({
     ok: true,
     json: async () => ({
@@ -58,5 +75,54 @@ describe('useDiscoveryCandidates mute-tag filtering', () => {
 
     expect(result.current.candidates.map(c => c.permlink)).not.toContain('spammy');
     expect((global.fetch as any).mock.calls.length).toBe(fetchCallsAfterInitialLoad); // no extra network call
+  });
+});
+
+describe('useDiscoveryCandidates personal mute filtering', () => {
+  it('hides a personally muted author for a logged-in viewer', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          item('keep', ['hive'], 'goodauthor'),
+          item('gone', ['hive'], 'spammer'),
+          item('other', ['hive'], 'bob'),
+        ],
+        hasMore: false,
+      }),
+    }) as Response);
+
+    const { result } = renderHook(() =>
+      useDiscoveryCandidates({ enabled: true, username: 'viewer' }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.candidates.map(c => c.permlink)).toEqual(['keep', 'other']);
+    });
+    expect(getMutedListMock).toHaveBeenCalledWith('viewer');
+  });
+
+  it('drops a freshly muted author from the pool immediately', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          item('keep', ['hive'], 'goodauthor'),
+          item('gone', ['hive'], 'newlymuted'),
+        ],
+        hasMore: false,
+      }),
+    }) as Response);
+
+    const { result } = renderHook(() =>
+      useDiscoveryCandidates({ enabled: true, username: 'viewer' }),
+    );
+    await waitFor(() => expect(result.current.candidates).toHaveLength(2));
+
+    act(() => {
+      personalMuteListeners.forEach(listener => listener('newlymuted'));
+    });
+
+    expect(result.current.candidates.map(c => c.permlink)).toEqual(['keep']);
   });
 });

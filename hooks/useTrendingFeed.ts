@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExtendedComment } from './useComments';
 import type { ContentFilter } from '@snapie/content-filter';
 import { getPost } from '@/lib/hive/client-functions';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 
 const NO_FILTER: ContentFilter = () => false;
 
@@ -24,6 +26,9 @@ interface UseTrendingFeedProps {
      *  so it can never be baked into the shared server-cached pool; applied
      *  client-side here. Pass a stable reference (useContentFilter().filter). */
     filter?: ContentFilter;
+    /** Logged-in viewer — personal mutes are applied client-side on top of
+     *  the shared pool (which only excludes community mutes). */
+    username?: string;
 }
 
 const PAGE_SIZE = 10;
@@ -42,17 +47,18 @@ const DEFAULT_ENDPOINT = '/api/discovery/snap-candidates';
  * React StrictMode's dev-only double-mount blocked the surviving instance
  * from ever fetching while the orphaned instance's result got discarded.
  */
-export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQuery, filter = NO_FILTER }: UseTrendingFeedProps) {
+export function useTrendingFeed({ enabled, endpoint = DEFAULT_ENDPOINT, extraQuery, filter = NO_FILTER, username }: UseTrendingFeedProps) {
     const [rawComments, setRawComments] = useState<ExtendedComment[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
     const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
+    const { mutedSet } = usePersonalMuteFilter(username);
 
-    // A memo, not a fetch dependency — muting a tag re-filters the
+    // A memo, not a fetch dependency — muting a tag or account re-filters the
     // already-fetched pages instantly instead of waiting for the next fetch.
     const comments = useMemo(
-        () => rawComments.filter(item => !filter(item)),
-        [rawComments, filter],
+        () => filterMutedAuthors(rawComments.filter(item => !filter(item)), mutedSet),
+        [rawComments, filter, mutedSet],
     );
 
     const offsetRef = useRef(0);

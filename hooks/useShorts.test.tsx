@@ -27,17 +27,25 @@ function shortsApiPage(entries: { author: string; permlink: string }[], page = 1
   };
 }
 
+const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
 const mutedListMock = vi.fn(async (username?: string) => {
   if (username === 'meno') return new Set(['spammer']);
   return new Set<string>();
 });
 
 vi.mock('@/lib/hive/muted-accounts', () => ({
-  mutedAccountsManager: { getMutedList: (username?: string) => mutedListMock(username) },
+  mutedAccountsManager: {
+    getMutedList: (username?: string) => mutedListMock(username),
+    subscribePersonalMute: (listener: (author: string) => void) => {
+      personalMuteListeners.add(listener);
+      return () => personalMuteListeners.delete(listener);
+    },
+  },
 }));
 
 beforeEach(() => {
   mutedListMock.mockClear();
+  personalMuteListeners.clear();
   global.fetch = vi.fn(async () =>
     ({ ok: true, json: async () => shortsApiPage([
       { author: 'goodauthor', permlink: 'p1' },
