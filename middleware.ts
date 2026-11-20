@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, userAgent } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { hiveAccountStatus, hivePostStatus, type HiveExistence } from '@/lib/http/crawlerNotFound';
 
 const ALLOWED_EXACT = [
@@ -29,7 +29,7 @@ export const TOP_LEVEL_ROUTES = [
 
 const SUBPAGES = new Set(['wallet', 'notifications']);
 
-/** The Hive lookup a crawler request needs, or null for any other path. */
+/** The Hive lookup this path needs, or null when the path is not a profile/post. */
 function existenceCheck(pathname: string): (() => Promise<HiveExistence>) | null {
   let parts: string[];
   try {
@@ -53,12 +53,24 @@ function notFoundResponse(req: NextRequest) {
 }
 
 /**
- * Crawlers get a real 404 for a post or account Hive says is missing (see
- * lib/http/crawlerNotFound.ts). Visitors never wait on this lookup.
+ * Real 404 for a post or account Hive says is missing (see
+ * lib/http/crawlerNotFound.ts). loading.tsx / layout Suspense stream a 200
+ * shell before generateMetadata or the page can call notFound(), so the
+ * status has to be set here — for visitors and crawlers alike. A timeout or
+ * node error is not a 404.
  */
-async function crawlerExistenceGuard(req: NextRequest, check: () => Promise<HiveExistence>) {
+async function existenceGuard(req: NextRequest, check: () => Promise<HiveExistence>) {
   if ((await check()) === 'missing') return notFoundResponse(req);
   return NextResponse.next();
+}
+
+/**
+ * In-app navigations and prefetches fetch the RSC payload, not a document.
+ * Their status code is never seen by a crawler and the page's own notFound()
+ * still shows the not-found view, so they skip the Hive lookup and stay fast.
+ */
+function isClientNavigation(req: NextRequest): boolean {
+  return req.headers.get('rsc') === '1' || req.headers.has('next-router-prefetch');
 }
 
 export function middleware(req: NextRequest) {
@@ -76,9 +88,9 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
 
-  if (req.method === 'GET' || req.method === 'HEAD') {
+  if ((req.method === 'GET' || req.method === 'HEAD') && !isClientNavigation(req)) {
     const check = existenceCheck(req.nextUrl.pathname);
-    if (check && userAgent(req).isBot) return crawlerExistenceGuard(req, check);
+    if (check) return existenceGuard(req, check);
   }
 
   const origin = req.headers.get('origin') ?? '';
@@ -120,7 +132,7 @@ export const config = {
     '/api/upload-image',
     // Only /@names containing an uppercase letter, so other pages skip middleware.
     '/:user(@[^/]*[A-Z][^/]*)/:path*',
-    // Profiles and posts, for the crawler 404 check. Visitors pass straight through.
+    // Profiles and posts: Hive existence check so missing ones are a real 404.
     '/:user(@[^/]+)',
     '/:user(@[^/]+)/:permlink([^/]+)',
     '/:community(hive-\\d+)/:user(@[^/]+)/:permlink([^/]+)',

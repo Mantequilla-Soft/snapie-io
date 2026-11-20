@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-20',
+    date: '2026-11-20',
+    title: 'Real 404s for missing posts and profiles',
+    items: [
+      { type: 'fix', text: 'Missing posts and profiles now return a real “not found” response instead of a loading page that looked like it existed.' },
+    ],
+  },
+  {
     id: '2026-11-19',
     date: '2026-11-19',
     title: '3Speak audio, post dates and muted accounts',

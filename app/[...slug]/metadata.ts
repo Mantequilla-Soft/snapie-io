@@ -14,10 +14,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 /** After a failed page lookup, the cached copy only gets a short wait. */
 const FALLBACK_TIMEOUT_MS = 2000;
 
-// Missing posts and users must 404 here, not only in the page. The loading.tsx
-// boundaries let the page stream, so its 200 shell is already sent by the time
-// PostView/ProfileView can call notFound(). Crawlers get blocking metadata, so
-// notFound() from generateMetadata is what sets their status code.
+// Missing posts and users call notFound() here as well as in the page, so the
+// streamed HTML gets noindex even when loading.tsx has already committed a
+// 200 (middleware is what sets the real status — see crawlerNotFound).
 // notFound() is only called once Hive confirms the post or account is missing.
 // A timeout or node error renders the page normally.
 async function postMetadata(author: string, permlink: string): Promise<Metadata> {
