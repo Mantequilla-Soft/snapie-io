@@ -25,6 +25,15 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-19',
+    date: '2026-11-19',
+    title: 'More 3Speak audio',
+    items: [
+      { type: 'feature', text: '3Speak audio and audio playlists shared as video links (play.3speak.tv/watch?v=…) now play in posts.' },
+      { type: 'fix', text: 'A 3Speak video that no longer exists now says "Video could not be loaded" instead of loading forever.' },
+    ],
+  },
+  {
     id: '2026-11-14',
     date: '2026-11-14',
     title: 'Accessibility, screenshots, faster images and snap links',
