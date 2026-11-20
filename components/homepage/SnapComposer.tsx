@@ -30,6 +30,10 @@ import {
     bufferFileInMemory
 } from '@snapie/operations/video';
 import { pickVideoFile } from '@/lib/utils/pickVideoFile';
+import { blockedByQuota, isUploadLimitError, type UploadLimitInfo } from '@snapie/operations/limits';
+import { fetch3SpeakVideoQuota } from '@/lib/hive/client-functions';
+import UploadLimitNotice from '@/components/shared/UploadLimitNotice';
+import { useUploadQuota } from '@/hooks/useUploadQuota';
 
 // Type for tracking image upload state
 interface UploadingImage {
@@ -78,6 +82,11 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     const [memeBeneficiaries, setMemeBeneficiaries] = useState<Beneficiary[]>([]);
     const [memeTemplateIds, setMemeTemplateIds] = useState<string[]>([]);
     const [isMemeUploading, setIsMemeUploading] = useState(false);
+    // 3Speak refused (or will refuse) a short for a free account's daily limit.
+    const [limitNotice, setLimitNotice] = useState<UploadLimitInfo | null>(null);
+    // Read lazily (hover, focus or press on the video button), not on mount:
+    // this composer renders on every feed and reply box.
+    const shortsQuota = useUploadQuota(user, fetch3SpeakVideoQuota);
 
     // Listen for re-snap events from Snap cards and pre-fill the textarea
     useEffect(() => {
@@ -191,6 +200,13 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
     // wrapped <input> (the case a <label> click normally forwards to) and
     // started calling pickVideoFile() instead.
     async function handleVideoButtonClick() {
+        // Quota already known to be used up: say so before the picker opens.
+        const known = user ? blockedByQuota(shortsQuota.quota, 'short', user) : null;
+        if (known) {
+            setLimitNotice(known);
+            return;
+        }
+        void shortsQuota.prefetch();
         const file = await pickVideoFile();
         if (!file) return;
 
@@ -223,6 +239,14 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             // wording as handleImageSelection's guard below since there's no
             // way to tell "still hydrating" apart from "genuinely logged out."
             alert('You must be logged in to upload videos.');
+            return;
+        }
+        setLimitNotice(null);
+        // Usually answered already (prefetched on the button). A failed or
+        // missing quota is null and never blocks; the server decides.
+        const blocked = blockedByQuota(await shortsQuota.prefetch(), 'short', user);
+        if (blocked) {
+            setLimitNotice(blocked);
             return;
         }
         setSelectedVideo(file);
@@ -266,6 +290,7 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
             ]);
 
             if (videoResult.status === 'fulfilled') {
+                shortsQuota.invalidate();
                 setVideoEmbedUrl(videoResult.value.embedUrl);
                 console.log('✅ Video uploaded:', videoResult.value.embedUrl);
                 
@@ -294,6 +319,16 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                 throw videoResult.reason;
             }
         } catch (error) {
+            if (isUploadLimitError(error)) {
+                // Refused before any bytes were sent. No retry, no other
+                // upload path; the snap text stays in the box.
+                setLimitNotice(error.info);
+                shortsQuota.invalidate();
+                setSelectedVideo(null);
+                setVideoUploadProgress(0);
+                setVideoUploadStatus(null);
+                return;
+            }
             console.error('❌ Video upload failed:', error);
             const message = error instanceof Error && error.message
                 ? error.message
@@ -560,6 +595,8 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                         type="button"
                         className="feed-tool-btn"
                         onClick={handleVideoButtonClick}
+                        onPointerEnter={() => { void shortsQuota.prefetch(); }}
+                        onFocus={() => { void shortsQuota.prefetch(); }}
                         disabled={!user || isLoading || hasVideoInProgress || hasAudio || hasMeme}
                         title={hasMeme ? 'Remove meme to add a video' : undefined}
                         aria-label="Video"
@@ -594,6 +631,11 @@ const SnapComposer = forwardRef<HTMLTextAreaElement, SnapComposerProps>(function
                     {isLoading ? <Spinner size="sm" /> : imagesStillUploading ? "Uploading..." : (!user ? "Log in to post" : buttonText)}
                 </button>
             </div>
+            {limitNotice && (
+                <Box mt={2}>
+                    <UploadLimitNotice info={limitNotice} compact onClose={() => setLimitNotice(null)} />
+                </Box>
+            )}
             {(uploadingImages.length > 0 || selectedGif || selectedVideo || audioEmbedUrl || memeTemplateIds.length > 0) && (
             <Wrap spacing={4}>
                 {uploadingImages.map((image, index) => (

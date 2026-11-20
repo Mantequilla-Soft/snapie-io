@@ -50,6 +50,9 @@ for (const game of GAMES) {
       if (game.controls) {
         // Inline the bar may sit below the fold; only its width must fit the phone.
         const vp = page.viewportSize()!;
+        // The touch overlay mounts after the canvas; wait for it, or a slow
+        // runner counts zero buttons.
+        await expect(page.locator('[data-touch-overlay] button').first()).toBeAttached();
         const rights = await page.locator('[data-touch-overlay] button').evaluateAll((els) => els.map((x) => x.getBoundingClientRect().right));
         expect(rights.length, 'inline controls rendered').toBeGreaterThan(0);
         for (const r of rights) expect(r, 'inline control overflows the screen width').toBeLessThanOrEqual(vp.width + TOL);

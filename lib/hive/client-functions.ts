@@ -3,6 +3,15 @@ import HiveClient from "./hiveclient";
 import type { Discussion, Notifications } from "@hiveio/dhive";
 import { extractNumber } from "../utils/extractNumber";
 import { parseHiveDate } from "@/lib/utils/hiveTimestamp";
+import {
+  readUploadLimit,
+  formatUploadLimitMessage,
+  fetchAudioQuota,
+  fetchVideoQuota,
+  type AudioQuota,
+  type VideoQuota,
+  type UploadLimitInfo,
+} from "@snapie/operations/limits";
 import { ExtendedComment } from "@/hooks/useComments";
 import {
   ensureAioha,
@@ -517,13 +526,37 @@ export async function witnessVoteWithKeychain(username: string, witness: string,
 }
 
 /**
- * Upload audio to 3Speak Audio API
+ * Free-account audio allowance for `username` from audio.3speak.tv. Null when
+ * nothing is known (no key, network error, 404, old server): never block on it.
+ */
+export async function fetch3SpeakAudioQuota(username: string): Promise<AudioQuota | null> {
+  const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
+  if (!apiKey || !username) return null;
+  return fetchAudioQuota({ apiKey, owner: username });
+}
+
+/**
+ * Free-account video and shorts allowance for `username` from embed.3speak.tv.
+ * Null when nothing is known: never block on it.
+ */
+export async function fetch3SpeakVideoQuota(username: string): Promise<VideoQuota | null> {
+  const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
+  if (!apiKey || !username) return null;
+  return fetchVideoQuota({ apiKey, owner: username });
+}
+
+/**
+ * Upload audio to 3Speak Audio API.
+ *
+ * A free account over its daily count (429 daily_audio_limit) or over the
+ * length cap (413 audio_too_long) comes back as `success: false` with
+ * `limit` set. Show `error` and `limit.upgradeUrl`; do not retry.
  */
 export async function uploadAudioTo3Speak(
   audioBlob: Blob,
   duration: number,
   username: string
-): Promise<{ success: boolean; permlink?: string; cid?: string; playUrl?: string; apiUrl?: string; error?: string }> {
+): Promise<{ success: boolean; permlink?: string; cid?: string; playUrl?: string; apiUrl?: string; error?: string; limit?: UploadLimitInfo }> {
   try {
     const apiKey = process.env.NEXT_PUBLIC_3SPEAK_API_KEY;
 
@@ -549,6 +582,10 @@ export async function uploadAudioTo3Speak(
     });
 
     if (!response.ok) {
+      const limit = await readUploadLimit(response);
+      if (limit) {
+        return { success: false, error: formatUploadLimitMessage(limit), limit };
+      }
       const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
       throw new Error(errorData.error || `Upload failed with status ${response.status}`);
     }
