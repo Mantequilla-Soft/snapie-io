@@ -27,8 +27,12 @@ export async function signInAsFakeUser(page: Page) {
   );
 }
 
-/** The fake user makes the page try to start a chat session; that is expected and harmless once blocked. */
-export const unexpectedWrites = (writes: string[]) => writes.filter((w) => !w.includes('/api/chat/'));
+/**
+ * The fake user makes the page try to start a chat session and, on a scored
+ * game, ask for a signed run ticket. Both are expected and harmless once blocked.
+ */
+export const unexpectedWrites = (writes: string[]) =>
+  writes.filter((w) => !w.includes('/api/chat/') && !/^POST \/api\/games\/[^/]+\/session$/.test(w));
 
 export const test = base.extend<{ blockedWrites: string[] }>({
   blockedWrites: async ({}, use) => {
