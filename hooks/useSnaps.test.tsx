@@ -26,10 +26,16 @@ vi.mock('@/lib/contentFilter/store', async () => {
 });
 
 const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
+const getMutedListMock = vi.hoisted(() =>
+  vi.fn(async (username?: string) => {
+    if (username === 'viewer') return new Set(['spammer']);
+    return new Set<string>();
+  }),
+);
 
 vi.mock('@/lib/hive/muted-accounts', () => ({
   mutedAccountsManager: {
-    getMutedList: vi.fn(async () => new Set<string>()),
+    getMutedList: (username?: string) => getMutedListMock(username),
     subscribePersonalMute: (listener: (author: string) => void) => {
       personalMuteListeners.add(listener);
       return () => personalMuteListeners.delete(listener);
@@ -72,6 +78,11 @@ function reply(permlink: string, overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   databaseCallMock.mockReset();
   getPostMock.mockReset();
+  getMutedListMock.mockClear();
+  getMutedListMock.mockImplementation(async (username?: string) => {
+    if (username === 'viewer') return new Set(['spammer']);
+    return new Set<string>();
+  });
   personalMuteListeners.clear();
   process.env.NEXT_PUBLIC_HIVE_COMMUNITY_TAG = COMMUNITY_TAG;
 });
@@ -139,6 +150,23 @@ describe('useSnaps.refreshComment', () => {
     });
 
     expect((result.current.comments[0] as any).pending_payout_value).toBe('0.000 HBD');
+  });
+
+  it('hides a personally muted author for a logged-in viewer', async () => {
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([container('c1')]));
+    databaseCallMock.mockImplementationOnce(() => Promise.resolve([
+      reply('keep', { author: 'goodauthor' }),
+      reply('gone', { author: 'spammer' }),
+      reply('also-gone', { author: 'Spammer' }),
+    ]));
+    databaseCallMock.mockImplementation(() => Promise.resolve([]));
+
+    const { result } = renderHook(() => useSnaps({ filterType: 'community', username: 'viewer' }));
+
+    await waitFor(() => {
+      expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
+    });
+    expect(getMutedListMock).toHaveBeenCalledWith('viewer');
   });
 
   it('drops a muted author from the loaded walk immediately', async () => {

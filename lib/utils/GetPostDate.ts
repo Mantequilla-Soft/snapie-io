@@ -1,9 +1,8 @@
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
+
 export function getPostDate(date: string | Date): string {
     const today = new Date();
-    // Hive timestamps omit the trailing 'Z' — append it so the string is
-    // parsed as UTC rather than local time, matching how the sidecar stores them.
-    const normalized = typeof date === 'string' && !date.endsWith('Z') ? `${date}Z` : date;
-    const created = new Date(normalized);
+    const created = typeof date === 'string' ? parseHiveDate(date) : date;
     if (isNaN(created.getTime())) return 'just now';
 
     const diffMs = today.getTime() - created.getTime(); // milliseconds between now & then

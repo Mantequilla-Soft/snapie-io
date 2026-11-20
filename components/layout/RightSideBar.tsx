@@ -1,9 +1,8 @@
 'use client';
 import { Box, Flex, Text, Spinner, Divider } from '@chakra-ui/react';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, getCommunityInfo } from '@/lib/hive/client-functions';
-import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { contentFilterStore } from '@/lib/contentFilter/store';
 import { useContentFilter } from '@/hooks/useContentFilter';
 import { useHiveUser } from '@/contexts/UserContext';
@@ -16,6 +15,8 @@ import WhoToFollowWidget from '@/components/layout/WhoToFollowWidget';
 import { Divider as ChakraDivider } from '@chakra-ui/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
 import { interleaveCandidates } from '@/lib/discovery/interleave';
 import {
@@ -46,6 +47,8 @@ interface RightSideBarProps {
 export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {}) {
   const { hiveUser } = useHiveUser();
   const { username } = useCurrentUser();
+  const viewer = username || hiveUser?.name;
+  const { mutedSet } = usePersonalMuteFilter(viewer);
   const { settings } = useUserSettings();
   const [query] = useState('created');
   const [allPosts, setAllPosts] = useState<Discussion[]>([]);
@@ -56,7 +59,8 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
   const [hasMore, setHasMore] = useState(true);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const isFetching = useRef(false);
-  const mutedSetRef = useRef<Set<string>>(new Set());
+  const mutedSetRef = useRef(mutedSet);
+  mutedSetRef.current = mutedSet;
   const hasInterleavedRef = useRef(false);
   // Persistent memory of every post ever added to allPosts, from ANY source
   // (the base chronological walk's own multi-page loop, later scroll-
@@ -253,15 +257,19 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
     params.current = { tag, limit: LONG_READS_PAGE_SIZE, start_author: '', start_permlink: '' };
     seenKeysRef.current.clear();
     hasInterleavedRef.current = false;
-    mutedAccountsManager.getMutedList(hiveUser?.name).then(mutedSet => {
-      mutedSetRef.current = mutedSet;
-      setMutedLoaded(true);
-    });
-  }, [hiveUser?.name, tag, mutedTagsKey]);
+    // The muted set arrives asynchronously from usePersonalMuteFilter;
+    // visiblePosts below re-filters once it lands.
+    setMutedLoaded(true);
+  }, [viewer, tag, mutedTagsKey]);
 
   useEffect(() => {
     if (mutedLoaded) fetchPosts();
   }, [mutedLoaded, fetchPosts]);
+
+  const visiblePosts = useMemo(
+    () => filterMutedAuthors(allPosts, mutedSet),
+    [allPosts, mutedSet],
+  );
 
   const handleScroll = useCallback(() => {
     const sidebar = sidebarRef.current;
@@ -347,7 +355,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
         >
           Long Reads
         </Text>
-        <PostInfiniteScroll allPosts={allPosts} fetchPosts={fetchPosts} viewMode="list" hasMore={hasMore} />
+        <PostInfiniteScroll allPosts={visiblePosts} fetchPosts={fetchPosts} viewMode="list" hasMore={hasMore} />
         {!isLoading && allPosts.length === 0 && !hasMore && (
           <Text fontSize="sm" color="overlay.500" px={2} pb={4}>
             No recent long reads

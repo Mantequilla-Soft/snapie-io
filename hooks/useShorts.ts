@@ -1,7 +1,9 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { ShortItem } from '@/lib/shorts/types';
 import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 
 // 3speak-checker.okinoko.io was retired — 3Speak's own frontend now points
 // this at checker.3speak.tv (confirmed via their production JS bundle);
@@ -86,6 +88,7 @@ export function useShorts(username?: string | null) {
   // re-trigger the ShortsPlayer mount effect that resets the whole feed.
   const usernameRef = useRef(username);
   usernameRef.current = username;
+  const { mutedSet } = usePersonalMuteFilter(username);
 
   const load = useCallback(async (reset = false) => {
     if (inflightRef.current) return;
@@ -140,5 +143,18 @@ export function useShorts(username?: string | null) {
     setHasMore(true);
   }, []);
 
-  return { shorts, loading, error, hasMore, load, prime, removeAuthor };
+  // Overlay so a mute list that arrives after the first page (auth hydrate)
+  // still hides muted authors without resetting the whole feed.
+  const visibleShorts = useMemo(
+    () => filterMutedAuthors(shorts, mutedSet),
+    [shorts, mutedSet],
+  );
+
+  useEffect(() => {
+    return mutedAccountsManager.subscribePersonalMute((author) => {
+      removeAuthor(author);
+    });
+  }, [removeAuthor]);
+
+  return { shorts: visibleShorts, loading, error, hasMore, load, prime, removeAuthor };
 }

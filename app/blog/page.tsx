@@ -1,9 +1,8 @@
 'use client';
 import { Box, Text } from '@chakra-ui/react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import { findPosts, findFeedPosts, searchPosts } from '@/lib/hive/client-functions';
-import { mutedAccountsManager } from '@/lib/hive/muted-accounts';
 import { contentFilterStore } from '@/lib/contentFilter/store';
 import { useContentFilter } from '@/hooks/useContentFilter';
 import { useHiveUser } from '@/contexts/UserContext';
@@ -13,11 +12,16 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import NextLink from 'next/link';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserSettings } from '@/hooks/useUserSettings';
+import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
+import { filterMutedAuthors } from '@/lib/hive/filterMutedAuthors';
 import { isDiscoveryEnabledFor } from '@/lib/discovery/config';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 
 export default function Blog() {
     const { hiveUser } = useHiveUser();
     const { username } = useCurrentUser();
+    const viewer = username || hiveUser?.name;
+    const { mutedSet } = usePersonalMuteFilter(viewer);
     const { settings } = useUserSettings();
     const router = useRouter();
     const pathname = usePathname();
@@ -29,9 +33,9 @@ export default function Blog() {
     const [activeSearchTerm, setActiveSearchTerm] = useState(searchParams.get('q') || '');
     const [allPosts, setAllPosts] = useState<Discussion[]>([]);
     const [hasMore, setHasMore] = useState(true);
-    const [mutedLoaded, setMutedLoaded] = useState(false);
     const isFetching = useRef(false);
-    const mutedSetRef = useRef<Set<string>>(new Set());
+    const mutedSetRef = useRef(mutedSet);
+    mutedSetRef.current = mutedSet;
     const forYouOffsetRef = useRef(0);
     // Persistent memory of every post ever appended to allPosts for the
     // current tab/search, across every page fetched. Same fix as
@@ -132,8 +136,8 @@ export default function Blog() {
                         !hasGarbageNaN
                     );
                 }).sort((a: Discussion, b: Discussion) => {
-                    const aTime = a.created ? new Date(a.created).getTime() : 0;
-                    const bTime = b.created ? new Date(b.created).getTime() : 0;
+                    const aTime = a.created ? parseHiveDate(a.created).getTime() : 0;
+                    const bTime = b.created ? parseHiveDate(b.created).getTime() : 0;
                     return bTime - aTime;
                 });
 
@@ -230,20 +234,7 @@ export default function Blog() {
         router.replace(queryString ? `${pathname}?${queryString}` : pathname);
     }, [activeSearchTerm, pathname, router, searchParams]);
 
-    // Load muted accounts on mount and when user changes (login/logout)
     useEffect(() => {
-        setMutedLoaded(false);
-        const loadMutedAccounts = async () => {
-            const mutedSet = await mutedAccountsManager.getMutedList(hiveUser?.name);
-            mutedSetRef.current = mutedSet;
-            setMutedLoaded(true);
-        };
-        loadMutedAccounts();
-    }, [hiveUser?.name]);
-
-    useEffect(() => {
-        if (!mutedLoaded) return; // Wait for muted accounts to load
-        
         setAllPosts([]);
         setHasMore(!activeSearchTerm);
         params.current = {
@@ -256,7 +247,12 @@ export default function Blog() {
         seenKeysRef.current.clear();
         fetchPosts();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [query, feedSource, mutedLoaded, tag, activeSearchTerm, hiveUser?.name, interestTagsKey, mutedTagsKey]); // fetchPosts excluded - callback identity changes each render
+    }, [query, feedSource, tag, activeSearchTerm, viewer, interestTagsKey, mutedTagsKey]); // fetchPosts excluded - callback identity changes each render
+
+    const visiblePosts = useMemo(
+        () => filterMutedAuthors(allPosts, mutedSet),
+        [allPosts, mutedSet],
+    );
 
     const handleFeedSourceChange = (source: FeedSource) => {
         hasSetDefaultTab.current = true; // any manual switch cancels the auto-default effect
@@ -301,7 +297,7 @@ export default function Blog() {
             />
             {activeSearchTerm && (
                 <Text fontSize="sm" color="text" opacity={0.75} mb={3}>
-                    {`Search results for "${activeSearchTerm}" (${allPosts.length})`}
+                    {`Search results for "${activeSearchTerm}" (${visiblePosts.length})`}
                 </Text>
             )}
             {isForYouCold && !activeSearchTerm && (
@@ -323,7 +319,7 @@ export default function Blog() {
                 </Box>
             ) : (
                 <PostInfiniteScroll
-                    allPosts={allPosts}
+                    allPosts={visiblePosts}
                     fetchPosts={fetchPosts}
                     viewMode={viewMode}
                     hasMore={hasMore}

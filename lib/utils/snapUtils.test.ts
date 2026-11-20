@@ -15,6 +15,7 @@ import {
   separateContent,
   snapTextForMarkdown,
   speakPlaybackUrl,
+  speakAudioEmbedFor,
   speakAudioListId,
   speakVideoKeyFromUrl,
 } from './snapUtils';
@@ -284,5 +285,28 @@ describe('3speak audio and playlist links', () => {
   it('ignores other 3speak.tv pages', () => {
     expect(parseMediaContent('https://3speak.tv/audio?play=shainemata')).toEqual([]);
     expect(parseMediaContent('https://3speak.tv/playlist/x')).toEqual([]);
+  });
+});
+
+describe('speakAudioEmbedFor (a play.3speak.tv link that is an audio)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const answer = (status: number, body: unknown) =>
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status, json: async () => body }));
+
+  it('returns the audio player URL play.3speak.tv names on its 404', async () => {
+    answer(404, { error: 'Video not found', audioEmbed: 'https://audio.3speak.tv/play?list=abc12345' });
+    await expect(speakAudioEmbedFor('badadib', 'abc12345')).resolves.toBe('https://audio.3speak.tv/play?list=abc12345');
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe('https://play.3speak.tv/api/watch?v=badadib/abc12345');
+  });
+
+  it('null for a plain miss, a video, a foreign URL or a network error', async () => {
+    answer(404, { error: 'Video not found' });
+    await expect(speakAudioEmbedFor('badadib', 'x')).resolves.toBeNull();
+    answer(200, { audioEmbed: 'https://audio.3speak.tv/play?a=x' });
+    await expect(speakAudioEmbedFor('badadib', 'x')).resolves.toBeNull();
+    answer(404, { audioEmbed: 'https://evil.example/play?a=x' });
+    await expect(speakAudioEmbedFor('badadib', 'x')).resolves.toBeNull();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
+    await expect(speakAudioEmbedFor('badadib', 'x')).resolves.toBeNull();
   });
 });

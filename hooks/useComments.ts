@@ -5,6 +5,7 @@ import { Comment } from "@hiveio/dhive"
 import { mutedAccountsManager } from "@/lib/hive/muted-accounts"
 import { contentFilterStore } from "@/lib/contentFilter/store";
 import { useContentFilter } from "@/hooks/useContentFilter";
+import { parseHiveDate } from "@/lib/utils/hiveTimestamp";
 
 interface ActiveVote {
     percent: number;
@@ -142,7 +143,7 @@ export function useComments(
                 const fetchedPermlinks = new Set(filteredComments.map(c => c.permlink));
                 const now = Date.now();
                 const pending = prev.filter(c => {
-                    const ageMs = now - new Date(c.created as any).getTime();
+                    const ageMs = now - parseHiveDate(c.created as string | Date).getTime();
                     return ageMs < 60_000 && !fetchedPermlinks.has(c.permlink);
                 });
                 return [...filteredComments, ...pending];

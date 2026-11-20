@@ -7,14 +7,30 @@ import { compileFilter, type ContentFilter } from '@snapie/content-filter';
 const NONE: ContentFilter = () => false;
 const MUTE_SCROBBLE = compileFilter([{ kind: 'tag', tag: 'scrobblelife' }]);
 
-// Same gap as useDiscoveryCandidates: the Trending tab and the "For You"
-// cold/warm feeds all paginate through server pools that only filter muted
-// accounts, never muted tags (which are local-only). This hook is where the
-// client-side layer belongs for all three.
+// Server pools only bake community mutes into the shared cache. Personal
+// account mutes and muted tags are applied client-side here.
 
-function item(permlink: string, tags: string[]) {
-  return { author: 'someone', permlink, created: new Date().toISOString(), json_metadata: JSON.stringify({ tags }), children: 0 };
+function item(permlink: string, tags: string[], author = 'someone') {
+  return { author, permlink, created: new Date().toISOString(), json_metadata: JSON.stringify({ tags }), children: 0 };
 }
+
+const personalMuteListeners = vi.hoisted(() => new Set<(author: string) => void>());
+const getMutedListMock = vi.hoisted(() =>
+  vi.fn(async (username?: string) => {
+    if (username === 'viewer') return new Set(['spammer']);
+    return new Set<string>();
+  }),
+);
+
+vi.mock('@/lib/hive/muted-accounts', () => ({
+  mutedAccountsManager: {
+    getMutedList: (username?: string) => getMutedListMock(username),
+    subscribePersonalMute: (listener: (author: string) => void) => {
+      personalMuteListeners.add(listener);
+      return () => personalMuteListeners.delete(listener);
+    },
+  },
+}));
 
 const getPostMock = vi.fn();
 vi.mock('@/lib/hive/client-functions', () => ({
@@ -23,6 +39,8 @@ vi.mock('@/lib/hive/client-functions', () => ({
 
 beforeEach(() => {
   getPostMock.mockReset();
+  getMutedListMock.mockClear();
+  personalMuteListeners.clear();
   global.fetch = vi.fn(async () => ({
     ok: true,
     json: async () => ({
@@ -63,6 +81,51 @@ describe('useTrendingFeed mute-tag filtering', () => {
 
     expect(result.current.comments.map(c => c.permlink)).not.toContain('spammy');
     expect((global.fetch as any).mock.calls.length).toBe(fetchCallsAfterInitialLoad);
+  });
+});
+
+describe('useTrendingFeed personal mute filtering', () => {
+  it('hides a personally muted author for a logged-in viewer', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          item('keep', ['hive'], 'goodauthor'),
+          item('gone', ['hive'], 'spammer'),
+        ],
+        hasMore: false,
+      }),
+    }) as Response);
+
+    const { result } = renderHook(() => useTrendingFeed({ enabled: true, username: 'viewer' }));
+
+    await waitFor(() => expect(result.current.hasFetchedOnce).toBe(true));
+    await waitFor(() => {
+      expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
+    });
+    expect(getMutedListMock).toHaveBeenCalledWith('viewer');
+  });
+
+  it('drops a freshly muted author from already-fetched pages', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          item('keep', ['hive'], 'goodauthor'),
+          item('gone', ['hive'], 'newlymuted'),
+        ],
+        hasMore: false,
+      }),
+    }) as Response);
+
+    const { result } = renderHook(() => useTrendingFeed({ enabled: true, username: 'viewer' }));
+    await waitFor(() => expect(result.current.comments).toHaveLength(2));
+
+    act(() => {
+      personalMuteListeners.forEach(listener => listener('newlymuted'));
+    });
+
+    expect(result.current.comments.map(c => c.permlink)).toEqual(['keep']);
   });
 });
 
