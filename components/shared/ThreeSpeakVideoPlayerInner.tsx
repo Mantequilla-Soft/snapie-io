@@ -1,20 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Spinner, Center, Text } from '@chakra-ui/react';
 import { usePlayer } from '@mantequilla-soft/3speak-player/react';
+import { speakAudioEmbedFor } from '@/lib/utils/snapUtils';
 
 interface ThreeSpeakVideoPlayerInnerProps {
     author: string;
     permlink: string;
+    /** Called with the audio.3speak.tv URL when the link is an audio or audio playlist. */
+    onAudio?: (audioUrl: string) => void;
 }
 
-export default function ThreeSpeakVideoPlayerInner({ author, permlink }: ThreeSpeakVideoPlayerInnerProps) {
+export default function ThreeSpeakVideoPlayerInner({ author, permlink, onAudio }: ThreeSpeakVideoPlayerInnerProps) {
     const [fatalError, setFatalError] = useState(false);
 
-    const { ref, state } = usePlayer({
+    // Loaded here rather than with `autoLoad`: the SDK does not catch a failed metadata
+    // lookup, so a missing video spun forever and an audio link never got its player.
+    const { ref, state, load } = usePlayer({
         apiBase: 'https://play.3speak.tv',
-        autoLoad: `${author}/${permlink}`,
         poster: true,
         hlsConfig: {
             maxBufferLength: 600,
@@ -25,6 +29,22 @@ export default function ThreeSpeakVideoPlayerInner({ author, permlink }: ThreeSp
             if (err.fatal) setFatalError(true);
         },
     });
+
+    useEffect(() => {
+        let cancelled = false;
+        setFatalError(false);
+        load(`${author}/${permlink}`).catch(async () => {
+            const audioUrl = onAudio ? await speakAudioEmbedFor(author, permlink) : null;
+            if (cancelled) return;
+            if (audioUrl) onAudio?.(audioUrl);
+            else setFatalError(true);
+        });
+        return () => {
+            cancelled = true;
+        };
+        // onAudio is a fresh closure each render; the link is what matters.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [author, permlink, load]);
 
     const isVertical = state.isVertical === true;
     const aspectRatio = isVertical ? '3/4' : '16/9';
