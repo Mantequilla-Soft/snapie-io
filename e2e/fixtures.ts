@@ -30,23 +30,39 @@ export async function signInAsFakeUser(page: Page) {
 /** The fake user makes the page try to start a chat session; that is expected and harmless once blocked. */
 export const unexpectedWrites = (writes: string[]) => writes.filter((w) => !w.includes('/api/chat/'));
 
+/** Refuse every non-read request to our API and record it. */
+async function guardWrites(page: Page, blockedWrites: string[]) {
+  await page.route('**/api/**', (route) => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method())) return route.fallback();
+    // Hive reads go through /api/hive-rpc as POSTed JSON-RPC. Let reads through,
+    // never a broadcast.
+    if (path === '/api/hive-rpc' && !/broadcast/i.test(req.postData() ?? '')) return route.fallback();
+    blockedWrites.push(`${req.method()} ${path}`);
+    return route.fulfill({ status: 403, json: { error: 'blocked-by-e2e' } });
+  });
+}
+
 export const test = base.extend<{ blockedWrites: string[] }>({
   blockedWrites: async ({}, use) => {
     await use([]);
   },
   page: async ({ page, blockedWrites }, use) => {
     // Later routes win, so the write guard goes first and the auth mock after it.
-    await page.route('**/api/**', (route) => {
-      const req = route.request();
-      const path = new URL(req.url()).pathname;
-      if (['GET', 'HEAD', 'OPTIONS'].includes(req.method())) return route.fallback();
-      // Hive reads go through /api/hive-rpc as POSTed JSON-RPC. Let reads through,
-      // never a broadcast.
-      if (path === '/api/hive-rpc' && !/broadcast/i.test(req.postData() ?? '')) return route.fallback();
-      blockedWrites.push(`${req.method()} ${path}`);
-      return route.fulfill({ status: 403, json: { error: 'blocked-by-e2e' } });
-    });
+    await guardWrites(page, blockedWrites);
     await signInAsFakeUser(page);
+    await use(page);
+  },
+});
+
+/** A logged-out visitor: no auth mock at all, and the same write guard. */
+export const guestTest = base.extend<{ blockedWrites: string[] }>({
+  blockedWrites: async ({}, use) => {
+    await use([]);
+  },
+  page: async ({ page, blockedWrites }, use) => {
+    await guardWrites(page, blockedWrites);
     await use(page);
   },
 });
