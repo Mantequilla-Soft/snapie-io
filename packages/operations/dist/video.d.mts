@@ -1,3 +1,5 @@
+export { UploadLimitError, UploadLimitInfo, VideoQuota, blockedByQuota, fetchVideoQuota, formatUploadLimitMessage, isUploadLimitError } from './limits.mjs';
+
 /**
  * @snapie/operations/video - Video Upload Module
  *
@@ -17,6 +19,7 @@
  * console.log(result.embedUrl);
  * ```
  */
+
 /**
  * Video upload progress callback
  */

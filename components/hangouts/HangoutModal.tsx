@@ -13,6 +13,8 @@ import { useWakeLock } from '@/hooks/useWakeLock';
 import { providerSignPrompt } from '@/lib/utils/aiohaProviderUi';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import GameResultSnapModal from './GameResultSnapModal';
+import UploadLimitNotice from '@/components/shared/UploadLimitNotice';
+import { isUploadLimitError, type UploadLimitInfo } from '@snapie/operations/limits';
 
 import { IMAGE_SERVER_API_KEY } from '@/lib/env';
 
@@ -107,6 +109,16 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
     fetchRoom();
   }, [roomName]);
 
+  // A free account's daily limit or the audio length cap: the recording was
+  // already saved to the device, so say why it is not attached and link Pro.
+  const showLimitToast = useCallback((info: UploadLimitInfo) => {
+    toast({
+      duration: 15000,
+      isClosable: true,
+      render: ({ onClose: close }) => <UploadLimitNotice info={info} onClose={close} />,
+    });
+  }, [toast]);
+
   const buildComposeUrl = useCallback((audioUrl?: string, videoUrl?: string) => {
     const params = new URLSearchParams({
       hangout: 'true',
@@ -131,6 +143,7 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
         if (result.success && result.playUrl) {
           router.push(buildComposeUrl(result.playUrl));
         } else {
+          if (result.limit) showLimitToast(result.limit);
           router.push(buildComposeUrl());
         }
       } catch {
@@ -140,7 +153,7 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
       router.push(buildComposeUrl());
     }
     onClose();
-  }, [router, user, buildComposeUrl, onClose]);
+  }, [router, user, buildComposeUrl, onClose, showLimitToast]);
 
   const handleVideoHandoff = useCallback(async (file: { blob: Blob; filename: string; duration: number; size: number }) => {
     triggerBlobDownload(file.blob, file.filename);
@@ -180,7 +193,14 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
         isClosable: true,
       });
       router.push(buildComposeUrl(undefined, result.embedUrl));
-    } catch {
+    } catch (error) {
+      if (isUploadLimitError(error)) {
+        toast.close(toastId);
+        showLimitToast(error.info);
+        router.push(buildComposeUrl());
+        onClose();
+        return;
+      }
       toast.update(toastId, {
         title: 'Upload failed',
         description: 'Your recording was saved locally.',
@@ -191,7 +211,7 @@ function RoomBody({ roomName, onClose, onGameActiveChange }: RoomBodyProps) {
       router.push(buildComposeUrl());
     }
     onClose();
-  }, [router, user, buildComposeUrl, onClose, toast]);
+  }, [router, user, buildComposeUrl, onClose, toast, showLimitToast]);
 
   const handleGameEnd = useCallback((result: GameResultPayload) => {
     if (user && isWinnerOrDraw(result, user)) {

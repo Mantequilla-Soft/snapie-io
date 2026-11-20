@@ -20,6 +20,11 @@
       "types": "./dist/audio.d.ts",
       "import": "./dist/audio.mjs",
       "require": "./dist/audio.js"
+    },
+    "./limits": {
+      "types": "./dist/limits.d.ts",
+      "import": "./dist/limits.mjs",
+      "require": "./dist/limits.js"
     }
   },
   "files": [

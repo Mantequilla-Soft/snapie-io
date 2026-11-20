@@ -18,7 +18,20 @@
  * ```
  */
 
-const SERVICE_BASE = 'https://embed.3speak.tv';
+import { EMBED_SERVICE_BASE, UploadLimitError, readUploadLimit, uploadLimitFromTusError } from './limits';
+
+// Limit helpers live in ./limits; re-exported so video callers need one import.
+export {
+    UploadLimitError,
+    isUploadLimitError,
+    fetchVideoQuota,
+    blockedByQuota,
+    formatUploadLimitMessage,
+    type UploadLimitInfo,
+    type VideoQuota,
+} from './limits';
+
+const SERVICE_BASE = EMBED_SERVICE_BASE;
 
 /**
  * Video upload progress callback
@@ -319,6 +332,10 @@ async function issueUploadToken(options: VideoUploadOptions): Promise<UploadToke
     });
 
     if (!response.ok) {
+        // Daily limit for free accounts: stop here, before a single byte is
+        // sent. Callers must not retry or switch to another upload path.
+        const limit = await readUploadLimit(response);
+        if (limit) throw new UploadLimitError(limit);
         throw new Error(`Failed to issue upload token: ${response.status} ${response.statusText}`);
     }
 
@@ -372,7 +389,10 @@ export async function uploadVideoTo3Speak(
             },
             onError: (error) => {
                 options.onProgress?.(0, 'error');
-                reject(error);
+                // The TUS create is refused with the same 429 body when the
+                // limit was reached between token and upload.
+                const limit = uploadLimitFromTusError(error);
+                reject(limit ? new UploadLimitError(limit) : error);
             },
             onProgress: (bytesUploaded, bytesTotal) => {
                 const percentage = (bytesUploaded / bytesTotal) * 100;
