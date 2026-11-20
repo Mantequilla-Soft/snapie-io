@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-20',
+    date: '2026-11-20',
+    title: '3Speak upload limits',
+    items: [
+      { type: 'improvement', text: 'When 3Speak\'s daily upload limit for free accounts is reached, video, short and audio uploads now say when you can upload next (in your time zone) and link to 3Speak Pro, and your draft stays as it was.' },
+    ],
+  },
+  {
     id: '2026-11-19',
     date: '2026-11-19',
     title: '3Speak audio, post dates and muted accounts',
