@@ -38,6 +38,7 @@ import PatronBadge from '@/components/shared/PatronBadge';
 import WitnessBadge from '@/components/shared/WitnessBadge';
 import AccountBadges from './AccountBadges';
 import type { ProfileSeedAccount } from '@/lib/hive/profileSeed';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 import ProfileCover from '@/components/shared/ProfileCover';
 import { useConversationUrl } from '@/hooks/useConversationUrl';
 
@@ -221,7 +222,7 @@ export default function ProfilePage({
   const followers = profileInfo?.stats?.followers || 0;
   const following = profileInfo?.stats?.following || 0;
   const postCount = profileInfo?.post_count ?? null;
-  const memberSince = profileInfo?.created ? new Date(profileInfo.created).getFullYear() : null;
+  const memberSince = profileInfo?.created ? parseHiveDate(profileInfo.created).getFullYear() : null;
   const location = profileMeta.location || '';
   const about = profileMeta.about || '';
   const coverImage = profileMeta.cover_image || '';

@@ -27,10 +27,11 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-19',
     date: '2026-11-19',
-    title: 'More 3Speak audio',
+    title: 'More 3Speak audio and correct post dates',
     items: [
       { type: 'feature', text: '3Speak audio and audio playlists shared as video links (play.3speak.tv/watch?v=…) now play in posts.' },
       { type: 'fix', text: 'A 3Speak video that no longer exists now says "Video could not be loaded" instead of loading forever.' },
+      { type: 'fix', text: '"More from this author" next to a post now shows the day it was really posted, instead of the next day for evening posts.' },
     ],
   },
   {

@@ -5,6 +5,7 @@ import { ExtendedComment, useComments } from '@/hooks/useComments';
 import { useSnaps } from '@/hooks/useSnaps';
 import SnapComposer from './SnapComposer';
 import { getPayoutValue } from '@/lib/hive/client-functions';
+import { parseHiveDate } from '@/lib/utils/hiveTimestamp';
 import { interleaveAppendOnly, emptyStableInterleave, StableInterleaveState } from '@/lib/discovery/interleave';
 import OffscreenGate from '@/components/shared/OffscreenGate';
 import { HOME_FEED_LCP_SCAN } from '@/lib/images/feedLcp';
@@ -147,7 +148,7 @@ export default function SnapList(
     if (sortOrder === 'top') {
       return parseFloat(getPayoutValue(b)) - parseFloat(getPayoutValue(a));
     }
-    return new Date(b.created).getTime() - new Date(a.created).getTime();
+    return parseHiveDate(b.created).getTime() - parseHiveDate(a.created).getTime();
   });
 
   // Discovery candidates only make sense against the chronological view —
