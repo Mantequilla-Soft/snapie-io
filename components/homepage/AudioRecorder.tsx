@@ -22,6 +22,20 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { FaMicrophone, FaStop, FaTrash, FaPlay, FaPause, FaUpload } from 'react-icons/fa';
+import {
+  audioMaxSeconds,
+  audioTooLong,
+  blockedByQuota,
+  type AudioQuota,
+  type UploadLimitInfo,
+} from '@snapie/operations/limits';
+import UploadLimitNotice from '@/components/shared/UploadLimitNotice';
+import { useUploadQuota } from '@/hooks/useUploadQuota';
+
+async function loadAudioQuota(owner: string): Promise<AudioQuota | null> {
+  const { fetch3SpeakAudioQuota } = await import('@/lib/hive/client-functions');
+  return fetch3SpeakAudioQuota(owner);
+}
 
 interface AudioRecorderProps {
   isOpen: boolean;
@@ -69,7 +83,6 @@ function probeAudioDuration(file: File): Promise<number> {
 
 export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, username, maxDuration }: AudioRecorderProps) {
   const MAX_DURATION = maxDuration ?? DEFAULT_MAX_DURATION;
-  const hasFiniteCap = Number.isFinite(MAX_DURATION);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -82,6 +95,22 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDuration, setUploadDuration] = useState<number>(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // A refusal from audio.3speak.tv (daily count or length cap). Kept until
+  // the user changes the recording or file, so the draft stays in place.
+  const [limitNotice, setLimitNotice] = useState<UploadLimitInfo | null>(null);
+
+  // Free-account allowance, read when the modal opens. Unknown = no limit.
+  const { quota, prefetch: prefetchQuota, invalidate: invalidateQuota } = useUploadQuota(username, loadAudioQuota);
+  useEffect(() => {
+    if (isOpen) void prefetchQuota();
+  }, [isOpen, prefetchQuota]);
+  const quotaBlocked = blockedByQuota(quota, 'audio', username);
+  const maxSecondsForAccount = audioMaxSeconds(quota);
+  // Recording stops at the shorter of the app cap and the account's cap, so
+  // a free account never records something it cannot upload.
+  const recordCap = maxSecondsForAccount != null ? Math.min(MAX_DURATION, maxSecondsForAccount) : MAX_DURATION;
+  const recordCapRef = useRef(recordCap);
+  recordCapRef.current = recordCap;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -125,11 +154,12 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
       mediaRecorder.start();
       setIsRecording(true);
       setDuration(0);
+      setLimitNotice(null);
 
       timerRef.current = setInterval(() => {
         setDuration(prev => {
           const newDuration = prev + 1;
-          if (hasFiniteCap && newDuration >= MAX_DURATION) {
+          if (Number.isFinite(recordCapRef.current) && newDuration >= recordCapRef.current) {
             stopRecording();
           }
           return newDuration;
@@ -162,6 +192,7 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
   };
 
   const deleteRecording = () => {
+    setLimitNotice(null);
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioBlob(null);
     setAudioUrl(null);
@@ -190,12 +221,29 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
   };
 
   const uploadAudio = async (blob: Blob, durationSec: number) => {
+    // Known up front to be over the account's length cap: say so instead of
+    // sending a file the server will refuse.
+    const tooLong = audioTooLong(durationSec, maxSecondsForAccount, username);
+    if (tooLong) {
+      setLimitNotice(tooLong);
+      return;
+    }
     setIsUploading(true);
+    setLimitNotice(null);
     try {
       const { uploadAudioTo3Speak } = await import('@/lib/hive/client-functions');
       const result = await uploadAudioTo3Speak(blob, durationSec, username);
 
+      if (!result.success && result.limit) {
+        // No retry and no other upload path: the server refuses them too.
+        // The recording or file stays in the modal.
+        setLimitNotice(result.limit);
+        invalidateQuota();
+        return;
+      }
+
       if (result.success && result.playUrl) {
+        invalidateQuota();
         onAudioRecorded(result.playUrl);
         handleClose();
         toast({
@@ -230,6 +278,7 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
     if (!file) return;
 
     setUploadError(null);
+    setLimitNotice(null);
 
     if (!file.type.startsWith('audio/')) {
       setUploadError('Please pick an audio file.');
@@ -251,6 +300,7 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
   };
 
   const clearUploadFile = () => {
+    setLimitNotice(null);
     setUploadFile(null);
     setUploadDuration(0);
     setUploadError(null);
@@ -269,6 +319,11 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
       <ModalContent>
         <ModalHeader>Add Audio</ModalHeader>
         <ModalBody>
+          {(limitNotice ?? quotaBlocked) && (
+            <Box mb={4}>
+              <UploadLimitNotice info={(limitNotice ?? quotaBlocked)!} compact />
+            </Box>
+          )}
           <Tabs variant="enclosed" colorScheme="blue">
             <TabList>
               <Tab><HStack spacing={2}><FaMicrophone /><Text>Record</Text></HStack></Tab>
@@ -279,12 +334,15 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
                 <VStack spacing={4} align="stretch">
                   <Box textAlign="center">
                     <Text fontSize="3xl" fontWeight="bold">{formatTime(duration)}</Text>
-                    {hasFiniteCap ? (
+                    {Number.isFinite(recordCap) ? (
                       <>
-                        <Text fontSize="sm" color="gray.500">Max: {formatTime(MAX_DURATION)}</Text>
+                        <Text fontSize="sm" color="gray.500">
+                          Max: {formatTime(recordCap)}
+                          {recordCap < MAX_DURATION ? ' (free account)' : ''}
+                        </Text>
                         <Progress
-                          value={(duration / MAX_DURATION) * 100}
-                          colorScheme={duration >= MAX_DURATION ? 'red' : 'blue'}
+                          value={(duration / recordCap) * 100}
+                          colorScheme={duration >= recordCap ? 'red' : 'blue'}
                           mt={2}
                           borderRadius="md"
                         />
@@ -389,6 +447,11 @@ export default function AudioRecorder({ isOpen, onClose, onAudioRecorded, userna
                           <Text>{formatBytes(uploadFile.size)}</Text>
                           {uploadDuration > 0 && <Text>{formatTime(uploadDuration)}</Text>}
                         </HStack>
+                        {!limitNotice && audioTooLong(uploadDuration, maxSecondsForAccount, username) && (
+                          <Text fontSize="sm" color="orange.400" data-testid="audio-too-long-hint">
+                            This file is longer than free accounts can upload ({formatTime(maxSecondsForAccount!)} max).
+                          </Text>
+                        )}
                         <HStack>
                           <Button size="sm" variant="ghost" onClick={() => fileInputRef.current?.click()}>
                             Change file
