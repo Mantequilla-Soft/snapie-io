@@ -1,12 +1,11 @@
 /**
- * Real 404s for crawlers on missing Hive posts and accounts.
+ * Real 404s for missing Hive posts and accounts.
  *
  * The root layout wraps every page in <Suspense> (and app/loading.tsx adds
- * another boundary), so the 200 shell is sent before a page can call
- * notFound(). Visitors still get the not-found page, with noindex, but the
- * status is 200, which Search Console reports as a soft 404. Middleware runs
- * before rendering, so for crawler requests only it asks Hive whether the
- * post or account exists, and rewrites to a 404 when Hive says it doesn't.
+ * another boundary), so the 200 shell is sent before a page or
+ * generateMetadata can call notFound(). Middleware runs before rendering and
+ * asks Hive whether the post or account exists, then rewrites to a 404 when
+ * Hive says it doesn't — for every GET/HEAD, not only crawlers.
  *
  * Only a definite answer from Hive is a 404. A timeout, a node error or
  * anything unexpected is `unknown`, and the page renders as usual, so a sick
