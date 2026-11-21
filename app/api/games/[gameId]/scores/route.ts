@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { withChatAuth } from '@/lib/chat/auth';
 import { GAMES_FEATURE_FLAG, POINTS_FEATURE_FLAG, passesPointsAllowlist } from '@/lib/points/config';
 import { submitGameScore } from '@/lib/games/scoreService';
+import { GAME_AWARD_MODE, GAME_IDS, type GameId } from '@/lib/games/config';
+import { TicketSecretMissingError, verifyTicket } from '@/lib/games/sessionTicket';
 
 export const POST = withChatAuth(async (req, { username, params }) => {
   try {
@@ -25,6 +27,7 @@ export const POST = withChatAuth(async (req, { username, params }) => {
       won?: unknown;
       durationMs?: unknown;
       endedAt?: unknown;
+      ticket?: unknown;
     };
     try {
       body = await req.json();
@@ -32,7 +35,7 @@ export const POST = withChatAuth(async (req, { username, params }) => {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     }
 
-    const { sessionId, score, stage, stagesCleared, won, durationMs, endedAt } = body;
+    const { sessionId, score, stage, stagesCleared, won, durationMs, endedAt, ticket } = body;
 
     if (
       typeof sessionId !== 'string' ||
@@ -50,6 +53,25 @@ export const POST = withChatAuth(async (req, { username, params }) => {
       !Number.isFinite(endedAt)
     ) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
+    }
+
+    // Score-mode games need the signed ticket from /api/games/[gameId]/session.
+    // Unknown and flat-win games fall through to submitGameScore, which rejects them.
+    if (GAME_IDS.includes(gameId as GameId) && GAME_AWARD_MODE[gameId as GameId] === 'score') {
+      let check;
+      try {
+        check = verifyTicket(ticket, { gameId: gameId as GameId, username, sessionId, score, durationMs });
+      } catch (err) {
+        if (err instanceof TicketSecretMissingError) {
+          console.error('[games/scores]', err.message);
+          return NextResponse.json({ error: 'tickets_unavailable' }, { status: 503 });
+        }
+        throw err;
+      }
+      if (!check.ok) {
+        console.warn(`[games/scores] rejected ${gameId} score for ${username}: ${check.reason}`);
+        return NextResponse.json({ error: 'invalid_ticket', reason: check.reason }, { status: 403 });
+      }
     }
 
     const result = await submitGameScore(
