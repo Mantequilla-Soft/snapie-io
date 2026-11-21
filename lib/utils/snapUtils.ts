@@ -1,6 +1,8 @@
 import { Discussion } from "@hiveio/dhive";
 import { encodeMarkdownImageParentheses, extractMarkdownImages } from "@/lib/images/markdownImages";
-import { canonicalSpeakAudioUrl } from "@snapie/renderer";
+// Subpath import: the package root pulls the full markdown renderer into
+// every client bundle that uses snapUtils, including the home feed.
+import { canonicalSpeakAudioUrl } from "@snapie/renderer/speak-audio";
 
 /**
  * The snap "container" post that all top-level snaps reply to. Top snaps have this
