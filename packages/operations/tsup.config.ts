@@ -5,6 +5,7 @@ export default defineConfig({
         index: 'src/index.ts',
         video: 'src/video.ts',
         audio: 'src/audio.ts',
+        limits: 'src/limits.ts',
     },
     format: ['cjs', 'esm'],
     dts: true,
