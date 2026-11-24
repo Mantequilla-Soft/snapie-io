@@ -4,7 +4,7 @@ import { Asset, KeyTypes, Providers } from '@/lib/aioha/enums';
 import { loadRealAioha } from '@/lib/aioha/load-real';
 import { beginApproval, endApproval, suppressApproval } from '@/lib/hive/approvalOverlay';
 import { isMissingSignBuffer, waitForInjectedWallet } from '@/lib/hive/injectedWallet';
-import { SignDeclinedError, WalletMissingError, dismissWalletPrompt, runWalletSign } from '@/lib/hive/walletSign';
+import { SignDeclinedError, WalletMissingError, dismissWalletPrompt, isUserDecline, runWalletSign } from '@/lib/hive/walletSign';
 import { fetchHealthyNodes } from './hiveclient';
 
 let aiohaInstance: Aioha | null = null;
@@ -370,6 +370,43 @@ export async function commentWithAioha(
   }, overlayTitle);
 }
 
+// Aioha 1.8 passes Keychain's `error` field through and drops `message`.
+// A cancel is often `{ success: false, errorCode: 5000 }` with no string,
+// or an error object, so a substring check on `error` alone misses it.
+const SIGN_DECLINE_TEXT = /cancel|reject|declin|dismiss|denied|user_cancel/i;
+
+function signFailureText(result: { error?: unknown; message?: unknown }): string {
+  const bits: string[] = [];
+  const visit = (value: unknown, depth: number) => {
+    if (depth > 3 || value == null) return;
+    if (typeof value === 'string' || typeof value === 'number') {
+      const text = String(value).trim();
+      if (text) bits.push(text);
+      return;
+    }
+    if (typeof value === 'object') {
+      const obj = value as Record<string, unknown>;
+      visit(obj.message, depth + 1);
+      visit(obj.error, depth + 1);
+      visit(obj.code, depth + 1);
+    }
+  };
+  visit(result.error, 0);
+  visit(result.message, 0);
+  return bits.join(' ');
+}
+
+function declinedSignResult(
+  result: { success: boolean; error?: unknown; message?: unknown; errorCode?: number },
+  silent: boolean,
+): boolean {
+  if (result.success) return false;
+  if (silent || result.errorCode === 4001) return true;
+  const text = signFailureText(result);
+  // No explanation at all is how an unlabeled Keychain cancel arrives.
+  return !text || SIGN_DECLINE_TEXT.test(text);
+}
+
 export async function signMessageWithAioha(
   message: string,
   keyType: KeyTypes = KeyTypes.Posting,
@@ -412,20 +449,28 @@ export async function signMessageWithAioha(
       return 'ready';
     },
     sign: () => withTxApproval(async () => {
-      let result: { success: boolean; result?: string; error?: string; errorCode?: number };
+      let result: { success: boolean; result?: string; error?: unknown; message?: unknown; errorCode?: number };
       try {
         result = await currentAioha()!.signMessage(message, keyType);
       } catch (err) {
         if (isMissingSignBuffer(err)) throw new WalletMissingError();
+        // A background mint must not ask again on the next page when the
+        // wallet throws a cancel we don't already classify.
+        if (opts.silent || isUserDecline(err)) {
+          const messageText = err instanceof Error ? err.message : '';
+          throw new SignDeclinedError(messageText || 'Signature request was cancelled');
+        }
         throw err;
       }
       if (!result.success) {
-        if (result.errorCode === 4001 || (result.error && /cancel|reject|declin|dismiss/i.test(result.error))) {
-          throw new SignDeclinedError(result.error || 'Signature request was cancelled');
+        const text = signFailureText(result);
+        if (declinedSignResult(result, !!opts.silent)) {
+          throw new SignDeclinedError(text || 'Signature request was cancelled');
         }
-        throw new Error(result.error || 'Sign failed');
+        throw new Error(text || 'Sign failed');
       }
       if (!result.result) {
+        if (opts.silent) throw new SignDeclinedError('Signature request was cancelled');
         throw new Error('Sign returned empty result');
       }
       return { success: true as const, result: result.result };

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isSignDeclined } from './walletSign';
 
 const loadRealAioha = vi.fn();
 
@@ -85,5 +86,58 @@ describe('signMessageWithAioha without Keychain', () => {
     await expect(first).resolves.toMatchObject({ result: 'sig' });
     await expect(second).resolves.toMatchObject({ result: 'sig' });
     expect(instance.signMessage).toHaveBeenCalledTimes(1);
+  });
+
+  async function signWith(result: unknown, silent?: boolean) {
+    const instance = fakeAioha();
+    instance.signMessage.mockResolvedValue(result);
+    loadRealAioha.mockResolvedValue({ Aioha: function Aioha() { return instance; } });
+    (window as unknown as { hive_keychain?: { requestSignBuffer: () => void } }).hive_keychain = {
+      requestSignBuffer: () => {},
+    };
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    const pending = signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', silent ? { silent: true } : {});
+    return { instance, pending };
+  }
+
+  it('remembers an unlabeled Keychain cancel so the next page does not prompt', async () => {
+    const { instance, pending } = await signWith({ success: false, errorCode: 5000 });
+    await expect(pending).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(isSignDeclined()).toBe(true);
+
+    instance.signMessage.mockClear();
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    await expect(
+      signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', { silent: true }),
+    ).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(instance.signMessage).not.toHaveBeenCalled();
+  });
+
+  it('treats a nested reject message as a decline', async () => {
+    const { pending } = await signWith({
+      success: false,
+      errorCode: 5000,
+      error: { message: 'The user rejected the request' },
+    });
+    await expect(pending).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(isSignDeclined()).toBe(true);
+  });
+
+  it('still surfaces a real sign error when the user asked to sign', async () => {
+    const { pending } = await signWith({ success: false, error: 'Node error', errorCode: 5000 });
+    await expect(pending).rejects.toThrow('Node error');
+    expect(isSignDeclined()).toBe(false);
+  });
+
+  it('does not open Keychain again after a silent sign fails for another reason', async () => {
+    const { instance, pending } = await signWith({ success: false, error: 'Node error', errorCode: 5000 }, true);
+    await expect(pending).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(isSignDeclined()).toBe(true);
+    instance.signMessage.mockClear();
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    await expect(
+      signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', { silent: true }),
+    ).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(instance.signMessage).not.toHaveBeenCalled();
   });
 });
