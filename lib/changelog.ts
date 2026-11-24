@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-24',
+    date: '2026-11-24',
+    title: 'Reply votes',
+    items: [
+      { type: 'fix', text: 'When you upvote a reply on a post page, in a conversation or on a Short, its value now stays updated instead of going back to the old amount a few seconds later.' },
+    ],
+  },
+  {
     id: '2026-11-20',
     date: '2026-11-20',
     title: '3Speak upload limits',
