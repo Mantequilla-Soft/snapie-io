@@ -105,6 +105,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
     const { getTier } = usePatronStatus();
     const { getEquippedBadge } = useMoodBadges();
     const payoutDisplay = useCurrencyDisplay(comment, optimisticDeltaHBD);
+
+    // A refetch (useComments' updateComments, Snap-Cast) can hand us a comment
+    // whose payout already counts this user's vote. Drop the optimistic delta
+    // then so it doesn't stack. Only a new vote sets a delta (VoteSlider's
+    // wasVoted guard), so the user being in active_votes means the chain has
+    // it. Keyed on the array, so it only runs when fresh data arrives.
+    const hasOwnVote = !!user && (comment.active_votes?.some(v => v.voter === user) ?? false);
+    useEffect(() => {
+        if (hasOwnVote) setOptimisticDeltaHBD(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [comment.active_votes]);
     const toast = useToast();
     
     // Check if user can edit (is author and post is less than 7 days old)
@@ -208,10 +219,17 @@ const Snap = memo(({ comment, onOpen, setReply, setConversation, refreshComment,
             // nothing else ever refreshes it once fetched (see useSnaps.ts).
             // Zero the optimistic delta once the real data lands so the two
             // don't stack — the fresh comment already includes this vote.
-            setTimeout(async () => {
-                await refreshComment?.(comment.author, comment.permlink);
-                setOptimisticDeltaHBD(0);
-            }, 3000);
+            // Without a refreshComment (post-page, conversation and shorts
+            // replies, nested replies) nothing fetches fresh data here, so
+            // zeroing would snap the payout back to its pre-vote value
+            // (#374). Those keep the delta until a refetched comment carries
+            // the vote — see the effect below.
+            if (refreshComment) {
+                setTimeout(async () => {
+                    await refreshComment(comment.author, comment.permlink);
+                    setOptimisticDeltaHBD(0);
+                }, 3000);
+            }
         }
 
         return voteResult;
