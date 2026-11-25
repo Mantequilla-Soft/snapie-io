@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-25',
+    date: '2026-11-25',
+    title: 'Crisper app icon',
+    items: [
+      { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+    ],
+  },
+  {
     id: '2026-11-24',
     date: '2026-11-24',
     title: 'Reply votes',
