@@ -30,6 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Crisper app icon',
     items: [
       { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+      { type: 'improvement', text: 'The first photo on the blog and a profile banner start loading right away, and game art is sent at the size of the card.' },
     ],
   },
   {

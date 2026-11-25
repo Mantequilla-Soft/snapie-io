@@ -296,6 +296,7 @@ export default function ProfilePage({
           <ProfileCover
             url={coverImage}
             alt={`${hiveAccount?.name} cover`}
+            priority
             fallback={
               <Box
                 width="100%"
