@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
 
 /**
- * Installable web app manifest. Icons are generated from app/favicon.ico.
+ * Installable web app manifest. Icons are generated from assets/icon-source.png
+ * via `node scripts/generate-icons.mjs`.
  * No service worker is registered here — push stays on
  * public/firebase-messaging-sw.js, and offline caching is a later change.
  */
