@@ -43,8 +43,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-20',
     date: '2026-11-20',
-    title: '3Speak upload limits',
+    title: '3Speak upload limits and real 404s',
     items: [
+      { type: 'fix', text: 'Missing posts and profiles now return a real “not found” response instead of a loading page that looked like it existed.' },
       { type: 'improvement', text: 'When 3Speak\'s daily upload limit for free accounts is reached, video, short and audio uploads now say when you can upload next (in your time zone) and link to 3Speak Pro, and your draft stays as it was.' },
     ],
   },
