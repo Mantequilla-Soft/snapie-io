@@ -81,7 +81,10 @@ async function fetchComments(
                 author,
                 permlink,
             });
-            return discussionReplies(discussion, author, permlink) as Comment[];
+            // Bridge posts are the same records the UI already renders as
+            // comments. `replies` is a nested tree here, not the string list
+            // on dhive's Comment type, so the cast goes through unknown.
+            return discussionReplies(discussion, author, permlink) as unknown as Comment[];
         }
         return await fetchReplyPage(author, permlink);
     } catch (error) {
