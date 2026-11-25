@@ -61,6 +61,48 @@ describe('hivePostStatus', () => {
     await hivePostStatus('jongolson', 'p2', failing);
     expect(failing).toHaveBeenCalledTimes(4);
   });
+
+  it('keeps a found post for minutes and a missing post for only a short while', async () => {
+    vi.useFakeTimers();
+    try {
+      const found = vi.fn(() => reply({ result: { author: 'jongolson' } }));
+      await hivePostStatus('jongolson', 'p1', found);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await hivePostStatus('jongolson', 'p1', found);
+      expect(found).toHaveBeenCalledTimes(1);
+
+      const missing = vi.fn(() => reply(missingPost));
+      await hivePostStatus('jongolson', 'gone', missing);
+      await hivePostStatus('jongolson', 'gone', missing);
+      expect(missing).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await hivePostStatus('jongolson', 'gone', missing);
+      expect(missing).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up within one deadline when both nodes hang', async () => {
+    vi.useFakeTimers();
+    try {
+      const f = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) return;
+        const fail = () => reject(new Error('aborted'));
+        if (signal.aborted) fail();
+        else signal.addEventListener('abort', fail, { once: true });
+      }));
+      const pending = hivePostStatus('jongolson', 'slow', f);
+      await vi.advanceTimersByTimeAsync(800);
+      expect(f).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(700);
+      await expect(pending).resolves.toBe('unknown');
+      expect(f).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('hiveAccountStatus', () => {
