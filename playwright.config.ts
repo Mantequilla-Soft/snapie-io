@@ -19,9 +19,15 @@ export default defineConfig({
   },
   // Phones are the point: isMobile + hasTouch also makes `(pointer: coarse)` true,
   // which is what turns the on-screen game controls on.
+  // The guest page smoke tests also run on a small 375x667 phone (docs/qa.md).
   projects: [
     { name: 'phone-portrait', use: { ...devices['Pixel 7'] } },
     { name: 'phone-landscape', use: { ...devices['Pixel 7 landscape'] } },
+    {
+      name: 'phone-small',
+      testMatch: /pages-mobile\.spec\.ts/,
+      use: { ...devices['Pixel 7'], viewport: { width: 375, height: 667 } },
+    },
   ],
   webServer: {
     // CI builds first (see .github/workflows/test.yml); locally the dev server is fine.

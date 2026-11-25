@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
  * Accept in-app feedback and open a GitHub issue.
  * The token stays in GITHUB_FEEDBACK_TOKEN. Hive username is taken from a
  * verified chat JWT or Snapie Auth session; everyone else is a guest.
+ * `source: "hivesnaps"` (the mobile app) files into the HiveSnaps repo; the
+ * repo is chosen by the server, never by the request.
  */
 export async function POST(request: NextRequest) {
   let raw = '';
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.ok) return jsonError(parsed.error, 400);
 
   try {
-    assertFeedbackConfigured();
+    assertFeedbackConfigured(parsed.value.source);
   } catch (err) {
     if (err instanceof FeedbackGithubError && err.status === 503) {
       return jsonError("Feedback isn't available right now.", 503);
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const created = await createFeedbackIssue(issue);
+    const created = await createFeedbackIssue(issue, parsed.value.source);
     return NextResponse.json({ url: created.url }, { status: 201, headers: NO_STORE });
   } catch (err) {
     if (err instanceof FeedbackGithubError && err.status === 503) {
