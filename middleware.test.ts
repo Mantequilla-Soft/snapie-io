@@ -34,8 +34,9 @@ describe('middleware username canonicalisation', () => {
     expect(res.headers.get('location')).toBe('https://snapie.io/@snapie/Hello-World?x=1');
   });
 
-  it('leaves a lowercase username and other paths alone', () => {
-    expect(run('/@snapie').headers.get('location')).toBeNull();
+  it('leaves a lowercase username and other paths alone', async () => {
+    hive.account.mockResolvedValue('found');
+    expect((await crawl('/@snapie')).headers.get('location')).toBeNull();
     expect(run('/api/chat/Foo').headers.get('location')).toBeNull();
   });
 });
@@ -47,10 +48,11 @@ describe('middleware soft-404 guard', () => {
     expect(res.headers.get('x-middleware-rewrite')).toContain('/_not-found');
   });
 
-  it('leaves files and @users alone', () => {
+  it('leaves files and existing @users alone', async () => {
     expect(run('/robots.txt').status).toBe(200);
     expect(run('/manifest.webmanifest').status).toBe(200);
-    expect(run('/@snapie').status).toBe(200);
+    hive.account.mockResolvedValue('found');
+    expect((await crawl('/@snapie')).status).toBe(200);
   });
 
   it('lets real routes through', () => {
@@ -65,7 +67,7 @@ describe('middleware soft-404 guard', () => {
   });
 });
 
-describe('middleware crawler 404s', () => {
+describe('middleware Hive existence 404s', () => {
   it('404s a crawler on a post Hive says is missing', async () => {
     hive.post.mockResolvedValue('missing');
     const res = await crawl('/@jongolson/gone');
@@ -93,11 +95,32 @@ describe('middleware crawler 404s', () => {
     expect((await crawl('/@jongolson/p1')).status).toBe(200);
   });
 
-  it('never makes a visitor wait on Hive', async () => {
+  it('404s a visitor too when Hive says the post is missing', async () => {
+    hive.post.mockResolvedValue('missing');
     const res = await crawl('/@nosuchuser-xq7z/gone', CHROME);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(404);
+    expect(res.headers.get('x-middleware-rewrite')).toContain('/_not-found');
+    expect(hive.post).toHaveBeenCalledWith('nosuchuser-xq7z', 'gone');
+  });
+
+  it('404s a visitor on a missing account', async () => {
+    hive.account.mockResolvedValue('missing');
+    expect((await crawl('/@nosuchuser-xq7z', CHROME)).status).toBe(404);
+    expect(hive.account).toHaveBeenCalledWith('nosuchuser-xq7z');
+  });
+
+  it('skips the Hive lookup for in-app navigations and prefetches', async () => {
+    hive.post.mockResolvedValue('missing');
+    for (const headers of [{ rsc: '1' }, { 'next-router-prefetch': '1' }] as Record<string, string>[]) {
+      const req = new NextRequest('https://snapie.io/@jongolson/p1', { headers: { 'user-agent': CHROME, ...headers } });
+      expect((await Promise.resolve(middleware(req))).status).toBe(200);
+    }
     expect(hive.post).not.toHaveBeenCalled();
-    expect(hive.account).not.toHaveBeenCalled();
+  });
+
+  it('does not 404 a visitor when Hive is unreachable', async () => {
+    hive.post.mockResolvedValue('unknown');
+    expect((await crawl('/@jongolson/p1', CHROME)).status).toBe(200);
   });
 
   it('skips wallet and notification subpages', async () => {
