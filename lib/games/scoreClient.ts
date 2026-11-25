@@ -66,23 +66,35 @@ export async function saveGameScore(
   return data;
 }
 
+async function readTicket(res: Response | null): Promise<string | null> {
+  if (!res?.ok) return null;
+  const data = (await res.json()) as { ticket?: unknown };
+  return typeof data.ticket === 'string' ? data.ticket : null;
+}
+
 /**
  * Asks the server to sign the start of a run (lib/games/sessionTicket.ts).
- * Silent: it never opens a wallet prompt when a run starts. Returns null when
- * no session token is available or the request fails; the save then reports
- * the run as unverified.
+ * Uses a cached session when there is one, so a run does not prompt. Wallet
+ * users with no token are asked now — a ticket minted at save time is too new
+ * for the run's duration and the score is rejected. Returns null when the
+ * user declines or the request fails.
  */
 export async function requestGameTicket(username: string, gameId: GameId, sessionId: string): Promise<string | null> {
+  const post = (silent: boolean) => authenticatedFetch(username, `/api/games/${gameId}/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  }, { silent });
+
   try {
-    const res = await authenticatedFetch(username, `/api/games/${gameId}/session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    }, { silent: true });
-    if (!res?.ok) return null;
-    const data = (await res.json()) as { ticket?: unknown };
-    return typeof data.ticket === 'string' ? data.ticket : null;
+    const silent = await post(true);
+    if (!silent) return await readTicket(await post(false));
+    return await readTicket(silent);
   } catch {
-    return null;
+    try {
+      return await readTicket(await post(true));
+    } catch {
+      return null;
+    }
   }
 }
