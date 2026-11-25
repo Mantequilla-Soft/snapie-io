@@ -73,6 +73,7 @@ const HEAVY_METHODS = new Set([
   "get_discussions_by_feed",
   "get_discussions_by_hot",
   "get_content_replies",
+  "get_discussion",
   "get_ranked_posts",
   "get_account_posts",
   "get_state",

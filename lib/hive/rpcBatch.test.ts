@@ -4,6 +4,7 @@ import {
   matchBatchResponses,
   buildRpcRequest,
   isBroadcastCall,
+  shouldCoalesce,
   postHiveRpc,
   HIVE_RPC_BATCH_TIMEOUT_MS,
   type RpcCoalescerOptions,
@@ -216,6 +217,25 @@ describe('RpcCoalescer', () => {
     await expect(broadcast).resolves.toEqual({ single: [{ signatures: [] }] });
     await expect(read).resolves.toEqual({ single: ['a', 'one'] });
     expect(sendSingle).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends bridge.get_discussion on its own request', async () => {
+    const { coalescer, sendSingle, sendBatch, drain } = createHarness();
+    const discussion = coalescer.call('bridge', 'get_discussion', { author: 'hiveio', permlink: 'launch' });
+    const content = coalescer.call('condenser_api', 'get_content', ['a', 'one']);
+    const other = coalescer.call('condenser_api', 'get_content', ['b', 'two']);
+    expect(shouldCoalesce('bridge', 'get_discussion')).toBe(false);
+    expect(sendSingle).toHaveBeenCalledTimes(1);
+    expect(sendSingle.mock.calls[0][1]).toBe('get_discussion');
+    await drain();
+    expect(sendBatch).toHaveBeenCalledTimes(1);
+    expect(sendBatch.mock.calls[0][0].map((request) => request.method)).toEqual([
+      'condenser_api.get_content',
+      'condenser_api.get_content',
+    ]);
+    await expect(discussion).resolves.toEqual({ single: { author: 'hiveio', permlink: 'launch' } });
+    await expect(content).resolves.toMatchObject({ params: ['a', 'one'] });
+    await expect(other).resolves.toMatchObject({ params: ['b', 'two'] });
   });
 
   it('does not hold a per-snap lookup behind a discussion fetch', async () => {
