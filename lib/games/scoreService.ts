@@ -26,8 +26,10 @@ export interface SubmitScoreResult {
  * PointsAccount). Implements daily-cap enforcement and deduplication via unique
  * sessionId index.
  *
- * v1 anti-cheat is: per-game max score cap + daily points cap + idempotent
- * sessionId dedup. Replay validation is deferred to a future iteration.
+ * Anti-cheat: the route first checks the signed session ticket and its
+ * plausibility limits (lib/games/sessionTicket.ts), then this applies the
+ * per-game max score cap, the daily points cap and idempotent sessionId
+ * dedup. Replay validation is deferred to a future iteration.
  *
  * Flat-win games (Snapie Blocks) do not use this function. A client posting
  * `won: true` here is rejected — the match document settles the winner and
