@@ -25,11 +25,27 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-25',
+    date: '2026-11-25',
+    title: 'Crisper app icon',
+    items: [
+      { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+    ],
+  },
+  {
+    id: '2026-11-24',
+    date: '2026-11-24',
+    title: 'Reply votes',
+    items: [
+      { type: 'fix', text: 'When you upvote a reply on a post page, in a conversation or on a Short, its value now stays updated instead of going back to the old amount a few seconds later.' },
+    ],
+  },
+  {
     id: '2026-11-23',
     date: '2026-11-23',
     title: 'Points prompt',
     items: [
-      { type: 'fix', text: 'Cancelling Enable Snapie Points keeps it away while you keep browsing. It comes back only if you turn points on yourself.' },
+      { type: 'fix', text: 'Cancelling Enable Snapie Points keeps it away while you keep browsing. You can still turn points on yourself.' },
     ],
   },
   {

@@ -36,6 +36,8 @@ beforeEach(() => {
   resetFeedbackLimitForTests();
   process.env.GITHUB_FEEDBACK_TOKEN = TOKEN;
   delete process.env.GITHUB_FEEDBACK_REPO;
+  delete process.env.GITHUB_FEEDBACK_TOKEN_HIVESNAPS;
+  delete process.env.GITHUB_FEEDBACK_REPO_HIVESNAPS;
   delete process.env.SNAPIE_AUTH_URL;
   vi.stubGlobal('fetch', vi.fn(async () => issueResponse()));
 });
@@ -245,5 +247,69 @@ describe('GET /api/feedback identity check', () => {
     const expired = jwt.sign({ sub: 'alice', exp: Math.floor(Date.now() / 1000) - 60 }, SECRET);
     expect(await (await get({ authorization: `Bearer ${expired}` })).json()).toEqual({ hiveUsername: null });
     expect(githubBodies()).toHaveLength(0);
+  });
+
+  describe('from the HiveSnaps app', () => {
+    function githubUrls(): string[] {
+      return vi.mocked(fetch).mock.calls
+        .map((call) => String(call[0]))
+        .filter((url) => url.includes('api.github.com'));
+    }
+
+    it('opens the issue in the hivesnaps repo with the app version and chat username', async () => {
+      const chatToken = jwt.sign({ sub: 'alice' }, SECRET, { expiresIn: '1h' });
+      const res = await post({
+        title: 'Crash on upload',
+        body: 'It closes.',
+        category: 'bug',
+        pageUrl: 'hivesnaps://compose',
+        screenshotUrl: 'https://images.hive.blog/DQmabc/shot.png',
+        source: 'hivesnaps',
+        appVersion: '1.4.0 (ios)',
+      }, { authorization: `Bearer ${chatToken}` }, '203.0.113.70');
+
+      expect(res.status).toBe(201);
+      expect(githubUrls()).toEqual(['https://api.github.com/repos/Mantequilla-Soft/hivesnaps/issues']);
+      const sent = JSON.parse(githubBodies()[0]);
+      expect(sent.body).toContain('**From:** HiveSnaps app 1.4.0 (ios)');
+      expect(sent.body).toContain('**Hive user:** alice');
+      expect(sent.body).toContain('**Page:** unknown');
+    });
+
+    it('cannot aim the token at a repo named in the request', async () => {
+      const res = await post({
+        title: 'Hi',
+        body: 'there',
+        source: 'hivesnaps',
+        repo: 'evil/repo',
+        GITHUB_FEEDBACK_REPO_HIVESNAPS: 'evil/repo',
+      }, {}, '203.0.113.71');
+      expect(res.status).toBe(201);
+      expect(githubUrls()).toEqual(['https://api.github.com/repos/Mantequilla-Soft/hivesnaps/issues']);
+    });
+
+    it('handles an unknown source exactly like web feedback', async () => {
+      const res = await post({ title: 'Hi', body: 'there', source: 'evil/repo', appVersion: '1.0' }, {}, '203.0.113.72');
+      expect(res.status).toBe(201);
+      expect(githubUrls()).toEqual(['https://api.github.com/repos/Mantequilla-Soft/snapie-io/issues']);
+      expect(githubBodies()[0]).not.toContain('**From:**');
+    });
+
+    it('returns 503 rather than filing in snapie-io when the HiveSnaps repo is misconfigured', async () => {
+      process.env.GITHUB_FEEDBACK_REPO_HIVESNAPS = 'not a repo';
+      const res = await post({ title: 'Hi', body: 'there', source: 'hivesnaps' }, {}, '203.0.113.73');
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({ error: "Feedback isn't available right now." });
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('shares the per-IP rate limit with web feedback', async () => {
+      for (let i = 0; i < 5; i++) {
+        const source = i % 2 === 0 ? 'hivesnaps' : undefined;
+        expect((await post({ title: 'Hi', body: 'there', source }, {}, '203.0.113.74')).status).toBe(201);
+      }
+      const blocked = await post({ title: 'Hi', body: 'there', source: 'hivesnaps' }, {}, '203.0.113.74');
+      expect(blocked.status).toBe(429);
+    });
   });
 });
