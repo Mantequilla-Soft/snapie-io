@@ -75,6 +75,36 @@ export const GAME_MAX_SCORE: Record<GameId, number> = {
   'snapie-info-war': 250_000,
 };
 
+// Plausibility for signed session tickets (lib/games/sessionTicket.ts): a saved
+// score can't exceed BURST + PER_SECOND x seconds since the server issued the
+// run's ticket. Ticket age is always at least the real play time (it also counts
+// menus and pauses), so these are loose upper bounds that only catch scores no
+// real run could reach in that time. Tune per game when real data shows the
+// best runs.
+// - puff-quest: 200k cap; a full clear takes many minutes.
+// - snapie-blast: 60 s round, ~50k ceiling (about 830/s).
+// - snapie-rush: five routes, 60-80k for a perfect run.
+// - snapie-jump: about 160-220/s from height on a flawless climb.
+// - snapie-info-war: 150-180k full win, with 10-50k boss kills in one burst.
+export const GAME_MAX_SCORE_PER_SECOND: Record<GameId, number> = {
+  'puff-quest': 2_000,
+  'snapie-blast': 2_000,
+  'snapie-rush': 1_500,
+  'snapie-blocks': 0,
+  'snapie-jump': 600,
+  'snapie-info-war': 2_500,
+};
+
+// Score allowed on top of the per-second rate, for one big pickup or boss early in a run.
+export const GAME_SCORE_BURST: Record<GameId, number> = {
+  'puff-quest': 5_000,
+  'snapie-blast': 5_000,
+  'snapie-rush': 5_000,
+  'snapie-blocks': 0,
+  'snapie-jump': 2_000,
+  'snapie-info-war': 60_000,
+};
+
 // Per-user, per-UTC-day cap on games-derived points, summed across ALL gameIds.
 // v1 anti-farming guardrail; replay validation is deferred.
 export const GAMES_DAILY_POINTS_CAP = 300;
