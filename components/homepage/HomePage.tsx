@@ -26,39 +26,10 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { useContentFilter } from '@/hooks/useContentFilter';
 import { isDiscoveryEnabledFor, DISCOVERY_INTERLEAVE_EVERY_N } from '@/lib/discovery/config';
 import { homePaintedSnapCount, shouldPaintHomeFeedSeed, type PublicSnapPage } from '@/lib/hive/publicSnapPage';
-import { afterLcpPaint } from '@/lib/perf/afterLcpPaint';
 import { useConversationUrl } from '@/hooks/useConversationUrl';
+import DeferredRightSidebar from '@/components/homepage/DeferredRightSidebar';
 
-const RightSidebar = dynamic(() => import('@/components/layout/RightSideBar'), { ssr: false });
 const SnapReplyModal = dynamic(() => import('@/components/homepage/SnapReplyModal'), { ssr: false });
-
-/** Right column (post cards, swiper) waits until the LCP image has painted,
- *  and never mounts below the md breakpoint. Phones were downloading Swiper
- *  for a column that stays display:none. */
-function DeferredRightSidebar({ engagedAuthors }: { engagedAuthors: Set<string> }) {
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 48em)');
-    let cancel = false;
-    const apply = () => {
-      if (!mq.matches) {
-        setReady(false);
-        return;
-      }
-      afterLcpPaint().then(() => {
-        if (!cancel && mq.matches) setReady(true);
-      });
-    };
-    apply();
-    mq.addEventListener('change', apply);
-    return () => {
-      cancel = true;
-      mq.removeEventListener('change', apply);
-    };
-  }, []);
-  if (!ready) return null;
-  return <RightSidebar engagedAuthors={engagedAuthors} />;
-}
 
 interface CommunityInfo {
   title: string;

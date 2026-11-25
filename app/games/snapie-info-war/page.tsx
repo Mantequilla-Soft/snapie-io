@@ -8,6 +8,7 @@ import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { PointsSkippedNotice } from '@/components/games/PointsSkippedNotice';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { saveGameScore } from '@/lib/games/scoreClient';
+import { useGameSessionTicket } from '@/hooks/useGameSessionTicket';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 import { SnapieInfoWar } from '@/components/games/snapie-info-war/SnapieInfoWar';
 import type { SnapieResult, SnapieEvent } from '@/components/games/snapie-info-war/types';
@@ -22,6 +23,7 @@ export default function SnapieInfoWarPage() {
   // crypto.randomUUID() during render diverges, and the shell mounts only
   // once this id exists. The canvas engine still loads in an effect.
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const ticketFor = useGameSessionTicket(username, 'snapie-info-war', sessionId);
   const [lastResult, setLastResult] = useState<SnapieResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'duplicate'>('idle');
   const [savedPointsAwarded, setSavedPointsAwarded] = useState(0);
@@ -75,7 +77,7 @@ export default function SnapieInfoWarPage() {
 
     setSaveStatus('saving');
     try {
-      const result = await saveGameScore(username, 'snapie-info-war', lastResult);
+      const result = await saveGameScore(username, 'snapie-info-war', lastResult, await ticketFor(lastResult.sessionId));
 
       if (result.status === 'awarded') {
         setSaveStatus('saved');

@@ -13,6 +13,7 @@ import ContainerVoteWidget from '@/components/layout/ContainerVoteWidget';
 import WitnessBeeWidget from '@/components/layout/WitnessBeeWidget';
 import WhoToFollowWidget from '@/components/layout/WhoToFollowWidget';
 import { Divider as ChakraDivider } from '@chakra-ui/react';
+import { RIGHT_SIDEBAR_WIDTH } from '@/components/layout/rightSidebarWidth';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { usePersonalMuteFilter } from '@/hooks/usePersonalMuteFilter';
@@ -293,7 +294,7 @@ export default function RightSideBar({ engagedAuthors }: RightSideBarProps = {})
     <Box
       as="aside"
       display={{ base: 'none', md: 'block' }}
-      w={{ base: '100%', md: '300px' }}
+      w={{ base: '100%', md: RIGHT_SIDEBAR_WIDTH }}
       h="100vh"
       overflowY="auto"
       position="sticky"

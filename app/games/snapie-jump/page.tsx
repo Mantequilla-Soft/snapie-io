@@ -9,6 +9,7 @@ import { PointsSkippedNotice } from '@/components/games/PointsSkippedNotice';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { SnapieJump } from '@/components/games/snapie-jump';
 import { saveGameScore } from '@/lib/games/scoreClient';
+import { useGameSessionTicket } from '@/hooks/useGameSessionTicket';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 import type { SnapieResult, SnapieEvent } from '@/components/games/snapie-jump';
 
@@ -19,6 +20,7 @@ export default function SnapieJumpPage() {
   const toast = useToast();
 
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
+  const ticketFor = useGameSessionTicket(username, 'snapie-jump', sessionId);
   const [lastResult, setLastResult] = useState<SnapieResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'duplicate'>('idle');
   const [savedPointsAwarded, setSavedPointsAwarded] = useState(0);
@@ -68,7 +70,7 @@ export default function SnapieJumpPage() {
 
     setSaveStatus('saving');
     try {
-      const result = await saveGameScore(username, 'snapie-jump', lastResult);
+      const result = await saveGameScore(username, 'snapie-jump', lastResult, await ticketFor(lastResult.sessionId));
 
       if (result.status === 'awarded') {
         setSaveStatus('saved');

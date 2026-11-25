@@ -26,6 +26,7 @@ export async function saveGameScore(
     durationMs: number;
     endedAt: number;
   },
+  ticket?: string | null,
 ): Promise<SaveScoreClientResult> {
   if (!result.sessionId) {
     throw new Error('Game result missing sessionId');
@@ -42,9 +43,16 @@ export async function saveGameScore(
       won: result.won,
       durationMs: result.durationMs,
       endedAt: result.endedAt,
+      ticket: ticket ?? undefined,
     }),
   });
   if (!res) throw new Error('Could not start a session to save this score. Please try again.');
+  if (res.status === 403) {
+    const err = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (err?.error === 'invalid_ticket') {
+      throw new Error('This run could not be verified, so its score was not saved. Play again to save a new score.');
+    }
+  }
   if (!res.ok) throw new Error('Could not save this score. Please try again.');
 
   const data = (await res.json()) as SaveScoreClientResult;
@@ -56,4 +64,37 @@ export async function saveGameScore(
     );
   }
   return data;
+}
+
+async function readTicket(res: Response | null): Promise<string | null> {
+  if (!res?.ok) return null;
+  const data = (await res.json()) as { ticket?: unknown };
+  return typeof data.ticket === 'string' ? data.ticket : null;
+}
+
+/**
+ * Asks the server to sign the start of a run (lib/games/sessionTicket.ts).
+ * Uses a cached session when there is one, so a run does not prompt. Wallet
+ * users with no token are asked now — a ticket minted at save time is too new
+ * for the run's duration and the score is rejected. Returns null when the
+ * user declines or the request fails.
+ */
+export async function requestGameTicket(username: string, gameId: GameId, sessionId: string): Promise<string | null> {
+  const post = (silent: boolean) => authenticatedFetch(username, `/api/games/${gameId}/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  }, { silent });
+
+  try {
+    const silent = await post(true);
+    if (!silent) return await readTicket(await post(false));
+    return await readTicket(silent);
+  } catch {
+    try {
+      return await readTicket(await post(true));
+    } catch {
+      return null;
+    }
+  }
 }
