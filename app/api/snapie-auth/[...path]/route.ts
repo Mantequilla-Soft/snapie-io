@@ -25,8 +25,10 @@ function hasSessionCookie(cookieHeader: string | null): boolean {
 
 // GET /auth/me with no session cookie is a 401 from the auth service before
 // any user lookup. Answer here so guests and wallet sessions do not spend
-// the shared upstream auth allowance. The cookie is httpOnly, so the check
-// has to live on the proxy — the client cannot see it.
+// the shared upstream auth allowance. A 200 with no user keeps that request
+// out of the browser console; getMe() still throws 401 so the client backs
+// off. The cookie is httpOnly, so the check has to live on the proxy — the
+// client cannot see it.
 function isAnonymousSessionCheck(req: NextRequest, path: string[]): boolean {
   return req.method === 'GET'
     && path.length === 2
@@ -42,7 +44,7 @@ function isLimitHeader(name: string): boolean {
 
 async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
   if (isAnonymousSessionCheck(req, path)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ user: null })
   }
 
   if (!BASE) {
