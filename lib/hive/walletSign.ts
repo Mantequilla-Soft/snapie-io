@@ -197,6 +197,7 @@ async function execute<T>(args: {
       throw new WalletMissingError();
     }
     if (isUserDecline(err)) rememberSignDecline();
+    else if (args.silent) noteWalletCooldown();
     throw err;
   } finally {
     unsubscribe();

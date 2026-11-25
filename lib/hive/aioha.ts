@@ -398,12 +398,13 @@ function signFailureText(result: { error?: unknown; message?: unknown }): string
 
 function declinedSignResult(
   result: { success: boolean; error?: unknown; message?: unknown; errorCode?: number },
-  silent: boolean,
 ): boolean {
   if (result.success) return false;
-  if (silent || result.errorCode === 4001) return true;
+  if (result.errorCode === 4001) return true;
   const text = signFailureText(result);
   // No explanation at all is how an unlabeled Keychain cancel arrives.
+  // A silent call that fails with a real message (node error, timeout) is
+  // not a cancel — the caller cools down briefly instead of for half an hour.
   return !text || SIGN_DECLINE_TEXT.test(text);
 }
 
@@ -454,9 +455,7 @@ export async function signMessageWithAioha(
         result = await currentAioha()!.signMessage(message, keyType);
       } catch (err) {
         if (isMissingSignBuffer(err)) throw new WalletMissingError();
-        // A background mint must not ask again on the next page when the
-        // wallet throws a cancel we don't already classify.
-        if (opts.silent || isUserDecline(err)) {
+        if (isUserDecline(err)) {
           const messageText = err instanceof Error ? err.message : '';
           throw new SignDeclinedError(messageText || 'Signature request was cancelled');
         }
@@ -464,13 +463,12 @@ export async function signMessageWithAioha(
       }
       if (!result.success) {
         const text = signFailureText(result);
-        if (declinedSignResult(result, !!opts.silent)) {
+        if (declinedSignResult(result)) {
           throw new SignDeclinedError(text || 'Signature request was cancelled');
         }
         throw new Error(text || 'Sign failed');
       }
       if (!result.result) {
-        if (opts.silent) throw new SignDeclinedError('Signature request was cancelled');
         throw new Error('Sign returned empty result');
       }
       return { success: true as const, result: result.result };
