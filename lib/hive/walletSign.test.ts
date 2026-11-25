@@ -5,6 +5,7 @@ import {
   WalletMissingError,
   dismissWalletPrompt,
   isSignDeclined,
+  isWalletCoolingDown,
   resetWalletSignForTests,
   runWalletSign,
 } from './walletSign';
@@ -126,5 +127,28 @@ describe('runWalletSign', () => {
       },
     })).rejects.toBeInstanceOf(WalletMissingError);
     expect(calls).toBe(0);
+  });
+
+  it('cools down a silent failure that is not a cancel', async () => {
+    await expect(runWalletSign({
+      silent: true,
+      prepare: async () => 'ready' as const,
+      sign: async () => {
+        throw new Error('node down');
+      },
+    })).rejects.toThrow('node down');
+    expect(isSignDeclined()).toBe(false);
+    expect(isWalletCoolingDown()).toBe(true);
+  });
+
+  it('does not cool down a failure the user asked for', async () => {
+    await expect(runWalletSign({
+      prepare: async () => 'ready' as const,
+      sign: async () => {
+        throw new Error('node down');
+      },
+    })).rejects.toThrow('node down');
+    expect(isSignDeclined()).toBe(false);
+    expect(isWalletCoolingDown()).toBe(false);
   });
 });

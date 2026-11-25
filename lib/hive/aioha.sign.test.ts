@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isSignDeclined, isWalletCoolingDown } from './walletSign';
 
 const loadRealAioha = vi.fn();
 
@@ -10,6 +11,14 @@ vi.mock('@/lib/aioha/load-real', () => ({
 vi.mock('./hiveclient', () => ({
   fetchHealthyNodes: vi.fn(async () => []),
 }));
+
+type AiohaSignResult = {
+  success: boolean;
+  result?: string;
+  error?: unknown;
+  message?: unknown;
+  errorCode?: number;
+};
 
 function fakeAioha() {
   return {
@@ -23,7 +32,7 @@ function fakeAioha() {
     getCurrentUser: () => 'alice',
     getCurrentProvider: () => 'keychain',
     isLoggedIn: () => true,
-    signMessage: vi.fn(async () => ({ success: true, result: 'sig' })),
+    signMessage: vi.fn(async (): Promise<AiohaSignResult> => ({ success: true, result: 'sig' })),
     on: vi.fn(),
     off: vi.fn(),
   };
@@ -85,5 +94,74 @@ describe('signMessageWithAioha without Keychain', () => {
     await expect(first).resolves.toMatchObject({ result: 'sig' });
     await expect(second).resolves.toMatchObject({ result: 'sig' });
     expect(instance.signMessage).toHaveBeenCalledTimes(1);
+  });
+
+  async function signWith(result: AiohaSignResult, silent?: boolean) {
+    const instance = fakeAioha();
+    instance.signMessage.mockResolvedValue(result);
+    loadRealAioha.mockResolvedValue({ Aioha: function Aioha() { return instance; } });
+    (window as unknown as { hive_keychain?: { requestSignBuffer: () => void } }).hive_keychain = {
+      requestSignBuffer: () => {},
+    };
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    const pending = signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', silent ? { silent: true } : {});
+    return { instance, pending };
+  }
+
+  it('remembers an unlabeled Keychain cancel so the next page does not prompt', async () => {
+    const { instance, pending } = await signWith({ success: false, errorCode: 5000 });
+    await expect(pending).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(isSignDeclined()).toBe(true);
+
+    instance.signMessage.mockClear();
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    await expect(
+      signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', { silent: true }),
+    ).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(instance.signMessage).not.toHaveBeenCalled();
+  });
+
+  it('treats a nested reject message as a decline', async () => {
+    const { pending } = await signWith({
+      success: false,
+      errorCode: 5000,
+      error: { message: 'The user rejected the request' },
+    });
+    await expect(pending).rejects.toMatchObject({ code: 'user_cancel' });
+    expect(isSignDeclined()).toBe(true);
+  });
+
+  it('still surfaces a real sign error when the user asked to sign', async () => {
+    const { pending } = await signWith({ success: false, error: 'Node error', errorCode: 5000 });
+    await expect(pending).rejects.toThrow('Node error');
+    expect(isSignDeclined()).toBe(false);
+  });
+
+  it('cools down briefly after a silent sign fails for another reason, without a 30-minute decline', async () => {
+    const { instance, pending } = await signWith({ success: false, error: 'Node error', errorCode: 5000 }, true);
+    await expect(pending).rejects.toThrow('Node error');
+    expect(isSignDeclined()).toBe(false);
+    expect(isWalletCoolingDown()).toBe(true);
+    instance.signMessage.mockClear();
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    await expect(
+      signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', { silent: true }),
+    ).rejects.toMatchObject({ code: 'wallet_not_injected' });
+    expect(instance.signMessage).not.toHaveBeenCalled();
+  });
+
+  it('does not treat a thrown network error during a silent sign as a cancel', async () => {
+    const instance = fakeAioha();
+    instance.signMessage.mockRejectedValue(new Error('network down'));
+    loadRealAioha.mockResolvedValue({ Aioha: function Aioha() { return instance; } });
+    (window as unknown as { hive_keychain?: { requestSignBuffer: () => void } }).hive_keychain = {
+      requestSignBuffer: () => {},
+    };
+    const { signMessageWithAioha, KeyTypes } = await import('./aioha');
+    await expect(
+      signMessageWithAioha('challenge', KeyTypes.Posting, 'Enable Snapie Points', { silent: true }),
+    ).rejects.toThrow('network down');
+    expect(isSignDeclined()).toBe(false);
+    expect(isWalletCoolingDown()).toBe(true);
   });
 });

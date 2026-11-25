@@ -41,6 +41,14 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-23',
+    date: '2026-11-23',
+    title: 'Points prompt',
+    items: [
+      { type: 'fix', text: 'Cancelling Enable Snapie Points keeps it away while you keep browsing. You can still turn points on yourself.' },
+    ],
+  },
+  {
     id: '2026-11-20',
     date: '2026-11-20',
     title: '3Speak upload limits and real 404s',

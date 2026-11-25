@@ -48,7 +48,8 @@ export function isUserDecline(err: unknown): boolean {
   const value = err as { code?: unknown; errorCode?: unknown; message?: unknown };
   if (value.code === 'user_cancel' || value.code === 4001 || value.errorCode === 4001) return true;
   const message = typeof value.message === 'string' ? value.message.toLowerCase() : '';
-  return message.includes('cancel') || message.includes('reject') || message.includes('declin') || message.includes('dismiss');
+  // "denied" is a Keychain wording that does not contain "declin".
+  return message.includes('cancel') || message.includes('reject') || message.includes('declin') || message.includes('dismiss') || message.includes('denied');
 }
 
 export function isSignDeclined(now = Date.now()): boolean {
@@ -196,6 +197,7 @@ async function execute<T>(args: {
       throw new WalletMissingError();
     }
     if (isUserDecline(err)) rememberSignDecline();
+    else if (args.silent) noteWalletCooldown();
     throw err;
   } finally {
     unsubscribe();
