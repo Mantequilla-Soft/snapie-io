@@ -86,7 +86,7 @@ describe('hivePostStatus', () => {
   it('gives up within one deadline when both nodes hang', async () => {
     vi.useFakeTimers();
     try {
-      const f = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      const f = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
         const signal = init?.signal;
         if (!signal) return;
         const fail = () => reject(new Error('aborted'));
