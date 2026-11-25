@@ -16,12 +16,14 @@ pnpm qa        # lint + typecheck + test + build — the same four jobs CI runs
 ## 1b. Automated phone checks (Playwright)
 
 ```bash
-pnpm e2e            # headless, phone portrait + landscape (Pixel 7)
+pnpm e2e            # headless, phone portrait + landscape (Pixel 7), plus a 375x667 phone for page checks
 pnpm e2e:ui         # watch it run / debug
 npx playwright install chromium   # once, to get the browser
 ```
 
 The suite (`e2e/`) starts its own server on port 3311, signs in as a **fake user** (the auth endpoint is mocked) and **refuses every API write** (scores, points, broadcasts), so it can't touch real accounts. Add a check for any new game in `e2e/games-mobile.spec.ts`. It currently asserts, in a real phone browser, that fullscreen fits the screen, every control is on screen, the start button is reachable, and nothing scrolls sideways. Blocks needs mocked matchmaking first (marked `fixme`).
+
+`e2e/pages-mobile.spec.ts` checks the main pages as a **logged-out guest** (no auth mock, same write guard): home feed, a post, a profile, Explore, the games hub, the login prompt on gated games and the Blocks guest lobby. Each page must return 200, show its main content and not scroll sideways. The post and profile are long-lived public Hive content, and Hive-backed content gets a long timeout so a slow node doesn't fail CI.
 
 ## 2. Manual check in a browser
 

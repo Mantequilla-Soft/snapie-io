@@ -25,6 +25,30 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-25',
+    date: '2026-11-25',
+    title: 'Crisper app icon',
+    items: [
+      { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+    ],
+  },
+  {
+    id: '2026-11-24',
+    date: '2026-11-24',
+    title: 'Reply votes',
+    items: [
+      { type: 'fix', text: 'When you upvote a reply on a post page, in a conversation or on a Short, its value now stays updated instead of going back to the old amount a few seconds later.' },
+    ],
+  },
+  {
+    id: '2026-11-20',
+    date: '2026-11-20',
+    title: '3Speak upload limits',
+    items: [
+      { type: 'improvement', text: 'When 3Speak\'s daily upload limit for free accounts is reached, video, short and audio uploads now say when you can upload next (in your time zone) and link to 3Speak Pro, and your draft stays as it was.' },
+    ],
+  },
+  {
     id: '2026-11-19',
     date: '2026-11-19',
     title: '3Speak audio, post dates and muted accounts',

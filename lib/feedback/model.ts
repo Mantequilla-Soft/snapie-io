@@ -7,8 +7,20 @@ export const FEEDBACK_SCREENSHOT_MAX_BYTES = 5 * 1024 * 1024;
 export const FEEDBACK_SCREENSHOT_URL_MAX = 500;
 export const FEEDBACK_SCREENSHOT_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 export const FEEDBACK_SCREENSHOT_HOSTS = new Set(['images.hive.blog', 'images.3speak.tv']);
+export const APP_VERSION_MAX = 40;
 
 export type FeedbackCategory = 'bug' | 'idea' | 'other';
+
+/**
+ * Clients other than the Snapie web app that may submit feedback. The source
+ * only picks a target from the server's own allow-list (see github.ts); the
+ * request never names a repo.
+ */
+export type FeedbackSource = 'hivesnaps';
+
+export const FEEDBACK_SOURCE_NAMES: Record<FeedbackSource, string> = {
+  hivesnaps: 'HiveSnaps app',
+};
 
 export interface ParsedFeedback {
   title: string;
@@ -16,6 +28,9 @@ export interface ParsedFeedback {
   category: FeedbackCategory | null;
   pageUrl: string | null;
   screenshotUrl: string | null;
+  /** null means the Snapie web app, including any unknown source value. */
+  source: FeedbackSource | null;
+  appVersion: string | null;
 }
 
 const CATEGORIES = new Set<FeedbackCategory>(['bug', 'idea', 'other']);
@@ -67,6 +82,21 @@ export function truncateUserAgent(value: string | null | undefined): string {
   if (!clean) return 'unknown';
   if (clean.length <= USER_AGENT_MAX) return clean;
   return `${clean.slice(0, USER_AGENT_MAX - 1)}…`;
+}
+
+/** An unknown or malformed source is treated as absent, never as an error. */
+export function parseFeedbackSource(value: unknown): FeedbackSource | null {
+  if (typeof value !== 'string') return null;
+  const key = value.trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(FEEDBACK_SOURCE_NAMES, key) ? (key as FeedbackSource) : null;
+}
+
+/** One short line, e.g. "1.4.0 (ios)". Anything unusable becomes null. */
+export function sanitizeAppVersion(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const clean = oneLine(value.replace(/[\u0000-\u001f\u007f`<>]/g, ' '));
+  if (!clean) return null;
+  return clean.length <= APP_VERSION_MAX ? clean : clean.slice(0, APP_VERSION_MAX).trim();
 }
 
 export function validateFeedbackScreenshotFile(file: { type: string; size: number }): string | null {
@@ -147,6 +177,8 @@ export function parseFeedbackSubmission(
   const screenshot = sanitizeScreenshotUrl(raw.screenshotUrl);
   if (!screenshot.ok) return screenshot;
 
+  const source = parseFeedbackSource(raw.source);
+
   return {
     ok: true,
     value: {
@@ -155,6 +187,8 @@ export function parseFeedbackSubmission(
       category,
       pageUrl: sanitizePageUrl(raw.pageUrl),
       screenshotUrl: screenshot.url,
+      source,
+      appVersion: source ? sanitizeAppVersion(raw.appVersion) : null,
     },
   };
 }
@@ -174,18 +208,25 @@ export function buildFeedbackIssue(input: {
   hiveUsername: string | null;
   userAgent: string;
   screenshotUrl?: string | null;
+  source?: FeedbackSource | null;
+  appVersion?: string | null;
 }): { title: string; body: string; labels: string[] } {
   const prefix = input.category === 'bug' ? '[Bug]' : input.category === 'idea' ? '[Idea]' : '[Feedback]';
   const category = input.category ?? 'unspecified';
   const who = input.hiveUsername ?? 'guest';
   const page = input.pageUrl ?? 'unknown';
-  const lines = [
+  const lines: string[] = [];
+  if (input.source) {
+    const from = [FEEDBACK_SOURCE_NAMES[input.source], input.appVersion].filter(Boolean).join(' ');
+    lines.push(`**From:** ${from}`);
+  }
+  lines.push(
     `**Category:** ${category}`,
     `**Page:** ${page}`,
     `**Hive user:** ${who}`,
     '',
     input.body,
-  ];
+  );
   if (input.screenshotUrl) {
     lines.push('', '**Screenshot:**', '', `![Screenshot](${markdownSafeUrl(input.screenshotUrl)})`);
   }

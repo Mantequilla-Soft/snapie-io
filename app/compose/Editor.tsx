@@ -7,6 +7,10 @@ import { FaImage, FaEye, FaCode, FaBold, FaItalic, FaLink, FaListUl, FaListOl, F
 import AudioRecorder from '@/components/homepage/AudioRecorder';
 import { uploadVideoWithThumbnail, uploadToIPFS, set3SpeakThumbnail } from '@snapie/operations/video';
 import { pickVideoFile } from '@/lib/utils/pickVideoFile';
+import { blockedByQuota, isUploadLimitError, type UploadLimitInfo } from '@snapie/operations/limits';
+import { fetch3SpeakVideoQuota } from '@/lib/hive/client-functions';
+import UploadLimitNotice from '@/components/shared/UploadLimitNotice';
+import { useUploadQuota } from '@/hooks/useUploadQuota';
 import { MdGif } from 'react-icons/md';
 import markdownRenderer from '@/lib/utils/MarkdownRenderer';
 import { SpoilerComponent } from '@/lib/utils/SpoilerRenderer';
@@ -238,6 +242,15 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
 
     const { username: user } = useCurrentUser();
 
+    // Free-account video allowance, read when the editor opens so a used-up
+    // day shows before the file is picked. Unknown = no limit known.
+    const videoQuota = useUploadQuota(user, fetch3SpeakVideoQuota);
+    const { prefetch: prefetchVideoQuota } = videoQuota;
+    useEffect(() => {
+        void prefetchVideoQuota();
+    }, [prefetchVideoQuota]);
+    const [videoLimitNotice, setVideoLimitNotice] = useState<UploadLimitInfo | null>(null);
+
     // Reflect a video attached upstream (e.g. a hangout recording handed
     // off before this component mounted) — there's no File object for it,
     // just the already-uploaded embed URL.
@@ -438,8 +451,19 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
             toast({ title: 'Not Logged In', description: 'Please log in to upload videos.', status: 'error', duration: 3000, isClosable: true });
             return;
         }
+        const known = blockedByQuota(videoQuota.quota, 'video', user);
+        if (known) {
+            setVideoLimitNotice(known);
+            return;
+        }
         const file = await pickVideoFile();
         if (!file) return;
+        setVideoLimitNotice(null);
+        const blocked = blockedByQuota(await videoQuota.prefetch(), 'video', user);
+        if (blocked) {
+            setVideoLimitNotice(blocked);
+            return;
+        }
         if (file.size > 500 * 1024 * 1024) {
             toast({ title: 'File Too Large', description: 'Maximum video size is 500 MB.', status: 'error', duration: 3000, isClosable: true });
             return;
@@ -467,6 +491,7 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                     }
                 },
             });
+            videoQuota.invalidate();
             setVideoEmbedUrl(result.embedUrl);
             setVideoId(result.videoId);
             setVideoThumbnailUrl(result.thumbnailUrl ?? null);
@@ -474,6 +499,15 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
             onVideoEmbedUrlChange?.(result.embedUrl);
             toast({ title: 'Video Uploaded', description: 'Video will be embedded in your post.', status: 'success', duration: 3000, isClosable: true });
         } catch (error) {
+            if (isUploadLimitError(error)) {
+                // Refused before any bytes were sent. No retry and no other
+                // upload path; title and body stay as they are.
+                setVideoLimitNotice(error.info);
+                videoQuota.invalidate();
+                setSelectedVideo(null);
+                setVideoUploadProgress(0);
+                return;
+            }
             console.error('Video upload failed:', error);
             toast({ title: 'Video Upload Failed', description: error instanceof Error ? error.message : 'Please try again.', status: 'error', duration: 4000, isClosable: true });
             setSelectedVideo(null);
@@ -1046,6 +1080,10 @@ const Editor: FC<EditorProps> = ({ markdown, setMarkdown, title, setTitle, hasht
                             </Text>
                         </Flex>
                         </Box>
+
+                        {videoLimitNotice && (
+                            <UploadLimitNotice info={videoLimitNotice} onClose={() => setVideoLimitNotice(null)} />
+                        )}
 
                         {/* Media Attachments */}
                         {(selectedVideo || videoEmbedUrl || audioEmbedUrl) && (

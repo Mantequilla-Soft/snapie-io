@@ -1,10 +1,21 @@
-const DEFAULT_REPO = 'Mantequilla-Soft/snapie-io';
+import type { FeedbackSource } from './model';
 
-const LABEL_META: Record<string, { color: string; description: string }> = {
-  feedback: { color: '5319e7', description: 'Submitted from the Snapie app' },
-  bug: { color: 'd73a4a', description: 'Bug report from the Snapie app' },
-  idea: { color: '0e8a16', description: 'Idea from the Snapie app' },
-};
+const DEFAULT_REPO = 'Mantequilla-Soft/snapie-io';
+const DEFAULT_HIVESNAPS_REPO = 'Mantequilla-Soft/hivesnaps';
+const REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+
+function labelMeta(name: string, appName: string): { color: string; description: string } {
+  switch (name) {
+    case 'feedback':
+      return { color: '5319e7', description: `Submitted from the ${appName}` };
+    case 'bug':
+      return { color: 'd73a4a', description: `Bug report from the ${appName}` };
+    case 'idea':
+      return { color: '0e8a16', description: `Idea from the ${appName}` };
+    default:
+      return { color: 'ededed', description: name };
+  }
+}
 
 export class FeedbackGithubError extends Error {
   readonly status: number;
@@ -16,13 +27,43 @@ export class FeedbackGithubError extends Error {
   }
 }
 
-export function feedbackRepo(): string {
-  const raw = process.env.GITHUB_FEEDBACK_REPO?.trim();
-  if (!raw) return DEFAULT_REPO;
-  if (!/^[\w.-]+\/[\w.-]+$/.test(raw)) {
+function repoFromEnv(raw: string | undefined, fallback: string): string {
+  const value = raw?.trim();
+  if (!value) return fallback;
+  if (!REPO_PATTERN.test(value)) {
     throw new FeedbackGithubError(503, 'bad_repo');
   }
-  return raw;
+  return value;
+}
+
+export function feedbackRepo(): string {
+  return repoFromEnv(process.env.GITHUB_FEEDBACK_REPO, DEFAULT_REPO);
+}
+
+export interface FeedbackTarget {
+  repo: string;
+  token: string;
+  appName: string;
+}
+
+/**
+ * Where a submission goes. Only this server-side mapping picks the repo and
+ * token; nothing from the request is used beyond the parsed source.
+ * A missing token or a bad repo name is a 503, never a fallback to another repo.
+ */
+export function feedbackTarget(source: FeedbackSource | null = null): FeedbackTarget {
+  if (source === 'hivesnaps') {
+    const token = (process.env.GITHUB_FEEDBACK_TOKEN_HIVESNAPS || process.env.GITHUB_FEEDBACK_TOKEN)?.trim();
+    if (!token) throw new FeedbackGithubError(503, 'not_configured');
+    return {
+      repo: repoFromEnv(process.env.GITHUB_FEEDBACK_REPO_HIVESNAPS, DEFAULT_HIVESNAPS_REPO),
+      token,
+      appName: 'HiveSnaps app',
+    };
+  }
+  const token = process.env.GITHUB_FEEDBACK_TOKEN?.trim();
+  if (!token) throw new FeedbackGithubError(503, 'not_configured');
+  return { repo: feedbackRepo(), token, appName: 'Snapie app' };
 }
 
 interface IssueDraft {
@@ -55,8 +96,8 @@ async function missingLabel(res: Response): Promise<boolean> {
   return data.errors.some((err) => !!err && typeof err === 'object' && (err as { field?: unknown }).field === 'labels');
 }
 
-async function ensureLabel(repo: string, token: string, name: string): Promise<void> {
-  const meta = LABEL_META[name] ?? { color: 'ededed', description: name };
+async function ensureLabel(repo: string, token: string, name: string, appName: string): Promise<void> {
+  const meta = labelMeta(name, appName);
   const res = await githubFetch(`/repos/${repo}/labels`, token, {
     method: 'POST',
     body: JSON.stringify({ name, color: meta.color, description: meta.description }),
@@ -81,21 +122,19 @@ async function postIssue(repo: string, token: string, draft: IssueDraft): Promis
   });
 }
 
-export function assertFeedbackConfigured(): void {
-  if (!process.env.GITHUB_FEEDBACK_TOKEN?.trim()) {
-    throw new FeedbackGithubError(503, 'not_configured');
-  }
-  feedbackRepo();
+export function assertFeedbackConfigured(source: FeedbackSource | null = null): void {
+  feedbackTarget(source);
 }
 
-export async function createFeedbackIssue(draft: IssueDraft): Promise<{ url: string | null }> {
-  assertFeedbackConfigured();
-  const token = process.env.GITHUB_FEEDBACK_TOKEN!.trim();
-  const repo = feedbackRepo();
+export async function createFeedbackIssue(
+  draft: IssueDraft,
+  source: FeedbackSource | null = null,
+): Promise<{ url: string | null }> {
+  const { repo, token, appName } = feedbackTarget(source);
   let res = await postIssue(repo, token, draft);
   if (await missingLabel(res)) {
     for (const label of draft.labels) {
-      await ensureLabel(repo, token, label);
+      await ensureLabel(repo, token, label, appName);
     }
     res = await postIssue(repo, token, draft);
     if (await missingLabel(res)) {

@@ -10,6 +10,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./speak-audio": {
+      "types": "./dist/speakAudio.d.ts",
+      "import": "./dist/speakAudio.mjs",
+      "require": "./dist/speakAudio.js"
     }
   },
   "files": [

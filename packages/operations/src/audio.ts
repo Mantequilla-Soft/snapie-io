@@ -16,6 +16,22 @@
  * ```
  */
 
+import { UploadLimitError, uploadLimitFromTusError } from './limits';
+
+// Limit helpers live in ./limits; re-exported so audio callers need one import.
+export {
+    UploadLimitError,
+    isUploadLimitError,
+    readUploadLimit,
+    fetchAudioQuota,
+    blockedByQuota,
+    audioMaxSeconds,
+    audioTooLong,
+    formatUploadLimitMessage,
+    type UploadLimitInfo,
+    type AudioQuota,
+} from './limits';
+
 /**
  * Audio upload progress callback
  */
@@ -84,7 +100,9 @@ export async function uploadAudioTo3Speak(
             },
             onError: (error) => {
                 options.onProgress?.(0, 'error');
-                reject(error);
+                // 429 daily_audio_limit / 413 audio_too_long: no retry, no fallback.
+                const limit = uploadLimitFromTusError(error);
+                reject(limit ? new UploadLimitError(limit) : error);
             },
             onProgress: (bytesUploaded, bytesTotal) => {
                 const percentage = (bytesUploaded / bytesTotal) * 100;

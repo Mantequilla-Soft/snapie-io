@@ -1,3 +1,5 @@
+export { AudioQuota, UploadLimitError, UploadLimitInfo, audioMaxSeconds, audioTooLong, blockedByQuota, fetchAudioQuota, formatUploadLimitMessage, isUploadLimitError, readUploadLimit } from './limits.mjs';
+
 /**
  * @snapie/operations/audio - Audio Upload Module
  *
@@ -15,6 +17,7 @@
  * });
  * ```
  */
+
 /**
  * Audio upload progress callback
  */
