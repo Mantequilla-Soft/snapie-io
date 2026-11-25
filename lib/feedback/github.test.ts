@@ -15,15 +15,21 @@ function json(body: unknown, status: number) {
   });
 }
 
+const ENV_KEYS = [
+  'GITHUB_FEEDBACK_TOKEN',
+  'GITHUB_FEEDBACK_REPO',
+  'GITHUB_FEEDBACK_TOKEN_HIVESNAPS',
+  'GITHUB_FEEDBACK_REPO_HIVESNAPS',
+];
+
 beforeEach(() => {
+  for (const key of ENV_KEYS) delete process.env[key];
   process.env.GITHUB_FEEDBACK_TOKEN = TOKEN;
-  delete process.env.GITHUB_FEEDBACK_REPO;
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete process.env.GITHUB_FEEDBACK_TOKEN;
-  delete process.env.GITHUB_FEEDBACK_REPO;
+  for (const key of ENV_KEYS) delete process.env[key];
 });
 
 describe('createFeedbackIssue', () => {
@@ -107,5 +113,78 @@ describe('createFeedbackIssue', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(createFeedbackIssue(ISSUE)).rejects.toMatchObject({ status: 503 });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  describe('hivesnaps source', () => {
+    const HS_TOKEN = 'github_pat_hivesnaps_only';
+
+    it('files into Mantequilla-Soft/hivesnaps by default with the shared token', async () => {
+      process.env.GITHUB_FEEDBACK_REPO = 'Example-Org/widget';
+      const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+        expect(url).toBe('https://api.github.com/repos/Mantequilla-Soft/hivesnaps/issues');
+        expect(new Headers(init?.headers).get('authorization')).toBe(`Bearer ${TOKEN}`);
+        return json({ html_url: 'https://github.com/Mantequilla-Soft/hivesnaps/issues/7' }, 201);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const created = await createFeedbackIssue(ISSUE, 'hivesnaps');
+      expect(created.url).toBe('https://github.com/Mantequilla-Soft/hivesnaps/issues/7');
+    });
+
+    it('prefers GITHUB_FEEDBACK_TOKEN_HIVESNAPS and the repo override', async () => {
+      process.env.GITHUB_FEEDBACK_TOKEN_HIVESNAPS = HS_TOKEN;
+      process.env.GITHUB_FEEDBACK_REPO_HIVESNAPS = 'Example-Org/mobile';
+      const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+        expect(url).toBe('https://api.github.com/repos/Example-Org/mobile/issues');
+        expect(new Headers(init?.headers).get('authorization')).toBe(`Bearer ${HS_TOKEN}`);
+        return json({ html_url: 'https://github.com/Example-Org/mobile/issues/8' }, 201);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      await createFeedbackIssue(ISSUE, 'hivesnaps');
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('never uses the HiveSnaps token for web feedback', async () => {
+      process.env.GITHUB_FEEDBACK_TOKEN_HIVESNAPS = HS_TOKEN;
+      const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+        expect(url).toBe('https://api.github.com/repos/Mantequilla-Soft/snapie-io/issues');
+        expect(new Headers(init?.headers).get('authorization')).toBe(`Bearer ${TOKEN}`);
+        return json({ html_url: 'https://github.com/Mantequilla-Soft/snapie-io/issues/9' }, 201);
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      await createFeedbackIssue(ISSUE, null);
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('is a 503 with no fallback when no token is configured', async () => {
+      delete process.env.GITHUB_FEEDBACK_TOKEN;
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(createFeedbackIssue(ISSUE, 'hivesnaps')).rejects.toMatchObject({ status: 503 });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('is a 503 with no fallback when the HiveSnaps repo is malformed', async () => {
+      process.env.GITHUB_FEEDBACK_REPO_HIVESNAPS = '../../evil';
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      await expect(createFeedbackIssue(ISSUE, 'hivesnaps')).rejects.toMatchObject({ status: 503 });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('describes created labels as coming from the HiveSnaps app', async () => {
+      const labelBodies: string[] = [];
+      let issuePosts = 0;
+      vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+        if (String(url).endsWith('/labels')) {
+          labelBodies.push(String(init?.body));
+          return json({}, 201);
+        }
+        issuePosts += 1;
+        if (issuePosts === 1) return json({ message: 'Validation Failed', errors: [{ field: 'labels' }] }, 422);
+        return json({ html_url: 'https://github.com/Mantequilla-Soft/hivesnaps/issues/10' }, 201);
+      }));
+      await createFeedbackIssue(ISSUE, 'hivesnaps');
+      expect(JSON.parse(labelBodies[0]).description).toBe('Submitted from the HiveSnaps app');
+    });
   });
 });

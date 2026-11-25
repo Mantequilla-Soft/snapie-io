@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  APP_VERSION_MAX,
   FEEDBACK_BODY_MAX,
   FEEDBACK_TITLE_MAX,
   USER_AGENT_MAX,
@@ -48,6 +49,8 @@ describe('parseFeedbackSubmission', () => {
         category: 'bug',
         pageUrl: null,
         screenshotUrl: null,
+        source: null,
+        appVersion: null,
       },
     });
   });
@@ -190,5 +193,63 @@ describe('screenshot helpers', () => {
     const line = issue.body.split('\n').find((l) => l.startsWith('![Screenshot]('));
     expect(line?.endsWith(')')).toBe(true);
     expect(line?.slice('![Screenshot]('.length, -1)).not.toMatch(/[()]/);
+  });
+});
+
+describe('feedback source', () => {
+  const base = { title: 'Crash', body: 'It closes.' };
+
+  it('accepts hivesnaps and its app version', () => {
+    const parsed = parseFeedbackSubmission({ ...base, source: 'hivesnaps', appVersion: '1.4.0 (ios)' });
+    expect(parsed.ok && parsed.value.source).toBe('hivesnaps');
+    expect(parsed.ok && parsed.value.appVersion).toBe('1.4.0 (ios)');
+  });
+
+  it('treats a missing or unknown source like the web app, never as an error', () => {
+    for (const source of [undefined, null, '', 'android', 'Mantequilla-Soft/other', 42, { repo: 'x/y' }, ['hivesnaps']]) {
+      const parsed = parseFeedbackSubmission({ ...base, source, appVersion: '9.9.9' });
+      expect(parsed.ok).toBe(true);
+      expect(parsed.ok && parsed.value.source).toBeNull();
+      expect(parsed.ok && parsed.value.appVersion).toBeNull();
+    }
+  });
+
+  it('ignores a repo field in the request', () => {
+    const parsed = parseFeedbackSubmission({ ...base, source: 'hivesnaps', repo: 'evil/repo' });
+    expect(parsed.ok && JSON.stringify(parsed.value)).not.toContain('evil');
+  });
+
+  it('keeps the app version to one short sanitized line', () => {
+    const v = (appVersion: unknown) => {
+      const parsed = parseFeedbackSubmission({ ...base, source: 'hivesnaps', appVersion });
+      return parsed.ok ? parsed.value.appVersion : 'error';
+    };
+    expect(v('1.4.0\n**Hive user:** admin')).toBe('1.4.0 **Hive user:** admin');
+    expect(v('1.0 `x` <img>')).toBe('1.0 x img');
+    expect(v('x'.repeat(200))).toHaveLength(APP_VERSION_MAX);
+    expect(v('   ')).toBeNull();
+    expect(v(140)).toBeNull();
+    expect(v(undefined)).toBeNull();
+  });
+
+  it('adds a From line for HiveSnaps notes and keeps web notes unchanged', () => {
+    const input = {
+      title: 'Crash',
+      body: 'It closes.',
+      category: 'bug' as const,
+      pageUrl: null,
+      hiveUsername: 'alice',
+      userAgent: 'okhttp/4.12',
+    };
+    const app = buildFeedbackIssue({ ...input, source: 'hivesnaps', appVersion: '1.4.0 (ios)' });
+    expect(app.body.split('\n')[0]).toBe('**From:** HiveSnaps app 1.4.0 (ios)');
+    expect(app.labels).toEqual(['feedback', 'bug']);
+
+    const noVersion = buildFeedbackIssue({ ...input, source: 'hivesnaps', appVersion: null });
+    expect(noVersion.body.split('\n')[0]).toBe('**From:** HiveSnaps app');
+
+    const web = buildFeedbackIssue(input);
+    expect(web.body).not.toContain('**From:**');
+    expect(web.body.split('\n')[0]).toBe('**Category:** bug');
   });
 });
