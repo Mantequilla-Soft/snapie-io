@@ -1,6 +1,11 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { HangoutsProvider, RoomLobby, type Room } from '@snapie/hangouts-react';
+// Deep paths, not the package barrel. The barrel re-exports the LiveKit room
+// UI, and this page only needs the lobby. A barrel import pulled LiveKit into
+// the hangouts route (and into every page that prefetched it).
+import { HangoutsProvider } from '@snapie/hangouts-react/dist/context/HangoutsProvider.js';
+import { RoomLobby } from '@snapie/hangouts-react/dist/components/lobby/RoomLobby.js';
+import type { Room } from '@snapie/hangouts-react';
 import '@snapie/hangouts-react/src/styles/hangouts.css';
 import '@/app/hangouts/overrides.css';
 import { useHangout } from '@/contexts/HangoutContext';
