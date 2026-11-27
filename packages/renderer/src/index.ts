@@ -97,7 +97,7 @@ const HIVEMOJI_SKIP_TAGS = new Set([
 
 /** Module/window-level cache of Hivemoji srcs that already 404'd — remounts skip the request. */
 const HIVEMOJI_MISS_CACHE_KEY = '__snapieHivemojiMissCache';
-const HIVEMOJI_REMEMBER_MISS_KEY = '__snapieRememberHivemojiMiss';
+const HIVEMOJI_MISS_APPLY_KEY = '__snapieHivemojiMissApply';
 
 function getHivemojiMissCache(): Set<string> {
     const root = globalThis as typeof globalThis & {
@@ -128,6 +128,10 @@ function hasHivemojiMiss(src: string): boolean {
     return getHivemojiMissCache().has(src);
 }
 
+function missReplacementEnabled(): boolean {
+    return Boolean((globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY]);
+}
+
 /** Test helper: seed the miss cache without loading an image. */
 export function markHivemojiMissForTests(src: string): void {
     rememberHivemojiMiss(src);
@@ -136,22 +140,50 @@ export function markHivemojiMissForTests(src: string): void {
 /** Test helper: clear remembered misses between cases. */
 export function clearHivemojiMissCacheForTests(): void {
     getHivemojiMissCache().clear();
+    delete (globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY];
 }
 
-// Inline onerror must reach the browser (dangerouslySetInnerHTML); keep this string
-// stable so the DOMPurify hook below can allow only this exact handler on hivemoji imgs.
-const HIVEMOJI_ONERROR_HANDLER =
-    'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}' +
-    'try{var s=this.getAttribute("src")||this.src;if(s&&typeof globalThis.' +
-    HIVEMOJI_REMEMBER_MISS_KEY +
-    '==="function")globalThis.' +
-    HIVEMOJI_REMEMBER_MISS_KEY +
-    '(s);}catch(e){}';
+/**
+ * Test helper: let later renders omit known misses. Production turns this on
+ * only after hydration, so the first client render still matches the server.
+ */
+export function enableHivemojiMissReplacementForTests(): void {
+    (globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY] = true;
+}
 
-if (typeof globalThis !== 'undefined') {
-    (globalThis as typeof globalThis & {
-        [HIVEMOJI_REMEMBER_MISS_KEY]?: (src: string) => void;
-    })[HIVEMOJI_REMEMBER_MISS_KEY] = rememberHivemojiMiss;
+function showHivemojiFallback(img: HTMLImageElement): void {
+    rememberHivemojiMiss(img.getAttribute('src') || img.currentSrc || img.src);
+    img.style.display = 'none';
+    const parent = img.parentElement;
+    if (!parent) return;
+    parent.classList.add('hivemoji--fallback');
+    const text = parent.querySelector('.hivemoji__text');
+    if (text instanceof HTMLElement) text.style.display = 'inline';
+}
+
+let hivemojiMissHandlerInstalled = false;
+
+/**
+ * Record Hivemoji 404s from a capturing document listener and, after this
+ * runs, omit those URLs from later renders. Called from a client effect so
+ * it cannot change the HTML React is hydrating. `onerror` stays forbidden.
+ */
+export function installHivemojiMissHandler(): void {
+    if (hivemojiMissHandlerInstalled || typeof document === 'undefined') return;
+    hivemojiMissHandlerInstalled = true;
+    enableHivemojiMissReplacementForTests();
+    document.addEventListener('error', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLImageElement)) return;
+        if (!target.classList.contains('hivemoji__img')) return;
+        showHivemojiFallback(target);
+    }, true);
+    document.querySelectorAll('img.hivemoji__img').forEach((node) => {
+        if (!(node instanceof HTMLImageElement)) return;
+        if (node.complete && node.naturalWidth === 0 && node.getAttribute('src')) {
+            showHivemojiFallback(node);
+        }
+    });
 }
 
 /**
@@ -196,9 +228,6 @@ const DOMPURIFY_CONFIG = {
         // DOMPurify drops `role` unless listed; the attribute hook below
         // only lets role="img" through.
         'class', 'id', 'style', 'target', 'rel', 'role',
-        // `onerror` is listed so the Hivemoji fallback handler can survive
-        // sanitize; the attribute hook rejects every other onerror value.
-        'onerror',
         'controls', 'muted', 'preload', 'loading', 'loop',
         'type', 'allowfullscreen', 'frameborder', 'allow', 'scrolling',
         'colspan', 'rowspan', 'align', 'valign',
@@ -209,9 +238,7 @@ const DOMPURIFY_CONFIG = {
     ALLOW_DATA_ATTR: false,
     ALLOW_UNKNOWN_PROTOCOLS: false,
     FORBID_TAGS: ['script', 'form', 'input', 'button', 'textarea', 'select', 'dialog', 'object', 'embed', 'applet', 'base', 'link', 'meta'],
-    // onerror is intentionally omitted: hivemoji imgs need a fixed fallback handler
-    // (see uponSanitizeAttribute below). All other event handlers stay forbidden.
-    FORBID_ATTR: ['onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousemove', 'onmouseenter', 'onmouseleave', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'onkeydown', 'onkeyup', 'onkeypress'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousemove', 'onmouseenter', 'onmouseleave', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'onkeydown', 'onkeyup', 'onkeypress'],
     KEEP_CONTENT: true,
     RETURN_TRUSTED_TYPE: false
 };
@@ -226,7 +253,7 @@ const DOMPURIFY_CONFIG = {
  * witness on HiveSigner" dialog). Strip `position` and `z-index` from every style
  * attribute so no element can escape its normal place in page flow.
  */
-DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+DOMPurify.addHook('uponSanitizeAttribute', (_node, data) => {
     // Post HTML may not claim widget/landmark roles (role="button",
     // role="dialog"...) to assistive tech; only the image role is kept.
     if (data.attrName === 'role' && data.attrValue.trim().toLowerCase() !== 'img') {
@@ -238,17 +265,6 @@ DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
             .split(';')
             .filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl))
             .join(';');
-    }
-    // Only the exact Hivemoji fallback handler may keep onerror — author-injected
-    // handlers (alert, fetch, …) are dropped.
-    if (data.attrName === 'onerror') {
-        const className = (node as Element).getAttribute?.('class') || '';
-        const isHivemojiImg =
-            node.nodeName?.toLowerCase() === 'img' &&
-            className.split(/\s+/).includes('hivemoji__img');
-        if (!isHivemojiImg || data.attrValue !== HIVEMOJI_ONERROR_HANDLER) {
-            data.keepAttr = false;
-        }
     }
 });
 
@@ -715,8 +731,9 @@ function createHivemojiElement(
 ): HTMLSpanElement {
     const src = buildHivemojiUrl(baseUrl, owner, name);
 
-    // Known miss: skip the request and show the text fallback immediately.
-    if (hasHivemojiMiss(src)) {
+    // Known misses are omitted only after hydration. Using the cache during
+    // the first client render disagrees with the server HTML (#409).
+    if (missReplacementEnabled() && hasHivemojiMiss(src)) {
         return createHivemojiFallbackElement(doc, altText);
     }
 
@@ -744,7 +761,6 @@ function createHivemojiElement(
     img.style.margin = '0';
     img.style.objectFit = 'contain';
     img.style.verticalAlign = 'middle';
-    img.setAttribute('onerror', HIVEMOJI_ONERROR_HANDLER);
     span.style.display = 'inline-flex';
     span.style.alignItems = 'center';
     span.style.verticalAlign = 'middle';

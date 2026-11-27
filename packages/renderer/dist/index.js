@@ -33,6 +33,8 @@ __export(index_exports, {
   canonicalSpeakAudioUrl: () => canonicalSpeakAudioUrl,
   clearHivemojiMissCacheForTests: () => clearHivemojiMissCacheForTests,
   createHiveRenderer: () => createHiveRenderer,
+  enableHivemojiMissReplacementForTests: () => enableHivemojiMissReplacementForTests,
+  installHivemojiMissHandler: () => installHivemojiMissHandler,
   markHivemojiMissForTests: () => markHivemojiMissForTests,
   renderHiveMarkdown: () => renderHiveMarkdown
 });
@@ -76,7 +78,7 @@ var HIVEMOJI_SKIP_TAGS = /* @__PURE__ */ new Set([
   "samp"
 ]);
 var HIVEMOJI_MISS_CACHE_KEY = "__snapieHivemojiMissCache";
-var HIVEMOJI_REMEMBER_MISS_KEY = "__snapieRememberHivemojiMiss";
+var HIVEMOJI_MISS_APPLY_KEY = "__snapieHivemojiMissApply";
 function getHivemojiMissCache() {
   const root = globalThis;
   if (!root[HIVEMOJI_MISS_CACHE_KEY]) {
@@ -98,15 +100,45 @@ function rememberHivemojiMiss(src) {
 function hasHivemojiMiss(src) {
   return getHivemojiMissCache().has(src);
 }
+function missReplacementEnabled() {
+  return Boolean(globalThis[HIVEMOJI_MISS_APPLY_KEY]);
+}
 function markHivemojiMissForTests(src) {
   rememberHivemojiMiss(src);
 }
 function clearHivemojiMissCacheForTests() {
   getHivemojiMissCache().clear();
+  delete globalThis[HIVEMOJI_MISS_APPLY_KEY];
 }
-var HIVEMOJI_ONERROR_HANDLER = 'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}try{var s=this.getAttribute("src")||this.src;if(s&&typeof globalThis.' + HIVEMOJI_REMEMBER_MISS_KEY + '==="function")globalThis.' + HIVEMOJI_REMEMBER_MISS_KEY + "(s);}catch(e){}";
-if (typeof globalThis !== "undefined") {
-  globalThis[HIVEMOJI_REMEMBER_MISS_KEY] = rememberHivemojiMiss;
+function enableHivemojiMissReplacementForTests() {
+  globalThis[HIVEMOJI_MISS_APPLY_KEY] = true;
+}
+function showHivemojiFallback(img) {
+  rememberHivemojiMiss(img.getAttribute("src") || img.currentSrc || img.src);
+  img.style.display = "none";
+  const parent = img.parentElement;
+  if (!parent) return;
+  parent.classList.add("hivemoji--fallback");
+  const text = parent.querySelector(".hivemoji__text");
+  if (text instanceof HTMLElement) text.style.display = "inline";
+}
+var hivemojiMissHandlerInstalled = false;
+function installHivemojiMissHandler() {
+  if (hivemojiMissHandlerInstalled || typeof document === "undefined") return;
+  hivemojiMissHandlerInstalled = true;
+  enableHivemojiMissReplacementForTests();
+  document.addEventListener("error", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (!target.classList.contains("hivemoji__img")) return;
+    showHivemojiFallback(target);
+  }, true);
+  document.querySelectorAll("img.hivemoji__img").forEach((node) => {
+    if (!(node instanceof HTMLImageElement)) return;
+    if (node.complete && node.naturalWidth === 0 && node.getAttribute("src")) {
+      showHivemojiFallback(node);
+    }
+  });
 }
 var DEFAULT_HIVE_FRONTENDS = [
   "peakd.com",
@@ -197,9 +229,6 @@ var DOMPURIFY_CONFIG = {
     "target",
     "rel",
     "role",
-    // `onerror` is listed so the Hivemoji fallback handler can survive
-    // sanitize; the attribute hook rejects every other onerror value.
-    "onerror",
     "controls",
     "muted",
     "preload",
@@ -224,26 +253,17 @@ var DOMPURIFY_CONFIG = {
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
   FORBID_TAGS: ["script", "form", "input", "button", "textarea", "select", "dialog", "object", "embed", "applet", "base", "link", "meta"],
-  // onerror is intentionally omitted: hivemoji imgs need a fixed fallback handler
-  // (see uponSanitizeAttribute below). All other event handlers stay forbidden.
-  FORBID_ATTR: ["onload", "onclick", "onmouseover", "onmouseout", "onmousemove", "onmouseenter", "onmouseleave", "onfocus", "onblur", "onchange", "onsubmit", "onkeydown", "onkeyup", "onkeypress"],
+  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onmouseout", "onmousemove", "onmouseenter", "onmouseleave", "onfocus", "onblur", "onchange", "onsubmit", "onkeydown", "onkeyup", "onkeypress"],
   KEEP_CONTENT: true,
   RETURN_TRUSTED_TYPE: false
 };
-import_isomorphic_dompurify.default.addHook("uponSanitizeAttribute", (node, data) => {
+import_isomorphic_dompurify.default.addHook("uponSanitizeAttribute", (_node, data) => {
   if (data.attrName === "role" && data.attrValue.trim().toLowerCase() !== "img") {
     data.keepAttr = false;
     return;
   }
   if (data.attrName === "style" && data.attrValue) {
     data.attrValue = data.attrValue.split(";").filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl)).join(";");
-  }
-  if (data.attrName === "onerror") {
-    const className = node.getAttribute?.("class") || "";
-    const isHivemojiImg = node.nodeName?.toLowerCase() === "img" && className.split(/\s+/).includes("hivemoji__img");
-    if (!isHivemojiImg || data.attrValue !== HIVEMOJI_ONERROR_HANDLER) {
-      data.keepAttr = false;
-    }
   }
 });
 import_isomorphic_dompurify.default.addHook("uponSanitizeElement", (node) => {
@@ -547,7 +567,7 @@ function createHivemojiFallbackElement(doc, altText) {
 }
 function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   const src = buildHivemojiUrl(baseUrl, owner, name);
-  if (hasHivemojiMiss(src)) {
+  if (missReplacementEnabled() && hasHivemojiMiss(src)) {
     return createHivemojiFallbackElement(doc, altText);
   }
   const span = doc.createElement("span");
@@ -573,7 +593,6 @@ function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   img.style.margin = "0";
   img.style.objectFit = "contain";
   img.style.verticalAlign = "middle";
-  img.setAttribute("onerror", HIVEMOJI_ONERROR_HANDLER);
   span.style.display = "inline-flex";
   span.style.alignItems = "center";
   span.style.verticalAlign = "middle";
@@ -729,6 +748,8 @@ var renderHiveMarkdown = createHiveRenderer();
   canonicalSpeakAudioUrl,
   clearHivemojiMissCacheForTests,
   createHiveRenderer,
+  enableHivemojiMissReplacementForTests,
+  installHivemojiMissHandler,
   markHivemojiMissForTests,
   renderHiveMarkdown
 });

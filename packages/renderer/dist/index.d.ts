@@ -60,6 +60,17 @@ declare function markHivemojiMissForTests(src: string): void;
 /** Test helper: clear remembered misses between cases. */
 declare function clearHivemojiMissCacheForTests(): void;
 /**
+ * Test helper: let later renders omit known misses. Production turns this on
+ * only after hydration, so the first client render still matches the server.
+ */
+declare function enableHivemojiMissReplacementForTests(): void;
+/**
+ * Record Hivemoji 404s from a capturing document listener and, after this
+ * runs, omit those URLs from later renders. Called from a client effect so
+ * it cannot change the HTML React is hydrating. `onerror` stays forbidden.
+ */
+declare function installHivemojiMissHandler(): void;
+/**
  * Create a Hive markdown renderer with the given options
  *
  * @param options - Configuration options for the renderer
@@ -90,4 +101,4 @@ declare function createHiveRenderer(options?: HiveRendererOptions): (markdown: s
  */
 declare const renderHiveMarkdown: (markdown: string, context?: HiveRendererContext) => string;
 
-export { type HiveRendererContext, type HiveRendererOptions, clearHivemojiMissCacheForTests, createHiveRenderer, markHivemojiMissForTests, renderHiveMarkdown };
+export { type HiveRendererContext, type HiveRendererOptions, clearHivemojiMissCacheForTests, createHiveRenderer, enableHivemojiMissReplacementForTests, installHivemojiMissHandler, markHivemojiMissForTests, renderHiveMarkdown };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     clearHivemojiMissCacheForTests,
+    enableHivemojiMissReplacementForTests,
     markHivemojiMissForTests,
 } from '@snapie/renderer';
 import markdownRenderer from './MarkdownRenderer';
@@ -44,20 +45,28 @@ describe('markdownRenderer image srcs', () => {
         expect(html).toContain(encodeURIComponent('https://hivemoji.hivelytics.io/@alice/@wave'));
     });
 
-    it('skips the img src on a second render when the hivemoji URL is a known miss', () => {
+    it('keeps a known miss in the HTML until replacement is enabled after hydration', () => {
         clearHivemojiMissCacheForTests();
         const missUrl = 'https://hivemoji.hivelytics.io/@alice/@nope';
-        const first = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
-        expect(first).toContain('hivemoji__img');
-        expect(first).toContain(encodeURIComponent(missUrl));
-
         markHivemojiMissForTests(missUrl);
-        const second = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
-        expect(second).toContain('hivemoji--fallback');
-        expect(second).toContain(':nope:');
-        expect(second).not.toContain('hivemoji__img');
-        expect(second).not.toContain(encodeURIComponent(missUrl));
+        const duringHydration = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
+        expect(duringHydration).toContain('hivemoji__img');
+        expect(duringHydration).toContain(encodeURIComponent(missUrl));
+
+        enableHivemojiMissReplacementForTests();
+        const afterMount = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
+        expect(afterMount).toContain('hivemoji--fallback');
+        expect(afterMount).toContain(':nope:');
+        expect(afterMount).not.toContain('hivemoji__img');
+        expect(afterMount).not.toContain(encodeURIComponent(missUrl));
         clearHivemojiMissCacheForTests();
+    });
+
+    it('strips onerror from an image that claims to be a hivemoji', () => {
+        const html = markdownRenderer(
+            '<img class="hivemoji__img" src="https://example.com/a.jpg" onerror="this.style.display=\'none\'">',
+        );
+        expect(html).not.toContain('onerror');
     });
 
     it('always emits an alt attribute on rendered images', () => {
