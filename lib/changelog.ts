@@ -35,6 +35,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
       { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
       { type: 'fix', text: 'Game cards on the games page no longer use a button wrapped around the artwork, so the page stops rebuilding itself as it loads.' },
+      { type: 'improvement', text: 'The first photo on the blog and a profile banner start loading right away, and game art is sent at the size of the card.' },
     ],
   },
   {

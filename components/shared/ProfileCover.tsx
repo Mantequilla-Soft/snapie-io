@@ -12,6 +12,13 @@ interface ProfileCoverProps {
   alt: string;
   /** Shown when the cover is missing, blocked, or not an image. The slot stays 200px. */
   fallback: ReactNode;
+  /**
+   * Paint the image on the first render. The profile banner is the LCP
+   * element, and waiting for the probe kept it lazy for about two seconds.
+   * A failed load still falls back. Other callers keep the probe-first path
+   * so a 404 never becomes an img.
+   */
+  priority?: boolean;
 }
 
 /**
@@ -20,9 +27,11 @@ interface ProfileCoverProps {
  * width. A 404 never becomes an `<img>`, so it does not log a console error
  * or carry a third-party cookie.
  */
-export default function ProfileCover({ url, alt, fallback }: ProfileCoverProps) {
+export default function ProfileCover({ url, alt, fallback, priority = false }: ProfileCoverProps) {
   const proxySrc = resolveCoverImageSrc(url);
-  const [phase, setPhase] = useState<'pending' | 'ready' | 'fallback'>(proxySrc ? 'pending' : 'fallback');
+  const [phase, setPhase] = useState<'pending' | 'ready' | 'fallback'>(
+    !proxySrc ? 'fallback' : priority ? 'ready' : 'pending',
+  );
 
   useEffect(() => {
     if (!proxySrc) {
@@ -32,7 +41,7 @@ export default function ProfileCover({ url, alt, fallback }: ProfileCoverProps) 
 
     const ac = new AbortController();
     let cancelled = false;
-    setPhase('pending');
+    setPhase(priority ? 'ready' : 'pending');
 
     fetch(coverProbePath(proxySrc), {
       signal: ac.signal,
@@ -56,7 +65,7 @@ export default function ProfileCover({ url, alt, fallback }: ProfileCoverProps) 
       cancelled = true;
       ac.abort();
     };
-  }, [proxySrc]);
+  }, [proxySrc, priority]);
 
   return (
     <Box position="relative" width="100%" height="100%">
@@ -68,7 +77,8 @@ export default function ProfileCover({ url, alt, fallback }: ProfileCoverProps) 
           src={proxySrc}
           alt={alt}
           fill
-          sizes={`${PROFILE_COVER_WIDTH}px`}
+          priority={priority}
+          sizes={priority ? '(max-width: 48em) 100vw, 1200px' : `${PROFILE_COVER_WIDTH}px`}
           loader={coverLoader}
           style={{ objectFit: 'cover' }}
           onError={() => setPhase('fallback')}
