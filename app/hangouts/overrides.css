@@ -5,3 +5,10 @@
 .hh-bg-picker__preview {
   height: 200px;
 }
+
+/* The lobby paints "Browsing as guest" / @username as an inline #666 span.
+   On the dark lobby (#1a1a2e) that pair fails WCAG AA. !important wins over
+   the non-important inline style, and only inside the dark theme. */
+[data-hh-theme="dark"] .hh-lobby__header span {
+  color: #f5f5f5 !important;
+}

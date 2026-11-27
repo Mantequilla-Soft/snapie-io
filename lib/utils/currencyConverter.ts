@@ -37,6 +37,18 @@ const CURRENCY_SYMBOLS: { [key: string]: string } = {
   INR: '₹',
 };
 
+/** ISO-4217-style 3-letter currency codes only (e.g. BRL, EUR). Junk like `>` is ignored. */
+const DISPLAY_CURRENCY_CODE = /^[A-Z]{3}$/;
+
+/**
+ * True when the value is a usable display-currency code after trim + upper case.
+ * Empty, whitespace, and garbage env values (e.g. `>`) return false.
+ */
+export function isValidDisplayCurrency(currency: string | undefined | null): boolean {
+  if (!currency) return false;
+  return DISPLAY_CURRENCY_CODE.test(currency.trim().toUpperCase());
+}
+
 /**
  * Get currency symbol for a given currency code
  */
@@ -157,12 +169,12 @@ export async function convertHBDToDisplayCurrency(
   hbdAmount: number,
   targetCurrency?: string
 ): Promise<string> {
-  // If no target currency specified, return HBD value as USD
-  if (!targetCurrency || targetCurrency.trim() === '') {
+  const currency = (targetCurrency ?? '').trim().toUpperCase();
+
+  // Missing or invalid codes (empty, `>`, etc.) → sync HBD/$ with no warn/API call.
+  if (!isValidDisplayCurrency(currency)) {
     return `$${hbdAmount.toFixed(3)}`;
   }
-
-  const currency = targetCurrency.toUpperCase();
 
   // If target is USD, no conversion needed (HBD ≈ USD)
   if (currency === 'USD') {
