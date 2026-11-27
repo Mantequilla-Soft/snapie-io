@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Notch-safe overlays',
+    items: [
+      { type: 'fix', text: 'In the installed app on a notched phone, chat, Shorts, sheets and close buttons stay clear of the notch and home indicator, including in landscape.' },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',

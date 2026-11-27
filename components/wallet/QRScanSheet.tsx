@@ -118,7 +118,12 @@ export default function QRScanSheet({ isOpen, onClose, onScan }: QRScanSheetProp
       justifyContent="center"
     >
       {/* Close */}
-      <Box position="absolute" top={4} right={4} zIndex={10}>
+      <Box
+        position="absolute"
+        top="max(1rem, env(safe-area-inset-top))"
+        right="max(1rem, env(safe-area-inset-right))"
+        zIndex={10}
+      >
         <IconButton
           aria-label="Close scanner"
           icon={<Icon as={FiX} boxSize={6} />}

@@ -319,8 +319,8 @@ export default function HangoutModal({ isOpen, onClose, roomName }: HangoutModal
           onClick={handleCloseClick}
           style={{
             position: 'absolute',
-            top: '18px',
-            right: '18px',
+            top: 'max(18px, env(safe-area-inset-top))',
+            right: 'max(18px, env(safe-area-inset-right))',
             zIndex: 10,
             width: '36px',
             height: '36px',

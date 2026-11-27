@@ -46,7 +46,11 @@ export default function MeSheet({ isOpen, onClose, onToggleChat, chatUnreadCount
         border="1px solid"
         borderColor="surfaceBorder"
         maxH="82dvh"
-        pb="env(safe-area-inset-bottom)"
+        // Left/right clear the notch in landscape. Bottom safe-area comes from
+        // the Drawer theme default (themes/windows95.ts) so we do not set pb
+        // here as well.
+        pl="env(safe-area-inset-left)"
+        pr="env(safe-area-inset-right)"
       >
         <DrawerBody p={0} overflowY="auto">
           {/* Drag handle */}

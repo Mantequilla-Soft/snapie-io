@@ -246,6 +246,10 @@ export default function LayoutContent({
   // env(safe-area-inset-*) is 0 in a normal browser tab.
   const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(56px + env(safe-area-inset-top))', sm: '0' } : undefined;
   const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(76px + env(safe-area-inset-bottom))', sm: '0' } : undefined;
+  // Landscape notch / island: keep scroll content off the left/right unsafe
+  // edges. Insets are 0 in a normal browser tab. Skip immersive routes.
+  const mobilePaddingLeft = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'env(safe-area-inset-left)', sm: '0' } : undefined;
+  const mobilePaddingRight = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'env(safe-area-inset-right)', sm: '0' } : undefined;
 
   return (
     <Box
@@ -274,6 +278,8 @@ export default function LayoutContent({
             h="100dvh"
             overflowY="auto"
             pt={mobilePaddingTop}
+            pl={mobilePaddingLeft}
+            pr={mobilePaddingRight}
           >
             {/* Deliberately NOT display=flex/flexDirection=column: this box's
                 children (EmancipationBanner, the routed page, the spacer

@@ -336,6 +336,13 @@ function buildComponents(mode: ColorMode) {
                     boxShadow: 'xl',
                     border: '1px solid',
                     borderColor: 'border',
+                    // Keep dialogs clear of the notch / home indicator in
+                    // standalone PWA. Insets are 0 in a normal browser tab, so
+                    // desktop keeps Chakra's 4rem vertical / 1rem horizontal
+                    // floors (mx was auto/undefined; 1rem is a safe floor that
+                    // still centers via the flex dialog container).
+                    mx: 'max(1rem, env(safe-area-inset-left), env(safe-area-inset-right))',
+                    my: 'max(4rem, env(safe-area-inset-top), env(safe-area-inset-bottom))',
                 },
                 header: {
                     color: 'text',
@@ -354,6 +361,17 @@ function buildComponents(mode: ColorMode) {
                 body: {
                     color: 'text',
                     py: 6,
+                },
+            },
+        },
+        Drawer: {
+            baseStyle: {
+                dialog: {
+                    // Bottom sheets are edge-to-edge; pad the dialog itself so
+                    // content clears landscape notch insets and the home bar.
+                    pl: 'env(safe-area-inset-left)',
+                    pr: 'env(safe-area-inset-right)',
+                    pb: 'env(safe-area-inset-bottom)',
                 },
             },
         },
