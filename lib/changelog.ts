@@ -27,8 +27,9 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-26',
     date: '2026-11-26',
-    title: 'Hidden test page',
+    title: 'Small fixes',
     items: [
+      { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
       { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
     ],
   },
