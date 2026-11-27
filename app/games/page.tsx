@@ -141,7 +141,7 @@ export default function GamesPage() {
                   </Box>
                   <Box px={4} pb={4}>
                     <Button
-                      as={guestLocked ? 'span' : undefined}
+                      as="span"
                       w="full"
                       rightIcon={<FiArrowRight />}
                       colorScheme="orange"
@@ -157,9 +157,15 @@ export default function GamesPage() {
               return (
                 <Card
                   key={game.id}
-                  as="button"
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={openLoginModal}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openLoginModal();
+                    }
+                  }}
                   textAlign="left"
                   w="full"
                   _hover={{ shadow: 'lg' }}

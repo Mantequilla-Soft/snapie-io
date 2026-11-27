@@ -25,6 +25,19 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Small fixes',
+    items: [
+      { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
+      { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
+      { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
+      { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
+      { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
+      { type: 'fix', text: 'Game cards on the games page no longer use a button wrapped around the artwork, so the page stops rebuilding itself as it loads.' },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',

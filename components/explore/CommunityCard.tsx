@@ -43,6 +43,8 @@ export default function CommunityCard({ tag, title, about, subscribers, topPosts
           borderRadius="full"
           border="1px solid rgba(28, 161, 241, 0.2)"
           flexShrink={0}
+          loading="lazy"
+          decoding="async"
         />
         <Box flex={1} minW={0}>
           <Flex align="center" justify="space-between" gap={2} mb={1}>

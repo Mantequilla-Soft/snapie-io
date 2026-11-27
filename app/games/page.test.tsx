@@ -69,4 +69,18 @@ describe('/games hub points balance', () => {
     renderPage();
     expect(screen.queryByText(/Balance:/)).toBeNull();
   });
+
+  it('does not put a button inside the Blocks link', () => {
+    renderPage();
+    const blocks = screen.getByRole('link', { name: /Snapie Blocks/i });
+    expect(blocks.querySelector('button')).toBeNull();
+    expect(blocks.textContent).toContain('Play');
+  });
+
+  it('does not wrap a guest card in a button', () => {
+    renderPage();
+    const quest = screen.getByRole('button', { name: /Snapie Quest/i });
+    expect(quest.tagName).toBe('DIV');
+    expect(quest.querySelector('button')).toBeNull();
+  });
 });

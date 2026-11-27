@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe('GET /api/snapie-auth/auth/me', () => {
-  it('returns a local 401 when there is no session cookie and does not call upstream', async () => {
+  it('returns a signed-out body when there is no session cookie and does not call upstream', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
     const { GET } = await loadRoute();
@@ -51,9 +51,9 @@ describe('GET /api/snapie-auth/auth/me', () => {
       const headers: Record<string, string> = { 'x-forwarded-for': '203.0.113.10' };
       if (cookie) headers.cookie = cookie;
       const res = await call(GET, ['auth', 'me'], { headers });
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toContain('application/json');
-      expect(await res.json()).toEqual({ error: 'Unauthorized' });
+      expect(await res.json()).toEqual({ user: null });
     }
 
     expect(fetchMock).not.toHaveBeenCalled();
