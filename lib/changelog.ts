@@ -25,11 +25,27 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Small fixes',
+    items: [
+      { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
+      { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
+      { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
+      { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
+      { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
+      { type: 'fix', text: 'Game cards on the games page no longer use a button wrapped around the artwork, so the page stops rebuilding itself as it loads.' },
+      { type: 'improvement', text: 'The first photo on the blog and a profile banner start loading right away, and game art is sent at the size of the card.' },
+      { type: 'improvement', text: 'Shorts and Hangouts load their video and room code only when you play one, so those pages open faster.' },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',
     items: [
       { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+      { type: 'fix', text: 'On a wide screen, the home feed no longer jumps sideways while the sidebar loads.' },
     ],
   },
   {
@@ -41,10 +57,19 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
   {
+    id: '2026-11-23',
+    date: '2026-11-23',
+    title: 'Points prompt',
+    items: [
+      { type: 'fix', text: 'Cancelling Enable Snapie Points keeps it away while you keep browsing. You can still turn points on yourself.' },
+    ],
+  },
+  {
     id: '2026-11-20',
     date: '2026-11-20',
-    title: '3Speak upload limits',
+    title: '3Speak upload limits and real 404s',
     items: [
+      { type: 'fix', text: 'Missing posts and profiles now return a real “not found” response instead of a loading page that looked like it existed.' },
       { type: 'improvement', text: 'When 3Speak\'s daily upload limit for free accounts is reached, video, short and audio uploads now say when you can upload next (in your time zone) and link to 3Speak Pro, and your draft stays as it was.' },
     ],
   },

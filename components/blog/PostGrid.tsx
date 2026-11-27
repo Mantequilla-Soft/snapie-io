@@ -21,8 +21,13 @@ export default function PostGrid({ posts, columns, searchMode = false }: PostGri
             spacing={4}
             alignItems="start"
         >
-            {posts.map((post) => (
-                <PostCard key={`${post.author}/${post.permlink}`} post={post} compact={searchMode} />
+            {posts.map((post, index) => (
+                <PostCard
+                    key={`${post.author}/${post.permlink}`}
+                    post={post}
+                    compact={searchMode}
+                    priorityImage={index === 0 && !searchMode}
+                />
             ))}
         </SimpleGrid>
     );

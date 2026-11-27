@@ -3,7 +3,7 @@ import { extractMarkdownImages } from '@/lib/images/markdownImages';
 import { Avatar } from '@/components/shared/Avatar';
 import { MoodBadgeIcon } from '@/components/shared/MoodBadgeIcon';
 import { useMoodBadges } from '@/hooks/useMoodBadges';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Discussion } from '@hiveio/dhive';
 import dynamic from 'next/dynamic';
 import { getPostDate } from '@/lib/utils/GetPostDate';
@@ -17,6 +17,8 @@ import { decodeHtmlEntities } from '@/lib/utils/htmlEntities';
 interface PostCardProps {
     post: Discussion & { discoveryReason?: PostDiscoveryReason };
     compact?: boolean;
+    /** First image loads eagerly. The blog grid sets this on the first card. */
+    priorityImage?: boolean;
 }
 
 /** Fixed preview height — cards must not grow with portrait images or grid row stretch. */
@@ -24,7 +26,26 @@ const CARD_IMAGE_HEIGHT = '200px';
 
 const PostCardCarousel = dynamic(() => import('./PostCardCarousel'), { ssr: false });
 
-export default function PostCard({ post, compact = false }: PostCardProps) {
+function extractCardImages(rawBody: unknown, metadata: { image?: unknown }): string[] {
+    const fromBody = extractImagesFromBody(rawBody);
+    if (fromBody.length > 0) return fromBody;
+    return Array.isArray(metadata?.image)
+        ? metadata.image.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+        : [];
+}
+
+function extractImagesFromBody(rawBody: unknown): string[] {
+    if (typeof rawBody !== 'string' || !rawBody) return [];
+
+    const markdownImages = extractMarkdownImages(rawBody)
+        .map((img) => img.url)
+        .filter((url) => /^https?:\/\//i.test(url));
+    const htmlImages = Array.from(rawBody.matchAll(/<img\s+[^>]*src=["']([^"']*)["'][^>]*>/gi))
+        .map((match) => match[1]);
+    return [...markdownImages, ...htmlImages];
+}
+
+export default function PostCard({ post, compact = false, priorityImage = false }: PostCardProps) {
     const { title, author, body, json_metadata, created } = post;
     const postDate = getPostDate(created);
     const metadata = useMemo(() => (
@@ -32,12 +53,12 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
             ? json_metadata
             : (() => { try { return JSON.parse(json_metadata || '{}'); } catch { return {}; } })()
     ), [json_metadata]);
-    const [imageUrls, setImageUrls] = useState<string[]>([]);
     const safeBody = typeof body === 'string' ? body : '';
     const postHref = `/@${encodeURIComponent(author || '')}/${encodeURIComponent(post.permlink || '')}`;
     const router = useRouter();
     const [isNavigating, setIsNavigating] = useState(false);
     const { getEquippedBadge } = useMoodBadges();
+    const imageUrls = useMemo(() => extractCardImages(body, metadata), [body, metadata]);
 
     function navigateToPost(e: React.MouseEvent) {
         e.preventDefault();
@@ -72,31 +93,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
         .replace(/[*_~`>]/g, '');
     const snippet = decodeHtmlEntities(strippedSnippet).replace(/\s+/g, ' ').trim();
 
-    // **State to control how many images to show initially**
-    const [visibleImages, setVisibleImages] = useState<number>(3); // Start with 3 images
-
-    useEffect(() => {
-        const images = extractImagesFromBody(body);
-        if (images && images.length > 0) {
-            setImageUrls(images);
-        } else {
-            const metaImages = Array.isArray(metadata?.image)
-                ? metadata.image.filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
-                : [];
-            if (metaImages.length > 0) setImageUrls(metaImages);
-        }
-    }, [body, metadata]);
-
-    function extractImagesFromBody(rawBody: unknown): string[] {
-        if (typeof rawBody !== 'string' || !rawBody) return [];
-
-        const markdownImages = extractMarkdownImages(rawBody)
-            .map((img) => img.url)
-            .filter((url) => /^https?:\/\//i.test(url));
-        const htmlImages = Array.from(rawBody.matchAll(/<img\s+[^>]*src=["']([^"']*)["'][^>]*>/gi))
-            .map((match) => match[1]);
-        return [...markdownImages, ...htmlImages];
-    }
+    const [visibleImages, setVisibleImages] = useState<number>(3);
 
     // **Function to load more slides**
     function handleSlideChange(swiper: any) {
@@ -209,6 +206,7 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                         title={title || ''}
                         onNavigate={navigateToPost}
                         onSlideChange={handleSlideChange}
+                        priorityFirst={priorityImage}
                     />
                 </Box>
             )}

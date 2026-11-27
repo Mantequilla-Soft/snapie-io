@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   username: null as string | null,
   openLoginModal: vi.fn(),
   saveGameScore: vi.fn(),
+  requestGameTicket: vi.fn(async (_user: string, _game: string, sessionId: string) => `ticket-for-${sessionId}`),
 }));
 
 vi.mock('@/hooks/useCurrentUser', () => ({
@@ -41,6 +42,7 @@ vi.mock('@/lib/points/config', () => ({
 
 vi.mock('@/lib/games/scoreClient', () => ({
   saveGameScore: (...args: unknown[]) => mocks.saveGameScore(...args),
+  requestGameTicket: (...args: [string, string, string]) => mocks.requestGameTicket(...args),
 }));
 
 vi.mock('next/link', () => ({
@@ -212,6 +214,9 @@ describe('signed-in /games/snapie-info-war', () => {
       'alice',
       'snapie-info-war',
       expect.objectContaining({ score: 10, sessionId: expect.any(String) }),
+      expect.stringMatching(/^ticket-for-/),
     );
+    // A signed ticket is requested for each run as its session id is created.
+    expect(mocks.requestGameTicket).toHaveBeenCalledWith('alice', 'snapie-info-war', firstSession);
   });
 });

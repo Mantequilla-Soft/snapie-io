@@ -11,3 +11,4 @@ internal-docs
 .cursor
 terminals
 *.tsbuildinfo
+.worktrees

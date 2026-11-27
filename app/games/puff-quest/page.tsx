@@ -9,6 +9,7 @@ import { useLoginModal } from '@/contexts/LoginModalContext';
 import { usePointsSummary } from '@/hooks/usePointsSummary';
 import { GAMES_FEATURE_FLAG } from '@/lib/points/config';
 import { saveGameScore } from '@/lib/games/scoreClient';
+import { useGameSessionTicket } from '@/hooks/useGameSessionTicket';
 import { notEnoughPointsToast } from '@/components/shared/NotEnoughPointsToast';
 import type { PuffQuestResult, PuffQuestEvent } from '@/components/games/puff-quest';
 
@@ -24,6 +25,7 @@ export default function PuffQuestPage() {
   const toast = useToast();
 
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
+  const ticketFor = useGameSessionTicket(username, 'puff-quest', sessionId);
   const [lastResult, setLastResult] = useState<PuffQuestResult | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'duplicate'>('idle');
   const [savedPointsAwarded, setSavedPointsAwarded] = useState(0);
@@ -73,7 +75,7 @@ export default function PuffQuestPage() {
 
     setSaveStatus('saving');
     try {
-      const result = await saveGameScore(username, 'puff-quest', lastResult);
+      const result = await saveGameScore(username, 'puff-quest', lastResult, await ticketFor(lastResult.sessionId));
 
       if (result.status === 'awarded') {
         setSaveStatus('saved');
