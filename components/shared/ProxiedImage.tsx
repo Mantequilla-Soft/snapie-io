@@ -12,6 +12,8 @@ interface ProxiedImageProps {
   sizes?: string;
   objectFit?: 'cover' | 'contain';
   onError?: () => void;
+  /** Eager load. Use for the image that is the page's LCP element. */
+  priority?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export default function ProxiedImage({
   sizes = '540px',
   objectFit = 'cover',
   onError,
+  priority = false,
 }: ProxiedImageProps) {
   const resolved = resolveFeedImageSrc(url);
   const [failed, setFailed] = useState(false);
@@ -39,6 +42,7 @@ export default function ProxiedImage({
       alt={alt}
       fill
       sizes={sizes}
+      priority={priority}
       unoptimized={resolved.unoptimized}
       style={{ objectFit }}
       onError={() => {

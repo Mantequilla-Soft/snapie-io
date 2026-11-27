@@ -4,19 +4,30 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Box, Flex, Spinner, useToast } from '@chakra-ui/react';
 import dynamic from 'next/dynamic';
+import { FiEdit3 } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useSnapieAuth } from '@/contexts/SnapieAuthContext';
+import { SessionStatus, SignInGate } from '@/components/shared/SignInGate';
 import { getPost, commentWithKeychain } from '@/lib/hive/client-functions';
 import { prepareImageArray } from '@/lib/utils/composeUtils';
 import type { Beneficiary as BeneficiaryInputType } from '@/components/compose/BeneficiariesInput';
 
 const Editor = dynamic(() => import('@/app/compose/Editor'), { ssr: false });
 
+/**
+ * /edit/<author>/<permlink> used to load the post for everyone and only
+ * redirect when a logged-in visitor was not the author. Guests skipped that
+ * guard (username falsy), so the editor filled with someone else's post
+ * before submit toasts "Not logged in". Guests now get the same sign-in gate
+ * as /chat and /profile; getPost runs only after the visitor is the author.
+ */
 export default function EditPostPage() {
     const params = useParams<{ author: string; permlink: string }>();
     const author = decodeURIComponent(params.author);
     const permlink = decodeURIComponent(params.permlink);
 
-    const { username: user } = useCurrentUser();
+    const { username, isLoggedIn } = useCurrentUser();
+    const { isLoading: isSessionLoading } = useSnapieAuth();
     const router = useRouter();
     const toast = useToast();
 
@@ -37,14 +48,23 @@ export default function EditPostPage() {
     const [existingMetadata, setExistingMetadata] = useState<Record<string, unknown>>({});
 
     useEffect(() => {
+        // Hold until session restore settles, then only load for the author.
+        if (isSessionLoading) return;
+        if (!isLoggedIn || !username) return;
+
+        if (username !== author) {
+            toast({ title: 'Unauthorized', description: 'You can only edit your own posts.', status: 'error', duration: 4000 });
+            router.replace(`/@${author}/${permlink}`);
+            return;
+        }
+
         async function load() {
             try {
                 const post = await getPost(author, permlink);
                 if (!post) throw new Error('Post not found');
 
-                // Guard: only the author can edit
-                const username = typeof user === 'string' ? user : (user as any)?.username || '';
-                if (username && username !== post.author) {
+                // Defense in depth: post author must still match the session.
+                if (username !== post.author) {
                     toast({ title: 'Unauthorized', description: 'You can only edit your own posts.', status: 'error', duration: 4000 });
                     router.replace(`/@${post.author}/${permlink}`);
                     return;
@@ -69,10 +89,9 @@ export default function EditPostPage() {
             }
         }
         load();
-    }, [author, permlink, user, router, toast]);
+    }, [author, permlink, username, isLoggedIn, isSessionLoading, router, toast]);
 
     async function handleSubmit() {
-        const username = typeof user === 'string' ? user : (user as any)?.username || '';
         if (!username) {
             toast({ title: 'Not logged in', status: 'error', duration: 3000 });
             return;
@@ -116,6 +135,27 @@ export default function EditPostPage() {
         } finally {
             setIsSubmitting(false);
         }
+    }
+
+    // Guest / session-settling: same gate pattern as /chat and /profile.
+    if (!isLoggedIn || !username) {
+        if (isSessionLoading) return <SessionStatus label="Checking session" />;
+        return (
+            <SignInGate
+                icon={FiEdit3}
+                title="Sign in to edit"
+                message="Log in with Google, email, or your Hive wallet to edit your posts."
+            />
+        );
+    }
+
+    // Logged-in non-author: redirect is in flight; keep the editor unmounted.
+    if (username !== author) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+                <Spinner size="xl" color="primary" />
+            </Box>
+        );
     }
 
     if (isLoading) {
