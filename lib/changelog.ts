@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Hivemoji shortcodes',
+    items: [
+      { type: 'fix', text: "Hivemoji shortcodes that are just the author's username stay as text, so the feed no longer requests a missing /@user/@user image over and over." },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',

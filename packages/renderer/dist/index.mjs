@@ -37,6 +37,39 @@ var HIVEMOJI_SKIP_TAGS = /* @__PURE__ */ new Set([
   "kbd",
   "samp"
 ]);
+var HIVEMOJI_MISS_CACHE_KEY = "__snapieHivemojiMissCache";
+var HIVEMOJI_REMEMBER_MISS_KEY = "__snapieRememberHivemojiMiss";
+function getHivemojiMissCache() {
+  const root = globalThis;
+  if (!root[HIVEMOJI_MISS_CACHE_KEY]) {
+    root[HIVEMOJI_MISS_CACHE_KEY] = /* @__PURE__ */ new Set();
+  }
+  return root[HIVEMOJI_MISS_CACHE_KEY];
+}
+function rememberHivemojiMiss(src) {
+  if (!src) return;
+  const cache = getHivemojiMissCache();
+  cache.add(src);
+  try {
+    const parsed = new URL(src, "https://placeholder.invalid");
+    const upstream = parsed.searchParams.get("url");
+    if (upstream) cache.add(upstream);
+  } catch {
+  }
+}
+function hasHivemojiMiss(src) {
+  return getHivemojiMissCache().has(src);
+}
+function markHivemojiMissForTests(src) {
+  rememberHivemojiMiss(src);
+}
+function clearHivemojiMissCacheForTests() {
+  getHivemojiMissCache().clear();
+}
+var HIVEMOJI_ONERROR_HANDLER = 'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}try{var s=this.getAttribute("src")||this.src;if(s&&typeof globalThis.' + HIVEMOJI_REMEMBER_MISS_KEY + '==="function")globalThis.' + HIVEMOJI_REMEMBER_MISS_KEY + "(s);}catch(e){}";
+if (typeof globalThis !== "undefined") {
+  globalThis[HIVEMOJI_REMEMBER_MISS_KEY] = rememberHivemojiMiss;
+}
 var DEFAULT_HIVE_FRONTENDS = [
   "peakd.com",
   "ecency.com",
@@ -126,6 +159,9 @@ var DOMPURIFY_CONFIG = {
     "target",
     "rel",
     "role",
+    // `onerror` is listed so the Hivemoji fallback handler can survive
+    // sanitize; the attribute hook rejects every other onerror value.
+    "onerror",
     "controls",
     "muted",
     "preload",
@@ -150,17 +186,26 @@ var DOMPURIFY_CONFIG = {
   ALLOW_DATA_ATTR: false,
   ALLOW_UNKNOWN_PROTOCOLS: false,
   FORBID_TAGS: ["script", "form", "input", "button", "textarea", "select", "dialog", "object", "embed", "applet", "base", "link", "meta"],
-  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onmouseout", "onmousemove", "onmouseenter", "onmouseleave", "onfocus", "onblur", "onchange", "onsubmit", "onkeydown", "onkeyup", "onkeypress"],
+  // onerror is intentionally omitted: hivemoji imgs need a fixed fallback handler
+  // (see uponSanitizeAttribute below). All other event handlers stay forbidden.
+  FORBID_ATTR: ["onload", "onclick", "onmouseover", "onmouseout", "onmousemove", "onmouseenter", "onmouseleave", "onfocus", "onblur", "onchange", "onsubmit", "onkeydown", "onkeyup", "onkeypress"],
   KEEP_CONTENT: true,
   RETURN_TRUSTED_TYPE: false
 };
-DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
   if (data.attrName === "role" && data.attrValue.trim().toLowerCase() !== "img") {
     data.keepAttr = false;
     return;
   }
   if (data.attrName === "style" && data.attrValue) {
     data.attrValue = data.attrValue.split(";").filter((decl) => !/^\s*(position|z-index)\s*:/i.test(decl)).join(";");
+  }
+  if (data.attrName === "onerror") {
+    const className = node.getAttribute?.("class") || "";
+    const isHivemojiImg = node.nodeName?.toLowerCase() === "img" && className.split(/\s+/).includes("hivemoji__img");
+    if (!isHivemojiImg || data.attrValue !== HIVEMOJI_ONERROR_HANDLER) {
+      data.keepAttr = false;
+    }
   }
 });
 DOMPurify.addHook("uponSanitizeElement", (node) => {
@@ -446,7 +491,27 @@ function normalizeHivemojiOwner(owner) {
 function buildHivemojiUrl(baseUrl, owner, name) {
   return `${baseUrl}/@${encodeURIComponent(owner)}/@${encodeURIComponent(name)}`;
 }
+function createHivemojiFallbackElement(doc, altText) {
+  const span = doc.createElement("span");
+  span.className = "hivemoji hivemoji--fallback";
+  span.setAttribute("role", "img");
+  span.setAttribute("aria-label", altText);
+  const text = doc.createElement("span");
+  text.className = "hivemoji__text";
+  text.textContent = altText;
+  text.style.display = "inline";
+  span.style.display = "inline-flex";
+  span.style.alignItems = "center";
+  span.style.verticalAlign = "middle";
+  span.style.margin = "0 0.05em";
+  span.append(text);
+  return span;
+}
 function createHivemojiElement(doc, baseUrl, owner, name, altText) {
+  const src = buildHivemojiUrl(baseUrl, owner, name);
+  if (hasHivemojiMiss(src)) {
+    return createHivemojiFallbackElement(doc, altText);
+  }
   const span = doc.createElement("span");
   span.className = "hivemoji";
   span.setAttribute("role", "img");
@@ -457,7 +522,7 @@ function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   text.style.display = "none";
   const img = doc.createElement("img");
   img.className = "hivemoji__img";
-  img.setAttribute("src", buildHivemojiUrl(baseUrl, owner, name));
+  img.setAttribute("src", src);
   img.setAttribute("alt", "");
   img.setAttribute("aria-hidden", "true");
   img.setAttribute("loading", "lazy");
@@ -470,10 +535,7 @@ function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   img.style.margin = "0";
   img.style.objectFit = "contain";
   img.style.verticalAlign = "middle";
-  img.setAttribute(
-    "onerror",
-    'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}'
-  );
+  img.setAttribute("onerror", HIVEMOJI_ONERROR_HANDLER);
   span.style.display = "inline-flex";
   span.style.alignItems = "center";
   span.style.verticalAlign = "middle";
@@ -522,6 +584,7 @@ function transformHivemojiContent(content, options) {
       const ownerCandidate = ownerPart ? ownerPart.slice(0, -1) : defaultOwner;
       const owner = normalizeHivemojiOwner(ownerCandidate);
       if (!owner) continue;
+      if (owner.toLowerCase() === String(name).toLowerCase()) continue;
       const index = match.index ?? 0;
       const before = text.slice(lastIndex, index);
       if (before) {
@@ -625,7 +688,9 @@ function createHiveRenderer(options = {}) {
 var renderHiveMarkdown = createHiveRenderer();
 export {
   canonicalSpeakAudioUrl,
+  clearHivemojiMissCacheForTests,
   createHiveRenderer,
+  markHivemojiMissForTests,
   renderHiveMarkdown
 };
 //# sourceMappingURL=index.mjs.map
