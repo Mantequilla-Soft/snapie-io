@@ -40,35 +40,69 @@ type RpcReply = {
   error?: { data?: { name?: unknown; extension?: { assertion_expression?: unknown } } };
 };
 
-function abortAfter(ms: number): AbortSignal {
+type CancelableSignal = { signal: AbortSignal; cancel: () => void };
+
+function unrefTimer(timer: ReturnType<typeof setTimeout>): void {
+  if (typeof timer === 'object' && timer !== null && 'unref' in timer) timer.unref();
+}
+
+function abortAfter(ms: number): CancelableSignal {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
-  if (typeof timer === 'object' && timer !== null && 'unref' in timer) timer.unref();
-  return controller.signal;
+  unrefTimer(timer);
+  return { signal: controller.signal, cancel: () => clearTimeout(timer) };
+}
+
+/**
+ * Abort when `parent` aborts or `ms` elapses.
+ * The edge runtime's AbortSignal has timeout() and abort() but not any(),
+ * and calling the missing method used to skip both Hive nodes (#411).
+ */
+function abortWithin(parent: AbortSignal, ms: number): CancelableSignal {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  unrefTimer(timer);
+  const onParent = () => controller.abort();
+  if (parent.aborted) controller.abort();
+  else parent.addEventListener('abort', onParent, { once: true });
+  return {
+    signal: controller.signal,
+    cancel: () => {
+      clearTimeout(timer);
+      parent.removeEventListener('abort', onParent);
+    },
+  };
 }
 
 async function rpc(method: string, params: unknown[], fetchImpl: Fetch): Promise<RpcReply | null> {
   const started = Date.now();
   const overall = abortAfter(OVERALL_DEADLINE_MS);
-  for (let i = 0; i < NODES.length; i++) {
-    const remaining = OVERALL_DEADLINE_MS - (Date.now() - started);
-    if (remaining <= 0 || overall.aborted) return null;
-    const budget = i === 0 ? Math.min(remaining, FIRST_NODE_BUDGET_MS) : remaining;
-    try {
-      const res = await fetchImpl(NODES[i], {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-        signal: AbortSignal.any([overall, abortAfter(budget)]),
-      });
-      if (!res.ok) continue;
-      const reply = (await res.json()) as RpcReply;
-      if (reply && typeof reply === 'object' && ('result' in reply || 'error' in reply)) return reply;
-    } catch {
-      // Timeout or network error: try the next node, inside the same budget.
+  try {
+    for (let i = 0; i < NODES.length; i++) {
+      const remaining = OVERALL_DEADLINE_MS - (Date.now() - started);
+      if (remaining <= 0 || overall.signal.aborted) return null;
+      const budget = i === 0 ? Math.min(remaining, FIRST_NODE_BUDGET_MS) : remaining;
+      const attempt = abortWithin(overall.signal, budget);
+      try {
+        const res = await fetchImpl(NODES[i], {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+          signal: attempt.signal,
+        });
+        if (!res.ok) continue;
+        const reply = (await res.json()) as RpcReply;
+        if (reply && typeof reply === 'object' && ('result' in reply || 'error' in reply)) return reply;
+      } catch {
+        // Timeout or network error: try the next node, inside the same budget.
+      } finally {
+        attempt.cancel();
+      }
     }
+    return null;
+  } finally {
+    overall.cancel();
   }
-  return null;
 }
 
 function ttlFor(status: 'found' | 'missing'): number {

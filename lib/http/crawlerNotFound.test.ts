@@ -122,3 +122,19 @@ describe('hiveAccountStatus', () => {
     expect(await hiveAccountStatus('meno', vi.fn(() => Promise.reject(new Error('down'))))).toBe('unknown');
   });
 });
+
+describe('edge runtime', () => {
+  it('still reports a missing post when AbortSignal.any is unavailable', async () => {
+    const spy = vi.spyOn(AbortSignal, 'any').mockImplementation(() => {
+      throw new TypeError('AbortSignal.any is not a function');
+    });
+    try {
+      const f = vi.fn(() => reply(missingPost));
+      expect(await hivePostStatus('jongolson', 'gone', f)).toBe('missing');
+      expect(f).toHaveBeenCalled();
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
