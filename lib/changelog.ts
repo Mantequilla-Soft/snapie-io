@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Edit page sign-in',
+    items: [
+      { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',
