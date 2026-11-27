@@ -34,6 +34,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
       { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
       { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
+      { type: 'fix', text: 'Game cards on the games page no longer use a button wrapped around the artwork, so the page stops rebuilding itself as it loads.' },
     ],
   },
   {
