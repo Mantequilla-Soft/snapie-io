@@ -88,6 +88,27 @@ describe('ProfileCover', () => {
     expect(img.getAttribute('sizes')).toBe(`${PROFILE_COVER_WIDTH}px`);
   });
 
+  it('paints a priority cover before the probe returns', () => {
+    const fetchMock = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal('fetch', fetchMock);
+    const { container } = render(
+      createElement(
+        ChakraProvider,
+        null,
+        createElement(ProfileCover, {
+          url: 'https://i.imgur.com/TyZjlBu.jpg',
+          alt: 'meno cover',
+          priority: true,
+          fallback: createElement('div', null, 'default cover'),
+        }),
+      ),
+    );
+    const img = container.querySelector('img');
+    expect(img).not.toBeNull();
+    expect(fetchMock).toHaveBeenCalled();
+    expect(screen.getByText('default cover')).toBeTruthy();
+  });
+
   it('returns to the default background if the optimized image fails', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ ok: true })));
     const { container } = renderCover('https://files.peakd.com/file/a.png');

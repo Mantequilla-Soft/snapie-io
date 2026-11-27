@@ -1,6 +1,7 @@
 'use client';
-import { Box, Heading, SimpleGrid, Text, VStack, Card, CardBody, Button, Flex, Image } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Text, VStack, Card, CardBody, Button, Flex } from '@chakra-ui/react';
 import NextLink from 'next/link';
+import NextImage, { type StaticImageData } from 'next/image';
 import { FiArrowRight } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginModal } from '@/contexts/LoginModalContext';
@@ -15,12 +16,18 @@ import type { GameId } from '@/lib/games/config';
 const BLOCKS_CARD = { src: '/games/snapie-blocks-card.svg' };
 const INFO_WAR_CARD = { src: '/games/snapie-info-war-card.svg' };
 
+function gameImageSrc(image: StaticImageData | { src: string } | string): StaticImageData | string {
+  if (typeof image === 'string') return image;
+  if ('width' in image && 'height' in image) return image;
+  return image.src;
+}
+
 const GAMES_CATALOG: {
   id: GameId;
   name: string;
   tagline: string;
   href: string;
-  image: { src: string };
+  image: StaticImageData | { src: string };
   // 'cover' suits a photographic hero image; 'contain' keeps a pixel-art icon
   // fully visible instead of letting a wide/short card crop into it.
   imageFit: 'cover' | 'contain';
@@ -114,15 +121,14 @@ export default function GamesPage() {
             const body = (
               <CardBody p={0}>
                 <VStack align="stretch" spacing={0} h="full">
-                  <Flex justify="center" align="center" h={40} bg="rgba(26,28,44,0.5)" borderRadius="0" position="relative">
-                    <Image
-                      src={game.image.src}
+                  <Flex justify="center" align="center" h={40} w="full" bg="rgba(26,28,44,0.5)" borderRadius="0" position="relative">
+                    <NextImage
+                      src={gameImageSrc(game.image)}
                       alt={game.name}
-                      objectFit={game.imageFit}
-                      w="full"
-                      h="full"
-                      opacity={0.7}
-                      style={{ imageRendering: 'pixelated' }}
+                      fill
+                      sizes="(max-width: 48em) 100vw, 360px"
+                      priority={game.id === 'puff-quest'}
+                      style={{ objectFit: game.imageFit, imageRendering: 'pixelated', opacity: 0.7 }}
                     />
                   </Flex>
                   <Box p={4}>
@@ -135,7 +141,7 @@ export default function GamesPage() {
                   </Box>
                   <Box px={4} pb={4}>
                     <Button
-                      as={guestLocked ? 'span' : undefined}
+                      as="span"
                       w="full"
                       rightIcon={<FiArrowRight />}
                       colorScheme="orange"
@@ -151,9 +157,15 @@ export default function GamesPage() {
               return (
                 <Card
                   key={game.id}
-                  as="button"
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={openLoginModal}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openLoginModal();
+                    }
+                  }}
                   textAlign="left"
                   w="full"
                   _hover={{ shadow: 'lg' }}
