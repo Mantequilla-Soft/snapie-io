@@ -59,6 +59,26 @@ describe('middleware soft-404 guard', () => {
     expect(run('/explore').status).toBe(200);
   });
 
+  it('404s /test-sanitize in production, where the page notFound() would stay a 200', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    try {
+      const res = run('/test-sanitize');
+      expect(res.status).toBe(404);
+      expect(res.headers.get('x-middleware-rewrite')).toContain('/_not-found');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('leaves the /test-sanitize demo available outside production', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    try {
+      expect(run('/test-sanitize').status).toBe(200);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('knows every top-level route under app/', () => {
     const dirs = readdirSync('app', { withFileTypes: true })
       .filter(d => d.isDirectory() && !/^[[(]/.test(d.name))

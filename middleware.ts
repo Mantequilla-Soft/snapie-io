@@ -75,6 +75,18 @@ function isClientNavigation(req: NextRequest): boolean {
 
 export function middleware(req: NextRequest) {
   const segments = req.nextUrl.pathname.split('/');
+
+  // The page calls notFound() in production, but root loading.tsx streams a
+  // 200 shell before that status can stick. Rewrite here so crawlers get a
+  // real 404. next dev keeps the sanitizer demo (#403).
+  if (
+    process.env.NODE_ENV === 'production'
+    && segments.length === 2
+    && segments[1] === 'test-sanitize'
+  ) {
+    return notFoundResponse(req);
+  }
+
   if (segments.length === 2 && segments[1] && !/^[@_]|\./.test(segments[1]) && !TOP_LEVEL_ROUTES.includes(segments[1])) {
     return notFoundResponse(req);
   }
