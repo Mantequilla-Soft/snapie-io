@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Alert,
   AlertIcon,
@@ -78,15 +78,30 @@ interface Props {
   forceShowProviders?: Providers[]
 }
 
-/** Close on pointerdown and cancel the gesture so the same tap cannot activate
- *  whatever sits under the modal once it unmounts (issue #402). */
-export function closeWithoutClickThrough(
-  event: { preventDefault(): void; stopPropagation(): void },
-  onClose: () => void,
-) {
-  event.preventDefault()
-  event.stopPropagation()
-  onClose()
+const GHOST_CLICK_MS = 500
+
+/**
+ * After the dialog closes, swallow the next click. Closing on pointerdown
+ * does not work: preventDefault there does not cancel click, and removing
+ * the modal while the finger is still down sends that click to the tab
+ * underneath (#402). The close stays on click; this catches a ghost click
+ * that still lands outside the dialog.
+ */
+export function swallowNextClick(windowMs = GHOST_CLICK_MS): () => void {
+  if (typeof document === 'undefined') return () => {}
+  let timer = 0
+  const cleanup = () => {
+    document.removeEventListener('click', block, true)
+    window.clearTimeout(timer)
+  }
+  const block = (event: Event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    cleanup()
+  }
+  document.addEventListener('click', block, true)
+  timer = window.setTimeout(cleanup, windowMs)
+  return cleanup
 }
 
 export default function LoginModal({
@@ -197,22 +212,10 @@ export default function LoginModal({
     [onSnapieLoginSuccess],
   )
 
-  // Close on pointerdown (not click) so the gesture cannot fall through to the
-  // feed tab under the X once the modal unmounts — see #402.
-  const handleClosePointerDown = useCallback(
-    (event: ReactPointerEvent) => {
-      closeWithoutClickThrough(event, onClose)
-    },
-    [onClose],
-  )
-
-  const handleOverlayPointerDown = useCallback(
-    (event: ReactPointerEvent) => {
-      if (event.target !== event.currentTarget) return
-      closeWithoutClickThrough(event, onClose)
-    },
-    [onClose],
-  )
+  const handleClose = useCallback(() => {
+    swallowNextClick()
+    onClose()
+  }, [onClose])
 
   const modalTitles: Record<View, string> = {
     providers: 'Welcome to Snapie',
@@ -226,15 +229,15 @@ export default function LoginModal({
       {/* Custom Snapie Auth modal */}
       <Modal
         isOpen={displayed && view !== 'hive-wallet'}
-        onClose={onClose}
+        onClose={handleClose}
         isCentered
         motionPreset="slideInBottom"
         size="sm"
       >
         <ModalOverlay backdropFilter="blur(4px)" />
-        <ModalContent mx={4} containerProps={{ onPointerDown: handleOverlayPointerDown }}>
+        <ModalContent mx={4}>
           <ModalHeader pb={2}>{modalTitles[view]}</ModalHeader>
-          <ModalCloseButton onPointerDown={handleClosePointerDown} />
+          <ModalCloseButton />
           <ModalBody pb={6}>
             {/* ── PROVIDERS VIEW ─────────────────────────────── */}
             {view === 'providers' && (

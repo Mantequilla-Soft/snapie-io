@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup, createEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import LoginModal, { closeWithoutClickThrough } from './LoginModal';
+import LoginModal, { swallowNextClick } from './LoginModal';
 import { SnapieAuthError } from '@/lib/snapie-auth/types';
 
 // The email form's mode is auto-detected inside authenticateWithEmail
@@ -90,24 +90,22 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-describe('closeWithoutClickThrough', () => {
-  it('prevents default, stops propagation, and closes', () => {
-    const onClose = vi.fn();
-    const event = {
-      preventDefault: vi.fn(),
-      stopPropagation: vi.fn(),
-    };
+describe('swallowNextClick', () => {
+  it('stops the next click and then lets later clicks through', () => {
+    const cleanup = swallowNextClick();
+    const first = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const stopped = !document.body.dispatchEvent(first);
+    expect(stopped).toBe(true);
+    expect(first.defaultPrevented).toBe(true);
 
-    closeWithoutClickThrough(event, onClose);
-
-    expect(event.preventDefault).toHaveBeenCalledTimes(1);
-    expect(event.stopPropagation).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    const second = new MouseEvent('click', { bubbles: true, cancelable: true });
+    expect(document.body.dispatchEvent(second)).toBe(true);
+    cleanup();
   });
 });
 
 describe('LoginModal close click-through (#402)', () => {
-  it('does not activate a control under the close X when the modal unmounts', () => {
+  it('closes on click and swallows the next click underneath', () => {
     const onUnderneath = vi.fn();
     const onClose = vi.fn();
 
@@ -132,63 +130,8 @@ describe('LoginModal close click-through (#402)', () => {
     }
 
     render(<Harness />);
-
-    const closeBtn = screen.getByLabelText('Close');
-    const pointerDown = createEvent.pointerDown(closeBtn);
-    fireEvent(closeBtn, pointerDown);
-
-    // Browsers only synthesize a residual click when pointerdown was not canceled.
-    // Without the fix, close waits for click and that residual click hits the tab under the X.
-    // (Modal exit animation can keep the Close node mounted briefly after onClose.)
-    if (!pointerDown.defaultPrevented) {
-      const stillOpen = screen.queryByLabelText('Close');
-      if (stillOpen) fireEvent.click(stillOpen);
-      // hidden: true — Chakra keeps aria-hidden on the page during exit animation.
-      fireEvent.click(screen.getByRole('button', { name: 'Patrons', hidden: true }));
-    }
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onUnderneath).not.toHaveBeenCalled();
-  });
-
-  it('closes from an overlay pointerdown without clicking through', () => {
-    const onUnderneath = vi.fn();
-    const onClose = vi.fn();
-
-    function Harness() {
-      const [open, setOpen] = useState(true);
-      return (
-        <ChakraProvider>
-          <button type="button" onClick={onUnderneath}>
-            Patrons
-          </button>
-          <LoginModal
-            displayed={open}
-            onSnapieLoginSuccess={vi.fn()}
-            onAiohaLogin={vi.fn()}
-            onClose={() => {
-              onClose();
-              setOpen(false);
-            }}
-          />
-        </ChakraProvider>
-      );
-    }
-
-    render(<Harness />);
-
-    const overlay = document.querySelector('.chakra-modal__content-container');
-    expect(overlay).toBeTruthy();
-
-    const pointerDown = createEvent.pointerDown(overlay!);
-    // Overlay handler only closes when the press is on the container itself.
-    Object.defineProperty(pointerDown, 'target', { value: overlay });
-    fireEvent(overlay!, pointerDown);
-
-    if (!pointerDown.defaultPrevented) {
-      fireEvent.click(overlay!);
-      fireEvent.click(screen.getByRole('button', { name: 'Patrons', hidden: true }));
-    }
+    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByRole('button', { name: 'Patrons', hidden: true }));
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onUnderneath).not.toHaveBeenCalled();
