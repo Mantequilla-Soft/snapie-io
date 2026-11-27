@@ -15,6 +15,14 @@ describe('windows95 safe-area overlays (#258)', () => {
     expect(dialog?.my).toContain('max(');
   });
 
+  it('zeros margins on full-size dialogs so the base mx does not overflow', () => {
+    const sizes = windows95ThemeDark.components?.Modal?.sizes as {
+      full: { dialog: { mx: number; my: number } };
+    };
+    expect(sizes.full.dialog.mx).toBe(0);
+    expect(sizes.full.dialog.my).toBe(0);
+  });
+
   it('pads Drawer dialogs for edge-to-edge bottom sheets', () => {
     const baseStyle = windows95ThemeDark.components?.Drawer?.baseStyle as StyleFn;
     const dialog = baseStyle({ colorMode: 'dark', placement: 'bottom' }).dialog;

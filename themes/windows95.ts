@@ -363,6 +363,17 @@ function buildComponents(mode: ColorMode) {
                     py: 6,
                 },
             },
+            sizes: {
+                // Chakra's full size clears `my` but not `mx`. Without this,
+                // a full-bleed dialog (the chat image lightbox) keeps the
+                // base horizontal margin and can scroll sideways.
+                full: {
+                    dialog: {
+                        mx: 0,
+                        my: 0,
+                    },
+                },
+            },
         },
         Drawer: {
             baseStyle: {
