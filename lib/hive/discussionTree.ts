@@ -16,6 +16,20 @@ export function discussionKey(author: string, permlink: string): string {
   return `${author}/${permlink}`
 }
 
+/**
+ * condenser `get_content_replies` returns `json_metadata` as a string.
+ * `bridge.get_discussion` returns the same field as an object. The comment
+ * UI parses it with JSON.parse, which throws on an object and blocks editing.
+ */
+export function discussionMetadata(value: unknown): string {
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value ?? {})
+  } catch {
+    return '{}'
+  }
+}
+
 export function discussionReplies(
   discussion: unknown,
   rootAuthor: string,
@@ -37,7 +51,11 @@ export function discussionReplies(
       const node = map[ref]
       if (!node || typeof node !== 'object' || typeof node.author !== 'string') continue
       seen.add(ref)
-      out.push({ ...node, replies: expand(node.replies) })
+      out.push({
+        ...node,
+        json_metadata: discussionMetadata(node.json_metadata),
+        replies: expand(node.replies),
+      })
     }
     return out
   }
