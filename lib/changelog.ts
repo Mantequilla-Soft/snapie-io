@@ -27,8 +27,10 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-26',
     date: '2026-11-26',
-    title: 'Edit page sign-in',
+    title: 'Small fixes',
     items: [
+      { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
+      { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
       { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
     ],
   },
