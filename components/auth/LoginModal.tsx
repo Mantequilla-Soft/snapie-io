@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   Alert,
   AlertIcon,
@@ -76,6 +76,17 @@ interface Props {
   onClose: () => void
   loginOptions?: any
   forceShowProviders?: Providers[]
+}
+
+/** Close on pointerdown and cancel the gesture so the same tap cannot activate
+ *  whatever sits under the modal once it unmounts (issue #402). */
+export function closeWithoutClickThrough(
+  event: { preventDefault(): void; stopPropagation(): void },
+  onClose: () => void,
+) {
+  event.preventDefault()
+  event.stopPropagation()
+  onClose()
 }
 
 export default function LoginModal({
@@ -186,6 +197,23 @@ export default function LoginModal({
     [onSnapieLoginSuccess],
   )
 
+  // Close on pointerdown (not click) so the gesture cannot fall through to the
+  // feed tab under the X once the modal unmounts — see #402.
+  const handleClosePointerDown = useCallback(
+    (event: ReactPointerEvent) => {
+      closeWithoutClickThrough(event, onClose)
+    },
+    [onClose],
+  )
+
+  const handleOverlayPointerDown = useCallback(
+    (event: ReactPointerEvent) => {
+      if (event.target !== event.currentTarget) return
+      closeWithoutClickThrough(event, onClose)
+    },
+    [onClose],
+  )
+
   const modalTitles: Record<View, string> = {
     providers: 'Welcome to Snapie',
     'email-pending': 'Check your email',
@@ -204,9 +232,9 @@ export default function LoginModal({
         size="sm"
       >
         <ModalOverlay backdropFilter="blur(4px)" />
-        <ModalContent mx={4}>
+        <ModalContent mx={4} containerProps={{ onPointerDown: handleOverlayPointerDown }}>
           <ModalHeader pb={2}>{modalTitles[view]}</ModalHeader>
-          <ModalCloseButton />
+          <ModalCloseButton onPointerDown={handleClosePointerDown} />
           <ModalBody pb={6}>
             {/* ── PROVIDERS VIEW ─────────────────────────────── */}
             {view === 'providers' && (

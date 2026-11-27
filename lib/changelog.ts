@@ -25,6 +25,14 @@ export interface ChangelogEntry {
 // only things a user would actually notice belong here.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-11-26',
+    date: '2026-11-26',
+    title: 'Login close',
+    items: [
+      { type: 'fix', text: 'On a phone, closing the login dialog with X no longer also taps the feed tab behind it.' },
+    ],
+  },
+  {
     id: '2026-11-25',
     date: '2026-11-25',
     title: 'Crisper app icon',
