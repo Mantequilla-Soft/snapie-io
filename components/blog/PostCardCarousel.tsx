@@ -17,6 +17,8 @@ interface PostCardCarouselProps {
   title: string;
   onNavigate: (event: React.MouseEvent) => void;
   onSlideChange: (swiper: { activeIndex: number }) => void;
+  /** First slide is the blog LCP image and must not wait on lazy loading. */
+  priorityFirst?: boolean;
 }
 
 /** Swiper stays in its own chunk. The card's first render has no images yet,
@@ -28,6 +30,7 @@ export default function PostCardCarousel({
   title,
   onNavigate,
   onSlideChange,
+  priorityFirst = false,
 }: PostCardCarouselProps) {
   return (
     <Swiper
@@ -57,6 +60,7 @@ export default function PostCardCarousel({
               url={url}
               alt={title || ''}
               sizes="(max-width: 800px) 100vw, 640px"
+              priority={priorityFirst && index === 0}
             />
           </Box>
         </SwiperSlide>

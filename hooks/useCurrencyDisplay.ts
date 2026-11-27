@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getPayoutValue } from '@/lib/hive/client-functions';
-import { convertHBDToDisplayCurrency } from '@/lib/utils/currencyConverter';
+import {
+  convertHBDToDisplayCurrency,
+  isValidDisplayCurrency,
+} from '@/lib/utils/currencyConverter';
 
 function hbdDisplayAmount(post: any, optimisticDeltaHBD: number): number {
   const baseAmount = parseFloat(getPayoutValue(post));
@@ -19,13 +22,16 @@ const RETRY_DELAYS_MS = [15_000, 60_000];
 /**
  * Display a post's payout in the configured currency.
  *
- * With no NEXT_PUBLIC_DISPLAY_CURRENCY, the USD/HBD string is computed
- * synchronously so feed cards never flash "$0.000" on mount (or when a
- * virtualized row remounts). Async conversion only runs when a display
- * currency is set; until it resolves we keep showing the sync HBD value.
+ * With no (or invalid) NEXT_PUBLIC_DISPLAY_CURRENCY, the USD/HBD string is
+ * computed synchronously so feed cards never flash "$0.000" on mount (or when
+ * a virtualized row remounts). Async conversion only runs when a real 3-letter
+ * currency code is set; until it resolves we keep showing the sync HBD value.
  */
 export function useCurrencyDisplay(post: any, optimisticDeltaHBD: number = 0): string {
-  const targetCurrency = process.env.NEXT_PUBLIC_DISPLAY_CURRENCY?.trim() || '';
+  const rawCurrency = process.env.NEXT_PUBLIC_DISPLAY_CURRENCY?.trim() || '';
+  const targetCurrency = isValidDisplayCurrency(rawCurrency)
+    ? rawCurrency.toUpperCase()
+    : '';
   // Effects key on the number, not `post`: callers often pass a fresh post
   // object every render, which would otherwise restart conversion forever.
   const amount = hbdDisplayAmount(post, optimisticDeltaHBD);

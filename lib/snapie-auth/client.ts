@@ -259,7 +259,12 @@ export function resendVerification() {
 // GET /auth/me returns { user: SnapieMeUser } — a superset of SnapieUser with
 // email, accountValueUsd, and emancipationRequired.
 export async function getMe(): Promise<SnapieMeUser> {
-  const data = await req<{ user: SnapieMeUser }>('GET', '/auth/me')
+  const data = await req<{ user: SnapieMeUser | null }>('GET', '/auth/me')
+  // Guests get HTTP 200 { user: null } so the browser does not log a failed
+  // request. Callers still see a 401 and back off, same as a real rejection.
+  if (!data.user) {
+    throw new AuthError('unauthorized', 401, 'Unauthorized')
+  }
   return data.user
 }
 

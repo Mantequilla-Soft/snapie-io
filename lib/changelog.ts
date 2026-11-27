@@ -27,9 +27,17 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     id: '2026-11-26',
     date: '2026-11-26',
-    title: 'Notch-safe overlays',
+    title: 'Small fixes',
     items: [
       { type: 'fix', text: 'In the installed app on a notched phone, chat, Shorts, sheets and close buttons stay clear of the notch and home indicator, including in landscape.' },
+      { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
+      { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
+      { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
+      { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
+      { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
+      { type: 'fix', text: 'Game cards on the games page no longer use a button wrapped around the artwork, so the page stops rebuilding itself as it loads.' },
+      { type: 'improvement', text: 'The first photo on the blog and a profile banner start loading right away, and game art is sent at the size of the card.' },
+      { type: 'improvement', text: 'Shorts and Hangouts load their video and room code only when you play one, so those pages open faster.' },
     ],
   },
   {
