@@ -33,6 +33,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
       { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
       { type: 'improvement', text: 'Explore waits to download community pictures until you scroll to them.' },
+      { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
     ],
   },
   {
@@ -42,7 +43,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     items: [
       { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
       { type: 'fix', text: 'On a wide screen, the home feed no longer jumps sideways while the sidebar loads.' },
-      { type: 'fix', text: 'The “Browsing as guest” label on Hangouts is light enough to read on the dark lobby.' },
     ],
   },
   {
