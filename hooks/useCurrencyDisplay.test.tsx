@@ -2,9 +2,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-vi.mock('@/lib/utils/currencyConverter', () => ({
-  convertHBDToDisplayCurrency: vi.fn(async (amount: number, currency: string) => `${currency}${amount.toFixed(2)}`),
-}));
+vi.mock('@/lib/utils/currencyConverter', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/utils/currencyConverter')>();
+  return {
+    ...actual,
+    convertHBDToDisplayCurrency: vi.fn(async (amount: number, currency: string) =>
+      `${currency}${amount.toFixed(2)}`,
+    ),
+  };
+});
 
 import { useCurrencyDisplay } from './useCurrencyDisplay';
 import { convertHBDToDisplayCurrency } from '@/lib/utils/currencyConverter';
@@ -39,7 +45,7 @@ describe('useCurrencyDisplay', () => {
   });
 
   it('keeps the sync HBD value until async conversion finishes', async () => {
-    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = 'R$';
+    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = 'BRL';
     let resolveConvert!: (value: string) => void;
     vi.mocked(convertHBDToDisplayCurrency).mockReturnValueOnce(
       new Promise<string>((resolve) => {
@@ -63,16 +69,16 @@ describe('useCurrencyDisplay', () => {
   });
 
   it('converts again when the payout amount changes', async () => {
-    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = 'R$';
+    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = 'EUR';
     const created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().replace('Z', '');
     const { result, rerender } = renderHook(
       ({ delta }) => useCurrencyDisplay({ created, pending_payout_value: '2.000 HBD' }, delta),
       { initialProps: { delta: 0 } },
     );
 
-    await waitFor(() => expect(result.current).toBe('R$2.00'));
+    await waitFor(() => expect(result.current).toBe('EUR2.00'));
     rerender({ delta: 0.5 });
-    await waitFor(() => expect(result.current).toBe('R$2.50'));
+    await waitFor(() => expect(result.current).toBe('EUR2.50'));
     expect(convertHBDToDisplayCurrency).toHaveBeenCalledTimes(2);
   });
 
@@ -110,5 +116,48 @@ describe('useCurrencyDisplay', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('ignores invalid display currency (e.g. ">") and never calls the converter', async () => {
+    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = '>';
+    const created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().replace('Z', '');
+    const { result } = renderHook(() =>
+      useCurrencyDisplay({ created, pending_payout_value: '1.500 HBD' }),
+    );
+
+    expect(result.current).toBe('$1.500');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current).toBe('$1.500');
+    expect(convertHBDToDisplayCurrency).not.toHaveBeenCalled();
+  });
+
+  it('ignores whitespace-padded junk display currency without retries', async () => {
+    vi.useFakeTimers();
+    try {
+      process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = '  >  ';
+      const created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().replace('Z', '');
+      const { result } = renderHook(() =>
+        useCurrencyDisplay({ created, pending_payout_value: '2.250 HBD' }),
+      );
+
+      expect(result.current).toBe('$2.250');
+      await act(() => vi.advanceTimersByTimeAsync(10 * 60_000));
+      expect(result.current).toBe('$2.250');
+      expect(convertHBDToDisplayCurrency).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('still converts when a valid currency like BRL is configured', async () => {
+    process.env.NEXT_PUBLIC_DISPLAY_CURRENCY = 'brl';
+    vi.mocked(convertHBDToDisplayCurrency).mockResolvedValueOnce('R$7.50');
+    const created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().replace('Z', '');
+    const { result } = renderHook(() =>
+      useCurrencyDisplay({ created, pending_payout_value: '1.500 HBD' }),
+    );
+
+    await waitFor(() => expect(result.current).toBe('R$7.50'));
+    expect(convertHBDToDisplayCurrency).toHaveBeenCalledWith(1.5, 'BRL');
   });
 });
