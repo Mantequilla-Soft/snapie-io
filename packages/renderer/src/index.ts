@@ -95,6 +95,97 @@ const HIVEMOJI_SKIP_TAGS = new Set([
     'samp'
 ]);
 
+/** Module/window-level cache of Hivemoji srcs that already 404'd — remounts skip the request. */
+const HIVEMOJI_MISS_CACHE_KEY = '__snapieHivemojiMissCache';
+const HIVEMOJI_MISS_APPLY_KEY = '__snapieHivemojiMissApply';
+
+function getHivemojiMissCache(): Set<string> {
+    const root = globalThis as typeof globalThis & {
+        [HIVEMOJI_MISS_CACHE_KEY]?: Set<string>;
+    };
+    if (!root[HIVEMOJI_MISS_CACHE_KEY]) {
+        root[HIVEMOJI_MISS_CACHE_KEY] = new Set<string>();
+    }
+    return root[HIVEMOJI_MISS_CACHE_KEY];
+}
+
+function rememberHivemojiMiss(src: string): void {
+    if (!src) return;
+    const cache = getHivemojiMissCache();
+    cache.add(src);
+    // Image-proxy rewrites change the img src; also record the upstream
+    // Hivemoji URL so the next render can skip before another request fires.
+    try {
+        const parsed = new URL(src, 'https://placeholder.invalid');
+        const upstream = parsed.searchParams.get('url');
+        if (upstream) cache.add(upstream);
+    } catch {
+        // Ignore unparseable srcs.
+    }
+}
+
+function hasHivemojiMiss(src: string): boolean {
+    return getHivemojiMissCache().has(src);
+}
+
+function missReplacementEnabled(): boolean {
+    return Boolean((globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY]);
+}
+
+/** Test helper: seed the miss cache without loading an image. */
+export function markHivemojiMissForTests(src: string): void {
+    rememberHivemojiMiss(src);
+}
+
+/** Test helper: clear remembered misses between cases. */
+export function clearHivemojiMissCacheForTests(): void {
+    getHivemojiMissCache().clear();
+    delete (globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY];
+}
+
+/**
+ * Test helper: let later renders omit known misses. Production turns this on
+ * only after hydration, so the first client render still matches the server.
+ */
+export function enableHivemojiMissReplacementForTests(): void {
+    (globalThis as typeof globalThis & { [HIVEMOJI_MISS_APPLY_KEY]?: boolean })[HIVEMOJI_MISS_APPLY_KEY] = true;
+}
+
+function showHivemojiFallback(img: HTMLImageElement): void {
+    rememberHivemojiMiss(img.getAttribute('src') || img.currentSrc || img.src);
+    img.style.display = 'none';
+    const parent = img.parentElement;
+    if (!parent) return;
+    parent.classList.add('hivemoji--fallback');
+    const text = parent.querySelector('.hivemoji__text');
+    if (text instanceof HTMLElement) text.style.display = 'inline';
+}
+
+let hivemojiMissHandlerInstalled = false;
+
+/**
+ * Record Hivemoji 404s from a capturing document listener and, after this
+ * runs, omit those URLs from later renders. Called from a client effect so
+ * it cannot change the HTML React is hydrating. `onerror` stays forbidden.
+ */
+export function installHivemojiMissHandler(): void {
+    if (hivemojiMissHandlerInstalled || typeof document === 'undefined') return;
+    hivemojiMissHandlerInstalled = true;
+    enableHivemojiMissReplacementForTests();
+    document.addEventListener('error', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLImageElement)) return;
+        if (!target.classList.contains('hivemoji__img')) return;
+        showHivemojiFallback(target);
+    }, true);
+    document.querySelectorAll('img.hivemoji__img').forEach((node) => {
+        if (!(node instanceof HTMLImageElement)) return;
+        if (node.complete && node.naturalWidth === 0 && node.getAttribute('src')) {
+            showHivemojiFallback(node);
+        }
+    });
+}
+
 /**
  * Default Hive frontends recognized for URL conversion
  */
@@ -611,6 +702,26 @@ function buildHivemojiUrl(baseUrl: string, owner: string, name: string): string 
     return `${baseUrl}/@${encodeURIComponent(owner)}/@${encodeURIComponent(name)}`;
 }
 
+function createHivemojiFallbackElement(
+    doc: Document,
+    altText: string
+): HTMLSpanElement {
+    const span = doc.createElement('span');
+    span.className = 'hivemoji hivemoji--fallback';
+    span.setAttribute('role', 'img');
+    span.setAttribute('aria-label', altText);
+    const text = doc.createElement('span');
+    text.className = 'hivemoji__text';
+    text.textContent = altText;
+    text.style.display = 'inline';
+    span.style.display = 'inline-flex';
+    span.style.alignItems = 'center';
+    span.style.verticalAlign = 'middle';
+    span.style.margin = '0 0.05em';
+    span.append(text);
+    return span;
+}
+
 function createHivemojiElement(
     doc: Document,
     baseUrl: string,
@@ -618,6 +729,14 @@ function createHivemojiElement(
     name: string,
     altText: string
 ): HTMLSpanElement {
+    const src = buildHivemojiUrl(baseUrl, owner, name);
+
+    // Known misses are omitted only after hydration. Using the cache during
+    // the first client render disagrees with the server HTML (#409).
+    if (missReplacementEnabled() && hasHivemojiMiss(src)) {
+        return createHivemojiFallbackElement(doc, altText);
+    }
+
     const span = doc.createElement('span');
     span.className = 'hivemoji';
     span.setAttribute('role', 'img');
@@ -629,7 +748,7 @@ function createHivemojiElement(
 
     const img = doc.createElement('img');
     img.className = 'hivemoji__img';
-    img.setAttribute('src', buildHivemojiUrl(baseUrl, owner, name));
+    img.setAttribute('src', src);
     img.setAttribute('alt', '');
     img.setAttribute('aria-hidden', 'true');
     img.setAttribute('loading', 'lazy');
@@ -642,10 +761,6 @@ function createHivemojiElement(
     img.style.margin = '0';
     img.style.objectFit = 'contain';
     img.style.verticalAlign = 'middle';
-    img.setAttribute(
-        'onerror',
-        'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}'
-    );
     span.style.display = 'inline-flex';
     span.style.alignItems = 'center';
     span.style.verticalAlign = 'middle';
@@ -707,6 +822,9 @@ function transformHivemojiContent(
             const ownerCandidate = ownerPart ? ownerPart.slice(0, -1) : defaultOwner;
             const owner = normalizeHivemojiOwner(ownerCandidate);
             if (!owner) continue;
+            // Bare :username: on a post by that author (or explicit :user/user:)
+            // would request /@user/@user and 404 — leave the token as plain text.
+            if (owner.toLowerCase() === String(name).toLowerCase()) continue;
 
             const index = match.index ?? 0;
             const before = text.slice(lastIndex, index);

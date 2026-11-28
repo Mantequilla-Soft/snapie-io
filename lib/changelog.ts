@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-11-26',
     title: 'Small fixes',
     items: [
+      { type: 'fix', text: "Hivemoji shortcodes that are just the author's username stay as text, so the feed no longer requests a missing /@user/@user image over and over." },
       { type: 'fix', text: 'On a phone, closing the login dialog with X no longer also taps the feed tab behind it.' },
       { type: 'fix', text: 'In the installed app on a notched phone, chat, Shorts, sheets and close buttons stay clear of the notch and home indicator, including in landscape.' },
       { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },

@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import {
+    clearHivemojiMissCacheForTests,
+    enableHivemojiMissReplacementForTests,
+    markHivemojiMissForTests,
+} from '@snapie/renderer';
 import markdownRenderer from './MarkdownRenderer';
 import { IMAGE_PROXY_PATH } from '@/lib/images/feedImageSrc';
 
@@ -24,6 +29,44 @@ describe('markdownRenderer image srcs', () => {
         expect(html).toContain('hivemoji');
         expect(html).toContain(`${IMAGE_PROXY_PATH}?url=`);
         expect(html).not.toContain('src="https://hivemoji.hivelytics.io');
+    });
+
+    it('leaves :author: as text when it matches defaultEmojiOwner (no doubled /@user/@user)', () => {
+        const html = markdownRenderer(':joseal2020:', { defaultEmojiOwner: 'joseal2020' });
+        expect(html).toContain(':joseal2020:');
+        expect(html).not.toContain('hivemoji__img');
+        expect(html).not.toContain('@joseal2020/@joseal2020');
+        expect(html).not.toContain(encodeURIComponent('https://hivemoji.hivelytics.io/@joseal2020/@joseal2020'));
+    });
+
+    it('still renders :wave: as a hivemoji image for a different owner', () => {
+        const html = markdownRenderer(':wave:', { defaultEmojiOwner: 'alice' });
+        expect(html).toContain('hivemoji__img');
+        expect(html).toContain(encodeURIComponent('https://hivemoji.hivelytics.io/@alice/@wave'));
+    });
+
+    it('keeps a known miss in the HTML until replacement is enabled after hydration', () => {
+        clearHivemojiMissCacheForTests();
+        const missUrl = 'https://hivemoji.hivelytics.io/@alice/@nope';
+        markHivemojiMissForTests(missUrl);
+        const duringHydration = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
+        expect(duringHydration).toContain('hivemoji__img');
+        expect(duringHydration).toContain(encodeURIComponent(missUrl));
+
+        enableHivemojiMissReplacementForTests();
+        const afterMount = markdownRenderer(':nope:', { defaultEmojiOwner: 'alice' });
+        expect(afterMount).toContain('hivemoji--fallback');
+        expect(afterMount).toContain(':nope:');
+        expect(afterMount).not.toContain('hivemoji__img');
+        expect(afterMount).not.toContain(encodeURIComponent(missUrl));
+        clearHivemojiMissCacheForTests();
+    });
+
+    it('strips onerror from an image that claims to be a hivemoji', () => {
+        const html = markdownRenderer(
+            '<img class="hivemoji__img" src="https://example.com/a.jpg" onerror="this.style.display=\'none\'">',
+        );
+        expect(html).not.toContain('onerror');
     });
 
     it('always emits an alt attribute on rendered images', () => {
