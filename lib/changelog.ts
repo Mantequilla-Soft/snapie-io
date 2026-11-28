@@ -29,6 +29,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     date: '2026-11-26',
     title: 'Small fixes',
     items: [
+      { type: 'fix', text: 'On a phone, closing the login dialog with X no longer also taps the feed tab behind it.' },
       { type: 'fix', text: 'In the installed app on a notched phone, chat, Shorts, sheets and close buttons stay clear of the notch and home indicator, including in landscape.' },
       { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
       { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
