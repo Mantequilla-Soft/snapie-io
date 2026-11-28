@@ -45,6 +45,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Crisper app icon',
     items: [
       { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+      { type: 'improvement', text: 'Replies on a post, a snap conversation, and a Short load together, so a long thread shows up without a long wait.' },
       { type: 'fix', text: 'On a wide screen, the home feed no longer jumps sideways while the sidebar loads.' },
     ],
   },
