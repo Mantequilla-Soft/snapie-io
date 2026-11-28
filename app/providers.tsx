@@ -4,6 +4,7 @@
 import { ChakraProvider } from '@chakra-ui/react'
 
 import { useEffect } from 'react'
+import { installHivemojiMissHandler } from '@snapie/renderer'
 import { windows95ThemeDark, windows95ThemeLight } from '@/themes/windows95'
 import { UserProvider } from '@/contexts/UserContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
@@ -69,6 +70,12 @@ function styleIframe(iframe: HTMLIFrameElement, data: any) {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // After hydration, so a 404 during the first paint cannot change the HTML
+  // React is matching against the server.
+  useEffect(() => {
+    installHivemojiMissHandler();
+  }, []);
+
   // Global listener for 3Speak video player orientation
   useEffect(() => {
     // Prevent Strict Mode from double-attaching the listener

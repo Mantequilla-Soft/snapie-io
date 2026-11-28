@@ -78,6 +78,32 @@ interface Props {
   forceShowProviders?: Providers[]
 }
 
+const GHOST_CLICK_MS = 500
+
+/**
+ * After the dialog closes, swallow the next click. Closing on pointerdown
+ * does not work: preventDefault there does not cancel click, and removing
+ * the modal while the finger is still down sends that click to the tab
+ * underneath (#402). The close stays on click; this catches a ghost click
+ * that still lands outside the dialog.
+ */
+export function swallowNextClick(windowMs = GHOST_CLICK_MS): () => void {
+  if (typeof document === 'undefined') return () => {}
+  let timer = 0
+  const cleanup = () => {
+    document.removeEventListener('click', block, true)
+    window.clearTimeout(timer)
+  }
+  const block = (event: Event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    cleanup()
+  }
+  document.addEventListener('click', block, true)
+  timer = window.setTimeout(cleanup, windowMs)
+  return cleanup
+}
+
 export default function LoginModal({
   displayed,
   initialView = 'providers',
@@ -186,6 +212,11 @@ export default function LoginModal({
     [onSnapieLoginSuccess],
   )
 
+  const handleClose = useCallback(() => {
+    swallowNextClick()
+    onClose()
+  }, [onClose])
+
   const modalTitles: Record<View, string> = {
     providers: 'Welcome to Snapie',
     'email-pending': 'Check your email',
@@ -198,7 +229,7 @@ export default function LoginModal({
       {/* Custom Snapie Auth modal */}
       <Modal
         isOpen={displayed && view !== 'hive-wallet'}
-        onClose={onClose}
+        onClose={handleClose}
         isCentered
         motionPreset="slideInBottom"
         size="sm"

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
+import { useState } from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
-import LoginModal from './LoginModal';
+import LoginModal, { swallowNextClick } from './LoginModal';
 import { SnapieAuthError } from '@/lib/snapie-auth/types';
 
 // The email form's mode is auto-detected inside authenticateWithEmail
@@ -88,6 +89,54 @@ beforeEach(() => {
 });
 
 afterEach(cleanup);
+
+describe('swallowNextClick', () => {
+  it('stops the next click and then lets later clicks through', () => {
+    const cleanup = swallowNextClick();
+    const first = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const stopped = !document.body.dispatchEvent(first);
+    expect(stopped).toBe(true);
+    expect(first.defaultPrevented).toBe(true);
+
+    const second = new MouseEvent('click', { bubbles: true, cancelable: true });
+    expect(document.body.dispatchEvent(second)).toBe(true);
+    cleanup();
+  });
+});
+
+describe('LoginModal close click-through (#402)', () => {
+  it('closes on click and swallows the next click underneath', () => {
+    const onUnderneath = vi.fn();
+    const onClose = vi.fn();
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <ChakraProvider>
+          <button type="button" onClick={onUnderneath}>
+            Patrons
+          </button>
+          <LoginModal
+            displayed={open}
+            onSnapieLoginSuccess={vi.fn()}
+            onAiohaLogin={vi.fn()}
+            onClose={() => {
+              onClose();
+              setOpen(false);
+            }}
+          />
+        </ChakraProvider>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByRole('button', { name: 'Patrons', hidden: true }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onUnderneath).not.toHaveBeenCalled();
+  });
+});
 
 describe('LoginModal double-submit guard', () => {
   it('fires exactly one auth call when the submit button is clicked twice in a row', async () => {

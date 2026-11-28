@@ -37,6 +37,69 @@ var HIVEMOJI_SKIP_TAGS = /* @__PURE__ */ new Set([
   "kbd",
   "samp"
 ]);
+var HIVEMOJI_MISS_CACHE_KEY = "__snapieHivemojiMissCache";
+var HIVEMOJI_MISS_APPLY_KEY = "__snapieHivemojiMissApply";
+function getHivemojiMissCache() {
+  const root = globalThis;
+  if (!root[HIVEMOJI_MISS_CACHE_KEY]) {
+    root[HIVEMOJI_MISS_CACHE_KEY] = /* @__PURE__ */ new Set();
+  }
+  return root[HIVEMOJI_MISS_CACHE_KEY];
+}
+function rememberHivemojiMiss(src) {
+  if (!src) return;
+  const cache = getHivemojiMissCache();
+  cache.add(src);
+  try {
+    const parsed = new URL(src, "https://placeholder.invalid");
+    const upstream = parsed.searchParams.get("url");
+    if (upstream) cache.add(upstream);
+  } catch {
+  }
+}
+function hasHivemojiMiss(src) {
+  return getHivemojiMissCache().has(src);
+}
+function missReplacementEnabled() {
+  return Boolean(globalThis[HIVEMOJI_MISS_APPLY_KEY]);
+}
+function markHivemojiMissForTests(src) {
+  rememberHivemojiMiss(src);
+}
+function clearHivemojiMissCacheForTests() {
+  getHivemojiMissCache().clear();
+  delete globalThis[HIVEMOJI_MISS_APPLY_KEY];
+}
+function enableHivemojiMissReplacementForTests() {
+  globalThis[HIVEMOJI_MISS_APPLY_KEY] = true;
+}
+function showHivemojiFallback(img) {
+  rememberHivemojiMiss(img.getAttribute("src") || img.currentSrc || img.src);
+  img.style.display = "none";
+  const parent = img.parentElement;
+  if (!parent) return;
+  parent.classList.add("hivemoji--fallback");
+  const text = parent.querySelector(".hivemoji__text");
+  if (text instanceof HTMLElement) text.style.display = "inline";
+}
+var hivemojiMissHandlerInstalled = false;
+function installHivemojiMissHandler() {
+  if (hivemojiMissHandlerInstalled || typeof document === "undefined") return;
+  hivemojiMissHandlerInstalled = true;
+  enableHivemojiMissReplacementForTests();
+  document.addEventListener("error", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (!target.classList.contains("hivemoji__img")) return;
+    showHivemojiFallback(target);
+  }, true);
+  document.querySelectorAll("img.hivemoji__img").forEach((node) => {
+    if (!(node instanceof HTMLImageElement)) return;
+    if (node.complete && node.naturalWidth === 0 && node.getAttribute("src")) {
+      showHivemojiFallback(node);
+    }
+  });
+}
 var DEFAULT_HIVE_FRONTENDS = [
   "peakd.com",
   "ecency.com",
@@ -446,7 +509,27 @@ function normalizeHivemojiOwner(owner) {
 function buildHivemojiUrl(baseUrl, owner, name) {
   return `${baseUrl}/@${encodeURIComponent(owner)}/@${encodeURIComponent(name)}`;
 }
+function createHivemojiFallbackElement(doc, altText) {
+  const span = doc.createElement("span");
+  span.className = "hivemoji hivemoji--fallback";
+  span.setAttribute("role", "img");
+  span.setAttribute("aria-label", altText);
+  const text = doc.createElement("span");
+  text.className = "hivemoji__text";
+  text.textContent = altText;
+  text.style.display = "inline";
+  span.style.display = "inline-flex";
+  span.style.alignItems = "center";
+  span.style.verticalAlign = "middle";
+  span.style.margin = "0 0.05em";
+  span.append(text);
+  return span;
+}
 function createHivemojiElement(doc, baseUrl, owner, name, altText) {
+  const src = buildHivemojiUrl(baseUrl, owner, name);
+  if (missReplacementEnabled() && hasHivemojiMiss(src)) {
+    return createHivemojiFallbackElement(doc, altText);
+  }
   const span = doc.createElement("span");
   span.className = "hivemoji";
   span.setAttribute("role", "img");
@@ -457,7 +540,7 @@ function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   text.style.display = "none";
   const img = doc.createElement("img");
   img.className = "hivemoji__img";
-  img.setAttribute("src", buildHivemojiUrl(baseUrl, owner, name));
+  img.setAttribute("src", src);
   img.setAttribute("alt", "");
   img.setAttribute("aria-hidden", "true");
   img.setAttribute("loading", "lazy");
@@ -470,10 +553,6 @@ function createHivemojiElement(doc, baseUrl, owner, name, altText) {
   img.style.margin = "0";
   img.style.objectFit = "contain";
   img.style.verticalAlign = "middle";
-  img.setAttribute(
-    "onerror",
-    'this.style.display="none";var p=this.parentElement;if(p){p.classList.add("hivemoji--fallback");var t=p.querySelector(".hivemoji__text");if(t){t.style.display="inline";}}'
-  );
   span.style.display = "inline-flex";
   span.style.alignItems = "center";
   span.style.verticalAlign = "middle";
@@ -522,6 +601,7 @@ function transformHivemojiContent(content, options) {
       const ownerCandidate = ownerPart ? ownerPart.slice(0, -1) : defaultOwner;
       const owner = normalizeHivemojiOwner(ownerCandidate);
       if (!owner) continue;
+      if (owner.toLowerCase() === String(name).toLowerCase()) continue;
       const index = match.index ?? 0;
       const before = text.slice(lastIndex, index);
       if (before) {
@@ -625,7 +705,11 @@ function createHiveRenderer(options = {}) {
 var renderHiveMarkdown = createHiveRenderer();
 export {
   canonicalSpeakAudioUrl,
+  clearHivemojiMissCacheForTests,
   createHiveRenderer,
+  enableHivemojiMissReplacementForTests,
+  installHivemojiMissHandler,
+  markHivemojiMissForTests,
   renderHiveMarkdown
 };
 //# sourceMappingURL=index.mjs.map
