@@ -23,7 +23,7 @@ interface ActiveComment {
 // pages manage their own chrome") — this is that chrome. Without it, a
 // mobile viewer has no in-app way back out of the full-viewport swiper.
 // Desktop still has the persistent Sidebar, so this is mobile-only.
-function BackButton({ onClick }: { onClick: () => void }) {
+export function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <IconButton
       aria-label="Back"
@@ -31,7 +31,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       position="absolute"
       top="calc(12px + env(safe-area-inset-top))"
-      left={3}
+      left="max(0.75rem, env(safe-area-inset-left))"
       zIndex={10}
       display={{ base: 'flex', md: 'none' }}
       variant="ghost"

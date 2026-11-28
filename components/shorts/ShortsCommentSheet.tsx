@@ -19,6 +19,10 @@ export default function ShortsCommentSheet({ isOpen, onClose, author, permlink, 
         borderTopRadius="16px"
         backdropFilter="blur(18px)"
         maxH="80dvh"
+        // Theme Drawer already pads bottom; keep horizontal insets explicit on
+        // this immersive sheet so landscape notch clearance is obvious here.
+        pl="env(safe-area-inset-left)"
+        pr="env(safe-area-inset-right)"
       >
         <DrawerBody p={0} display="flex" flexDirection="column" h="100%">
           <ShortsCommentContent

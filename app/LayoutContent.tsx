@@ -246,6 +246,14 @@ export default function LayoutContent({
   // env(safe-area-inset-*) is 0 in a normal browser tab.
   const mobilePaddingTop = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(56px + env(safe-area-inset-top))', sm: '0' } : undefined;
   const mobilePaddingBottom = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? { base: 'calc(76px + env(safe-area-inset-bottom))', sm: '0' } : undefined;
+  // Landscape notch / island: keep scroll content off the left/right unsafe
+  // edges at every width. A phone in landscape is wider than the `sm`
+  // breakpoint (480px), so a base-only value turns the padding off in the
+  // case this inset exists for. The value is 0 in a normal browser tab.
+  // Top and bottom stay base-only: they include the 56px header and 76px
+  // tab bar, which the desktop layout does not show.
+  const mobilePaddingLeft = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? 'env(safe-area-inset-left)' : undefined;
+  const mobilePaddingRight = !isEmbedMode && !isChatPopoutMode && !isShortsPage ? 'env(safe-area-inset-right)' : undefined;
 
   return (
     <Box
@@ -274,6 +282,8 @@ export default function LayoutContent({
             h="100dvh"
             overflowY="auto"
             pt={mobilePaddingTop}
+            pl={mobilePaddingLeft}
+            pr={mobilePaddingRight}
           >
             {/* Deliberately NOT display=flex/flexDirection=column: this box's
                 children (EmancipationBanner, the routed page, the spacer

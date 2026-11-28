@@ -325,7 +325,13 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
       />
 
       {/* Author + title */}
-      <Box position="absolute" bottom={8} left={4} right="80px" zIndex={2}>
+      <Box
+        position="absolute"
+        bottom="max(2rem, env(safe-area-inset-bottom))"
+        left="max(1rem, env(safe-area-inset-left))"
+        right="calc(80px + env(safe-area-inset-right))"
+        zIndex={2}
+      >
         <Flex align="center" mb={2} gap={2}>
           <Avatar
             username={short.author}
@@ -365,8 +371,8 @@ export default function ShortCard({ short, isActive, isPreload, muted, onToggleM
       {/* Right-rail actions */}
       <VStack
         position="absolute"
-        right={3}
-        bottom={10}
+        right="max(0.75rem, env(safe-area-inset-right))"
+        bottom="max(2.5rem, env(safe-area-inset-bottom))"
         spacing={4}
         align="center"
         zIndex={2}

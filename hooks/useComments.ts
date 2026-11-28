@@ -6,6 +6,7 @@ import { mutedAccountsManager } from "@/lib/hive/muted-accounts"
 import { contentFilterStore } from "@/lib/contentFilter/store";
 import { useContentFilter } from "@/hooks/useContentFilter";
 import { parseHiveDate } from "@/lib/utils/hiveTimestamp";
+import { discussionReplies } from "@/lib/hive/discussionTree";
 
 interface ActiveVote {
     percent: number;
@@ -47,42 +48,58 @@ export interface ListCommentsParams {
     order: string
 }
 
+async function fetchReplyPage(author: string, permlink: string): Promise<Comment[]> {
+    return (await HiveClient.database.call("get_content_replies", [
+        author,
+        permlink,
+    ])) as Comment[];
+}
+
+/** One condenser call per parent. Used only when bridge.get_discussion fails. */
+async function fetchRepliesRecursively(author: string, permlink: string): Promise<Comment[]> {
+    const comments = await fetchReplyPage(author, permlink);
+    return Promise.all(comments.map(async (comment) => {
+        const extended = comment as ExtendedComment;
+        if (extended.children && extended.children > 0) {
+            extended.replies = await fetchRepliesRecursively(extended.author, extended.permlink) as ExtendedComment[];
+        }
+        return extended;
+    }));
+}
+
 async function fetchComments(
     author: string,
     permlink: string,
     recursive: boolean = false
 ): Promise<Comment[]> {
     try {
-        /*
-        const params = {
-            start: [author, permlink, "", ""],
-            limit: 10,
-            order: "by_parent"
-          };
-          
-        const temp = await HiveClient.call("database_api", "list_comments", params);
-        console.log(temp.comments)
-        const comments = temp.comments
-        */
-
-        const comments = (await HiveClient.database.call("get_content_replies", [
-            author,
-            permlink,
-        ])) as Comment[];
-
         if (recursive) {
-            const fetchReplies = async (comment: ExtendedComment): Promise<ExtendedComment> => {
-                if (comment.children && comment.children > 0) {
-                    comment.replies = await fetchComments(comment.author, comment.permlink, true);
-                }
-                return comment;
-            };
-            const commentsWithReplies = await Promise.all(comments.map(fetchReplies));
-            return commentsWithReplies;
-        } else {
-            return comments;
+            // The whole thread, including nested replies, in one bridge call.
+            // get_content_replies is one HTTP request per parent and a busy
+            // post was hundreds of them.
+            const discussion = await HiveClient.call("bridge", "get_discussion", {
+                author,
+                permlink,
+            });
+            // Bridge posts are the same records the UI already renders as
+            // comments. `replies` is a nested tree here, not the string list
+            // on dhive's Comment type, so the cast goes through unknown.
+            return discussionReplies(discussion, author, permlink) as unknown as Comment[];
         }
+        return await fetchReplyPage(author, permlink);
     } catch (error) {
+        if (recursive) {
+            console.error(
+                "bridge.get_discussion failed, falling back to get_content_replies:",
+                error instanceof Error ? error.message : error,
+            );
+            try {
+                return await fetchRepliesRecursively(author, permlink);
+            } catch (fallbackError) {
+                console.error("Failed to fetch comments:", fallbackError instanceof Error ? fallbackError.message : fallbackError);
+                return [];
+            }
+        }
         console.error("Failed to fetch comments:", error instanceof Error ? error.message : error);
         return [];
     }
