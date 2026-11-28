@@ -503,6 +503,8 @@ describe('ChatPanel phone close control', () => {
     const css = [...document.querySelectorAll('style')].map((node) => node.textContent || '').join('\n');
     expect(css).toContain('env(safe-area-inset-top)');
     expect(css).toContain('env(safe-area-inset-bottom)');
+    expect(css).toContain('env(safe-area-inset-left)');
+    expect(css).toContain('env(safe-area-inset-right)');
 
     fireEvent.click(close);
     expect(onClose).toHaveBeenCalledTimes(1);

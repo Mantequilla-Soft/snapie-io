@@ -30,6 +30,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Small fixes',
     items: [
       { type: 'fix', text: "Hivemoji shortcodes that are just the author's username stay as text, so the feed no longer requests a missing /@user/@user image over and over." },
+      { type: 'fix', text: 'On a phone, closing the login dialog with X no longer also taps the feed tab behind it.' },
+      { type: 'fix', text: 'In the installed app on a notched phone, chat, Shorts, sheets and close buttons stay clear of the notch and home indicator, including in landscape.' },
       { type: 'fix', text: 'A bad display-currency setting no longer floods the console with exchange-rate warnings on every feed card.' },
       { type: 'fix', text: 'The leftover text-sanitizer demo page is no longer a public, indexable page in production.' },
       { type: 'fix', text: 'You now have to sign in before opening the edit page, so a logged-out visit can no longer show someone else\'s post in the editor.' },
@@ -46,6 +48,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     title: 'Crisper app icon',
     items: [
       { type: 'fix', text: 'Browser bookmarks, Safari favorites tiles, and home-screen install icons now use sharp high-resolution artwork instead of upscaled favicon art.' },
+      { type: 'improvement', text: 'Replies on a post, a snap conversation, and a Short load together, so a long thread shows up without a long wait.' },
       { type: 'fix', text: 'On a wide screen, the home feed no longer jumps sideways while the sidebar loads.' },
     ],
   },
