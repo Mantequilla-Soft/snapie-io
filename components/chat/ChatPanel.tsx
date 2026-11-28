@@ -1831,9 +1831,12 @@ export default function ChatPanel({
   const panelRight = isPopoutWindow ? '0' : (isMobile ? '0' : '16px');
   const borderRadius = isPopoutWindow ? '0' : (isMobile ? '20px 20px 0 0' : '16px 16px 0 0');
   // Phone: sit between the fixed header and the tab bar, inside the safe area,
-  // so both stay tappable and the close control is never under the notch.
+  // so both stay tappable and the close control is never under the notch
+  // (including landscape, where left/right insets clear the notch/island).
   const phoneTop = 'calc(56px + env(safe-area-inset-top))';
   const phoneBottom = 'calc(60px + env(safe-area-inset-bottom))';
+  const phoneLeft = 'env(safe-area-inset-left)';
+  const phoneRight = 'env(safe-area-inset-right)';
   const isDesktopSplit = !isMobile && !isTablet;
   const isTabletLayout = isTablet;
   const showList = isMobile ? mobileView === 'list' : true;
@@ -1867,9 +1870,11 @@ export default function ChatPanel({
       <Box
         position="fixed"
         bottom="0"
-        right={{ base: '0', md: '16px' }}
-        w={{ base: '100vw', md: '220px' }}
-        h="44px"
+        left={{ base: phoneLeft, md: 'auto' }}
+        right={{ base: phoneRight, md: 'max(16px, env(safe-area-inset-right))' }}
+        w={{ base: 'auto', md: '220px' }}
+        h="calc(44px + env(safe-area-inset-bottom))"
+        pb="env(safe-area-inset-bottom)"
         bg="surface"
         backdropFilter="blur(12px)"
         borderRadius="12px 12px 0 0"
@@ -1915,8 +1920,8 @@ export default function ChatPanel({
         position="fixed"
         top={isPhone ? phoneTop : undefined}
         bottom={isPhone ? phoneBottom : panelBottom}
-        left={isPhone ? 0 : undefined}
-        right={isPhone ? 0 : panelRight}
+        left={isPhone ? phoneLeft : undefined}
+        right={isPhone ? phoneRight : panelRight}
         w={isPhone ? 'auto' : panelW}
         h={isPhone ? 'auto' : panelH}
         maxH={isPhone ? 'none' : (isPopoutWindow ? '100vh' : (isMobile ? '85vh' : 'calc(100vh - 24px)'))}
